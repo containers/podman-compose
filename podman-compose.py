@@ -176,15 +176,15 @@ def down(project_name, dirname, pods, containers):
     for cnt in containers:
         cmd="""podman stop -t=1 '{name}'""".format(**cnt)
         print(cmd)
-        subprocess.Popen(cmd).wait()
+        subprocess.Popen(cmd, shell=True).wait()
     for cnt in containers:
         cmd="""podman rm '{name}'""".format(**cnt)
         print(cmd)
-        subprocess.Popen(cmd).wait()
+        subprocess.Popen(cmd, shell=True).wait()
     for pod in pods:
         cmd="""podman pod rm '{name}'""".format(**pod)
         print(cmd)
-        subprocess.Popen(cmd).wait()
+        subprocess.Popen(cmd, shell=True).wait()
 
 def container_to_args(cnt, dirname):
     pod=cnt.get('pod') or ''
