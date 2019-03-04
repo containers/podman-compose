@@ -69,8 +69,8 @@ def adj_hosts(services, cnt, dst="127.0.0.1"):
     common_extra_hosts = []
     for srv, cnts in services.items():
         common_extra_hosts.append("{}:{}".format(srv, dst))
-        for cnt in cnts:
-            common_extra_hosts.append("{}:{}".format(cnt, dst))
+        for cnt0 in cnts:
+            common_extra_hosts.append("{}:{}".format(cnt0, dst))
     extra_hosts = list(cnt.get("extra_hosts", []))
     extra_hosts.extend(common_extra_hosts)
     # link aliases
@@ -256,7 +256,7 @@ def up(project_name, dirname, pods, containers):
       args=[
         "podman", "pod", "create",
         "--name={}".format(pod["name"]),
-        "--share", "cgroup,ipc",
+        "--share", "cgroup,uts",
       ]
       ports = pod.get("ports") or []
       for i in ports:
