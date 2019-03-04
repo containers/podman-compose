@@ -81,17 +81,32 @@ def adj_hosts(services, cnt, dst="127.0.0.1"):
             extra_hosts.append("{}:{}".format(alias, dst))
     cnt["extra_hosts"] = extra_hosts
 
+
+
+def move_list(dst, containers, key):
+    """
+    move key (like port forwarding) from containers to dst (a pod or a infra container)
+    """
+    a=dst.get(key) or []
+    for cnt in containers:
+        a0 = cnt.get(key)
+        if a0:
+            a.extend(a0)
+            del cnt[key]
+    if a: dst[key]=a
+
 def move_port_fw(dst, containers):
     """
     move port forwarding from containers to dst (a pod or a infra container)
     """
-    ports=dst.get("ports") or []
-    for cnt in containers:
-        cnt_ports = cnt.get('ports')
-        if cnt_ports:
-            ports.extend(cnt_ports)
-            del cnt['ports']
-    if ports: dst["ports"]=ports
+    move_list(dst, containers, "port")
+
+def move_extra_hosts(dst, containers):
+    """
+    move port forwarding from containers to dst (a pod or a infra container)
+    """
+    move_list(dst, containers, "extra_hosts")
+
 
 # transformations
 
@@ -142,9 +157,9 @@ def tr_cntnet(project_name, services, given_containers):
         cnt["depends"]=deps
         # adjust hosts to point to localhost, TODO: adjust host env
         adj_hosts(services, cnt, '127.0.0.1')
-        # TODO: do we need to move port publishing to infra
         containers.append(cnt)
     move_port_fw(infra, containers)
+    move_extra_hosts(infra, containers)
     containers.insert(0, infra)
     return [], containers
 
