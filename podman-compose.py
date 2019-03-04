@@ -1,22 +1,5 @@
 #! /usr/bin/env python
 
-from __future__ import print_function
-
-
-import os
-import argparse
-import subprocess
-import time
-
-import json
-import yaml
-
-def try_int(i, fallback=None):
-    try: return int(i)
-    except ValueError: pass
-    except TypeError: pass
-    return fallback
-
 
 # https://docs.docker.com/compose/compose-file/#service-configuration-reference
 # https://docs.docker.com/samples/
@@ -24,12 +7,148 @@ def try_int(i, fallback=None):
 # https://docs.docker.com/compose/django/
 # https://docs.docker.com/compose/wordpress/
 
+from __future__ import print_function
+
+
+import os
+import argparse
+import subprocess
+import time
+import fnmatch
+
+# fnmatch.fnmatchcase(env, "*_HOST")
+
+import json
+import yaml
+
+# helpers
+
+def try_int(i, fallback=None):
+    try: return int(i)
+    except ValueError: pass
+    except TypeError: pass
+    return fallback
+
+def norm_as_list(src):
+    """
+    given a dictionary {key1:value1, key2: None} or list
+    return a list of ["key1=value1", "key2"]
+    """
+    if src is None:
+        dst=[]
+    elif isinstance(src, dict):
+        dst=[("{}={}".format(k, v) if v else k) for k,v in src.items()]
+    elif hasattr(src, '__iter__'):
+        dst=list(src)
+    else:
+        dst=[src]
+    return dst
+
+def norm_as_dict(src):
+    """
+    given a list ["key1=value1", "key2"]
+    return a dictionary {key1:value1, key2: None}
+    """
+    if src is None:
+        dst={}
+    elif isinstance(src, dict):
+        dst=dict(src)
+    elif hasattr(src, '__iter__'):
+        dst=[ i.split("=", 1) for i in src if i ]
+        dst=dict([ (a if len(a)==2 else (a[0], None)) for a in dst ])
+    else:
+        raise ValueError("dictionary or iterable is expected")
+    return dst
+
+# transformation helpers
+
+def adj_hosts(services, cnt, dst="127.0.0.1"):
+    """
+    adjust container cnt in-place to add hosts pointing to dst for services
+    """
+    common_extra_hosts = []
+    for srv, cnts in services.items():
+        common_extra_hosts.append("{}:{}".format(srv, dst))
+        for cnt in cnts:
+            common_extra_hosts.append("{}:{}".format(cnt, dst))
+    extra_hosts = list(cnt.get("extra_hosts", []))
+    extra_hosts.extend(common_extra_hosts)
+    # link aliases
+    for link in cnt.get("links", []):
+        a = link.strip().split(':', 1)
+        if len(a)==2:
+            alias=a[1].strip()
+            extra_hosts.append("{}:{}".format(alias, dst))
+    cnt["extra_hosts"] = extra_hosts
+
+def move_port_fw(dst, containers):
+    """
+    move port forwarding from containers to dst (a pod or a infra container)
+    """
+    ports=dst.get("ports") or []
+    for cnt in containers:
+        cnt_ports = cnt.get('ports')
+        if cnt_ports:
+            ports.extend(cnt_ports)
+            del cnt['ports']
+    if ports: dst["ports"]=ports
+
+# transformations
+
+transformations={}
+def trans(func):
+    transformations[func.__name__.replace("tr_", "")]=func
+    return func
+
+@trans
 def tr_identity(project_name, services, given_containers):
     containers=[]
     for cnt in given_containers:
-        containers.append()
+        containers.append(dict(cnt))
     return [], containers
 
+@trans
+def tr_publishall(project_name, services, given_containers):
+    containers=[]
+    for cnt0 in given_containers:
+        cnt=dict(cnt0, publishall=True)
+        # adjust hosts to point to the gateway, TODO: adjust host env
+        adj_hosts(services, cnt, '10.0.2.2')
+        containers.append(cnt)
+    return [], containers
+
+@trans
+def tr_hostnet(project_name, services, given_containers):
+    containers=[]
+    for cnt0 in given_containers:
+        cnt=dict(cnt0, network_mode="host")
+        # adjust hosts to point to localhost, TODO: adjust host env
+        adj_hosts(services, cnt, '127.0.0.1')
+        containers.append(cnt)
+    return [], containers
+
+@trans
+def tr_cntnet(project_name, services, given_containers):
+    containers=[]
+    infra_name=project_name+"_infra"
+    infra = dict(
+        name=infra_name,
+        image="k8s.gcr.io/pause:3.1",
+    )
+    for cnt0 in given_containers:
+        cnt=dict(cnt0, network_mode="container:"+infra_name)
+        deps=cnt.get("depends") or []
+        deps.append(infra_name)
+        dnt["depends"]=deps
+        # adjust hosts to point to localhost, TODO: adjust host env
+        adj_hosts(services, cnt, '127.0.0.1')
+        # TODO: do we need to move port publishing to infra
+        containers.append(cnt)
+    move_port_fw(infra, containers)
+    containers.insert(0, infra)
+    return [], containers
+
+@trans
 def tr_1pod(project_name, services, given_containers):
     """
     project_name: 
@@ -38,45 +157,34 @@ def tr_1pod(project_name, services, given_containers):
     """
     pod=dict(name=project_name)
     containers=[]
-    common_extra_hosts = []
-    for srv, cnts in services.items():
-        common_extra_hosts.append("{}:127.0.0.1".format(srv))
-        for cnt in cnts:
-            common_extra_hosts.append("{}:127.0.0.1".format(cnt))
     for cnt0 in given_containers:
         cnt = dict(cnt0, pod=project_name)
         # services can be accessed as localhost because they are on one pod
-        extra_hosts = list(cnt.get("extra_hosts", []))
-        extra_hosts.extend(common_extra_hosts)
-        # link aliases
-        for link in cnt.get("links", []):
-            a = link.strip().split(':', 1)
-            if len(a)==2:
-                alias=a[1].strip()
-                extra_hosts.append("{}:127.0.0.1".format(alias))
-        cnt["extra_hosts"] = extra_hosts
+        # adjust hosts to point to localhost, TODO: adjust host env
+        adj_hosts(services, cnt, '127.0.0.1')
         containers.append(cnt)
     return [pod], containers
 
+@trans
 def tr_1podfw(project_name, services, given_containers):
     pods, containers = tr_1pod(project_name, services, given_containers)
     pod=pods[0]
-    ports=[]
-    for cnt in containers:
-        cnt_ports = cnt.get('ports')
-        if cnt_ports:
-            ports.extend(cnt_ports)
-            del cnt['ports']
-    if ports: pod["ports"]=ports
+    move_port_fw(pod, containers)
     return pods, containers
 
 def down(project_name, dirname, pods, containers):
     for cnt in containers:
-        print("""podman stop -t=1 '{name}'""".format(**cnt))
+        cmd="""podman stop -t=1 '{name}'""".format(**cnt)
+        print(cmd)
+        subprocess.Popen(cmd).wait()
     for cnt in containers:
-        print("""podman rm '{name}'""".format(**cnt))
+        cmd="""podman rm '{name}'""".format(**cnt)
+        print(cmd)
+        subprocess.Popen(cmd).wait()
     for pod in pods:
-        print("""podman pod rm '{name}'""".format(**pod))
+        cmd="""podman pod rm '{name}'""".format(**pod)
+        print(cmd)
+        subprocess.Popen(cmd).wait()
 
 def container_to_args(cnt, dirname):
     pod=cnt.get('pod') or ''
@@ -89,9 +197,10 @@ def container_to_args(cnt, dirname):
         args.append('--read-only')
     for i in cnt.get('labels', []):
         args.extend(['--label', i])
-    env=cnt.get('environment', {})
-    if isinstance(env, dict):
-        env=[("{}={}".format(k, v) if v else k) for k,v in env.items()]
+    net=cnt.get("network_mode")
+    if net:
+        args.extend(['--network', net])
+    env=norm_as_list(cnt.get('environment', {}))
     for e in env:
         args.extend(['-e', e])
     for i in cnt.get('env_file', []):
@@ -106,6 +215,8 @@ def container_to_args(cnt, dirname):
         args.extend(['--add-host', i])
     for i in cnt.get('expose', []):
         args.extend(['--expose', i])
+    if cnt.get('publishall'):
+        args.append('-P')
     for i in cnt.get('ports', []):
         args.extend(['-p', i])
     user=cnt.get('user')
@@ -164,7 +275,7 @@ def up(project_name, dirname, pods, containers):
         # subprocess.Popen(args, bufsize=0, executable=None, stdin=None, stdout=None, stderr=None, preexec_fn=None, close_fds=False, shell=False, cwd=None, env=None, universal_newlines=False, startupinfo=None, creationflags=0)
     time.sleep(3600)
 
-def main(filename, project_name, no_ansi, transform_policy):
+def main(filename, project_name, no_ansi, transform_policy, host_env=None):
     filename= os.path.realpath(filename)
     dirname = os.path.dirname(filename)
     dir_basename = os.path.basename(dirname)
@@ -198,9 +309,7 @@ def main(filename, project_name, no_ansi, transform_policy):
             container_names_by_service[service_name].append(name)
             #print(service_name,service_desc)
             cnt=dict(name=name, num=num, service_name=service_name, **service_desc)
-            labels = cnt.get('labels') or []
-            if isinstance(labels, dict):
-                labels=[("{}={}".format(k, v) if v else k) for k,v in labels.items()]
+            labels = norm_as_list(cnt.get('labels'))
             labels.extend(podman_compose_labels)
             labels.extend([
                 "com.docker.compose.container-number={}".format(num),
@@ -208,9 +317,8 @@ def main(filename, project_name, no_ansi, transform_policy):
             ])
             cnt['labels'] = labels
             given_containers.append(cnt)
-    #pods, containers = tr_1pod(project_name, container_names_by_service, given_containers)
-    pods, containers = tr_1podfw(project_name, container_names_by_service, given_containers)
-    #pods, containers = tr_identity(project_name, container_names_by_service, given_containers)
+    tr=transformations[transform_policy]
+    pods, containers = tr(project_name, container_names_by_service, given_containers)
     up(project_name, dirname, pods, containers)
 
 
@@ -228,10 +336,10 @@ if __name__ == "__main__":
       type=str, default=None)
   parser.add_argument("--no-ansi",
       help="Do not print ANSI control characters", action='store_true')
-
+  
   parser.add_argument("-t", "--transform_policy",
       help="how to translate docker compose to podman [1pod|hostnet|accurate]",
-      choices=['1pod', '1podfw', 'hostnet', 'identity'], default='1podfw')
+      choices=['1pod', '1podfw', 'hostnet', 'cntnet', 'publishall', 'identity'], default='1podfw')
 
   args = parser.parse_args()
 
