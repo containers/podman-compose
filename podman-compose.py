@@ -157,6 +157,7 @@ def tr_cntnet(project_name, services, given_containers):
         cnt["depends"]=deps
         # adjust hosts to point to localhost, TODO: adjust host env
         adj_hosts(services, cnt, '127.0.0.1')
+        if "hostname" in cnt: del cnt["hostname"]
         containers.append(cnt)
     move_port_fw(infra, containers)
     move_extra_hosts(infra, containers)
