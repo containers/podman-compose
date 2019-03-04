@@ -277,7 +277,7 @@ def up(project_name, dirname, pods, containers):
         # subprocess.Popen(args, bufsize=0, executable=None, stdin=None, stdout=None, stderr=None, preexec_fn=None, close_fds=False, shell=False, cwd=None, env=None, universal_newlines=False, startupinfo=None, creationflags=0)
     time.sleep(3600)
 
-def main(filename, project_name, no_ansi, transform_policy, host_env=None):
+def main(command, filename, project_name, no_ansi, transform_policy, host_env=None):
     filename= os.path.realpath(filename)
     dirname = os.path.dirname(filename)
     dir_basename = os.path.basename(dirname)
@@ -321,7 +321,10 @@ def main(filename, project_name, no_ansi, transform_policy, host_env=None):
             given_containers.append(cnt)
     tr=transformations[transform_policy]
     pods, containers = tr(project_name, container_names_by_service, given_containers)
-    up(project_name, dirname, pods, containers)
+    if command=="up":
+        up(project_name, dirname, pods, containers)
+    elif command=="down":
+        down(project_name, dirname, pods, containers)
 
 
 if __name__ == "__main__":
@@ -346,6 +349,7 @@ if __name__ == "__main__":
   args = parser.parse_args()
 
   main(
+    command=args.command,
     filename=args.file,
     project_name=args.project_name,
     no_ansi=args.no_ansi,
