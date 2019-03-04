@@ -87,13 +87,13 @@ def move_list(dst, containers, key):
     """
     move key (like port forwarding) from containers to dst (a pod or a infra container)
     """
-    a=dst.get(key) or []
+    a=set(dst.get(key) or [])
     for cnt in containers:
         a0 = cnt.get(key)
         if a0:
-            a.extend(a0)
+            a.update(a0)
             del cnt[key]
-    if a: dst[key]=a
+    if a: dst[key]=list(a)
 
 def move_port_fw(dst, containers):
     """
