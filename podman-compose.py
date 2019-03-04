@@ -321,10 +321,13 @@ def main(command, filename, project_name, no_ansi, transform_policy, host_env=No
             given_containers.append(cnt)
     tr=transformations[transform_policy]
     pods, containers = tr(project_name, container_names_by_service, given_containers)
-    if command=="up":
+    cmd=command[0]
+    if cmd=="up":
         up(project_name, dirname, pods, containers)
-    elif command=="down":
+    elif cmd=="down":
         down(project_name, dirname, pods, containers)
+    else:
+        raise NotImplementedError("command {} is not implemented".format(cmd))
 
 
 if __name__ == "__main__":
