@@ -139,7 +139,7 @@ def tr_cntnet(project_name, services, given_containers):
         cnt=dict(cnt0, network_mode="container:"+infra_name)
         deps=cnt.get("depends") or []
         deps.append(infra_name)
-        dnt["depends"]=deps
+        cnt["depends"]=deps
         # adjust hosts to point to localhost, TODO: adjust host env
         adj_hosts(services, cnt, '127.0.0.1')
         # TODO: do we need to move port publishing to infra
