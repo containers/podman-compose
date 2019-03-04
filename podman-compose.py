@@ -99,7 +99,7 @@ def move_port_fw(dst, containers):
     """
     move port forwarding from containers to dst (a pod or a infra container)
     """
-    move_list(dst, containers, "port")
+    move_list(dst, containers, "ports")
 
 def move_extra_hosts(dst, containers):
     """
