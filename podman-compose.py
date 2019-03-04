@@ -189,10 +189,12 @@ def down(project_name, dirname, pods, containers):
 def container_to_args(cnt, dirname):
     pod=cnt.get('pod') or ''
     args=[
-      'podman', 'run', '--pod={}'.format(pod),
+      'podman', 'run',
       '--name={}'.format(cnt.get('name')),
+      '-d'
     ]
-    args.extend(['-d'])
+    if pod:
+        args.append('--pod={}'.format(pod))
     if cnt.get('read_only'):
         args.append('--read-only')
     for i in cnt.get('labels', []):
