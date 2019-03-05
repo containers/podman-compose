@@ -18,6 +18,21 @@ it's still underdevelopment and does not work yet.
 
 ## Examples
 
+### Working Example
+
+Using host network and localhost works as in
+
+```
+$ ./podman-compose.py -t hostnet -f examples/awx-working/docker-compose.yml up
+$ # wait for a while, because there is not dependency then
+$ podman restart awx-working_awx_task_1
+$ podman restart awx-working_awx_web_1
+```
+
+### in progress work
+
+
 ```
 ./podman-compose.py -t cntnet -f examples/awx/docker-compose.yml up
 ```
+

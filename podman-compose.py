@@ -274,7 +274,7 @@ def up(project_name, dirname, pods, containers):
       args=[
         "podman", "pod", "create",
         "--name={}".format(pod["name"]),
-        "--share", "cgroup,uts",
+        "--share", "cgroup,ipc",
       ]
       ports = pod.get("ports") or []
       for i in ports:
@@ -291,7 +291,7 @@ def up(project_name, dirname, pods, containers):
         print(p.wait())
         #print("""podman run -d --pod='{pod}' --name='{name}' '{image}'""".format(**cnt))
         # subprocess.Popen(args, bufsize=0, executable=None, stdin=None, stdout=None, stderr=None, preexec_fn=None, close_fds=False, shell=False, cwd=None, env=None, universal_newlines=False, startupinfo=None, creationflags=0)
-    time.sleep(3600)
+    time.sleep(1)
 
 def main(command, filename, project_name, no_ansi, transform_policy, host_env=None):
     filename= os.path.realpath(filename)
