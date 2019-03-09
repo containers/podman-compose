@@ -266,6 +266,27 @@ def container_to_args(cnt, dirname):
         args.extend(command)
     return args
 
+def rec_deps(services, container_by_name, cnt, init_service):
+    deps=cnt["_deps"]
+    for dep in deps:
+        dep_cnts = services.get(dep)
+        if not dep_cnts: continue
+        dep_cnt=container_by_name.get(dep_cnts[0])
+        if dep_cnt:
+            # TODO: avoid creating loops, A->B->A
+            if init_service and init_service in dep_cnt["_deps"]: continue
+            new_deps = rec_deps(services, container_by_name, dep_cnt, init_service)
+            deps.update(new_deps)
+    return deps
+
+def flat_deps(services, container_by_name):
+    for name, cnt in container_by_name.items():
+        deps=set([(c.split(":")[0] if ":" in c else c) for c in cnt.get("links", []) ])
+        deps.update(cnt.get("depends", []))
+        cnt["_deps"]=deps
+    for name, cnt in container_by_name.items():
+        rec_deps(services, container_by_name, cnt, cnt.get('_service'))
+
 def up(project_name, dirname, pods, containers):
     os.chdir(dirname)
     # no need remove them if they have same hash label
@@ -334,7 +355,14 @@ def main(command, filename, project_name, no_ansi, transform_policy, host_env=No
                 "com.docker.compose.service="+service_name,
             ])
             cnt['labels'] = labels
+            cnt['_service'] = service_name
             given_containers.append(cnt)
+    container_by_name = dict([ (c["name"], c) for c in given_containers ])
+    flat_deps(container_names_by_service, container_by_name)
+    #print("deps:", [(c["name"], c["_deps"]) for c in given_containers])
+    given_containers = container_by_name.values()
+    given_containers.sort(key=lambda c: len(c.get('_deps') or []))
+    #print("sorted:", [c["name"] for c in given_containers])
     tr=transformations[transform_policy]
     pods, containers = tr(project_name, container_names_by_service, given_containers)
     cmd=command[0]
