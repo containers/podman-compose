@@ -295,7 +295,7 @@ def up(project_name, dirname, pods, containers):
       args=[
         "podman", "pod", "create",
         "--name={}".format(pod["name"]),
-        "--share", "cgroup,ipc",
+        "--share", "net",
       ]
       ports = pod.get("ports") or []
       for i in ports:

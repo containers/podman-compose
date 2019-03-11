@@ -18,21 +18,34 @@ it's still underdevelopment and does not work yet.
 
 ## Examples
 
+When testing the `AWX`, if you got errors just wait for db migrations to end. 
+
 ### Working Example
 
-Using host network and localhost works as in
+Tested on latest podman (commit `349e69..` on 2019-03-11)
+
+By using many containers on a single pod that shares the network (services talk via localhost)
 
 ```
-$ ./podman-compose.py -t hostnet -f examples/awx-working/docker-compose.yml up
-$ # wait for a while, because there is not dependency then
-$ podman restart awx-working_awx_task_1
-$ podman restart awx-working_awx_web_1
+./podman-compose.py -t 1podfw -f examples/awx/docker-compose.yml up
+```
+
+Or by reusing a container network and `--add-host`
+
+```
+$ ./podman-compose.py -t cntnet -f examples/awx/docker-compose.yml up
+```
+
+Or by using host network and localhost works as in
+
+```
+$ ./podman-compose.py -t hostnet -f examples/awx-hostnet-localhost/docker-compose.yml up
 ```
 
 ### in progress work
 
 
 ```
-./podman-compose.py -t cntnet -f examples/awx/docker-compose.yml up
+./podman-compose.py -t 1pod -f examples/awx/docker-compose.yml up
 ```
 
