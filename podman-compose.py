@@ -1,6 +1,5 @@
 #! /usr/bin/env python
 
-
 # https://docs.docker.com/compose/compose-file/#service-configuration-reference
 # https://docs.docker.com/samples/
 # https://docs.docker.com/compose/gettingstarted/
@@ -8,7 +7,6 @@
 # https://docs.docker.com/compose/wordpress/
 
 from __future__ import print_function
-
 
 import os
 import argparse
@@ -23,7 +21,7 @@ import yaml
 
 # helpers
 
-def try_int(i, fallback=None):
+def try_int(i, fallback = None):
     try: return int(i)
     except ValueError: pass
     except TypeError: pass
@@ -35,13 +33,13 @@ def norm_as_list(src):
     return a list of ["key1=value1", "key2"]
     """
     if src is None:
-        dst=[]
+        dst = []
     elif isinstance(src, dict):
-        dst=[("{}={}".format(k, v) if v else k) for k,v in src.items()]
+        dst = [("{}={}".format(k, v) if v else k) for k, v in src.items()]
     elif hasattr(src, '__iter__'):
-        dst=list(src)
+        dst = list(src)
     else:
-        dst=[src]
+        dst = [src]
     return dst
 
 def norm_as_dict(src):
@@ -50,19 +48,20 @@ def norm_as_dict(src):
     return a dictionary {key1:value1, key2: None}
     """
     if src is None:
-        dst={}
+        dst = {}
     elif isinstance(src, dict):
-        dst=dict(src)
+        dst = dict(src)
     elif hasattr(src, '__iter__'):
-        dst=[ i.split("=", 1) for i in src if i ]
-        dst=dict([ (a if len(a)==2 else (a[0], None)) for a in dst ])
+        dst = [ i.split("=", 1) for i in src if i ]
+        dst = dict([(a if len(a) == 2 else (a[0], None)) for a in dst])
     else:
         raise ValueError("dictionary or iterable is expected")
     return dst
 
+
 # transformation helpers
 
-def adj_hosts(services, cnt, dst="127.0.0.1"):
+def adj_hosts(services, cnt, dst = "127.0.0.1"):
     """
     adjust container cnt in-place to add hosts pointing to dst for services
     """
@@ -76,24 +75,22 @@ def adj_hosts(services, cnt, dst="127.0.0.1"):
     # link aliases
     for link in cnt.get("links", []):
         a = link.strip().split(':', 1)
-        if len(a)==2:
-            alias=a[1].strip()
+        if len(a) == 2:
+            alias = a[1].strip()
             extra_hosts.append("{}:{}".format(alias, dst))
     cnt["extra_hosts"] = extra_hosts
-
-
 
 def move_list(dst, containers, key):
     """
     move key (like port forwarding) from containers to dst (a pod or a infra container)
     """
-    a=set(dst.get(key) or [])
+    a = set(dst.get(key) or [])
     for cnt in containers:
         a0 = cnt.get(key)
         if a0:
             a.update(a0)
             del cnt[key]
-    if a: dst[key]=list(a)
+    if a: dst[key] = list(a)
 
 def move_port_fw(dst, containers):
     """
@@ -110,23 +107,23 @@ def move_extra_hosts(dst, containers):
 
 # transformations
 
-transformations={}
+transformations = {}
 def trans(func):
-    transformations[func.__name__.replace("tr_", "")]=func
+    transformations[func.__name__.replace("tr_", "")] = func
     return func
 
 @trans
 def tr_identity(project_name, services, given_containers):
-    containers=[]
+    containers = []
     for cnt in given_containers:
         containers.append(dict(cnt))
     return [], containers
 
 @trans
 def tr_publishall(project_name, services, given_containers):
-    containers=[]
+    containers = []
     for cnt0 in given_containers:
-        cnt=dict(cnt0, publishall=True)
+        cnt = dict(cnt0, publishall = True)
         # adjust hosts to point to the gateway, TODO: adjust host env
         adj_hosts(services, cnt, '10.0.2.2')
         containers.append(cnt)
@@ -134,9 +131,9 @@ def tr_publishall(project_name, services, given_containers):
 
 @trans
 def tr_hostnet(project_name, services, given_containers):
-    containers=[]
+    containers = []
     for cnt0 in given_containers:
-        cnt=dict(cnt0, network_mode="host")
+        cnt = dict(cnt0, network_mode = "host")
         # adjust hosts to point to localhost, TODO: adjust host env
         adj_hosts(services, cnt, '127.0.0.1')
         containers.append(cnt)
@@ -144,17 +141,17 @@ def tr_hostnet(project_name, services, given_containers):
 
 @trans
 def tr_cntnet(project_name, services, given_containers):
-    containers=[]
-    infra_name=project_name+"_infra"
+    containers = []
+    infra_name = project_name + "_infra"
     infra = dict(
-        name=infra_name,
-        image="k8s.gcr.io/pause:3.1",
+        name  = infra_name,
+        image = "k8s.gcr.io/pause:3.1",
     )
     for cnt0 in given_containers:
-        cnt=dict(cnt0, network_mode="container:"+infra_name)
-        deps=cnt.get("depends") or []
+        cnt = dict(cnt0, network_mode = "container:"+infra_name)
+        deps = cnt.get("depends") or []
         deps.append(infra_name)
-        cnt["depends"]=deps
+        cnt["depends"] = deps
         # adjust hosts to point to localhost, TODO: adjust host env
         adj_hosts(services, cnt, '127.0.0.1')
         if "hostname" in cnt: del cnt["hostname"]
@@ -171,10 +168,10 @@ def tr_1pod(project_name, services, given_containers):
     services: {service_name: ["container_name1", "..."]}, currently only one is supported
     given_containers: [{}, ...]
     """
-    pod=dict(name=project_name)
-    containers=[]
+    pod = dict(name = project_name)
+    containers = []
     for cnt0 in given_containers:
-        cnt = dict(cnt0, pod=project_name)
+        cnt = dict(cnt0, pod = project_name)
         # services can be accessed as localhost because they are on one pod
         # adjust hosts to point to localhost, TODO: adjust host env
         adj_hosts(services, cnt, '127.0.0.1')
@@ -184,31 +181,32 @@ def tr_1pod(project_name, services, given_containers):
 @trans
 def tr_1podfw(project_name, services, given_containers):
     pods, containers = tr_1pod(project_name, services, given_containers)
-    pod=pods[0]
+    pod = pods[0]
     move_port_fw(pod, containers)
     return pods, containers
 
-def down(project_name, dirname, pods, containers):
+def down(project_name, dirname, pods, containers, dry_run, podman_path):
     for cnt in containers:
-        cmd="""podman stop -t=1 '{name}'""".format(**cnt)
+        cmd = """{} stop -t=1 '{name}'""".format(podman_path, **cnt)
         print(cmd)
-        subprocess.Popen(cmd, shell=True).wait()
+        if dry_run == False: subprocess.Popen(cmd, shell = True).wait()
     for cnt in containers:
-        cmd="""podman rm '{name}'""".format(**cnt)
+        cmd = """{} rm '{name}'""".format(podman_path, **cnt)
         print(cmd)
-        subprocess.Popen(cmd, shell=True).wait()
+        if dry_run == False: subprocess.Popen(cmd, shell = True).wait()
     for pod in pods:
-        cmd="""podman pod rm '{name}'""".format(**pod)
+        cmd = """{} pod rm '{name}'""".format(podman_path, **pod)
         print(cmd)
-        subprocess.Popen(cmd, shell=True).wait()
+        if dry_run == False: subprocess.Popen(cmd, shell = True).wait()
 
-def container_to_args(cnt, dirname):
-    pod=cnt.get('pod') or ''
-    args=[
-      'podman', 'run',
-      '--name={}'.format(cnt.get('name')),
-      '-d'
+def container_to_args(cnt, dirname, podman_path):
+    pod = cnt.get('pod') or ''
+    args = [
+        podman_path, 'run',
+        '--name={}'.format(cnt.get('name')),
+        '-d'
     ]
+    
     if pod:
         args.append('--pod={}'.format(pod))
     if cnt.get('read_only'):
@@ -218,11 +216,11 @@ def container_to_args(cnt, dirname):
     net=cnt.get("network_mode")
     if net:
         args.extend(['--network', net])
-    env=norm_as_list(cnt.get('environment', {}))
+    env = norm_as_list(cnt.get('environment', {}))
     for e in env:
         args.extend(['-e', e])
     for i in cnt.get('env_file', []):
-        i=os.path.realpath(os.path.join(dirname, i))
+        i = os.path.realpath(os.path.join(dirname, i))
         args.extend(['--env-file', i])
     for i in cnt.get('tmpfs', []):
         args.extend(['--tmpfs', i])
@@ -237,7 +235,7 @@ def container_to_args(cnt, dirname):
         args.append('-P')
     for i in cnt.get('ports', []):
         args.extend(['-p', i])
-    user=cnt.get('user')
+    user = cnt.get('user')
     if user is not None:
         args.extend(['-u', user])
     if cnt.get('working_dir') is not None:
@@ -260,18 +258,18 @@ def container_to_args(cnt, dirname):
         else:
             args.extend(['--entrypoint', entrypoint])
     args.append(cnt.get('image')) # command, ..etc.
-    command=cnt.get('command')
+    command = cnt.get('command')
     if command is not None:
         # TODO: handle if command is string
         args.extend(command)
     return args
 
 def rec_deps(services, container_by_name, cnt, init_service):
-    deps=cnt["_deps"]
+    deps = cnt["_deps"]
     for dep in deps:
         dep_cnts = services.get(dep)
         if not dep_cnts: continue
-        dep_cnt=container_by_name.get(dep_cnts[0])
+        dep_cnt = container_by_name.get(dep_cnts[0])
         if dep_cnt:
             # TODO: avoid creating loops, A->B->A
             if init_service and init_service in dep_cnt["_deps"]: continue
@@ -281,53 +279,69 @@ def rec_deps(services, container_by_name, cnt, init_service):
 
 def flat_deps(services, container_by_name):
     for name, cnt in container_by_name.items():
-        deps=set([(c.split(":")[0] if ":" in c else c) for c in cnt.get("links", []) ])
+        deps = set([(c.split(":")[0] if ":" in c else c) for c in cnt.get("links", []) ])
         deps.update(cnt.get("depends", []))
-        cnt["_deps"]=deps
+        cnt["_deps"] = deps
     for name, cnt in container_by_name.items():
         rec_deps(services, container_by_name, cnt, cnt.get('_service'))
 
-def up(project_name, dirname, pods, containers):
-    os.chdir(dirname)
+def up(project_name, dirname, pods, containers, no_cleanup, dry_run, podman_path):
+    if dry_run == False: os.chdir(dirname)
+    
     # no need remove them if they have same hash label
-    down(project_name, dirname, pods, containers)
+    if no_cleanup == False: down(project_name, dirname, pods, containers, dry_run, podman_path)
+    
     for pod in pods:
-      args=[
-        "podman", "pod", "create",
-        "--name={}".format(pod["name"]),
-        "--share", "net",
-      ]
-      ports = pod.get("ports") or []
-      for i in ports:
-          args.extend(['-p', i])
-      print(" ".join(args))
-      p=subprocess.Popen(args)
-      print(p.wait())
-    #print(opts)
+        args = [
+            podman_path, "pod", "create",
+            "--name={}".format(pod["name"]),
+            "--share", "net",
+        ]
+        ports = pod.get("ports") or []
+        for i in ports:
+            args.extend(['-p', i])
+        print(" ".join(args))
+    
+        if dry_run == False:
+            p = subprocess.Popen(args)
+            print(p.wait())
+    
     for cnt in containers:
         # TODO: -e , --add-host, -v, --read-only
-        args = container_to_args(cnt, dirname)
+        args = container_to_args(cnt, dirname, podman_path)
         print(" ".join(args))
-        p=subprocess.Popen(args)
-        print(p.wait())
-        #print("""podman run -d --pod='{pod}' --name='{name}' '{image}'""".format(**cnt))
-        # subprocess.Popen(args, bufsize=0, executable=None, stdin=None, stdout=None, stderr=None, preexec_fn=None, close_fds=False, shell=False, cwd=None, env=None, universal_newlines=False, startupinfo=None, creationflags=0)
-    time.sleep(1)
+        ## print("""podman run -d --pod='{pod}' --name='{name}' '{image}'""".format(**cnt))
+        if dry_run == False:
+            subprocess.Popen(args).wait()
+            # subprocess.Popen(args, bufsize = 0, executable = None, stdin = None, stdout = None, stderr = None, preexec_fn = None, close_fds = False, shell = False, cwd = None, env = None, universal_newlines = False, startupinfo = None, creationflags = 0)
+    if dry_run == False: time.sleep(1)
 
-def main(command, filename, project_name, no_ansi, transform_policy, host_env=None):
-    filename= os.path.realpath(filename)
-    dirname = os.path.dirname(filename)
-    dir_basename = os.path.basename(dirname)
-    if not project_name: project_name = dir_basename
+def main(command, filename, project_name, no_ansi, no_cleanup, dry_run, transform_policy, podman_path, host_env = None):
+    filename        = os.path.realpath(filename)
+    dirname         = os.path.dirname(filename)
+    dir_basename    = os.path.basename(dirname)
+    
+    if podman_path != 'podman':
+        if os.path.isfile(podman_path) and os.access(podman_path, os.X_OK):
+            podman_path = os.path.realpath(podman_path)
+        else:
+            # this also works if podman hasn't been installed now
+            if dry_run == False: raise IOError("Binary {} has not been found.".format(podman_path))
+    
+    if not project_name:
+        project_name = dir_basename
     with open(filename, 'r') as f:
-        compose=yaml.safe_load(f)
-    print(json.dumps(compose, indent=2))
-    ver=compose.get('version')
-    services=compose.get('services')
-    podman_compose_labels=[
-      "io.podman.compose.config-hash=123",
-      "io.podman.compose.project="+project_name,
-      "io.podman.compose.version=0.0.1",
+        compose = yaml.safe_load(f)
+    
+    # debug mode 
+    #print(json.dumps(compose, indent = 2))
+    
+    ver      = compose.get('version')
+    services = compose.get('services')
+    podman_compose_labels = [
+        "io.podman.compose.config-hash=123",
+        "io.podman.compose.project=" + project_name,
+        "io.podman.compose.version=0.0.1",
     ]
     # other top-levels:
     # volumes: {...}
@@ -338,66 +352,73 @@ def main(command, filename, project_name, no_ansi, transform_policy, host_env=No
     container_names_by_service = {}
     for service_name, service_desc in services.items():
         replicas = try_int(service_desc.get('deploy', {}).get('replicas', '1'))
-        container_names_by_service[service_name]=[]
+        container_names_by_service[service_name] = []
         for num in range(1, replicas+1):
             name = "{project_name}_{service_name}_{num}".format(
-              project_name=project_name,
-              service_name=service_name,
-              num=num,
+                project_name = project_name,
+                service_name = service_name,
+                num = num,
             )
             container_names_by_service[service_name].append(name)
-            #print(service_name,service_desc)
-            cnt=dict(name=name, num=num, service_name=service_name, **service_desc)
+            # print(service_name,service_desc)
+            cnt = dict(name = name, num = num, service_name = service_name, **service_desc)
             labels = norm_as_list(cnt.get('labels'))
             labels.extend(podman_compose_labels)
             labels.extend([
                 "com.docker.compose.container-number={}".format(num),
-                "com.docker.compose.service="+service_name,
+                "com.docker.compose.service=" + service_name,
             ])
             cnt['labels'] = labels
             cnt['_service'] = service_name
             given_containers.append(cnt)
-    container_by_name = dict([ (c["name"], c) for c in given_containers ])
+    container_by_name = dict([(c["name"], c) for c in given_containers])
     flat_deps(container_names_by_service, container_by_name)
     #print("deps:", [(c["name"], c["_deps"]) for c in given_containers])
     given_containers = container_by_name.values()
-    given_containers.sort(key=lambda c: len(c.get('_deps') or []))
+    given_containers.sort(key = lambda c: len(c.get('_deps') or []))
     #print("sorted:", [c["name"] for c in given_containers])
-    tr=transformations[transform_policy]
+    tr = transformations[transform_policy]
     pods, containers = tr(project_name, container_names_by_service, given_containers)
-    cmd=command[0]
-    if cmd=="up":
-        up(project_name, dirname, pods, containers)
-    elif cmd=="down":
-        down(project_name, dirname, pods, containers)
+    cmd = command[0]
+    if cmd == "up":
+        up(project_name, dirname, pods, containers, no_cleanup, dry_run, podman_path)
+    elif cmd == "down":
+        down(project_name, dirname, pods, containers, dry_run, podman_path)
     else:
         raise NotImplementedError("command {} is not implemented".format(cmd))
 
-
 if __name__ == "__main__":
-  parser = argparse.ArgumentParser()
-  parser.add_argument('command', metavar='command',
-      help='command to run',
-      choices=['up', 'down'], nargs=1, default="up")
-
-  parser.add_argument("-f", "--file",
-      help="Specify an alternate compose file (default: docker-compose.yml)",
-      type=str, default='docker-compose.yml')
-  parser.add_argument("-p", "--project-name",
-      help="Specify an alternate project name (default: directory name)",
-      type=str, default=None)
-  parser.add_argument("--no-ansi",
-      help="Do not print ANSI control characters", action='store_true')
-  
-  parser.add_argument("-t", "--transform_policy",
-      help="how to translate docker compose to podman [1pod|hostnet|accurate]",
-      choices=['1pod', '1podfw', 'hostnet', 'cntnet', 'publishall', 'identity'], default='1podfw')
-
-  args = parser.parse_args()
-
-  main(
-    command=args.command,
-    filename=args.file,
-    project_name=args.project_name,
-    no_ansi=args.no_ansi,
-    transform_policy=args.transform_policy)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('command', metavar = 'command',
+        help = 'command to run',
+        choices = ['up', 'down'], nargs = 1, default = "up")
+    parser.add_argument("-f", "--file",
+        help = "Specify an alternate compose file (default: docker-compose.yml)",
+        type = str, default = "docker-compose.yml")
+    parser.add_argument("-p", "--project-name",
+        help = "Specify an alternate project name (default: directory name)",
+        type = str, default = None)
+    parser.add_argument("--podman-path",
+        help = "Specify an alternate path to podman (default: use location in $PATH variable)",
+        type = str, default = "podman")
+    parser.add_argument("--no-ansi",
+        help = "Do not print ANSI control characters", action = 'store_true')
+    parser.add_argument("--no-cleanup",
+        help = "Do not stop and remove existing pod & containers", action = 'store_true')
+    parser.add_argument("--dry-run",
+        help = "No action; perform a simulation of commands", action = 'store_true')
+    parser.add_argument("-t", "--transform_policy",
+        help = "how to translate docker compose to podman [1pod|hostnet|accurate]",
+        choices = ['1pod', '1podfw', 'hostnet', 'cntnet', 'publishall', 'identity'], default = '1podfw')
+    
+    args = parser.parse_args()
+    main (
+        command          = args.command,
+        filename         = args.file,
+        project_name     = args.project_name,
+        no_ansi          = args.no_ansi,
+        no_cleanup       = args.no_cleanup,
+        dry_run          = args.dry_run,
+        transform_policy = args.transform_policy,
+        podman_path      = args.podman_path
+    )
