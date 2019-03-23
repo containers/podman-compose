@@ -12,6 +12,7 @@ import os
 import argparse
 import subprocess
 import time
+import re
 import fnmatch
 
 # fnmatch.fnmatchcase(env, "*_HOST")
@@ -19,8 +20,51 @@ import fnmatch
 import json
 import yaml
 
-# helpers
+# docker and docker-compose support subset of bash variable substitution
+# https://docs.docker.com/compose/compose-file/#variable-substitution
+# https://docs.docker.com/compose/env-file/
+# https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html
+# $VARIABLE
+# ${VARIABLE}
+# ${VARIABLE:-default} default if not set or empty
+# ${VARIABLE-default} default if not set
+# ${VARIABLE:?err} raise error if not set or empty
+# ${VARIABLE?err} raise error if not set
+# $$ means $
 
+var_re = re.compile(r'\$(\{(?:[^\s\$:\-\}]+)\}|(?:[^\s\$\{\}]+))')
+var_def_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?-([^\}]+)\}')
+var_err_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?\?([^\}]+)\}')
+
+def dicts_get(dicts, key, fallback='', fallback_empty=False):
+    value = None
+    for d in dicts:
+        value = d.get(key)
+        if value is not None: break
+    if not value:
+        if fallback_empty or value is None:
+            value = fallback
+        if isinstance(value, Exception):
+            raise value
+    return value
+
+def rec_subs(value, dicts):
+    if hasattr(value, "items"):
+        value = dict([(k, rec_subs(v, dicts)) for k, v in value.items()])
+    elif hasattr(value, "__iter__"):
+        value = [rec_subs(i, dicts) for i in value]
+    else:
+        value = var_re.sub(lambda m: dicts_get(dicts, m.group(1).strip('{}')), value)
+        sub_def = lambda m: dicts_get(dicts, m.group(1), m.group(3), m.group(2) == ':')
+        value = var_def_re.sub(sub_def, value)
+        sub_err = lambda m: dicts_get(dicts, m.group(1), RuntimeError(m.group(3)),
+                                      m.group(2) == ':')
+        value = var_err_re.sub(sub_err, value)
+        value = value.replace('$$', '$')
+    return value
+
+
+# helper functions
 
 def try_int(i, fallback=None):
     try:
@@ -244,7 +288,7 @@ def container_to_args(cnt, dirname):
     if cnt.get('read_only'):
         args.append('--read-only')
     for i in cnt.get('labels', []):
-        args.extend(['--label', i])
+        args.extend(['-l', i])
     net = cnt.get("network_mode")
     if net:
         args.extend(['--network', net])
@@ -349,7 +393,7 @@ def up(project_name, dirname, pods, containers, no_cleanup, dry_run, podman_path
         run_podman(dry_run, podman_path, args)
 
 
-def compose(
+def run_compose(
         command, filename, project_name,
         no_ansi, no_cleanup, dry_run,
         transform_policy, podman_path, host_env=None,
@@ -376,8 +420,17 @@ def compose(
 
     if not project_name:
         project_name = dir_basename
+    
+    dotenv_path = os.path.join(dirname, ".env")
+    if os.path.exists(dotenv_path):
+        with open(dotenv_path, 'r') as f:
+            dotenv_ls = [l.strip() for l in f if l.strip() and not l.startswith('#')]
+            dotenv_dict = dict([l.split("=", 1) for l in dotenv_ls if "=" in l])
+    else:
+        dotenv_dict = {}
+
     with open(filename, 'r') as f:
-        compose = yaml.safe_load(f)
+        compose = rec_subs(yaml.safe_load(f), [os.environ, dotenv_dict])
 
     # debug mode
     #print(json.dumps(compose, indent = 2))
@@ -462,7 +515,7 @@ def main():
                         choices=['1pod', '1podfw', 'hostnet', 'cntnet', 'publishall', 'identity'], default='1podfw')
 
     args = parser.parse_args()
-    compose(
+    run_compose(
         command=args.command,
         filename=args.file,
         project_name=args.project_name,
