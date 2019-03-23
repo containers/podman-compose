@@ -218,14 +218,18 @@ def run_podman(dry_run, podman_path, podman_args, wait=True, sleep=1):
         time.sleep(sleep)
     return p
 
-#pylint: disable=unused-argument
+# pylint: disable=unused-argument
+
+
 def down(project_name, dirname, pods, containers, dry_run, podman_path):
     for cnt in containers:
-        run_podman(dry_run, podman_path, ["stop", "-t=1", cnt["name"]], sleep=0)
+        run_podman(dry_run, podman_path, [
+                   "stop", "-t=1", cnt["name"]], sleep=0)
     for cnt in containers:
         run_podman(dry_run, podman_path, ["rm", cnt["name"]], sleep=0)
     for pod in pods:
         run_podman(dry_run, podman_path, ["pod", "rm", pod["name"]], sleep=0)
+
 
 def container_to_args(cnt, dirname):
     pod = cnt.get('pod') or ''
@@ -346,9 +350,10 @@ def up(project_name, dirname, pods, containers, no_cleanup, dry_run, podman_path
 
 
 def compose(
-    command, filename, project_name, no_ansi,
-    no_cleanup, dry_run, transform_policy,
-    podman_path, host_env=None):
+        command, filename, project_name,
+        no_ansi, no_cleanup, dry_run,
+        transform_policy, podman_path, host_env=None,
+    ):
     filename = os.path.realpath(filename)
     dirname = os.path.dirname(filename)
     dir_basename = os.path.basename(dirname)
@@ -460,6 +465,7 @@ def main():
         transform_policy=args.transform_policy,
         podman_path=args.podman_path
     )
+
 
 if __name__ == "__main__":
     main()
