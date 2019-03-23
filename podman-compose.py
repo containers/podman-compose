@@ -8,6 +8,7 @@
 
 from __future__ import print_function
 
+import sys
 import os
 import argparse
 import subprocess
@@ -19,6 +20,10 @@ import fnmatch
 
 import json
 import yaml
+
+PY3 = sys.version_info[0] == 3
+if PY3:
+    basestring = str
 
 # docker and docker-compose support subset of bash variable substitution
 # https://docs.docker.com/compose/compose-file/#variable-substitution
@@ -53,7 +58,7 @@ def rec_subs(value, dicts):
         value = dict([(k, rec_subs(v, dicts)) for k, v in value.items()])
     elif hasattr(value, "__iter__"):
         value = [rec_subs(i, dicts) for i in value]
-    else:
+    elif isinstance(value, basestring):
         value = var_re.sub(lambda m: dicts_get(dicts, m.group(1).strip('{}')), value)
         sub_def = lambda m: dicts_get(dicts, m.group(1), m.group(3), m.group(2) == ':')
         value = var_def_re.sub(sub_def, value)
