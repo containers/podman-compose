@@ -205,28 +205,32 @@ def tr_1podfw(project_name, services, given_containers):
     return pods, containers
 
 
+def run_podman(dry_run, podman_path, podman_args, wait=True, sleep=1):
+    print("podman " + " ".join(podman_args))
+    if dry_run:
+        return None
+    cmd = [podman_path]+podman_args
+    # subprocess.Popen(args, bufsize = 0, executable = None, stdin = None, stdout = None, stderr = None, preexec_fn = None, close_fds = False, shell = False, cwd = None, env = None, universal_newlines = False, startupinfo = None, creationflags = 0)
+    p = subprocess.Popen(cmd)
+    if wait:
+        print(p.wait())
+    if sleep:
+        time.sleep(sleep)
+    return p
+
+#pylint: disable=unused-argument
 def down(project_name, dirname, pods, containers, dry_run, podman_path):
     for cnt in containers:
-        cmd = """{} stop -t=1 '{name}'""".format(podman_path, **cnt)
-        print(cmd)
-        if dry_run == False:
-            subprocess.Popen(cmd, shell=True).wait()
+        run_podman(dry_run, podman_path, ["stop", "-t=1", cnt["name"]], sleep=0)
     for cnt in containers:
-        cmd = """{} rm '{name}'""".format(podman_path, **cnt)
-        print(cmd)
-        if dry_run == False:
-            subprocess.Popen(cmd, shell=True).wait()
+        run_podman(dry_run, podman_path, ["rm", cnt["name"]], sleep=0)
     for pod in pods:
-        cmd = """{} pod rm '{name}'""".format(podman_path, **pod)
-        print(cmd)
-        if dry_run == False:
-            subprocess.Popen(cmd, shell=True).wait()
+        run_podman(dry_run, podman_path, ["pod", "rm", pod["name"]], sleep=0)
 
-
-def container_to_args(cnt, dirname, podman_path):
+def container_to_args(cnt, dirname):
     pod = cnt.get('pod') or ''
     args = [
-        podman_path, 'run',
+        'run',
         '--name={}'.format(cnt.get('name')),
         '-d'
     ]
@@ -326,32 +330,25 @@ def up(project_name, dirname, pods, containers, no_cleanup, dry_run, podman_path
 
     for pod in pods:
         args = [
-            podman_path, "pod", "create",
+            "pod", "create",
             "--name={}".format(pod["name"]),
             "--share", "net",
         ]
         ports = pod.get("ports") or []
         for i in ports:
             args.extend(['-p', i])
-        print(" ".join(args))
-
-        if dry_run == False:
-            p = subprocess.Popen(args)
-            print(p.wait())
+        run_podman(dry_run, podman_path, args)
 
     for cnt in containers:
         # TODO: -e , --add-host, -v, --read-only
-        args = container_to_args(cnt, dirname, podman_path)
-        print(" ".join(args))
-        ## print("""podman run -d --pod='{pod}' --name='{name}' '{image}'""".format(**cnt))
-        if dry_run == False:
-            subprocess.Popen(args).wait()
-            # subprocess.Popen(args, bufsize = 0, executable = None, stdin = None, stdout = None, stderr = None, preexec_fn = None, close_fds = False, shell = False, cwd = None, env = None, universal_newlines = False, startupinfo = None, creationflags = 0)
-    if dry_run == False:
-        time.sleep(1)
+        args = container_to_args(cnt, dirname)
+        run_podman(dry_run, podman_path, args)
 
 
-def main(command, filename, project_name, no_ansi, no_cleanup, dry_run, transform_policy, podman_path, host_env=None):
+def compose(
+    command, filename, project_name, no_ansi,
+    no_cleanup, dry_run, transform_policy,
+    podman_path, host_env=None):
     filename = os.path.realpath(filename)
     dirname = os.path.dirname(filename)
     dir_basename = os.path.basename(dirname)
@@ -428,7 +425,7 @@ def main(command, filename, project_name, no_ansi, no_cleanup, dry_run, transfor
         raise NotImplementedError("command {} is not implemented".format(cmd))
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('command', metavar='command',
                         help='command to run',
@@ -453,7 +450,7 @@ if __name__ == "__main__":
                         choices=['1pod', '1podfw', 'hostnet', 'cntnet', 'publishall', 'identity'], default='1podfw')
 
     args = parser.parse_args()
-    main(
+    compose(
         command=args.command,
         filename=args.file,
         project_name=args.project_name,
@@ -463,3 +460,6 @@ if __name__ == "__main__":
         transform_policy=args.transform_policy,
         podman_path=args.podman_path
     )
+
+if __name__ == "__main__":
+    main()
