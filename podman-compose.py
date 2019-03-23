@@ -354,6 +354,13 @@ def compose(
         no_ansi, no_cleanup, dry_run,
         transform_policy, podman_path, host_env=None,
     ):
+    if not os.path.exists(filename):
+        alt_path = filename.replace('.yml', '.yaml')
+        if os.path.exists(alt_path):
+            filename = alt_path
+        else:
+            print("file [{}] not found".format(filename))
+            exit(-1)
     filename = os.path.realpath(filename)
     dirname = os.path.dirname(filename)
     dir_basename = os.path.basename(dirname)
