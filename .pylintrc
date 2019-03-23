@@ -1,0 +1,13 @@
+[MESSAGES CONTROL]
+disable=W0614,C0410,C0321,C0111,I0011,C0103
+# allow _ for ignored variables
+# allow generic names like a,b,c and i,j,k,l,m,n and x,y,z
+# allow k,v for key/value
+# allow e for exceptions, it for iterator
+# allow w,h for width, height
+# allow op for operation/operator/opcode
+# allow t, t0, t1, t2, and t3 for time
+# allow dt for delta time
+# allow db for database
+# allow ls for list
+good-names=_,a,b,c,dt,db,e,f,fn,fd,i,j,k,v,kv,kw,l,m,n,ls,t,t0,t1,t2,t3,w,h,x,y,z,it,op
