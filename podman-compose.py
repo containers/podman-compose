@@ -42,6 +42,10 @@ var_def_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?-([^\}]+)\}')
 var_err_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?\?([^\}]+)\}')
 
 def dicts_get(dicts, key, fallback='', fallback_empty=False):
+    """
+    get the given key from any dict in dicts, trying them one by one
+    if not found in any, then use fallback, if fallback is Exception raise is
+    """
     value = None
     for d in dicts:
         value = d.get(key)
@@ -54,6 +58,9 @@ def dicts_get(dicts, key, fallback='', fallback_empty=False):
     return value
 
 def rec_subs(value, dicts):
+    """
+    do bash-like substitution in value and if list of dictionary do that recursively
+    """
     if hasattr(value, "items"):
         value = dict([(k, rec_subs(v, dicts)) for k, v in value.items()])
     elif hasattr(value, "__iter__"):
@@ -268,8 +275,6 @@ def run_podman(dry_run, podman_path, podman_args, wait=True, sleep=1):
     return p
 
 # pylint: disable=unused-argument
-
-
 def down(project_name, dirname, pods, containers, dry_run, podman_path):
     for cnt in containers:
         run_podman(dry_run, podman_path, [
@@ -306,8 +311,8 @@ def container_to_args(cnt, dirname):
     for i in cnt.get('tmpfs', []):
         args.extend(['--tmpfs', i])
     for i in cnt.get('volumes', []):
-        # TODO: make it absolute using os.path.realpath(i)
-        args.extend(['-v', i])
+        # TODO: should we make it os.path.realpath(os.path.join(cnt['_dirname'], i))?
+        args.extend(['-v', os.path.realpath(i)])
     for i in cnt.get('extra_hosts', []):
         args.extend(['--add-host', i])
     for i in cnt.get('expose', []):
@@ -374,8 +379,7 @@ def flat_deps(services, container_by_name):
 
 
 def up(project_name, dirname, pods, containers, no_cleanup, dry_run, podman_path):
-    if dry_run == False:
-        os.chdir(dirname)
+    os.chdir(dirname)
 
     # no need remove them if they have same hash label
     if no_cleanup == False:
@@ -436,7 +440,8 @@ def run_compose(
 
     with open(filename, 'r') as f:
         compose = rec_subs(yaml.safe_load(f), [os.environ, dotenv_dict])
-
+    
+    compose['_dirname']=dirname
     # debug mode
     #print(json.dumps(compose, indent = 2))
 
