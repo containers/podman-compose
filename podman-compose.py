@@ -377,9 +377,34 @@ def flat_deps(services, container_by_name):
     for name, cnt in container_by_name.items():
         rec_deps(services, container_by_name, cnt, cnt.get('_service'))
 
+# pylint: disable=unused-argument
+def pull(project_name, dirname, pods, containers, dry_run, podman_path):
+    for cnt in containers:
+        if cnt.get('build'): continue
+        run_podman(dry_run, podman_path, ["pull", cnt["image"]], sleep=0)
+
+# pylint: disable=unused-argument
+def build(project_name, dirname, pods, containers, dry_run, podman_path):
+    for cnt in containers:
+        if 'build' not in cnt: continue
+        build_desc = cnt['build']
+        ctx = build_desc.get('context', '.')
+        dockerfile = os.path.join(ctx, build_desc.get("dockerfile", "Dockerfile"))
+        build_args = [
+            "build", "-t", cnt["image"],
+            "-f", dockerfile
+        ]
+        args_list = norm_as_list(build_desc.get('args', {}))
+        for build_arg in args_list:
+            build_args.extend(("--build-arg", build_arg,))
+        build_args.append(ctx)
+        run_podman(dry_run, podman_path, build_args, sleep=0)
 
 def up(project_name, dirname, pods, containers, no_cleanup, dry_run, podman_path):
     os.chdir(dirname)
+
+    # NOTE: podman does not cache, so don't always build
+    # TODO: if build and the following command fails "podman inspect -t image <image_name>" then run build
 
     # no need remove them if they have same hash label
     if no_cleanup == False:
@@ -472,6 +497,11 @@ def run_compose(
             # print(service_name,service_desc)
             cnt = dict(name=name, num=num,
                        service_name=service_name, **service_desc)
+            if 'image' not in cnt:
+                cnt['image'] = "{project_name}_{service_name}".format(
+                    project_name=project_name,
+                    service_name=service_name,
+                )
             labels = norm_as_list(cnt.get('labels'))
             labels.extend(podman_compose_labels)
             labels.extend([
@@ -491,7 +521,11 @@ def run_compose(
     pods, containers = tr(
         project_name, container_names_by_service, given_containers)
     cmd = command[0]
-    if cmd == "up":
+    if cmd == "pull":
+        pull(project_name, dirname, pods, containers, dry_run, podman_path)
+    elif cmd == "build":
+        build(project_name, dirname, pods, containers, dry_run, podman_path)
+    elif cmd == "up":
         up(project_name, dirname, pods, containers,
            no_cleanup, dry_run, podman_path)
     elif cmd == "down":
@@ -504,7 +538,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('command', metavar='command',
                         help='command to run',
-                        choices=['up', 'down'], nargs=1, default="up")
+                        choices=['up', 'down', 'build', 'pull'], nargs=1, default="up")
     parser.add_argument("-f", "--file",
                         help="Specify an alternate compose file (default: docker-compose.yml)",
                         type=str, default="docker-compose.yml")
