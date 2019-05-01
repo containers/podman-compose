@@ -388,6 +388,8 @@ def build(project_name, dirname, pods, containers, dry_run, podman_path):
     for cnt in containers:
         if 'build' not in cnt: continue
         build_desc = cnt['build']
+        if not hasattr(build_desc, 'items'):
+            build_desc = dict(context=build_desc)
         ctx = build_desc.get('context', '.')
         dockerfile = os.path.join(ctx, build_desc.get("dockerfile", "Dockerfile"))
         build_args = [
