@@ -392,6 +392,10 @@ def build(project_name, dirname, pods, containers, dry_run, podman_path):
             build_desc = dict(context=build_desc)
         ctx = build_desc.get('context', '.')
         dockerfile = os.path.join(ctx, build_desc.get("dockerfile", "Dockerfile"))
+        if not os.path.exists(dockerfile):
+            dockerfile = os.path.join(ctx, build_desc.get("dockerfile", "dockerfile"))
+            if not os.path.exists(dockerfile):
+                raise OSError("Dockerfile not found in "+ctx)
         build_args = [
             "build", "-t", cnt["image"],
             "-f", dockerfile
