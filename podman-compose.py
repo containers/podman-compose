@@ -25,9 +25,21 @@ PY3 = sys.version_info[0] == 3
 if PY3:
     basestring = str
 
+# helper functions
+
 is_str  = lambda s: isinstance(s, basestring)
 is_dict = lambda d: isinstance(d, dict)
 is_list = lambda l: not is_str(l) and not is_dict(l) and hasattr(l, "__iter__")
+
+def try_int(i, fallback=None):
+    try:
+        return int(i)
+    except ValueError:
+        pass
+    except TypeError:
+        pass
+    return fallback
+
 
 # docker and docker-compose support subset of bash variable substitution
 # https://docs.docker.com/compose/compose-file/#variable-substitution
@@ -78,17 +90,6 @@ def rec_subs(value, dicts):
     elif hasattr(value, "__iter__"):
         value = [rec_subs(i, dicts) for i in value]
     return value
-
-
-# helper functions
-def try_int(i, fallback=None):
-    try:
-        return int(i)
-    except ValueError:
-        pass
-    except TypeError:
-        pass
-    return fallback
 
 def norm_as_list(src):
     """
