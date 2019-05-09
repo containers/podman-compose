@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/python3
 
 # https://docs.docker.com/compose/compose-file/#service-configuration-reference
 # https://docs.docker.com/samples/
@@ -14,8 +14,8 @@ import argparse
 import subprocess
 import time
 import re
-import fnmatch
 
+# import fnmatch
 # fnmatch.fnmatchcase(env, "*_HOST")
 
 import json
@@ -24,6 +24,10 @@ import yaml
 PY3 = sys.version_info[0] == 3
 if PY3:
     basestring = str
+
+is_str  = lambda s: isinstance(s, basestring)
+is_dict = lambda d: isinstance(d, dict)
+is_list = lambda l: not is_str(l) and not is_dict(l) and hasattr(l, "__iter__")
 
 # docker and docker-compose support subset of bash variable substitution
 # https://docs.docker.com/compose/compose-file/#variable-substitution
@@ -61,9 +65,9 @@ def rec_subs(value, dicts):
     """
     do bash-like substitution in value and if list of dictionary do that recursively
     """
-    if hasattr(value, "items"):
+    if is_dict(value):
         value = dict([(k, rec_subs(v, dicts)) for k, v in value.items()])
-    elif isinstance(value, basestring):
+    elif is_str(value):
         value = var_re.sub(lambda m: dicts_get(dicts, m.group(1).strip('{}')), value)
         sub_def = lambda m: dicts_get(dicts, m.group(1), m.group(3), m.group(2) == ':')
         value = var_def_re.sub(sub_def, value)
@@ -77,7 +81,6 @@ def rec_subs(value, dicts):
 
 
 # helper functions
-
 def try_int(i, fallback=None):
     try:
         return int(i)
@@ -87,7 +90,6 @@ def try_int(i, fallback=None):
         pass
     return fallback
 
-
 def norm_as_list(src):
     """
     given a dictionary {key1:value1, key2: None} or list
@@ -95,9 +97,9 @@ def norm_as_list(src):
     """
     if src is None:
         dst = []
-    elif isinstance(src, dict):
+    elif is_dict(src):
         dst = [("{}={}".format(k, v) if v else k) for k, v in src.items()]
-    elif hasattr(src, '__iter__'):
+    elif is_list(src):
         dst = list(src)
     else:
         dst = [src]
@@ -111,9 +113,9 @@ def norm_as_dict(src):
     """
     if src is None:
         dst = {}
-    elif isinstance(src, dict):
+    elif is_dict(src):
         dst = dict(src)
-    elif hasattr(src, '__iter__'):
+    elif is_list(src):
         dst = [i.split("=", 1) for i in src if i]
         dst = dict([(a if len(a) == 2 else (a[0], None)) for a in dst])
     else:
@@ -339,10 +341,10 @@ def container_to_args(cnt, dirname):
     #    args.append('--init')
     entrypoint = cnt.get('entrypoint')
     if entrypoint is not None:
-        if isinstance(entrypoint, list):
-            args.extend(['--entrypoint', json.dumps(entrypoint)])
-        else:
+        if is_str(entrypoint):
             args.extend(['--entrypoint', entrypoint])
+        else:
+            args.extend(['--entrypoint', json.dumps(entrypoint)])
     args.append(cnt.get('image'))  # command, ..etc.
     command = cnt.get('command')
     if command is not None:
