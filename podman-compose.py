@@ -63,8 +63,6 @@ def rec_subs(value, dicts):
     """
     if hasattr(value, "items"):
         value = dict([(k, rec_subs(v, dicts)) for k, v in value.items()])
-    elif hasattr(value, "__iter__"):
-        value = [rec_subs(i, dicts) for i in value]
     elif isinstance(value, basestring):
         value = var_re.sub(lambda m: dicts_get(dicts, m.group(1).strip('{}')), value)
         sub_def = lambda m: dicts_get(dicts, m.group(1), m.group(3), m.group(2) == ':')
@@ -73,6 +71,8 @@ def rec_subs(value, dicts):
                                       m.group(2) == ':')
         value = var_err_re.sub(sub_err, value)
         value = value.replace('$$', '$')
+    elif hasattr(value, "__iter__"):
+        value = [rec_subs(i, dicts) for i in value]
     return value
 
 
@@ -520,7 +520,7 @@ def run_compose(
     container_by_name = dict([(c["name"], c) for c in given_containers])
     flat_deps(container_names_by_service, container_by_name)
     #print("deps:", [(c["name"], c["_deps"]) for c in given_containers])
-    given_containers = container_by_name.values()
+    given_containers = list(container_by_name.values())
     given_containers.sort(key=lambda c: len(c.get('_deps') or []))
     #print("sorted:", [c["name"] for c in given_containers])
     tr = transformations[transform_policy]
