@@ -497,11 +497,15 @@ def run_compose(
         replicas = try_int(service_desc.get('deploy', {}).get('replicas', '1'))
         container_names_by_service[service_name] = []
         for num in range(1, replicas+1):
-            name = "{project_name}_{service_name}_{num}".format(
+            name0 = "{project_name}_{service_name}_{num}".format(
                 project_name=project_name,
                 service_name=service_name,
                 num=num,
             )
+            if num == 1:
+                name = service_desc.get("container_name", name0)
+            else:
+                name = name0
             container_names_by_service[service_name].append(name)
             # print(service_name,service_desc)
             cnt = dict(name=name, num=num,
