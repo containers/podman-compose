@@ -506,6 +506,19 @@ def pull(project_name, dirname, pods, containers, dry_run, podman_path):
         if cnt.get('build'): continue
         run_podman(dry_run, podman_path, ["pull", cnt["image"]], sleep=0)
 
+def push(project_name, dirname, pods, containers, dry_run, podman_path, cmd_args):
+    parser = argparse.ArgumentParser()
+    parser.prog+=' push'
+    parser.add_argument("--ignore-push-failures", action='store_true',
+        help="Push what it can and ignores images with push failures.")
+    parser.add_argument('services', metavar='services', nargs='+',
+        help='services to push')
+    args = parser.parse_args(cmd_args)
+    services_to_push = set(args.services)
+    for cnt in containers:
+        if 'build' not in cnt: continue
+        run_podman(dry_run, podman_path, ["push", cnt["image"]], sleep=0)
+
 # pylint: disable=unused-argument
 def build(project_name, dirname, pods, containers, dry_run, podman_path, podman_args=[]):
     for cnt in containers:
@@ -656,10 +669,12 @@ def run_compose(
     tr = transformations[transform_policy]
     pods, containers = tr(
         project_name, container_names_by_service, given_containers)
-    if cmd != "build" and cmd_args:
+    if cmd != "build" and cmd != "push" and cmd_args:
         raise ValueError("'{}' does not accept any argument".format(cmd))
     if cmd == "pull":
         pull(project_name, dirname, pods, containers, dry_run, podman_path)
+    if cmd == "push":
+        push(project_name, dirname, pods, containers, dry_run, podman_path, cmd_args)
     elif cmd == "build":
         parser = argparse.ArgumentParser()
         parser.prog+=' build'
@@ -685,7 +700,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('command', metavar='command',
                         help='command to run',
-                        choices=['up', 'down', 'build', 'pull'], nargs=None, default="up")
+                        choices=['up', 'down', 'build', 'pull', 'push'], nargs=None, default="up")
     parser.add_argument('args', nargs=argparse.REMAINDER)
     parser.add_argument("-f", "--file",
                         help="Specify an alternate compose file (default: docker-compose.yml)",
