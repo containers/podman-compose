@@ -366,7 +366,7 @@ def mount_desc_to_args(mount_desc, podman_path, basedir, proj_name, srv_name, cn
     target = mount_desc["target"]
     opts=[]
     if mount_desc.get("bind"):
-        bind_prop=mount_desc.["bind"].get("propagation")
+        bind_prop=mount_desc["bind"].get("propagation")
         if bind_prop: opts.append("bind-propagation={}".format(bind_prop))
     if mount_desc.get("read_only", False): opts.append("ro")
     if mount_type=='tmpfs':
