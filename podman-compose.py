@@ -510,13 +510,14 @@ def push(project_name, dirname, pods, containers, dry_run, podman_path, cmd_args
     parser = argparse.ArgumentParser()
     parser.prog+=' push'
     parser.add_argument("--ignore-push-failures", action='store_true',
-        help="Push what it can and ignores images with push failures.")
-    parser.add_argument('services', metavar='services', nargs='+',
+        help="Push what it can and ignores images with push failures. (not implemented)")
+    parser.add_argument('services', metavar='services', nargs='*',
         help='services to push')
     args = parser.parse_args(cmd_args)
-    services_to_push = set(args.services)
+    services = set(args.services)
     for cnt in containers:
         if 'build' not in cnt: continue
+        if services and cnt['_service'] not in services: continue
         run_podman(dry_run, podman_path, ["push", cnt["image"]], sleep=0)
 
 # pylint: disable=unused-argument
