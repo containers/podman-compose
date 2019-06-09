@@ -507,7 +507,7 @@ def pull(project_name, dirname, pods, containers, dry_run, podman_path):
         run_podman(dry_run, podman_path, ["pull", cnt["image"]], sleep=0)
 
 # pylint: disable=unused-argument
-def build(project_name, dirname, pods, containers, dry_run, podman_path):
+def build(project_name, dirname, pods, containers, dry_run, podman_path, podman_args=[]):
     for cnt in containers:
         if 'build' not in cnt: continue
         build_desc = cnt['build']
@@ -523,6 +523,7 @@ def build(project_name, dirname, pods, containers, dry_run, podman_path):
             "build", "-t", cnt["image"],
             "-f", dockerfile
         ]
+        build_args.extend(podman_args)
         args_list = norm_as_list(build_desc.get('args', {}))
         for build_arg in args_list:
             build_args.extend(("--build-arg", build_arg,))
@@ -557,7 +558,7 @@ def up(project_name, dirname, pods, containers, no_cleanup, dry_run, podman_path
 
 
 def run_compose(
-        command, filename, project_name,
+        cmd, cmd_args, filename, project_name,
         no_ansi, no_cleanup, dry_run,
         transform_policy, podman_path, host_env=None,
     ):
@@ -655,11 +656,22 @@ def run_compose(
     tr = transformations[transform_policy]
     pods, containers = tr(
         project_name, container_names_by_service, given_containers)
-    cmd = command[0]
+    if cmd != "build" and cmd_args:
+        raise ValueError("'{}' does not accept any argument".format(cmd))
     if cmd == "pull":
         pull(project_name, dirname, pods, containers, dry_run, podman_path)
     elif cmd == "build":
-        build(project_name, dirname, pods, containers, dry_run, podman_path)
+        parser = argparse.ArgumentParser()
+        parser.prog+=' build'
+        parser.add_argument("--pull",
+            help="attempt to pull a newer version of the image", action='store_true')
+        parser.add_argument("--pull-always",
+            help="attempt to pull a newer version of the image, Raise an error even if the image is present locally.", action='store_true')
+        args = parser.parse_args(cmd_args)
+        podman_args = []
+        if args.pull_always: podman_args.append("--pull-always")
+        elif args.pull: podman_args.append("--pull")
+        build(project_name, dirname, pods, containers, dry_run, podman_path, podman_args)
     elif cmd == "up":
         up(project_name, dirname, pods, containers,
            no_cleanup, dry_run, podman_path, shared_vols)
@@ -673,7 +685,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('command', metavar='command',
                         help='command to run',
-                        choices=['up', 'down', 'build', 'pull'], nargs=1, default="up")
+                        choices=['up', 'down', 'build', 'pull'], nargs=None, default="up")
+    parser.add_argument('args', nargs=argparse.REMAINDER)
     parser.add_argument("-f", "--file",
                         help="Specify an alternate compose file (default: docker-compose.yml)",
                         type=str, default="docker-compose.yml")
@@ -695,7 +708,8 @@ def main():
 
     args = parser.parse_args()
     run_compose(
-        command=args.command,
+        cmd=args.command,
+        cmd_args=args.args,
         filename=args.file,
         project_name=args.project_name,
         no_ansi=args.no_ansi,
