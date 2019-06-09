@@ -14,6 +14,7 @@ import argparse
 import subprocess
 import time
 import re
+import hashlib
 
 # import fnmatch
 # fnmatch.fnmatchcase(env, "*_HOST")
@@ -40,6 +41,59 @@ def try_int(i, fallback=None):
         pass
     return fallback
 
+dir_re = re.compile("^[~/\.]")
+propagation_re=re.compile("^(?:z|Z|r?shared|r?slave|r?private)$")
+
+def parse_short_mount(mount_str, basedir):
+    mount_a = mount_str.split(':')
+    mount_opt_dict = {}
+    mount_opt = None
+    if len(mount_a)==1:
+        # Just specify a path and let the Engine create a volume
+        # - /var/lib/mysql
+        mount_src, mount_dst=None, mount_str
+    elif len(mount_a)==2:
+        mount_src, mount_dst = mount_a
+        if not mount_dst.startswith('/'):
+            mount_dst, mount_opt = mount_a
+            mount_src = None
+    elif len(mount_a)==3:
+        mount_src, mount_dst, mount_opt = mount_a
+    else:
+        raise ValueError("could not parse mount "+mount_str)
+    if mount_src and dir_re.match(mount_src):
+        # Specify an absolute path mapping
+        # - /opt/data:/var/lib/mysql
+        # Path on the host, relative to the Compose file
+        # - ./cache:/tmp/cache
+        # User-relative path
+        # - ~/configs:/etc/configs/:ro
+        mount_type = "bind"
+        # TODO: should we use os.path.realpath(basedir)?
+        mount_src = os.path.join(basedir, os.path.expanduser(mount_src))
+    else:
+        # Named volume
+        # - datavolume:/var/lib/mysql
+        mount_type = "volume"
+    for opt in mount_opt.split(','):
+        if opt=='ro': mount_opt_dict["read_only"]=True
+        elif opt=='rw': mount_opt_dict["read_only"]=False
+        elif propagation_re.match(opt): mount_opt_dict["bind"]=dict(propagation=opt)
+        else:
+            # TODO: ignore
+            raise ValueError("unknown mount option "+opt)
+    return dict(type=mount_type, source=mount_src, target=mount_dst, **mount_opt_dict)
+
+def fix_mount_dict(mount_dict, srv_name, cnt_name):
+    """
+    in-place fix mount dictionary to add missing source
+    """
+    if mount_dict["type"]=="volume" and not mount_dict.get("source"):
+        mount_dict["source"] = "_".join([
+            srv_name, cnt_name,
+            hashlib.md5(mount_dict["target"]).hexdigest(),
+        ])
+    return mount_dict
 
 # docker and docker-compose support subset of bash variable substitution
 # https://docs.docker.com/compose/compose-file/#variable-substitution
@@ -277,6 +331,67 @@ def run_podman(dry_run, podman_path, podman_args, wait=True, sleep=1):
         time.sleep(sleep)
     return p
 
+def mount_dict_vol_to_bind(mount_dict, podman_path, proj_name, shared_vols):
+    """
+    inspect volume to get directory
+    create volume if needed
+    and return mount_dict as bind of that directory
+    """
+    if mount_dict["type"]!="volume": return
+    vol_name = mount_dict["source"]
+    print("podman volume inspect {vol_name} || podman volume create {vol_name}".format(vol_name=vol_name))
+    try: out = subprocess.check_output([podman_path, "volume", "inspect", vol_name])
+    except subprocess.CalledProcessError:
+        subprocess.check_output([podman_path, "volume", "create", "-l", "io.podman.compose.project={}".format(proj_name), vol_name])
+        out = subprocess.check_output([podman_path, "volume", "inspect", vol_name])
+    src = json.loads(out)[0]["mountPoint"]
+    ret=dict(mount_dict, type="bind", source=src, _vol=vol_name)
+    bind_prop=ret.get("bind", {}).get("propagation")
+    if not bind_prop:
+        if "bind" not in ret:
+            ret["bind"]={}
+        # if in top level volumes then it's shared bind-propagation=z
+        if vol_name in shared_vols:
+            ret["bind"]["propagation"]="z"
+        else:
+            ret["bind"]["propagation"]="Z"
+    del ret["volume"]
+    return ret
+
+def mount_desc_to_args(mount_desc, podman_path, basedir, proj_name, srv_name, cnt_name, shared_vols):
+    if is_str(mount_desc): mount_desc=parse_short_mount(mount_desc, basedir)
+    mount_desc = mount_dict_vol_to_bind(fix_mount_dict(mount_desc, srv_name, cnt_name), podman_path, proj_name, shared_vols)
+    mount_type = mount_desc.get("type")
+    source = mount_desc.get("source")
+    target = mount_desc["target"]
+    opts=[]
+    if mount_desc.get("bind"):
+        bind_prop=mount_desc.["bind"].get("propagation")
+        if bind_prop: opts.append("bind-propagation={}".format(bind_prop))
+    if mount_desc.get("read_only", False): opts.append("ro")
+    if mount_type=='tmpfs':
+        tmpfs_opts = mount_desc.get("tmpfs", {})
+        tmpfs_size = tmpfs_opts.get("size")
+        if tmpfs_size:
+            opts.append("tmpfs-size={}".format(tmpfs_size))
+        tmpfs_mode = tmpfs_opts.get("mode")
+        if tmpfs_mode:
+            opts.append("tmpfs-mode={}".format(tmpfs_mode))
+    opts=",".join(opts)
+    if mount_type=='bind':
+        return "type=bind,source={source},destination={target},{opts}".format(
+            source=source,
+            target=target,
+            opts=opts
+        ).rstrip(",")
+    elif mount_type=='tmpfs':
+        return "type=tmpfs,destination={target},{opts}".format(
+            target=target,
+            opts=opts
+        ).rstrip(",")
+    else:
+        raise ValueError("unknown mount type:"+mount_type)
+
 # pylint: disable=unused-argument
 def down(project_name, dirname, pods, containers, dry_run, podman_path):
     for cnt in containers:
@@ -288,7 +403,7 @@ def down(project_name, dirname, pods, containers, dry_run, podman_path):
         run_podman(dry_run, podman_path, ["pod", "rm", pod["name"]], sleep=0)
 
 
-def container_to_args(cnt, dirname):
+def container_to_args(cnt, dirname, podman_path, shared_vols):
     pod = cnt.get('pod') or ''
     args = [
         'run',
@@ -314,8 +429,13 @@ def container_to_args(cnt, dirname):
     for i in cnt.get('tmpfs', []):
         args.extend(['--tmpfs', i])
     for i in cnt.get('volumes', []):
-        # TODO: should we make it os.path.realpath(os.path.join(cnt['_dirname'], i))?
-        args.extend(['-v', os.path.realpath(i)])
+        # TODO: should we make it os.path.realpath(os.path.join(, i))?
+        mount_args = mount_desc_to_args(
+            i, podman_path, cnt['_dirname'],
+            cnt['_project'], cnt['_service'], cnt['name'],
+            shared_vols
+        )
+        args.extend(['--mount', mount_args])
     for i in cnt.get('extra_hosts', []):
         args.extend(['--add-host', i])
     for i in cnt.get('expose', []):
@@ -409,7 +529,7 @@ def build(project_name, dirname, pods, containers, dry_run, podman_path):
         build_args.append(ctx)
         run_podman(dry_run, podman_path, build_args, sleep=0)
 
-def up(project_name, dirname, pods, containers, no_cleanup, dry_run, podman_path):
+def up(project_name, dirname, pods, containers, no_cleanup, dry_run, podman_path, shared_vols):
     os.chdir(dirname)
 
     # NOTE: podman does not cache, so don't always build
@@ -432,7 +552,7 @@ def up(project_name, dirname, pods, containers, no_cleanup, dry_run, podman_path
 
     for cnt in containers:
         # TODO: -e , --add-host, -v, --read-only
-        args = container_to_args(cnt, dirname)
+        args = container_to_args(cnt, dirname, podman_path, shared_vols)
         run_podman(dry_run, podman_path, args)
 
 
@@ -481,13 +601,14 @@ def run_compose(
 
     ver = compose.get('version')
     services = compose.get('services')
+    # volumes: [...]
+    shared_vols = compose.get('volumes', [])
     podman_compose_labels = [
         "io.podman.compose.config-hash=123",
         "io.podman.compose.project=" + project_name,
         "io.podman.compose.version=0.0.1",
     ]
     # other top-levels:
-    # volumes: {...}
     # networks: {driver: ...}
     # configs: {...}
     # secrets: {...}
@@ -523,6 +644,7 @@ def run_compose(
             ])
             cnt['labels'] = labels
             cnt['_service'] = service_name
+            cnt['_project'] = project_name
             given_containers.append(cnt)
     container_by_name = dict([(c["name"], c) for c in given_containers])
     flat_deps(container_names_by_service, container_by_name)
@@ -540,7 +662,7 @@ def run_compose(
         build(project_name, dirname, pods, containers, dry_run, podman_path)
     elif cmd == "up":
         up(project_name, dirname, pods, containers,
-           no_cleanup, dry_run, podman_path)
+           no_cleanup, dry_run, podman_path, shared_vols)
     elif cmd == "down":
         down(project_name, dirname, pods, containers, dry_run, podman_path)
     else:
