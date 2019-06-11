@@ -338,7 +338,7 @@ def mount_dict_vol_to_bind(mount_dict, podman_path, proj_name, shared_vols):
     create volume if needed
     and return mount_dict as bind of that directory
     """
-    if mount_dict["type"]!="volume": return
+    if mount_dict["type"]!="volume": return mount_dict
     vol_name = mount_dict["source"]
     print("podman volume inspect {vol_name} || podman volume create {vol_name}".format(vol_name=vol_name))
     try: out = subprocess.check_output([podman_path, "volume", "inspect", vol_name])
