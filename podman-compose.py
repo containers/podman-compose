@@ -431,7 +431,7 @@ def container_to_args(cnt, dirname, podman_path, shared_vols):
     for i in cnt.get('volumes', []):
         # TODO: should we make it os.path.realpath(os.path.join(, i))?
         mount_args = mount_desc_to_args(
-            i, podman_path, cnt['_dirname'],
+            i, podman_path, dirname,
             cnt['_project'], cnt['_service'], cnt['name'],
             shared_vols
         )
