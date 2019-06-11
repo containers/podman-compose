@@ -75,7 +75,8 @@ def parse_short_mount(mount_str, basedir):
         # Named volume
         # - datavolume:/var/lib/mysql
         mount_type = "volume"
-    for opt in mount_opt.split(','):
+    mount_opts = filter(lambda i:i, (mount_opt or '').split(','))
+    for opt in mount_opts:
         if opt=='ro': mount_opt_dict["read_only"]=True
         elif opt=='rw': mount_opt_dict["read_only"]=False
         elif propagation_re.match(opt): mount_opt_dict["bind"]=dict(propagation=opt)
