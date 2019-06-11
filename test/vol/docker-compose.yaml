@@ -1,0 +1,40 @@
+version: "3"
+services:
+    web:
+      image: busybox
+      command: ["/bin/busybox", "httpd", "-f", "-h", "/var/www/html", "-p", "8000"]
+      working_dir: /var/www/html
+      volumes:
+        - /var/www/html
+      tmpfs:
+        - /run
+        - /tmp
+    web1:
+      image: busybox
+      command: ["/bin/busybox", "httpd", "-f", "-h", "/var/www/html", "-p", "8001"]
+      working_dir: /var/www/html
+      volumes:
+        - myvol1:/var/www/html:ro
+    web2:
+      image: busybox
+      command: ["/bin/busybox", "httpd", "-f", "-h", "/var/www/html", "-p", "8002"]
+      working_dir: /var/www/html
+      volumes:
+        - myvol2:/var/www/html:ro
+    web3:
+      image: busybox
+      command: ["/bin/busybox", "httpd", "-f", "-h", "/var/www/html", "-p", "8003"]
+      working_dir: /var/www/html
+      volumes:
+        - myvol2:/var/www/html
+
+volumes:
+  myvol2:
+    labels:
+      mylabel: myval
+  data:
+    name: my-app-data
+    external: true
+  data2:
+    external:
+      name: actual-name-of-volume

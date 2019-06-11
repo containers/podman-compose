@@ -92,7 +92,7 @@ def fix_mount_dict(mount_dict, srv_name, cnt_name):
     if mount_dict["type"]=="volume" and not mount_dict.get("source"):
         mount_dict["source"] = "_".join([
             srv_name, cnt_name,
-            hashlib.md5(mount_dict["target"]).hexdigest(),
+            hashlib.md5(mount_dict["target"].encode("utf-8")).hexdigest(),
         ])
     return mount_dict
 
@@ -341,6 +341,7 @@ def mount_dict_vol_to_bind(mount_dict, podman_path, proj_name, shared_vols):
     if mount_dict["type"]!="volume": return mount_dict
     vol_name = mount_dict["source"]
     print("podman volume inspect {vol_name} || podman volume create {vol_name}".format(vol_name=vol_name))
+    # podman volume list --format '{{.Name}}\t{{.MountPoint}}' -f 'label=io.podman.compose.project=HERE'
     try: out = subprocess.check_output([podman_path, "volume", "inspect", vol_name])
     except subprocess.CalledProcessError:
         subprocess.check_output([podman_path, "volume", "create", "-l", "io.podman.compose.project={}".format(proj_name), vol_name])
@@ -356,7 +357,8 @@ def mount_dict_vol_to_bind(mount_dict, podman_path, proj_name, shared_vols):
             ret["bind"]["propagation"]="z"
         else:
             ret["bind"]["propagation"]="Z"
-    del ret["volume"]
+    try: del ret["volume"]
+    except KeyError: pass
     return ret
 
 def mount_desc_to_args(mount_desc, podman_path, basedir, proj_name, srv_name, cnt_name, shared_vols):
@@ -427,7 +429,9 @@ def container_to_args(cnt, dirname, podman_path, shared_vols):
     for i in cnt.get('env_file', []):
         i = os.path.realpath(os.path.join(dirname, i))
         args.extend(['--env-file', i])
-    for i in cnt.get('tmpfs', []):
+    tmpfs_ls = cnt.get('tmpfs', [])
+    if is_str(tmpfs_ls): tmpfs_ls=[tmpfs_ls]
+    for i in tmpfs_ls:
         args.extend(['--tmpfs', i])
     for i in cnt.get('volumes', []):
         # TODO: should we make it os.path.realpath(os.path.join(, i))?
@@ -618,7 +622,9 @@ def run_compose(
     ver = compose.get('version')
     services = compose.get('services')
     # volumes: [...]
-    shared_vols = compose.get('volumes', [])
+    shared_vols = compose.get('volumes', {})
+    # shared_vols = list(shared_vols.keys())
+    shared_vols = set(shared_vols.keys())
     podman_compose_labels = [
         "io.podman.compose.config-hash=123",
         "io.podman.compose.project=" + project_name,
