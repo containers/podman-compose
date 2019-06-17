@@ -27,25 +27,25 @@ Tested on latest podman (commit `349e69..` on 2019-03-11)
 By using many containers on a single pod that shares the network (services talk via localhost)
 
 ```
-./podman-compose.py -t 1podfw -f examples/awx/docker-compose.yml up
+./podman-compose.py -t 1podfw -f examples/awx3/docker-compose.yml up
 ```
 
 Or by reusing a container network and `--add-host`
 
 ```
-$ ./podman-compose.py -t cntnet -f examples/awx/docker-compose.yml up
+$ ./podman-compose.py -t cntnet -f examples/awx3/docker-compose.yml up
 ```
 
 Or by using host network and localhost works as in
 
 ```
-$ ./podman-compose.py -t hostnet -f examples/awx-hostnet-localhost/docker-compose.yml up
+$ ./podman-compose.py -t hostnet -f examples/awx3-hostnet-localhost/docker-compose.yml up
 ```
 
 ### in progress work
 
 
 ```
-./podman-compose.py -t 1pod -f examples/awx/docker-compose.yml up
+./podman-compose.py -t 1pod -f examples/awx3/docker-compose.yml up
 ```
 
