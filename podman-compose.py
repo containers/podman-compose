@@ -279,9 +279,9 @@ def tr_cntnet(project_name, services, given_containers):
     )
     for cnt0 in given_containers:
         cnt = dict(cnt0, network_mode="container:"+infra_name)
-        deps = cnt.get("depends") or []
+        deps = cnt.get("depends_on") or []
         deps.append(infra_name)
-        cnt["depends"] = deps
+        cnt["depends_on"] = deps
         # adjust hosts to point to localhost, TODO: adjust host env
         adj_hosts(services, cnt, '127.0.0.1')
         if "hostname" in cnt:
@@ -500,7 +500,7 @@ def flat_deps(services, container_by_name):
     for name, cnt in container_by_name.items():
         deps = set([(c.split(":")[0] if ":" in c else c)
                     for c in cnt.get("links", [])])
-        deps.update(cnt.get("depends", []))
+        deps.update(cnt.get("depends_on", []))
         cnt["_deps"] = deps
     for name, cnt in container_by_name.items():
         rec_deps(services, container_by_name, cnt, cnt.get('_service'))
