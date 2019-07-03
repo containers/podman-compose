@@ -296,7 +296,7 @@ def tr_cntnet(project_name, services, given_containers):
 @trans
 def tr_1pod(project_name, services, given_containers):
     """
-    project_name: 
+    project_name:
     services: {service_name: ["container_name1", "..."]}, currently only one is supported
     given_containers: [{}, ...]
     """
@@ -416,6 +416,9 @@ def container_to_args(cnt, dirname, podman_path, shared_vols):
 
     if pod:
         args.append('--pod={}'.format(pod))
+    sec = norm_as_list(cnt.get("security_opt"))
+    for s in sec:
+        args.extend(['--security-opt', s])
     if cnt.get('read_only'):
         args.append('--read-only')
     for i in cnt.get('labels', []):
@@ -481,7 +484,7 @@ def container_to_args(cnt, dirname, podman_path, shared_vols):
 
 def rec_deps(services, container_by_name, cnt, init_service):
     deps = cnt["_deps"]
-    for dep in deps:
+    for dep in deps.copy():
         dep_cnts = services.get(dep)
         if not dep_cnts:
             continue
@@ -603,7 +606,7 @@ def run_compose(
 
     if not project_name:
         project_name = dir_basename
-    
+
     dotenv_path = os.path.join(dirname, ".env")
     if os.path.exists(dotenv_path):
         with open(dotenv_path, 'r') as f:
@@ -614,7 +617,7 @@ def run_compose(
 
     with open(filename, 'r') as f:
         compose = rec_subs(yaml.safe_load(f), [os.environ, dotenv_dict])
-    
+
     compose['_dirname']=dirname
     # debug mode
     #print(json.dumps(compose, indent = 2))
