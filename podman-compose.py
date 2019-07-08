@@ -16,6 +16,11 @@ import time
 import re
 import hashlib
 
+try:
+    from shlex import quote as cmd_quote
+except ImportError:
+    from pipes import quote as cmd_quote
+
 # import fnmatch
 # fnmatch.fnmatchcase(env, "*_HOST")
 
@@ -406,6 +411,7 @@ def down(project_name, dirname, pods, containers, dry_run, podman_path):
         run_podman(dry_run, podman_path, ["pod", "rm", pod["name"]], sleep=0)
 
 
+
 def container_to_args(cnt, dirname, podman_path, shared_vols):
     pod = cnt.get('pod') or ''
     args = [
@@ -475,43 +481,49 @@ def container_to_args(cnt, dirname, podman_path, shared_vols):
         else:
             args.extend(['--entrypoint', json.dumps(entrypoint)])
 
-    healthcheck = cnt.get('healthcheck')
-    if healthcheck is not None:
-        if is_dict(healthcheck):
-            if 'test' in healthcheck:
-                command = healthcheck['test']
-                # test must be either a string or a list. If it’s a list,
-                # the first item must be either NONE, CMD or CMD-SHELL.
-                # If it’s a string, it’s equivalent to specifying CMD-SHELL
-                # followed by that string.
-                if is_str(command):
-                    if re.search(r'\s', command):
-                        # podman does not add shell to handle command with whitespace
-                        args.extend(['--healthcheck-command', '"/bin/bash -c \'{}\'"'.format(command)])
-                    else:
-                        args.extend(['--healthcheck-command', command])
-                elif command[0] == 'NONE':
-                    args.extend(['--healthcheck-command', 'none'])
-                elif command[0] == 'CMD-SHELL':
-                    # podman does not add shell to handle command with whitespace
-                    args.extend(['--healthcheck-command', '"/bin/bash -c \'{}\'"'.format(command[1])])
-                else:
-                    # podman splits string on white space
-                    args.extend(['--healthcheck-command', '"{}"'.format(' '.join(command[1:]))])
-
-            # interval, timeout and start_period are specified as durations.
-            if 'interval' in healthcheck:
-                args.extend(['--healthcheck-interval', healthcheck['interval']])
-            if 'timeout' in healthcheck:
-                args.extend(['--healthcheck-timeout', healthcheck['timeout']])
-            if 'start_period' in healthcheck:
-                args.extend(['--healthcheck-start-period', healthcheck['start_period']])
-
-            # convert other parameters to string
-            if 'retries' in healthcheck:
-                args.extend(['--healthcheck-retries', '{}'.format(healthcheck['retries'])])
+    # WIP: healthchecks are still work in progress
+    healthcheck = cnt.get('healthcheck', None) or {}
+    if not is_dict(healthcheck):
+        raise ValueError("'healthcheck' must be an key-value mapping")
+    healthcheck_test = healthcheck.get('test')
+    if healthcheck_test:
+        # If it’s a string, it’s equivalent to specifying CMD-SHELL
+        if is_str(healthcheck_test):
+            # podman does not add shell to handle command with whitespace
+            args.extend(['--healthcheck-command', '/bin/sh -c {}'.format(cmd_quote(healthcheck_test))])
+        elif is_list(healthcheck_test):
+            # If it’s a list, first item is either NONE, CMD or CMD-SHELL.
+            healthcheck_type = healthcheck_test.pop(0)
+            if healthcheck_type == 'NONE':
+                args.append("--no-healthcheck")
+            elif healthcheck_type == 'CMD':
+                args.extend(['--healthcheck-command', '/bin/sh -c {}'.format(
+                    "' '".join([cmd_quote(i) for i in healthcheck_test])
+                )])
+            elif healthcheck_type == 'CMD-SHELL':
+                if len(healthcheck_test)!=1:
+                    raise ValueError("'CMD_SHELL' takes a single string after it")
+                args.extend(['--healthcheck-command', '/bin/sh -c {}'.format(cmd_quote(healthcheck_test[0])]))
+            else:
+                raise ValueError(
+                    "unknown healthcheck test type [{}],\
+                     expecting NONE, CMD or CMD-SHELL."
+                     .format(healthcheck_type)
+                )
         else:
-            raise ValueError("'healthcheck' must be an associative array")
+            raise ValueError("'healthcheck.test' either a string or a list")
+
+    # interval, timeout and start_period are specified as durations.
+    if 'interval' in healthcheck:
+        args.extend(['--healthcheck-interval', healthcheck['interval']])
+    if 'timeout' in healthcheck:
+        args.extend(['--healthcheck-timeout', healthcheck['timeout']])
+    if 'start_period' in healthcheck:
+        args.extend(['--healthcheck-start-period', healthcheck['start_period']])
+
+    # convert other parameters to string
+    if 'retries' in healthcheck:
+        args.extend(['--healthcheck-retries', '{}'.format(healthcheck['retries'])])
 
     args.append(cnt.get('image'))  # command, ..etc.
     command = cnt.get('command')
