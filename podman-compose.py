@@ -474,6 +474,45 @@ def container_to_args(cnt, dirname, podman_path, shared_vols):
             args.extend(['--entrypoint', entrypoint])
         else:
             args.extend(['--entrypoint', json.dumps(entrypoint)])
+
+    healthcheck = cnt.get('healthcheck')
+    if healthcheck is not None:
+        if is_dict(healthcheck):
+            if 'test' in healthcheck:
+                command = healthcheck['test']
+                # test must be either a string or a list. If it’s a list,
+                # the first item must be either NONE, CMD or CMD-SHELL.
+                # If it’s a string, it’s equivalent to specifying CMD-SHELL
+                # followed by that string.
+                if is_str(command):
+                    if re.search(r'\s', command):
+                        # podman does not add shell to handle command with whitespace
+                        args.extend(['--healthcheck-command', '"/bin/bash -c \'{}\'"'.format(command)])
+                    else:
+                        args.extend(['--healthcheck-command', command])
+                elif command[0] == 'NONE':
+                    args.extend(['--healthcheck-command', 'none'])
+                elif command[0] == 'CMD-SHELL':
+                    # podman does not add shell to handle command with whitespace
+                    args.extend(['--healthcheck-command', '"/bin/bash -c \'{}\'"'.format(command[1])])
+                else:
+                    # podman splits string on white space
+                    args.extend(['--healthcheck-command', '"{}"'.format(' '.join(command[1:]))])
+
+            # interval, timeout and start_period are specified as durations.
+            if 'interval' in healthcheck:
+                args.extend(['--healthcheck-interval', healthcheck['interval']])
+            if 'timeout' in healthcheck:
+                args.extend(['--healthcheck-timeout', healthcheck['timeout']])
+            if 'start_period' in healthcheck:
+                args.extend(['--healthcheck-start-period', healthcheck['start_period']])
+
+            # convert other parameters to string
+            if 'retries' in healthcheck:
+                args.extend(['--healthcheck-retries', '{}'.format(healthcheck['retries'])])
+        else:
+            raise ValueError("'healthcheck' must be an associative array")
+
     args.append(cnt.get('image'))  # command, ..etc.
     command = cnt.get('command')
     if command is not None:
