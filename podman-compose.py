@@ -477,8 +477,10 @@ def container_to_args(cnt, dirname, podman_path, shared_vols):
     args.append(cnt.get('image'))  # command, ..etc.
     command = cnt.get('command')
     if command is not None:
-        # TODO: handle if command is string
-        args.extend(command)
+        if is_str(command):
+            args.extend([command])
+        else:
+            args.extend(command)
     return args
 
 
