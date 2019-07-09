@@ -503,7 +503,7 @@ def container_to_args(cnt, dirname, podman_path, shared_vols):
             elif healthcheck_type == 'CMD-SHELL':
                 if len(healthcheck_test)!=1:
                     raise ValueError("'CMD_SHELL' takes a single string after it")
-                args.extend(['--healthcheck-command', '/bin/sh -c {}'.format(cmd_quote(healthcheck_test[0])]))
+                args.extend(['--healthcheck-command', '/bin/sh -c {}'.format(cmd_quote(healthcheck_test[0]))])
             else:
                 raise ValueError(
                     "unknown healthcheck test type [{}],\
