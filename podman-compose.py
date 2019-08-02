@@ -411,6 +411,27 @@ def down(project_name, dirname, pods, containers, dry_run, podman_path):
         run_podman(dry_run, podman_path, ["pod", "rm", pod["name"]], sleep=0)
 
 
+def start(services, container_names_by_service, dry_run, podman_path):
+    transfer_service_status(services, container_names_by_service, "start", dry_run, podman_path)
+
+
+def stop(services, container_names_by_service, dry_run, podman_path):
+    transfer_service_status(services, container_names_by_service, "stop", dry_run, podman_path)
+
+
+def restart(services, container_names_by_service, dry_run, podman_path):
+    transfer_service_status(services, container_names_by_service, "restart", dry_run, podman_path)
+
+
+def transfer_service_status(services, container_names_by_service, action, dry_run, podman_path):
+    targets = []
+    for service in services:
+        if service not in container_names_by_service:
+            raise ValueError("unknown service: " + service)
+        targets.extend(container_names_by_service[service])
+    for target in targets:
+        run_podman(dry_run, podman_path, [action, target], sleep = 0)
+
 
 def container_to_args(cnt, dirname, podman_path, shared_vols):
     pod = cnt.get('pod') or ''
@@ -733,7 +754,7 @@ def run_compose(
     tr = transformations[transform_policy]
     pods, containers = tr(
         project_name, container_names_by_service, given_containers)
-    if cmd != "build" and cmd != "push" and cmd_args:
+    if cmd not in ["build", "push", "start", "stop", "restart"] and cmd_args:
         raise ValueError("'{}' does not accept any argument".format(cmd))
     if cmd == "pull":
         pull(project_name, dirname, pods, containers, dry_run, podman_path)
@@ -756,6 +777,12 @@ def run_compose(
            no_cleanup, dry_run, podman_path, shared_vols)
     elif cmd == "down":
         down(project_name, dirname, pods, containers, dry_run, podman_path)
+    elif cmd == "start":
+        start(cmd_args, container_names_by_service, dry_run, podman_path)
+    elif cmd == "stop":
+        stop(cmd_args, container_names_by_service, dry_run, podman_path)
+    elif cmd == "restart":
+        restart(cmd_args, container_names_by_service, dry_run, podman_path)
     else:
         raise NotImplementedError("command {} is not implemented".format(cmd))
 
@@ -764,7 +791,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('command', metavar='command',
                         help='command to run',
-                        choices=['up', 'down', 'build', 'pull', 'push'], nargs=None, default="up")
+                        choices=['up', 'down', 'start', 'stop', 'restart', 'build', 'pull', 'push'], nargs=None, default="up")
     parser.add_argument('args', nargs=argparse.REMAINDER)
     parser.add_argument("-f", "--file",
                         help="Specify an alternate compose file (default: docker-compose.yml)",
