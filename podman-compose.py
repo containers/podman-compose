@@ -758,7 +758,7 @@ def run_compose(
         raise ValueError("'{}' does not accept any argument".format(cmd))
     if cmd == "pull":
         pull(project_name, dirname, pods, containers, dry_run, podman_path)
-    if cmd == "push":
+    elif cmd == "push":
         push(project_name, dirname, pods, containers, dry_run, podman_path, cmd_args)
     elif cmd == "build":
         parser = argparse.ArgumentParser()
