@@ -424,6 +424,7 @@ def restart(services, container_names_by_service, dry_run, podman_path):
 
 
 def transfer_service_status(services, container_names_by_service, action, dry_run, podman_path):
+    # TODO: handle dependencies, handle creations
     targets = []
     for service in services:
         if service not in container_names_by_service:
