@@ -15,6 +15,7 @@ import subprocess
 import time
 import re
 import hashlib
+import random
 
 try:
     from shlex import quote as cmd_quote
@@ -394,15 +395,17 @@ def mount_desc_to_args(compose, mount_desc, srv_name, cnt_name):
 
 
 
-def container_to_args(compose, cnt):
+def container_to_args(compose, cnt, detached=True):
     dirname = compose.dirname
     shared_vols = compose.shared_vols
     pod = cnt.get('pod') or ''
     podman_args = [
         'run',
         '--name={}'.format(cnt.get('name')),
-        '-d'
     ]
+
+    if detached:
+        podman_args.append("-d")
 
     if pod:
         podman_args.append('--pod={}'.format(pod))
@@ -578,6 +581,7 @@ class PodmanCompose:
         self.containers = None
         self.shared_vols = None
         self.container_names_by_service = None
+        self.container_by_name = None
 
     def run(self):
         args = self._parse_args()
@@ -618,7 +622,7 @@ class PodmanCompose:
         dirname = os.path.dirname(filename)
         dir_basename = os.path.basename(dirname)
         self.dirname = dirname
-
+        os.chdir(dirname)
 
         if not project_name:
             project_name = dir_basename
@@ -702,6 +706,7 @@ class PodmanCompose:
             project_name, container_names_by_service, given_containers)
         self.pods = pods
         self.containers = containers
+        self.container_by_name = dict([ (c["name"], c) for c in containers])
 
 
     def _parse_args(self):
@@ -714,6 +719,7 @@ class PodmanCompose:
 
     def _init_cmd_parser(self, global_args):
         cmd_name = global_args.command
+        # TODO: use parser.add_subparsers
         parser = argparse.ArgumentParser(description=self.commands[cmd_name]._cmd_desc)
         parser.prog+=' '+cmd_name
         # self._init_global_parser(parser)
@@ -824,17 +830,7 @@ def compose_build(compose, args):
         build_args.append(ctx)
         compose.podman.run(build_args, sleep=0)
 
-@cmd_run(podman_compose, 'up', 'Create and start the entire stack or some of its services')
-def compose_up(compose, args):
-    shared_vols = compose.shared_vols
-    os.chdir(compose.dirname)
-    # NOTE: podman does not cache, so don't always build
-    # TODO: if build and the following command fails "podman inspect -t image <image_name>" then run build
-
-    # no need remove them if they have same hash label
-    if compose.global_args.no_cleanup == False:
-        compose.commands['down'](compose, args)
-
+def create_pods(compose, args):
     for pod in compose.pods:
         podman_args = [
             "pod", "create",
@@ -845,6 +841,19 @@ def compose_up(compose, args):
         for i in ports:
             podman_args.extend(['-p', i])
         compose.podman.run(podman_args)
+
+@cmd_run(podman_compose, 'up', 'Create and start the entire stack or some of its services')
+def compose_up(compose, args):
+    shared_vols = compose.shared_vols
+    
+    # NOTE: podman does not cache, so don't always build
+    # TODO: if build and the following command fails "podman inspect -t image <image_name>" then run build
+
+    # no need remove them if they have same hash label
+    if compose.global_args.no_cleanup == False:
+        compose.commands['down'](compose, args)
+
+    create_pods(compose, args)
 
     for cnt in compose.containers:
         # TODO: -e , --add-host, -v, --read-only
@@ -861,6 +870,40 @@ def compose_down(compose, args):
     for pod in compose.pods:
         compose.podman.run(["pod", "rm", pod["name"]], sleep=0)
 
+@cmd_run(podman_compose, 'run', 'create a container similar to a service to run a one-off command')
+def compose_run(compose, args):
+    create_pods(compose, args)
+    print(args)
+    container_names=compose.container_names_by_service[args.service]
+    container_name=container_names[0]
+    cnt = compose.container_by_name[container_name]
+    deps = cnt["_deps"]
+    if not args.no_deps:
+        # TODO: start services in deps
+        pass
+    # adjust one-off container options
+    name0 = "{}_{}_tmp{}".format(compose.project_name, args.service, random.randrange(0, 65536))
+    cnt["name"] = args.name or name0
+    if args.entrypoint: cnt["entrypoint"] = args.entrypoint
+    if args.user: cnt["user"] = args.user
+    if args.workdir: cnt["working_dir"] = args.workdir
+    if not args.service_ports:
+        for k in ("expose", "publishall", "ports"):
+            try: del cnt[k]
+            except KeyError: pass
+    if args.volume:
+        # TODO: handle volumes
+        pass
+    cnt['tty']=False if args.T else True
+    cnt['command']=args.command
+    # run podman
+    podman_args = container_to_args(compose, cnt, args.detach)
+    if not args.detach:
+        podman_args.insert(1, '-i')
+        if args.rm:
+            podman_args.insert(1, '--rm')
+    compose.podman.run(podman_args, sleep=0)
+    
 
 def transfer_service_status(compose, args, action):
     # TODO: handle dependencies, handle creations
@@ -893,14 +936,47 @@ def compose_restart(compose, args):
 # command arguments parsing
 ###################
 
+@cmd_parse(podman_compose, 'run')
+def compose_run_parse(parser):
+    parser.add_argument("-d", "--detach", action='store_true',
+        help="Detached mode: Run container in the background, print new container name.")
+    parser.add_argument("--name", type=str, default=None,
+        help="Assign a name to the container")
+    parser.add_argument("--entrypoint", type=str, default=None,
+        help="Override the entrypoint of the image.")
+    parser.add_argument('-e', metavar="KEY=VAL", action='append',
+        help="Set an environment variable (can be used multiple times)")
+    parser.add_argument('-l', '--label', metavar="KEY=VAL", action='append',
+        help="Add or override a label (can be used multiple times)")
+    parser.add_argument("-u", "--user", type=str, default=None,
+        help="Run as specified username or uid")
+    parser.add_argument("--no-deps", action='store_true',
+        help="Don't start linked services")
+    parser.add_argument("--rm", action='store_true',
+        help="Remove container after run. Ignored in detached mode.")
+    parser.add_argument('-p', '--publish', action='append',
+        help="Publish a container's port(s) to the host (can be used multiple times)")
+    parser.add_argument("--service-ports", action='store_true',
+        help="Run command with the service's ports enabled and mapped to the host.")
+    parser.add_argument('-v', '--volume', action='append',
+        help="Bind mount a volume (can be used multiple times)")
+    parser.add_argument("-T", action='store_true',
+        help="Disable pseudo-tty allocation. By default `podman-compose run` allocates a TTY.")
+    parser.add_argument("-w", "--workdir", type=str, default=None,
+        help="Working directory inside the container")
+    parser.add_argument('service', metavar='service', nargs=None,
+        help='service name')
+    parser.add_argument('command', metavar='command', nargs=argparse.REMAINDER,
+        help='comman and its args')
+
 @cmd_parse(podman_compose, ['stop', 'restart'])
-def compose_stop_restart_parse(parser):
+def compose_parse_timeout(parser):
     parser.add_argument("-t", "--timeout",
         help="Specify a shutdown timeout in seconds. ",
         type=float, default=10)
 
 @cmd_parse(podman_compose, ['start', 'stop', 'restart'])
-def compose_statu_parse(parser):
+def compose_parse_services(parser):
     parser.add_argument('services', metavar='services', nargs='+',
         help='affected services')
 
