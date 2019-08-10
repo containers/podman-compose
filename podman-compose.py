@@ -332,7 +332,7 @@ def mount_dict_vol_to_bind(compose, mount_dict):
     create volume if needed
     and return mount_dict as bind of that directory
     """
-    proj_name = compose.proj_name
+    proj_name = compose.project_name
     shared_vols = compose.shared_vols
     if mount_dict["type"]!="volume": return mount_dict
     vol_name = mount_dict["source"]
