@@ -1,4 +1,5 @@
 #! /usr/bin/python3
+# -*- coding: utf-8 -*-
 
 # https://docs.docker.com/compose/compose-file/#service-configuration-reference
 # https://docs.docker.com/samples/
@@ -470,12 +471,12 @@ def container_to_args(compose, cnt, detached=True):
         raise ValueError("'healthcheck' must be an key-value mapping")
     healthcheck_test = healthcheck.get('test')
     if healthcheck_test:
-        # If it’s a string, it’s equivalent to specifying CMD-SHELL
+        # If it's a string, it's equivalent to specifying CMD-SHELL
         if is_str(healthcheck_test):
             # podman does not add shell to handle command with whitespace
             podman_args.extend(['--healthcheck-command', '/bin/sh -c {}'.format(cmd_quote(healthcheck_test))])
         elif is_list(healthcheck_test):
-            # If it’s a list, first item is either NONE, CMD or CMD-SHELL.
+            # If it's a list, first item is either NONE, CMD or CMD-SHELL.
             healthcheck_type = healthcheck_test.pop(0)
             if healthcheck_type == 'NONE':
                 podman_args.append("--no-healthcheck")
@@ -585,8 +586,8 @@ class PodmanCompose:
 
     def run(self):
         args = self._parse_args()
-        global_args = self.global_args
-        podman_path = global_args.podman_path
+        self._parse_compose_file()
+        podman_path = args.podman_path
         if podman_path != 'podman':
             if os.path.isfile(podman_path) and os.access(podman_path, os.X_OK):
                 podman_path = os.path.realpath(podman_path)
@@ -596,8 +597,8 @@ class PodmanCompose:
                     raise IOError(
                         "Binary {} has not been found.".format(podman_path))
 
-        self.podman = Podman(self, podman_path, global_args.dry_run)
-        cmd_name = global_args.command
+        self.podman = Podman(self, podman_path, args.dry_run)
+        cmd_name = args.command
         cmd = self.commands[cmd_name]
         cmd(self, args)
 
@@ -622,6 +623,7 @@ class PodmanCompose:
         dirname = os.path.dirname(filename)
         dir_basename = os.path.basename(dirname)
         self.dirname = dirname
+        # TODO: remove next line
         os.chdir(dirname)
 
         if not project_name:
@@ -639,7 +641,6 @@ class PodmanCompose:
 
         with open(filename, 'r') as f:
             compose = rec_subs(yaml.safe_load(f), [os.environ, dotenv_dict])
-
         compose['_dirname']=dirname
         # debug mode
         #print(json.dumps(compose, indent = 2))
@@ -712,26 +713,16 @@ class PodmanCompose:
     def _parse_args(self):
         parser = argparse.ArgumentParser()
         self._init_global_parser(parser)
+        subparsers = parser.add_subparsers(title='command', dest='command')
+        subparsers.default = 'up'
+        for cmd_name, cmd in self.commands.items():
+            subparser = subparsers.add_parser(cmd_name, help=cmd._cmd_desc)
+            for cmd_parser in cmd._parse_args:
+                cmd_parser(subparser)
         self.global_args = parser.parse_args()
-        self._parse_compose_file()
-        self.args = self._init_cmd_parser(self.global_args)
-        return self.args
+        return self.global_args
 
-    def _init_cmd_parser(self, global_args):
-        cmd_name = global_args.command
-        # TODO: use parser.add_subparsers
-        parser = argparse.ArgumentParser(description=self.commands[cmd_name]._cmd_desc)
-        parser.prog+=' '+cmd_name
-        # self._init_global_parser(parser)
-        for cmd_parser in self.commands[cmd_name]._parse_args:
-            cmd_parser(parser)
-        return parser.parse_args(global_args.args)
-        
     def _init_global_parser(self, parser):
-        cmds = list(self.commands.keys())
-        parser.add_argument('command', metavar='command',
-                            help='command to run, on of {}'.format(cmds),
-                            choices=cmds, nargs=None, default="up")
         parser.add_argument('args', nargs=argparse.REMAINDER)
         parser.add_argument("-f", "--file",
                             help="Specify an alternate compose file (default: docker-compose.yml)",
