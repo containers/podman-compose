@@ -51,6 +51,10 @@ def try_int(i, fallback=None):
 dir_re = re.compile("^[~/\.]")
 propagation_re=re.compile("^(?:z|Z|r?shared|r?slave|r?private)$")
 
+# NOTE: if a named volume is used but not defined it gives
+# ERROR: Named volume "so and so" is used in service "xyz" but no declaration was found in the volumes section.
+# unless it's anon-volume
+
 def parse_short_mount(mount_str, basedir):
     mount_a = mount_str.split(':')
     mount_opt_dict = {}
@@ -61,6 +65,7 @@ def parse_short_mount(mount_str, basedir):
         mount_src, mount_dst=None, mount_str
     elif len(mount_a)==2:
         mount_src, mount_dst = mount_a
+        # dest must start with /, otherwise it's option
         if not mount_dst.startswith('/'):
             mount_dst, mount_opt = mount_a
             mount_src = None
@@ -92,15 +97,25 @@ def parse_short_mount(mount_str, basedir):
             raise ValueError("unknown mount option "+opt)
     return dict(type=mount_type, source=mount_src, target=mount_dst, **mount_opt_dict)
 
-def fix_mount_dict(mount_dict, srv_name, cnt_name):
+def fix_mount_dict(mount_dict, proj_name, srv_name):
     """
-    in-place fix mount dictionary to add missing source
+    in-place fix mount dictionary to:
+    - add missing source
+    - prefix source with proj_name
     """
-    if mount_dict["type"]=="volume" and not mount_dict.get("source"):
-        mount_dict["source"] = "_".join([
-            srv_name, cnt_name,
-            hashlib.md5(mount_dict["target"].encode("utf-8")).hexdigest(),
-        ])
+    if mount_dict["type"]=="volume":
+        source = mount_dict.get("source")
+        # keep old source
+        mount_dict["_source"] = source
+        if not source:
+            # missing source
+            mount_dict["source"] = "_".join([
+                proj_name, srv_name,
+                hashlib.md5(mount_dict["target"].encode("utf-8")).hexdigest(),
+            ])
+        else:
+            # prefix with proj_name
+            mount_dict["source"] = proj_name+"_"+source
     return mount_dict
 
 # docker and docker-compose support subset of bash variable substitution
@@ -362,7 +377,7 @@ def mount_desc_to_args(compose, mount_desc, srv_name, cnt_name):
     proj_name = compose.project_name
     shared_vols = compose.shared_vols
     if is_str(mount_desc): mount_desc=parse_short_mount(mount_desc, basedir)
-    mount_desc = mount_dict_vol_to_bind(compose, fix_mount_dict(mount_desc, srv_name, cnt_name))
+    mount_desc = mount_dict_vol_to_bind(compose, fix_mount_dict(mount_desc, proj_name, srv_name))
     mount_type = mount_desc.get("type")
     source = mount_desc.get("source")
     target = mount_desc["target"]
