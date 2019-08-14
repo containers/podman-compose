@@ -942,6 +942,41 @@ def compose_restart(compose, args):
 # command arguments parsing
 ###################
 
+@cmd_parse(podman_compose, 'up')
+def compose_up_parse(parser):
+    parser.add_argument("-d", "--detach", action='store_true',
+        help="Detached mode: Run container in the background, print new container name. Incompatible with --abort-on-container-exit.")
+    parser.add_argument("--no-color", action='store_true',
+        help="Produce monochrome output.")
+    parser.add_argument("--quiet-pull", action='store_true',
+        help="Pull without printing progress information.")
+    parser.add_argument("--no-deps", action='store_true',
+        help="Don't start linked services.")
+    parser.add_argument("--force-recreate", action='store_true',
+        help="Recreate containers even if their configuration and image haven't changed.")
+    parser.add_argument("--always-recreate-deps", action='store_true',
+        help="Recreate dependent containers. Incompatible with --no-recreate.")
+    parser.add_argument("--no-recreate", action='store_true',
+        help="If containers already exist, don't recreate them. Incompatible with --force-recreate and -V.")
+    parser.add_argument("--no-build", action='store_true',
+        help="Don't build an image, even if it's missing.")
+    parser.add_argument("--no-start", action='store_true',
+        help="Don't start the services after creating them.")
+    parser.add_argument("--build", action='store_true',
+        help="Build images before starting containers.")
+    parser.add_argument("--abort-on-container-exit", action='store_true',
+        help="Stops all containers if any container was stopped. Incompatible with -d.")
+    parser.add_argument("-t", "--timeout", type=float, default=10,
+        help="Use this timeout in seconds for container shutdown when attached or when containers are already running. (default: 10)")
+    parser.add_argument("-V", "--renew-anon-volumes", action='store_true',
+        help="Recreate anonymous volumes instead of retrieving data from the previous containers.")
+    parser.add_argument("--remove-orphans", action='store_true',
+        help="Remove containers for services not defined in the Compose file.")
+    parser.add_argument('--scale', metavar="SERVICE=NUM", action='append',
+        help="Scale SERVICE to NUM instances. Overrides the `scale` setting in the Compose file if present.")
+    parser.add_argument("--exit-code-from", metavar='SERVICE', type=str, default=None,
+        help="Return the exit code of the selected service container. Implies --abort-on-container-exit.")
+
 @cmd_parse(podman_compose, 'run')
 def compose_run_parse(parser):
     parser.add_argument("-d", "--detach", action='store_true',
