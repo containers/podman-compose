@@ -38,6 +38,8 @@ if PY3:
 is_str  = lambda s: isinstance(s, basestring)
 is_dict = lambda d: isinstance(d, dict)
 is_list = lambda l: not is_str(l) and not is_dict(l) and hasattr(l, "__iter__")
+# identity filter
+filteri = lambda a: filter(lambda i:i, a)
 
 def try_int(i, fallback=None):
     try:
@@ -87,7 +89,7 @@ def parse_short_mount(mount_str, basedir):
         # Named volume
         # - datavolume:/var/lib/mysql
         mount_type = "volume"
-    mount_opts = filter(lambda i:i, (mount_opt or '').split(','))
+    mount_opts = filteri((mount_opt or '').split(','))
     for opt in mount_opts:
         if opt=='ro': mount_opt_dict["read_only"]=True
         elif opt=='rw': mount_opt_dict["read_only"]=False
@@ -528,7 +530,7 @@ def container_to_args(compose, cnt, detached=True):
     command = cnt.get('command')
     if command is not None:
         if is_str(command):
-            podman_args.extend([command])
+            podman_args.extend(command.split())
         else:
             podman_args.extend(command)
     return podman_args
