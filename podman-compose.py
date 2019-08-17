@@ -18,6 +18,8 @@ import re
 import hashlib
 import random
 
+from threading import Thread
+
 try:
     from shlex import quote as cmd_quote
 except ImportError:
@@ -413,12 +415,13 @@ def mount_desc_to_args(compose, mount_desc, srv_name, cnt_name):
 
 
 
-def container_to_args(compose, cnt, detached=True):
+def container_to_args(compose, cnt, detached=True, podman_command='run'):
+    # TODO: double check -e , --add-host, -v, --read-only
     dirname = compose.dirname
     shared_vols = compose.shared_vols
     pod = cnt.get('pod') or ''
     podman_args = [
-        'run',
+        podman_command,
         '--name={}'.format(cnt.get('name')),
     ]
 
@@ -810,32 +813,37 @@ def compose_push(compose, args):
         if services and cnt['_service'] not in services: continue
         compose.podman.run(["push", cnt["image"]], sleep=0)
 
+def build_one(compose, args, cnt):
+    if 'build' not in cnt: return
+    if getattr(args, 'if_not_exists'):
+        try: img_id = compose.podman.output(['inspect', '-t', 'image', '-f', '{{.Id}}', cnt["image"]])
+        except subprocess.CalledProcessError: img_id = None
+        if img_id: return
+    build_desc = cnt['build']
+    if not hasattr(build_desc, 'items'):
+        build_desc = dict(context=build_desc)
+    ctx = build_desc.get('context', '.')
+    dockerfile = os.path.join(ctx, build_desc.get("dockerfile", "Dockerfile"))
+    if not os.path.exists(dockerfile):
+        dockerfile = os.path.join(ctx, build_desc.get("dockerfile", "dockerfile"))
+        if not os.path.exists(dockerfile):
+            raise OSError("Dockerfile not found in "+ctx)
+    build_args = [
+        "build", "-t", cnt["image"],
+        "-f", dockerfile
+    ]
+    if getattr(args, 'pull_always'): build_args.append("--pull-always")
+    elif getattr(args, 'pull'): build_args.append("--pull")
+    args_list = norm_as_list(build_desc.get('args', {}))
+    for build_arg in args_list:
+        build_args.extend(("--build-arg", build_arg,))
+    build_args.append(ctx)
+    compose.podman.run(build_args, sleep=0)
+
 @cmd_run(podman_compose, 'build', 'build stack images')
 def compose_build(compose, args):
-    podman_args = []
-    if args.pull_always: podman_args.append("--pull-always")
-    elif args.pull: podman_args.append("--pull")
     for cnt in compose.containers:
-        if 'build' not in cnt: continue
-        build_desc = cnt['build']
-        if not hasattr(build_desc, 'items'):
-            build_desc = dict(context=build_desc)
-        ctx = build_desc.get('context', '.')
-        dockerfile = os.path.join(ctx, build_desc.get("dockerfile", "Dockerfile"))
-        if not os.path.exists(dockerfile):
-            dockerfile = os.path.join(ctx, build_desc.get("dockerfile", "dockerfile"))
-            if not os.path.exists(dockerfile):
-                raise OSError("Dockerfile not found in "+ctx)
-        build_args = [
-            "build", "-t", cnt["image"],
-            "-f", dockerfile
-        ]
-        build_args.extend(podman_args)
-        args_list = norm_as_list(build_desc.get('args', {}))
-        for build_arg in args_list:
-            build_args.extend(("--build-arg", build_arg,))
-        build_args.append(ctx)
-        compose.podman.run(build_args, sleep=0)
+        build_one(compose, args, cnt)
 
 def create_pods(compose, args):
     for pod in compose.pods:
@@ -849,24 +857,59 @@ def create_pods(compose, args):
             podman_args.extend(['-p', i])
         compose.podman.run(podman_args)
 
+def up_specific(compose, args):
+    deps = []
+    if not args.no_deps:
+        for service in args.services:
+            deps.extend([])
+    # args.always_recreate_deps 
+    print("services", args.services)
+    raise NotImplementedError("starting specific services is not yet implemented")
+
 @cmd_run(podman_compose, 'up', 'Create and start the entire stack or some of its services')
 def compose_up(compose, args):
+    if args.services:
+        return up_specific(compose, args)
+
+    if not args.no_build:
+        # `podman build` does not cache, so don't always build
+        build_args = argparse.Namespace(
+            if_not_exists=(not args.build),
+            **args.__dict__,
+        )
+        compose.commands['build'](compose, build_args)
+    
     shared_vols = compose.shared_vols
     
-    # NOTE: podman does not cache, so don't always build
-    # TODO: if build and the following command fails "podman inspect -t image <image_name>" then run build
-
-    # no need remove them if they have same hash label
-    if compose.global_args.no_cleanup == False:
+    # TODO: implement check hash label for change
+    if args.force_recreate:
         compose.commands['down'](compose, args)
+    # args.no_recreate disables check for changes (which is not implemented)
+
+    podman_command = 'run' if args.detach and not args.no_start else 'create'
 
     create_pods(compose, args)
-
     for cnt in compose.containers:
-        # TODO: -e , --add-host, -v, --read-only
-        podman_args = container_to_args(compose, cnt)
+        podman_args = container_to_args(compose, cnt,
+            detached=args.detach, podman_command=podman_command)
         compose.podman.run(podman_args)
+    if args.no_start or args.detach: return
+    
+    # TODO: colors if sys.stdout.isatty()
 
+    threads = []
+    for cnt in compose.containers:
+        # TODO: remove sleep from podman.run
+        thread = Thread(target=compose.podman.run, args=[['start', '-a', cnt['name']]], daemon=True)
+        thread.start()
+        threads.append(thread)
+        time.sleep(1)
+    while True:
+        for thread in threads:
+            thread.join(timeout=1.0)
+            if thread.is_alive(): continue
+            if args.abort_on_container_exit:
+                exit(-1)
 
 @cmd_run(podman_compose, 'down', 'tear down entire stack')
 def compose_down(compose, args):
