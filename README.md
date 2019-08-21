@@ -3,8 +3,6 @@
 A script to run `docker-compose.yml` using [podman](https://podman.io/),
 doing necessary mapping to make it work rootless.
 
-    Note, that it's still under development and might not work well yet.
-
 ## Installation
 
 Install latest stable version from PyPI:
