@@ -6,13 +6,14 @@ try:
 except:
     readme = ''
 
-version = '0.1'
+version = '0.1.1'
 
 setup(
     name='podman-compose',
     version=version,
     description="A script to run docker-compose.yml using podman",
     long_description=readme,
+    long_description_content_type='text/markdown',
     classifiers=[
         "Programming Language :: Python",
         "Programming Language :: Python :: 2",
