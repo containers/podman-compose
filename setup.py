@@ -6,13 +6,14 @@ try:
 except:
     readme = ""
 
-version = "0.1"
+version = "0.1.2"
 
 setup(
     name="podman-compose",
     version=version,
     description="A script to run docker-compose.yml using podman",
     long_description=readme,
+    long_description_content_type="text/markdown",
     classifiers=[
         "Programming Language :: Python",
         "Programming Language :: Python :: 2",
@@ -33,7 +34,7 @@ setup(
     url="https://github.com/muayyad-alsadi/podman-compose",
     package_dir={"": "."},
     py_modules=["podman_compose"],
-    packages=find_packages(where="./src"),
+    packages=find_packages(where="."),
     entry_points={"console_scripts": ["podman-compose = podman_compose:main"]},
     include_package_data=True,
     license="GPL-2.0-only",
