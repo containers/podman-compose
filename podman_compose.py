@@ -586,8 +586,8 @@ def container_to_args(compose, cnt, detached=True, podman_command="run"):
                 )
             else:
                 raise ValueError(
-                    "unknown healthcheck test type [{}],\
-                     expecting NONE, CMD or CMD-SHELL.".format(
+                    "unknown healthcheck test type [{}], "
+                    "expecting NONE, CMD or CMD-SHELL.".format(
                         healthcheck_type
                     )
                 )
