@@ -339,7 +339,8 @@ def tr_cntnet(project_name, services, given_containers):
 def tr_1pod(project_name, services, given_containers):
     """
     project_name:
-    services: {service_name: ["container_name1", "..."]}, currently only one is supported
+    services: {service_name: ["container_name1", "..."]}, currently only one
+        is supported.
     given_containers: [{}, ...]
     """
     pod = dict(name=project_name)
