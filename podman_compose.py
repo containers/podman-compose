@@ -875,7 +875,7 @@ def compose_up(compose, args):
         # `podman build` does not cache, so don't always build
         build_args = argparse.Namespace(
             if_not_exists=(not args.build),
-            **args.__dict__,
+            **args.__dict__
         )
         compose.commands['build'](compose, build_args)
     
