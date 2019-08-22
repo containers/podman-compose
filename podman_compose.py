@@ -37,11 +37,22 @@ if PY3:
 
 # helper functions
 
-is_str = lambda s: isinstance(s, basestring)
-is_dict = lambda d: isinstance(d, dict)
-is_list = lambda l: not is_str(l) and not is_dict(l) and hasattr(l, "__iter__")
+
+def is_str(s):
+    return isinstance(s, basestring)
+
+
+def is_dict(d):
+    return isinstance(d, dict)
+
+
+def is_list(l):
+    return not is_str(l) and not is_dict(l) and hasattr(l, "__iter__")
+
+
 # identity filter
-filteri = lambda a: filter(lambda i: i, a)
+def filteri(a):
+    return filter(lambda i: i, a)
 
 
 def try_int(i, fallback=None):
@@ -54,11 +65,12 @@ def try_int(i, fallback=None):
     return fallback
 
 
-dir_re = re.compile("^[~/\.]")
-propagation_re = re.compile("^(?:z|Z|r?shared|r?slave|r?private)$")
+dir_re = re.compile(r"^[~/\.]")
+propagation_re = re.compile(r"^(?:z|Z|r?shared|r?slave|r?private)$")
 
 # NOTE: if a named volume is used but not defined it gives
-# ERROR: Named volume "so and so" is used in service "xyz" but no declaration was found in the volumes section.
+# ERROR: Named volume "so and so" is used in service "xyz" but no declaration
+# was found in the volumes section.
 # unless it's anon-volume
 
 
@@ -105,7 +117,13 @@ def parse_short_mount(mount_str, basedir):
         else:
             # TODO: ignore
             raise ValueError("unknown mount option " + opt)
-    return dict(type=mount_type, source=mount_src, target=mount_dst, **mount_opt_dict)
+
+    return dict(
+        type=mount_type,
+        source=mount_src,
+        target=mount_dst,
+        **mount_opt_dict
+    )
 
 
 def fix_mount_dict(mount_dict, proj_name, srv_name):
@@ -120,13 +138,12 @@ def fix_mount_dict(mount_dict, proj_name, srv_name):
         mount_dict["_source"] = source
         if not source:
             # missing source
-            mount_dict["source"] = "_".join(
-                [
-                    proj_name,
-                    srv_name,
-                    hashlib.md5(mount_dict["target"].encode("utf-8")).hexdigest(),
-                ]
-            )
+            mount_dict["source"] = "_".join([
+                proj_name,
+                srv_name,
+                hashlib.md5(mount_dict["target"].encode("utf-8")).hexdigest(),
+
+            ])
         else:
             # prefix with proj_name
             mount_dict["source"] = proj_name + "_" + source
@@ -136,7 +153,7 @@ def fix_mount_dict(mount_dict, proj_name, srv_name):
 # docker and docker-compose support subset of bash variable substitution
 # https://docs.docker.com/compose/compose-file/#variable-substitution
 # https://docs.docker.com/compose/env-file/
-# https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html
+# https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html  # NOQA
 # $VARIABLE
 # ${VARIABLE}
 # ${VARIABLE:-default} default if not set or empty
@@ -176,8 +193,13 @@ def rec_subs(value, dicts):
     if is_dict(value):
         value = dict([(k, rec_subs(v, dicts)) for k, v in value.items()])
     elif is_str(value):
-        value = var_re.sub(lambda m: dicts_get(dicts, m.group(1).strip("{}")), value)
-        sub_def = lambda m: dicts_get(dicts, m.group(1), m.group(3), m.group(2) == ":")
+        value = var_re.sub(
+            lambda m: dicts_get(dicts, m.group(1).strip("{}")),
+            value
+        )
+        sub_def = lambda m: dicts_get(
+            dicts, m.group(1), m.group(3), m.group(2) == ":"
+        )
         value = var_def_re.sub(sub_def, value)
         sub_err = lambda m: dicts_get(
             dicts, m.group(1), RuntimeError(m.group(3)), m.group(2) == ":"
@@ -545,14 +567,12 @@ def container_to_args(compose, cnt, detached=True, podman_command="run"):
             if healthcheck_type == "NONE":
                 podman_args.append("--no-healthcheck")
             elif healthcheck_type == "CMD":
-                podman_args.extend(
-                    [
-                        "--healthcheck-command",
-                        "/bin/sh -c {}".format(
-                            "' '".join([cmd_quote(i) for i in healthcheck_test])
-                        ),
-                    ]
-                )
+                podman_args.extend([
+                    "--healthcheck-command",
+                    "/bin/sh -c {}".format(
+                        "' '".join([cmd_quote(i) for i in healthcheck_test])
+                    )
+                ])
             elif healthcheck_type == "CMD-SHELL":
                 if len(healthcheck_test) != 1:
                     raise ValueError(
