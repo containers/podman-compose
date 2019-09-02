@@ -734,12 +734,14 @@ class PodmanCompose:
         parser = argparse.ArgumentParser()
         self._init_global_parser(parser)
         subparsers = parser.add_subparsers(title='command', dest='command')
-        subparsers.default = 'up'
         for cmd_name, cmd in self.commands.items():
             subparser = subparsers.add_parser(cmd_name, help=cmd._cmd_desc)
             for cmd_parser in cmd._parse_args:
                 cmd_parser(subparser)
         self.global_args = parser.parse_args()
+        if not self.global_args.command:
+            parser.print_help()
+            exit(-1)
         return self.global_args
 
     def _init_global_parser(self, parser):
@@ -893,8 +895,9 @@ def compose_up(compose, args):
         podman_args = container_to_args(compose, cnt,
             detached=args.detach, podman_command=podman_command)
         compose.podman.run(podman_args)
-    if args.no_start or args.detach: return
-    
+    if args.no_start or args.detach or args.dry_run: return
+    # TODO: handle already existing
+    # TODO: if error creating do not enter loop
     # TODO: colors if sys.stdout.isatty()
 
     threads = []

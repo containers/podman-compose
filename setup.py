@@ -6,7 +6,7 @@ try:
 except:
     readme = ''
 
-version = '0.1.3'
+version = '0.1.4'
 
 setup(
     name='podman-compose',
@@ -31,7 +31,7 @@ setup(
     keywords='podman, podman-compose',
     author='Muayyad Alsadi',
     author_email='alsadi@gmail.com',
-    url='https://github.com/muayyad-alsadi/podman-compose',
+    url='https://github.com/containers/podman-compose',
     py_modules=['podman_compose'],
     entry_points={
         'console_scripts': [

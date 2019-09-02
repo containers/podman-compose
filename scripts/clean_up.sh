@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-find . -name "*.pyc" -exec rm -rf {} \;
-find . -name "__pycache__" -exec rm -rf {} \;
-find . -name "*.orig" -exec rm -rf {} \;
+
+find . -name "*.pyc" -delete
+find . -name "__pycache__" -delete
+find . -name "*.orig" -delete
 rm -rf .cache/
 rm -rf build/
 rm -rf builddocs/
