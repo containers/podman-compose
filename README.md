@@ -43,15 +43,15 @@ pip3 install https://github.com/containers/podman-compose/archive/devel.tar.gz
 or
 
 ```
-curl -o /usr/local/bin/podman_compose https://raw.githubusercontent.com/containers/podman-compose/devel/podman_compose.py
-chmod +x /usr/local/bin/podman_compose
+curl -o /usr/local/bin/podman-compose https://raw.githubusercontent.com/containers/podman-compose/devel/podman_compose.py
+chmod +x /usr/local/bin/podman-compose
 ```
 
 or 
 
 ```
-curl -o ~/.local/bin/podman_compose https://raw.githubusercontent.com/containers/podman-compose/devel/podman_compose.py
-chmod +x ~/.local/bin/podman_compose
+curl -o ~/.local/bin/podman-compose https://raw.githubusercontent.com/containers/podman-compose/devel/podman_compose.py
+chmod +x ~/.local/bin/podman-compose
 ```
 
 ## Basic Usage
