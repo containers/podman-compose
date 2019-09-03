@@ -817,7 +817,7 @@ def compose_push(compose, args):
 
 def build_one(compose, args, cnt):
     if 'build' not in cnt: return
-    if getattr(args, 'if_not_exists'):
+    if getattr(args, 'if_not_exists', None):
         try: img_id = compose.podman.output(['inspect', '-t', 'image', '-f', '{{.Id}}', cnt["image"]])
         except subprocess.CalledProcessError: img_id = None
         if img_id: return
@@ -834,8 +834,8 @@ def build_one(compose, args, cnt):
         "build", "-t", cnt["image"],
         "-f", dockerfile
     ]
-    if getattr(args, 'pull_always'): build_args.append("--pull-always")
-    elif getattr(args, 'pull'): build_args.append("--pull")
+    if getattr(args, 'pull_always', None): build_args.append("--pull-always")
+    elif getattr(args, 'pull', None): build_args.append("--pull")
     args_list = norm_as_list(build_desc.get('args', {}))
     for build_arg in args_list:
         build_args.extend(("--build-arg", build_arg,))
