@@ -1,0 +1,19 @@
+version: "3"
+services:
+    web1:
+      build: ./context
+      image: my-busybox-httpd
+      ports:
+      - 8080:80
+    web2:
+      build:
+        context: ./context
+        dockerfile: Dockerfile-alt
+        labels:
+            mykey: myval
+        args:
+            buildno: 2
+            httpd_port: 8000
+      image: my-busybox-httpd2
+      ports:
+      - 8000:8000

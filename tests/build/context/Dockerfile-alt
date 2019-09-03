@@ -1,0 +1,7 @@
+FROM busybox
+ARG buildno=1
+ARG httpd_port=80
+ENV httpd_port ${httpd_port}
+RUN mkdir -p /var/www/html/ && \
+    echo "ALT buildno=$buildno port=$httpd_port `date -Iseconds`" > /var/www/html/index.txt
+CMD httpd -f -p "$httpd_port" -h /var/www/html
