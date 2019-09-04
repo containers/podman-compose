@@ -1,0 +1,12 @@
+version: '3'
+services:
+  web1:
+    env_file: ./12.env
+
+  web2:
+    image: busybox
+    command: busybox httpd -h /var/www/html/ -f -p 8002
+    volumes:
+    - ./2.env:/var/www/html/index.txt
+    env_file: ./2.env
+
