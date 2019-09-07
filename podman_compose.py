@@ -202,6 +202,9 @@ def norm_as_dict(src):
     elif is_list(src):
         dst = [i.split("=", 1) for i in src if i]
         dst = dict([(a if len(a) == 2 else (a[0], None)) for a in dst])
+    elif is_str(src):
+        key, value = src.split("=", 1) if "=" in src else (src, None)
+        dst = {key: value}
     else:
         raise ValueError("dictionary or iterable is expected")
     return dst
@@ -359,10 +362,10 @@ def mount_dict_vol_to_bind(compose, mount_dict):
     vol_name = mount_dict["source"]
     print("podman volume inspect {vol_name} || podman volume create {vol_name}".format(vol_name=vol_name))
     # podman volume list --format '{{.Name}}\t{{.MountPoint}}' -f 'label=io.podman.compose.project=HERE'
-    try: out = compose.podman.output(["volume", "inspect", vol_name])
+    try: out = compose.podman.output(["volume", "inspect", vol_name]).decode('utf-8')
     except subprocess.CalledProcessError:
         compose.podman.output(["volume", "create", "-l", "io.podman.compose.project={}".format(proj_name), vol_name])
-        out = compose.podman.output(["volume", "inspect", vol_name])
+        out = compose.podman.output(["volume", "inspect", vol_name]).decode('utf-8')
     src = json.loads(out)[0]["mountPoint"]
     ret=dict(mount_dict, type="bind", source=src, _vol=vol_name)
     bind_prop=ret.get("bind", {}).get("propagation")
@@ -594,6 +597,45 @@ class Podman:
             time.sleep(sleep)
         return p
 
+def normalize(compose):
+    """
+    convert compose dict of some keys from string or dicts into arrays
+    """
+    services = compose.get("services", None) or {}
+    for service_name, service in services.items():
+        for key in ("env_file", "security_opt"):
+            if key not in service: continue
+            if is_str(service[key]): service[key]=[service[key]]
+        for key in ("environment", "labels"):
+            if key not in service: continue
+            service[key] = norm_as_dict(service[key])
+    return compose
+
+def rec_merge(target, source):
+    """
+    update content of compose with keys from content recursively
+    """
+    done = set()
+    for key, value in source.items():
+        if key in target: continue
+        target[key]=value
+        done.add(key)
+    for key, value in target.items():
+        if key in done: continue
+        if key not in source: continue
+        value2 = source[key]
+        if type(value2)!=type(value):
+            raise ValueError("can't merge value of {} of type {} and {}".format(key, type(value), type(value2)))
+        if is_str(value2):
+            target[key]=value2
+        elif is_list(value2):
+            value.extend(value2)
+        elif is_dict(value2):
+            rec_merge(value, value2)
+        else:
+            raise ValueError("unexpected type of {}".format(key))
+    return target
+
 class PodmanCompose:
     def __init__(self):
         self.commands = {}
@@ -627,21 +669,30 @@ class PodmanCompose:
     def _parse_compose_file(self):
         args = self.global_args
         cmd = args.command
-        filename = args.file
+        if not args.file:
+            args.file = list(filter(os.path.exists, [
+                "docker-compose.yml",
+                "docker-compose.yaml",
+                "docker-compose.override.yml",
+                "docker-compose.override.yaml"
+            ]))
+        files = args.file
+        if not files:
+            print("no docker-compose.yml found, pass files with -f")
+        ex = map(os.path.exists, files)
+        missing = [ fn0 for ex0, fn0 in zip(ex, files) if not ex0 ]
+        if missing:
+            print("missing files: ", missing)
+            exit(1)
+        # make absolute
+        files = list(map(os.path.realpath, files))
+        filename = files[0]
         project_name = args.project_name
         no_ansi = args.no_ansi
         no_cleanup = args.no_cleanup
         dry_run = args.dry_run
         transform_policy = args.transform_policy
         host_env = None
-        if not os.path.exists(filename):
-            alt_path = filename.replace('.yml', '.yaml')
-            if os.path.exists(alt_path):
-                filename = alt_path
-            else:
-                print("file [{}] not found".format(filename))
-                exit(-1)
-        filename = os.path.realpath(filename)
         dirname = os.path.dirname(filename)
         dir_basename = os.path.basename(dirname)
         self.dirname = dirname
@@ -660,13 +711,18 @@ class PodmanCompose:
                 dotenv_dict = dict([l.split("=", 1) for l in dotenv_ls if "=" in l])
         else:
             dotenv_dict = {}
-
-        with open(filename, 'r') as f:
-            compose = rec_subs(yaml.safe_load(f), [os.environ, dotenv_dict])
-        compose['_dirname']=dirname
+        compose={'_dirname': dirname}
+        for filename in files:
+            with open(filename, 'r') as f:
+                content = yaml.safe_load(f)
+                #print(filename, json.dumps(content, indent = 2))
+                content = normalize(content)
+                #print(filename, json.dumps(content, indent = 2))
+                content = rec_subs(content, [os.environ, dotenv_dict])
+                rec_merge(compose, content)
         # debug mode
-        #print(json.dumps(compose, indent = 2))
-
+        if len(files)>1:
+            print(" ** merged:\n", json.dumps(compose, indent = 2))
         ver = compose.get('version')
         services = compose.get('services')
         # volumes: [...]
@@ -736,12 +792,13 @@ class PodmanCompose:
         parser = argparse.ArgumentParser()
         self._init_global_parser(parser)
         subparsers = parser.add_subparsers(title='command', dest='command')
+        subparser = subparsers.add_parser('help', help='show help')
         for cmd_name, cmd in self.commands.items():
             subparser = subparsers.add_parser(cmd_name, help=cmd._cmd_desc)
             for cmd_parser in cmd._parse_args:
                 cmd_parser(subparser)
         self.global_args = parser.parse_args()
-        if not self.global_args.command:
+        if not self.global_args.command or self.global_args.command=='help':
             parser.print_help()
             exit(-1)
         return self.global_args
@@ -749,7 +806,7 @@ class PodmanCompose:
     def _init_global_parser(self, parser):
         parser.add_argument("-f", "--file",
                             help="Specify an alternate compose file (default: docker-compose.yml)",
-                            type=str, default="docker-compose.yml")
+                            metavar='file', action='append', default=[])
         parser.add_argument("-p", "--project-name",
                             help="Specify an alternate project name (default: directory name)",
                             type=str, default=None)
