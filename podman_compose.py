@@ -386,6 +386,8 @@ def mount_desc_to_args(compose, mount_desc, srv_name, cnt_name):
     proj_name = compose.project_name
     shared_vols = compose.shared_vols
     if is_str(mount_desc): mount_desc=parse_short_mount(mount_desc, basedir)
+    # not needed
+    # podman support: podman run --rm -ti --mount type=volume,source=myvol,destination=/delme busybox
     mount_desc = mount_dict_vol_to_bind(compose, fix_mount_dict(mount_desc, proj_name, srv_name))
     mount_type = mount_desc.get("type")
     source = mount_desc.get("source")
