@@ -582,10 +582,11 @@ class Podman:
         return subprocess.check_output(cmd)
 
     def run(self, podman_args, wait=True, sleep=1):
-        print("podman " + " ".join(podman_args))
+        podman_args_str = [str(arg) for arg in podman_args]
+        print("podman " + " ".join(podman_args_str))
         if self.dry_run:
             return None
-        cmd = [self.podman_path]+podman_args
+        cmd = [self.podman_path]+podman_args_str
         # subprocess.Popen(args, bufsize = 0, executable = None, stdin = None, stdout = None, stderr = None, preexec_fn = None, close_fds = False, shell = False, cwd = None, env = None, universal_newlines = False, startupinfo = None, creationflags = 0)
         p = subprocess.Popen(cmd)
         if wait:
