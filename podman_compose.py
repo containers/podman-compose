@@ -206,6 +206,17 @@ def norm_as_dict(src):
         raise ValueError("dictionary or iterable is expected")
     return dst
 
+def norm_ulimit(inner_value):
+    if is_dict(inner_value):
+        if not inner_value.keys() & {"soft", "hard"}:
+            raise ValueError("expected at least one soft or hard limit")
+        soft = inner_value.get("soft", inner_value.get("hard"))
+        hard = inner_value.get("hard", inner_value.get("soft"))
+        return "{}:{}".format(soft, hard)
+    elif is_list(inner_value): return norm_ulimit(norm_as_dict(inner_value))
+    # if int or string return as is
+    return inner_value
+
 
 # transformation helpers
 
@@ -477,6 +488,17 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
         podman_args.append('-i')
     if cnt.get('tty'):
         podman_args.append('--tty')
+    ulimit = cnt.get('ulimit', [])
+    if ulimit is not None:
+        # ulimit can be a single value, i.e. ulimit: host
+        if is_str(ulimit):
+            podman_args.extend(['--ulimit', ulimit])
+        # or a dictionary or list:
+        else:
+            ulimit = norm_as_dict(ulimit)
+            ulimit = [ "{}={}".format(ulimit_key, norm_ulimit(inner_value)) for ulimit_key, inner_value in ulimit.items()]
+            for i in ulimit:
+                podman_args.extend(['--ulimit', i])
     # currently podman shipped by fedora does not package this
     # if cnt.get('init'):
     #    args.append('--init')
