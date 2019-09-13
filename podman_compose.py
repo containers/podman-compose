@@ -370,6 +370,7 @@ def mount_dict_vol_to_bind(compose, mount_dict):
     proj_name = compose.project_name
     shared_vols = compose.shared_vols
     if mount_dict["type"]!="volume": return mount_dict
+    vol_name_orig = mount_dict.get("_source", None)
     vol_name = mount_dict["source"]
     print("podman volume inspect {vol_name} || podman volume create {vol_name}".format(vol_name=vol_name))
     # podman volume list --format '{{.Name}}\t{{.MountPoint}}' -f 'label=io.podman.compose.project=HERE'
@@ -384,7 +385,7 @@ def mount_dict_vol_to_bind(compose, mount_dict):
         if "bind" not in ret:
             ret["bind"]={}
         # if in top level volumes then it's shared bind-propagation=z
-        if vol_name in shared_vols:
+        if vol_name_orig and vol_name_orig in shared_vols:
             ret["bind"]["propagation"]="z"
         else:
             ret["bind"]["propagation"]="Z"
