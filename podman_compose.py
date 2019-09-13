@@ -459,6 +459,8 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
     if net:
         podman_args.extend(['--network', net])
     env = norm_as_list(cnt.get('environment', {}))
+    for d in cnt.get('devices', []):
+        podman_args.extend(['--device', d])
     for e in env:
         podman_args.extend(['-e', e])
     for i in cnt.get('env_file', []):
