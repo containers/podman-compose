@@ -1,0 +1,13 @@
+version: '3'
+services:
+  web1:
+    image: busybox
+    command: busybox httpd -h /var/www/html/ -f -p 8001
+    volumes:
+    - ./1.env:/var/www/html/index.txt
+    env_file: ./1.env
+    labels:
+      l1: v1
+    environment:
+    - mykey1=myval1
+

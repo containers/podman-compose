@@ -1,0 +1,34 @@
+version: '3.6'
+
+x-deploy-base: &deploy-base
+  restart_policy:
+    delay: 2s
+
+x-common: &common
+  network: host
+  deploy:
+    <<: *deploy-base
+  networks:
+    hostnet: {}
+
+networks:
+  hostnet:
+    external: true
+    name: host
+
+volumes:
+  node-red_data:
+
+services:
+  node-red:
+    <<: *common
+    image: busybox
+    command: busybox httpd -h /data -f -p 8080
+    deploy:
+      <<: *deploy-base
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 32M
+    volumes:
+      - node-red_data:/data
