@@ -1,0 +1,29 @@
+version: "3"
+services:
+    echo:
+      image: busybox
+      command: ["/bin/busybox", "echo", "Zero"]
+      ports:
+        - '1234:1234'
+      environment:
+          - FOO=original
+          - BAR=original
+#      volumes:
+#        - ./original:/foo
+#        - ./original:/bar
+    echo1:
+      extends:
+        service: echo
+      command: ["/bin/busybox", "echo", "One"]
+      ports:
+        - '12345:12345'
+#      volumes:
+#        - ./local:/bar
+#        - ./local:/baz
+    env1:
+      extends:
+        service: echo
+      command: ["/bin/busybox", "env"]
+      environment:
+        - BAR=local
+        - BAZ=local

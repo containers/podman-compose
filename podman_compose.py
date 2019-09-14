@@ -753,6 +753,9 @@ class PodmanCompose:
             print(" ** merged:\n", json.dumps(compose, indent = 2))
         ver = compose.get('version')
         services = compose.get('services')
+
+        services = self._resolve_service_extends(services)
+
         # volumes: [...]
         shared_vols = compose.get('volumes', {})
         # shared_vols = list(shared_vols.keys())
@@ -815,6 +818,62 @@ class PodmanCompose:
         self.containers = containers
         self.container_by_name = dict([ (c["name"], c) for c in containers])
 
+    def _resolve_service_extends(self, services):
+        """
+        Resolve service extends (https://docs.docker.com/compose/extends/)
+        TODO: Doesn't yet support file
+        """
+        services_to_resolve = len(services)
+        resolved_services = {}
+        for service_name, service_desc in services.items():
+            if not "extends" in service_desc:
+                resolved_services[service_name] = service_desc
+                services_to_resolve -= 1
+        while services_to_resolve:
+            services_to_resolve_before = services_to_resolve
+            for service_name, service_desc in services.items():
+                if not service_name in resolved_services and service_desc['extends']['service'] in resolved_services:
+                    cust_service_desc = service_desc
+                    service_desc = resolved_services[service_desc['extends']['service']].copy()
+                    service_desc = self._merge_service_extends(service_desc, cust_service_desc)
+                    del(service_desc['extends'])
+                    resolved_services[service_name] = service_desc
+                    services_to_resolve -= 1
+            if services_to_resolve == services_to_resolve_before:
+                print('Failed to resolve extends services')
+                exit(-1)
+        return resolved_services
+
+    def _merge_service_extends(self, base, custom):
+        """
+        Merges the service description from custom into base, as described at
+        https://docs.docker.com/compose/extends/#adding-and-overriding-configuration
+        """
+        result = base
+        for key, value in custom.items():
+            if key in ('ports', 'expose', 'external_links', 'dns', 'dns_search', 'tmpfs'):
+                if not key in result:
+                    result[key] = []
+                result[key].extend(value)
+            elif key in ('environment', 'labels'):
+                if not key in base:
+                    base[key] = {}
+                result[key] = {**base[key], **custom[key]}
+            elif key in ('volumes', 'devices'):
+                # Index by mount path, then merge
+                base_by_mount_path = {}
+                custom_by_mount_path = {}
+                if key in base:
+                    for label, label_value in [[label_value_pair.split(':', 2)[1], label_value_pair] for label_value_pair in base[key] ]:
+                        base_by_mount_path[label] = label_value
+                if key in custom:
+                    for label, label_value in [[label_value_pair.split(':', 2)[1], label_value_pair] for label_value_pair in custom[key] ]:
+                        custom_by_mount_path[label] = label_value
+                result[key] = list({**base_by_mount_path, **custom_by_mount_path}.values())
+            else:
+                # Single value option, replace
+                result[key] = value
+        return result
 
     def _parse_args(self):
         parser = argparse.ArgumentParser()
