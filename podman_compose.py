@@ -840,7 +840,7 @@ class PodmanCompose:
             for service_name, service_desc in services.items():
                 if not service_name in resolved_services and service_desc['extends']['service'] in resolved_services:
                     cust_service_desc = service_desc
-                    service_desc = resolved_services[service_desc['extends']['service']].copy()
+                    service_desc = resolved_services[service_desc['extends']['service']]
                     service_desc = self._merge_service_extends(service_desc, cust_service_desc)
                     del(service_desc['extends'])
                     resolved_services[service_name] = service_desc
@@ -855,7 +855,14 @@ class PodmanCompose:
         Merges the service description from custom into base, as described at
         https://docs.docker.com/compose/extends/#adding-and-overriding-configuration
         """
-        result = base
+
+        result = base.copy()
+
+        # These are never shared
+        result.pop('links', None)
+        result.pop('volumes_from', None)
+        result.pop('depends_on', None)
+
         for key, value in custom.items():
             if key in ('ports', 'expose', 'external_links', 'dns', 'dns_search', 'tmpfs'):
                 if not key in result:
@@ -877,7 +884,7 @@ class PodmanCompose:
                         custom_by_mount_path[label] = label_value
                 result[key] = list({**base_by_mount_path, **custom_by_mount_path}.values())
             else:
-                # Single value option, replace
+                # Single value or unshared option, replace
                 result[key] = value
         return result
 
