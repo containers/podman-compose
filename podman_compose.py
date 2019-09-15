@@ -1071,6 +1071,8 @@ def compose_up(compose, args):
 
     create_pods(compose, args)
     for cnt in compose.containers:
+        # Default to root, as podman maps the current user to root in the container
+        cnt['user'] = 'root'
         podman_args = container_to_args(compose, cnt,
             detached=args.detach, podman_command=podman_command)
         compose.podman.run(podman_args)
@@ -1125,6 +1127,8 @@ def compose_run(compose, args):
     name0 = "{}_{}_tmp{}".format(compose.project_name, args.service, random.randrange(0, 65536))
     cnt["name"] = args.name or name0
     if args.entrypoint: cnt["entrypoint"] = args.entrypoint
+    # Default to root, as podman maps the current user to root in the container
+    cnt["user"] = "root"
     if args.user: cnt["user"] = args.user
     if args.workdir: cnt["working_dir"] = args.workdir
     if not args.service_ports:
