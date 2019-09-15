@@ -1039,7 +1039,7 @@ def compose_run(compose, args):
         # TODO: handle volumes
         pass
     cnt['tty']=False if args.T else True
-    cnt['command']=args.command
+    cnt['command']=args.cnt_command
     # run podman
     podman_args = container_to_args(compose, cnt, args.detach)
     if not args.detach:
@@ -1148,8 +1148,8 @@ def compose_run_parse(parser):
         help="Working directory inside the container")
     parser.add_argument('service', metavar='service', nargs=None,
         help='service name')
-    parser.add_argument('command', metavar='command', nargs=argparse.REMAINDER,
-        help='comman and its args')
+    parser.add_argument('cnt_command', metavar='command', nargs=argparse.REMAINDER,
+        help='command and its arguments')
 
 @cmd_parse(podman_compose, ['stop', 'restart'])
 def compose_parse_timeout(parser):
