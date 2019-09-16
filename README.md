@@ -22,7 +22,7 @@ OpenShift/Kubernetes distribution like [OKD](https://www.okd.io/minishift/).
 
 ## NOTE
 
-This project is still underdevelopment.
+This project is still under development.
 
 ## Installation
 
