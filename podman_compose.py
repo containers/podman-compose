@@ -702,11 +702,15 @@ class PodmanCompose:
                 "docker-compose.yml",
                 "docker-compose.yaml",
                 "docker-compose.override.yml",
-                "docker-compose.override.yaml"
+                "docker-compose.override.yaml",
+                "container-compose.yml",
+                "container-compose.yaml",
+                "container-compose.override.yml",
+                "container-compose.override.yaml"
             ]))
         files = args.file
         if not files:
-            print("no docker-compose.yml found, pass files with -f")
+            print("no docker-compose.yml or container-compose.yml file found, pass files with -f")
         ex = map(os.path.exists, files)
         missing = [ fn0 for ex0, fn0 in zip(ex, files) if not ex0 ]
         if missing:
