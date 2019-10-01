@@ -376,7 +376,7 @@ def mount_dict_vol_to_bind(compose, mount_dict):
     # podman volume list --format '{{.Name}}\t{{.MountPoint}}' -f 'label=io.podman.compose.project=HERE'
     try: out = compose.podman.output(["volume", "inspect", vol_name]).decode('utf-8')
     except subprocess.CalledProcessError:
-        compose.podman.output(["volume", "create", "-l", "io.podman.compose.project={}".format(proj_name), vol_name])
+        compose.podman.output(["volume", "create", "--label", "io.podman.compose.project={}".format(proj_name), vol_name])
         out = compose.podman.output(["volume", "inspect", vol_name]).decode('utf-8')
     src = json.loads(out)[0]["mountPoint"]
     ret=dict(mount_dict, type="bind", source=src, _vol=vol_name)
@@ -455,7 +455,7 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
     if cnt.get('read_only'):
         podman_args.append('--read-only')
     for i in cnt.get('labels', []):
-        podman_args.extend(['-l', i])
+        podman_args.extend(['--label', i])
     net = cnt.get("network_mode")
     if net:
         podman_args.extend(['--network', net])
