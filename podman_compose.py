@@ -496,7 +496,7 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
         podman_args.append('-i')
     if cnt.get('tty'):
         podman_args.append('--tty')
-    ulimit = cnt.get('ulimit', [])
+    ulimit = cnt.get('ulimits', [])
     if ulimit is not None:
         # ulimit can be a single value, i.e. ulimit: host
         if is_str(ulimit):
