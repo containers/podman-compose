@@ -20,6 +20,8 @@ import random
 
 from threading import Thread
 
+import shlex
+
 try:
     from shlex import quote as cmd_quote
 except ImportError:
@@ -565,7 +567,7 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
     command = cnt.get('command')
     if command is not None:
         if is_str(command):
-            podman_args.extend(command.split())
+            podman_args.extend(shlex.split(command))
         else:
             podman_args.extend(command)
     return podman_args
