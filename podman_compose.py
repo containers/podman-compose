@@ -1014,6 +1014,13 @@ def compose_down(compose, args):
     for pod in compose.pods:
         compose.podman.run(["pod", "rm", pod["name"]], sleep=0)
 
+@cmd_run(podman_compose, 'ps', 'show status of containers')
+def compose_ps(compose, args):
+    if args.quiet == True:
+        compose.podman.run(["pod", "ps", "--ctr-ids", "--filter", f"name={compose.pods[0]['name']}"])
+    else:
+        compose.podman.run(["pod", "ps", "--ctr-names", "--ctr-status", "--filter", f"name={compose.pods[0]['name']}"])
+
 @cmd_run(podman_compose, 'run', 'create a container similar to a service to run a one-off command')
 def compose_run(compose, args):
     create_pods(compose, args)
@@ -1169,6 +1176,10 @@ def compose_push_parse(parser):
     parser.add_argument('services', metavar='services', nargs='*',
         help='services to push')
 
+@cmd_parse(podman_compose, 'ps')
+def compose_ps_parse(parser):
+    parser.add_argument("-q", "--quiet",
+        help="Only display container IDs", action='store_true')
 
 @cmd_parse(podman_compose, 'build')
 def compose_build_parse(parser):
