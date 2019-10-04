@@ -3,14 +3,14 @@ services:
     ulimit1:
       image: ulimit_test
       command: ["ulimit.sh" ]
-      ulimit: nofile=1001
+      ulimits: nofile=1001
       build: 
         context: ./
         dockerfile: Dockerfile
     ulimit2:
       image: ulimit_test
       command: ["ulimit.sh" ]
-      ulimit:
+      ulimits:
       - nproc=1002:2002
       - nofile=1002
       build:
@@ -19,7 +19,7 @@ services:
     ulimit3:
       image: ulimit_test
       command: [ "ulimit.sh" ]
-      ulimit:
+      ulimits:
         nofile: 1003
         nproc:
           soft: 1003
