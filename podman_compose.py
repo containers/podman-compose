@@ -60,7 +60,7 @@ def try_int(i, fallback=None):
 
 
 dir_re = re.compile("^[~/\.]")
-propagation_re=re.compile("^(?:z|Z|r?shared|r?slave|r?private)$")
+propagation_re = re.compile("^(?:z|Z|r?shared|r?slave|r?private)$")
 
 # NOTE: if a named volume is used but not defined it gives
 # ERROR: Named volume "so and so" is used in service "xyz" but no declaration was found in the volumes section.
@@ -71,17 +71,17 @@ def parse_short_mount(mount_str, basedir):
     mount_a = mount_str.split(':')
     mount_opt_dict = {}
     mount_opt = None
-    if len(mount_a)==1:
+    if len(mount_a) == 1:
         # Just specify a path and let the Engine create a volume
         # - /var/lib/mysql
-        mount_src, mount_dst=None, mount_str
-    elif len(mount_a)==2:
+        mount_src, mount_dst = None, mount_str
+    elif len(mount_a) == 2:
         mount_src, mount_dst = mount_a
         # dest must start with /, otherwise it's option
         if not mount_dst.startswith('/'):
             mount_dst, mount_opt = mount_a
             mount_src = None
-    elif len(mount_a)==3:
+    elif len(mount_a) == 3:
         mount_src, mount_dst, mount_opt = mount_a
     else:
         raise ValueError("could not parse mount "+mount_str)
@@ -101,13 +101,13 @@ def parse_short_mount(mount_str, basedir):
         mount_type = "volume"
     mount_opts = filteri((mount_opt or '').split(','))
     for opt in mount_opts:
-        if opt=='ro': mount_opt_dict["read_only"]=True
-        elif opt=='rw': mount_opt_dict["read_only"]=False
-        elif propagation_re.match(opt): mount_opt_dict["bind"]=dict(propagation=opt)
+        if opt == 'ro': mount_opt_dict["read_only"] = True
+        elif opt == 'rw': mount_opt_dict["read_only"] = False
+        elif propagation_re.match(opt): mount_opt_dict["bind"] = dict(propagation=opt)
         else:
             # TODO: ignore
             raise ValueError("unknown mount option "+opt)
-    return dict(type=mount_type, source=mount_src, target=mount_dst, **mount_opt_dict)
+    return dict(type = mount_type, source = mount_src, target = mount_dst, **mount_opt_dict)
 
 
 def fix_mount_dict(mount_dict, proj_name, srv_name):
@@ -116,7 +116,7 @@ def fix_mount_dict(mount_dict, proj_name, srv_name):
     - add missing source
     - prefix source with proj_name
     """
-    if mount_dict["type"]=="volume":
+    if mount_dict["type"] == "volume":
         source = mount_dict.get("source")
         # keep old source
         mount_dict["_source"] = source
@@ -381,7 +381,7 @@ def mount_dict_vol_to_bind(compose, mount_dict):
     """
     proj_name = compose.project_name
     shared_vols = compose.shared_vols
-    if mount_dict["type"]!="volume": return mount_dict
+    if mount_dict["type"] != "volume": return mount_dict
     vol_name_orig = mount_dict.get("_source", None)
     vol_name = mount_dict["source"]
     print("podman volume inspect {vol_name} || podman volume create {vol_name}".format(vol_name=vol_name))
@@ -394,16 +394,16 @@ def mount_dict_vol_to_bind(compose, mount_dict):
         src = json.loads(out)[0]["mountPoint"]
     except KeyError:
         src = json.loads(out)[0]["Mountpoint"]
-    ret=dict(mount_dict, type="bind", source=src, _vol=vol_name)
-    bind_prop=ret.get("bind", {}).get("propagation")
+    ret = dict(mount_dict, type = "bind", source=src, _vol=vol_name)
+    bind_prop = ret.get("bind", {}).get("propagation")
     if not bind_prop:
         if "bind" not in ret:
-            ret["bind"]={}
+            ret["bind"] = {}
         # if in top level volumes then it's shared bind-propagation=z
         if vol_name_orig and vol_name_orig in shared_vols:
-            ret["bind"]["propagation"]="z"
+            ret["bind"]["propagation"] = "z"
         else:
-            ret["bind"]["propagation"]="Z"
+            ret["bind"]["propagation"] = "Z"
     try: del ret["volume"]
     except KeyError: pass
     return ret
@@ -413,19 +413,19 @@ def mount_desc_to_args(compose, mount_desc, srv_name, cnt_name):
     basedir = compose.dirname
     proj_name = compose.project_name
     shared_vols = compose.shared_vols
-    if is_str(mount_desc): mount_desc=parse_short_mount(mount_desc, basedir)
+    if is_str(mount_desc): mount_desc = parse_short_mount(mount_desc, basedir)
     # not needed
     # podman support: podman run --rm -ti --mount type=volume,source=myvol,destination=/delme busybox
     mount_desc = mount_dict_vol_to_bind(compose, fix_mount_dict(mount_desc, proj_name, srv_name))
     mount_type = mount_desc.get("type")
     source = mount_desc.get("source")
     target = mount_desc["target"]
-    opts=[]
+    opts = []
     if mount_desc.get("bind"):
-        bind_prop=mount_desc["bind"].get("propagation")
+        bind_prop = mount_desc["bind"].get("propagation")
         if bind_prop: opts.append("bind-propagation={}".format(bind_prop))
     if mount_desc.get("read_only", False): opts.append("ro")
-    if mount_type=='tmpfs':
+    if mount_type == 'tmpfs':
         tmpfs_opts = mount_desc.get("tmpfs", {})
         tmpfs_size = tmpfs_opts.get("size")
         if tmpfs_size:
@@ -433,14 +433,14 @@ def mount_desc_to_args(compose, mount_desc, srv_name, cnt_name):
         tmpfs_mode = tmpfs_opts.get("mode")
         if tmpfs_mode:
             opts.append("tmpfs-mode={}".format(tmpfs_mode))
-    opts=",".join(opts)
-    if mount_type=='bind':
+    opts = ",".join(opts)
+    if mount_type == 'bind':
         return "type=bind,source={source},destination={target},{opts}".format(
             source=source,
             target=target,
             opts=opts
         ).rstrip(",")
-    elif mount_type=='tmpfs':
+    elif mount_type == 'tmpfs':
         return "type=tmpfs,destination={target},{opts}".format(
             target=target,
             opts=opts
@@ -484,7 +484,7 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
         i = os.path.realpath(os.path.join(dirname, i))
         podman_args.extend(['--env-file', i])
     tmpfs_ls = cnt.get('tmpfs', [])
-    if is_str(tmpfs_ls): tmpfs_ls=[tmpfs_ls]
+    if is_str(tmpfs_ls): tmpfs_ls = [tmpfs_ls]
     for i in tmpfs_ls:
         podman_args.extend(['--tmpfs', i])
     for volume in cnt.get('volumes', []):
@@ -553,7 +553,7 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
                     "' '".join([cmd_quote(i) for i in healthcheck_test])
                 )])
             elif healthcheck_type == 'CMD-SHELL':
-                if len(healthcheck_test)!=1:
+                if len(healthcheck_test) != 1:
                     raise ValueError("'CMD_SHELL' takes a single string after it")
                 podman_args.extend(['--healthcheck-command', '/bin/sh -c {}'.format(cmd_quote(healthcheck_test[0]))])
             else:
@@ -658,7 +658,7 @@ class Podman:
 def normalize_service(service):
     for key in ("env_file", "security_opt"):
         if key not in service: continue
-        if is_str(service[key]): service[key]=[service[key]]
+        if is_str(service[key]): service[key] = [service[key]]
     for key in ("environment", "labels"):
         if key not in service: continue
         service[key] = norm_as_dict(service[key])
@@ -687,20 +687,20 @@ def rec_merge_one(target, source):
     done = set()
     for key, value in source.items():
         if key in target: continue
-        target[key]=value
+        target[key] = value
         done.add(key)
     for key, value in target.items():
         if key in done: continue
         if key not in source: continue
         value2 = source[key]
-        if type(value2)!=type(value):
+        if type(value2) != type(value):
             raise ValueError("can't merge value of {} of type {} and {}".format(key, type(value), type(value2)))
         if is_list(value2):
             value.extend(value2)
         elif is_dict(value2):
             rec_merge_one(value, value2)
         else:
-            target[key]=value2
+            target[key] = value2
     return target
 
 
@@ -816,7 +816,7 @@ class PodmanCompose:
                 dotenv_dict = dict([l.split("=", 1) for l in dotenv_ls if "=" in l])
         else:
             dotenv_dict = {}
-        compose={'_dirname': dirname}
+        compose = {'_dirname': dirname}
         for filename in files:
             with open(filename, 'r') as f:
                 content = yaml.safe_load(f)
@@ -826,7 +826,7 @@ class PodmanCompose:
                 content = rec_subs(content, [os.environ, dotenv_dict])
                 rec_merge(compose, content)
         # debug mode
-        if len(files)>1:
+        if len(files) > 1:
             print(" ** merged:\n", json.dumps(compose, indent = 2))
         ver = compose.get('version')
         services = compose.get('services')
@@ -910,7 +910,7 @@ class PodmanCompose:
             for cmd_parser in cmd._parse_args:
                 cmd_parser(subparser)
         self.global_args = parser.parse_args()
-        if not self.global_args.command or self.global_args.command=='help':
+        if not self.global_args.command or self.global_args.command == 'help':
             parser.print_help()
             exit(-1)
         return self.global_args
@@ -1126,8 +1126,8 @@ def compose_ps(compose, args):
 def compose_run(compose, args):
     create_pods(compose, args)
     print(args)
-    container_names=compose.container_names_by_service[args.service]
-    container_name=container_names[0]
+    container_names = compose.container_names_by_service[args.service]
+    container_name = container_names[0]
     cnt = compose.container_by_name[container_name]
     deps = cnt["_deps"]
     if not args.no_deps:
@@ -1146,8 +1146,8 @@ def compose_run(compose, args):
     if args.volume:
         # TODO: handle volumes
         pass
-    cnt['tty']=False if args.T else True
-    cnt['command']=args.cnt_command
+    cnt['tty'] = False if args.T else True
+    cnt['command'] = args.cnt_command
     # run podman
     podman_args = container_to_args(compose, cnt, args.detach)
     if not args.detach:
@@ -1165,8 +1165,8 @@ def transfer_service_status(compose, args, action):
         if service not in container_names_by_service:
             raise ValueError("unknown service: " + service)
         targets.extend(container_names_by_service[service])
-    podman_args=[action]
-    timeout=getattr(args, 'timeout', None)
+    podman_args = [action]
+    timeout = getattr(args, 'timeout', None)
     if timeout is not None:
         podman_args.extend(['-t', "{}".format(timeout)])
     for target in targets:
