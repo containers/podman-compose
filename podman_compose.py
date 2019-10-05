@@ -381,7 +381,10 @@ def mount_dict_vol_to_bind(compose, mount_dict):
     except subprocess.CalledProcessError:
         compose.podman.output(["volume", "create", "--label", "io.podman.compose.project={}".format(proj_name), vol_name])
         out = compose.podman.output(["volume", "inspect", vol_name]).decode('utf-8')
-    src = json.loads(out)[0]["mountPoint"]
+    try:
+        src = json.loads(out)[0]["mountPoint"]
+    except KeyError:
+        src = json.loads(out)[0]["Mountpoint"]
     ret=dict(mount_dict, type="bind", source=src, _vol=vol_name)
     bind_prop=ret.get("bind", {}).get("propagation")
     if not bind_prop:
