@@ -42,7 +42,7 @@ if PY3:
 
 # helper functions
 
-is_str  = lambda s: isinstance(s, basestring)
+is_str = lambda s: isinstance(s, basestring)
 is_dict = lambda d: isinstance(d, dict)
 is_list = lambda l: not is_str(l) and not is_dict(l) and hasattr(l, "__iter__")
 # identity filter
