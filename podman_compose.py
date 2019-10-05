@@ -58,6 +58,7 @@ def try_int(i, fallback=None):
         pass
     return fallback
 
+
 dir_re = re.compile("^[~/\.]")
 propagation_re=re.compile("^(?:z|Z|r?shared|r?slave|r?private)$")
 
@@ -141,6 +142,7 @@ def fix_mount_dict(mount_dict, proj_name, srv_name):
 # ${VARIABLE:?err} raise error if not set or empty
 # ${VARIABLE?err} raise error if not set
 # $$ means $
+
 
 var_re = re.compile(r'\$(\{(?:[^\s\$:\-\}]+)\}|(?:[^\s\$\{\}]+))')
 var_def_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?-([^\}]+)\}')
@@ -933,6 +935,7 @@ class PodmanCompose:
                             help="how to translate docker compose to podman [1pod|hostnet|accurate]",
                             choices=['1pod', '1podfw', 'hostnet', 'cntnet', 'publishall', 'identity'], default='1podfw')
 
+
 podman_compose = PodmanCompose()
 
 ###################
@@ -1298,6 +1301,7 @@ def compose_build_parse(parser):
 
 def main():
     podman_compose.run()
+
 
 if __name__ == "__main__":
     main()
