@@ -1,0 +1,14 @@
+version: "3"
+services:
+  web:
+    extends:
+      file: common-services.yml
+      service: webapp
+    environment:
+      - DEBUG=1
+    cpu_shares: 5
+
+  important_web:
+    extends: web
+    cpu_shares: 10
+

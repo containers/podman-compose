@@ -17,6 +17,7 @@ import time
 import re
 import hashlib
 import random
+import json
 
 from threading import Thread
 
@@ -572,32 +573,42 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
             podman_args.extend(command)
     return podman_args
 
-
-def rec_deps(services, container_by_name, cnt, init_service):
-    deps = cnt["_deps"]
-    for dep in deps.copy():
-        dep_cnts = services.get(dep)
-        if not dep_cnts:
+def rec_deps(services, service_name, start_point=None):
+    """
+    return all dependencies of service_name recursively
+    """
+    if not start_point:
+        start_point = service_name
+    deps = services[service_name]["_deps"]
+    for dep_name in deps.copy():
+        dep_srv = services.get(dep_name)
+        if not dep_srv:
             continue
-        dep_cnt = container_by_name.get(dep_cnts[0])
-        if dep_cnt:
-            # TODO: avoid creating loops, A->B->A
-            if init_service and init_service in dep_cnt["_deps"]:
-                continue
-            new_deps = rec_deps(services, container_by_name,
-                                dep_cnt, init_service)
-            deps.update(new_deps)
+        # NOTE: avoid creating loops, A->B->A
+        if start_point and start_point in dep_srv["_deps"]:
+            continue
+        new_deps = rec_deps(services, dep_name, start_point)
+        deps.update(new_deps)
     return deps
 
-
-def flat_deps(services, container_by_name):
-    for name, cnt in container_by_name.items():
-        deps = set([(c.split(":")[0] if ":" in c else c)
-                    for c in cnt.get("links", [])])
-        deps.update(cnt.get("depends_on", []))
-        cnt["_deps"] = deps
-    for name, cnt in container_by_name.items():
-        rec_deps(services, container_by_name, cnt, cnt.get('_service'))
+def flat_deps(services, with_extends=False):
+    """
+    create dependencies "_deps" or update it recursively for all services
+    """
+    for name, srv in services.items():
+        deps = set()
+        if with_extends:
+            ext = srv.get("extends", {}).get("service", None)
+            if ext:
+                deps.add(ext)
+                continue
+        deps.update(srv.get("depends_on", []))
+        # parse link to get service name and remove alias
+        deps.update([(c.split(":")[0] if ":" in c else c)
+            for c in srv.get("links", [])])
+        srv["_deps"] = deps
+    for name, srv in services.items():
+        rec_deps(services, name)
 
 ###################
 # podman and compose classes
@@ -627,23 +638,32 @@ class Podman:
             time.sleep(sleep)
         return p
 
+def normalize_service(service):
+    for key in ("env_file", "security_opt"):
+        if key not in service: continue
+        if is_str(service[key]): service[key]=[service[key]]
+    for key in ("environment", "labels"):
+        if key not in service: continue
+        service[key] = norm_as_dict(service[key])
+    if "extends" in service:
+        extends = service["extends"]
+        if is_str(extends):
+            extends = {"service": extends}
+            service["extends"] = extends
+    return service
+
 def normalize(compose):
     """
     convert compose dict of some keys from string or dicts into arrays
     """
     services = compose.get("services", None) or {}
     for service_name, service in services.items():
-        for key in ("env_file", "security_opt"):
-            if key not in service: continue
-            if is_str(service[key]): service[key]=[service[key]]
-        for key in ("environment", "labels"):
-            if key not in service: continue
-            service[key] = norm_as_dict(service[key])
+        normalize_service(service)
     return compose
 
-def rec_merge(target, source):
+def rec_merge_one(target, source):
     """
-    update content of compose with keys from content recursively
+    update target from source recursively
     """
     done = set()
     for key, value in source.items():
@@ -656,15 +676,46 @@ def rec_merge(target, source):
         value2 = source[key]
         if type(value2)!=type(value):
             raise ValueError("can't merge value of {} of type {} and {}".format(key, type(value), type(value2)))
-        if is_str(value2):
-            target[key]=value2
-        elif is_list(value2):
+        if is_list(value2):
             value.extend(value2)
         elif is_dict(value2):
-            rec_merge(value, value2)
+            rec_merge_one(value, value2)
         else:
-            raise ValueError("unexpected type of {}".format(key))
+            target[key]=value2
     return target
+
+def rec_merge(target, *sources):
+    """
+    update target recursively from sources
+    """
+    for source in sources:
+        ret = rec_merge_one(target, source)
+    return ret
+
+def resolve_extends(services, service_names, dotenv_dict):
+    for name in service_names:
+        print("extending ", name)
+        service = services[name]
+        ext = service.get("extends", {})
+        if is_str(ext): ext = {"service": ext}
+        from_service_name = ext.get("service", None)
+        if not from_service_name: continue
+        filename = ext.get("file", None)
+        if filename:
+            with open(filename, 'r') as f:
+                content = yaml.safe_load(f) or {}
+            if "services" in content:
+                content = content["services"]
+            content = rec_subs(content, [os.environ, dotenv_dict])
+            from_service = content.get(from_service_name, {})
+            normalize_service(from_service)
+        else:
+            from_service = services.get(from_service_name, {}).copy()
+            del from_service["_deps"]
+            del from_service["extends"]
+        new_service = rec_merge({}, from_service, service)
+        services[name] = new_service
+
 
 class PodmanCompose:
     def __init__(self):
@@ -759,9 +810,14 @@ class PodmanCompose:
             print(" ** merged:\n", json.dumps(compose, indent = 2))
         ver = compose.get('version')
         services = compose.get('services')
-
-        services = self._resolve_service_extends(services)
-
+        # NOTE: maybe add "extends.service" to _deps at this stage
+        flat_deps(services, with_extends=True)
+        service_names = sorted([ (len(srv["_deps"]), name) for name, srv in services.items() ])
+        service_names = [ name for _, name in service_names]
+        resolve_extends(services, service_names, dotenv_dict)
+        flat_deps(services)
+        service_names = sorted([ (len(srv["_deps"]), name) for name, srv in services.items() ])
+        service_names = [ name for _, name in service_names]
         # volumes: [...]
         shared_vols = compose.get('volumes', {})
         # shared_vols = list(shared_vols.keys())
@@ -812,7 +868,6 @@ class PodmanCompose:
                 given_containers.append(cnt)
         self.container_names_by_service = container_names_by_service
         container_by_name = dict([(c["name"], c) for c in given_containers])
-        flat_deps(container_names_by_service, container_by_name)
         #print("deps:", [(c["name"], c["_deps"]) for c in given_containers])
         given_containers = list(container_by_name.values())
         given_containers.sort(key=lambda c: len(c.get('_deps') or []))
@@ -824,69 +879,6 @@ class PodmanCompose:
         self.containers = containers
         self.container_by_name = dict([ (c["name"], c) for c in containers])
 
-    def _resolve_service_extends(self, services):
-        """
-        Resolve service extends (https://docs.docker.com/compose/extends/)
-        TODO: Doesn't yet support file
-        """
-        services_to_resolve = len(services)
-        resolved_services = {}
-        for service_name, service_desc in services.items():
-            if not "extends" in service_desc:
-                resolved_services[service_name] = service_desc
-                services_to_resolve -= 1
-        while services_to_resolve:
-            services_to_resolve_before = services_to_resolve
-            for service_name, service_desc in services.items():
-                if not service_name in resolved_services and service_desc['extends']['service'] in resolved_services:
-                    cust_service_desc = service_desc
-                    service_desc = resolved_services[service_desc['extends']['service']]
-                    service_desc = self._merge_service_extends(service_desc, cust_service_desc)
-                    del(service_desc['extends'])
-                    resolved_services[service_name] = service_desc
-                    services_to_resolve -= 1
-            if services_to_resolve == services_to_resolve_before:
-                print('Failed to resolve extends services')
-                exit(-1)
-        return resolved_services
-
-    def _merge_service_extends(self, base, custom):
-        """
-        Merges the service description from custom into base, as described at
-        https://docs.docker.com/compose/extends/#adding-and-overriding-configuration
-        """
-
-        result = base.copy()
-
-        # These are never shared
-        result.pop('links', None)
-        result.pop('volumes_from', None)
-        result.pop('depends_on', None)
-
-        for key, value in custom.items():
-            if key in ('ports', 'expose', 'external_links', 'dns', 'dns_search', 'tmpfs'):
-                if not key in result:
-                    result[key] = []
-                result[key].extend(value)
-            elif key in ('environment', 'labels'):
-                if not key in base:
-                    base[key] = {}
-                result[key] = {**base[key], **custom[key]}
-            elif key in ('volumes', 'devices'):
-                # Index by mount path, then merge
-                base_by_mount_path = {}
-                custom_by_mount_path = {}
-                if key in base:
-                    for label, label_value in [[label_value_pair.split(':', 2)[1], label_value_pair] for label_value_pair in base[key] ]:
-                        base_by_mount_path[label] = label_value
-                if key in custom:
-                    for label, label_value in [[label_value_pair.split(':', 2)[1], label_value_pair] for label_value_pair in custom[key] ]:
-                        custom_by_mount_path[label] = label_value
-                result[key] = list({**base_by_mount_path, **custom_by_mount_path}.values())
-            else:
-                # Single value or unshared option, replace
-                result[key] = value
-        return result
 
     def _parse_args(self):
         parser = argparse.ArgumentParser()
