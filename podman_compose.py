@@ -694,7 +694,6 @@ def rec_merge(target, *sources):
 
 def resolve_extends(services, service_names, dotenv_dict):
     for name in service_names:
-        print("extending ", name)
         service = services[name]
         ext = service.get("extends", {})
         if is_str(ext): ext = {"service": ext}
@@ -1081,10 +1080,11 @@ def compose_down(compose, args):
 
 @cmd_run(podman_compose, 'ps', 'show status of containers')
 def compose_ps(compose, args):
+    proj_name = compose.project_name
     if args.quiet == True:
-        compose.podman.run(["pod", "ps", "--ctr-ids", "--filter", f"name={compose.pods[0]['name']}"])
+        compose.podman.run(["ps", "--format", "{{.ID}}", "--filter", f"label=io.podman.compose.project={proj_name}"])
     else:
-        compose.podman.run(["pod", "ps", "--ctr-names", "--ctr-status", "--filter", f"name={compose.pods[0]['name']}"])
+        compose.podman.run(["ps", "--filter", f"label=io.podman.compose.project={proj_name}"])
 
 @cmd_run(podman_compose, 'run', 'create a container similar to a service to run a one-off command')
 def compose_run(compose, args):
