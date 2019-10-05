@@ -48,6 +48,7 @@ is_list = lambda l: not is_str(l) and not is_dict(l) and hasattr(l, "__iter__")
 # identity filter
 filteri = lambda a: filter(lambda i:i, a)
 
+
 def try_int(i, fallback=None):
     try:
         return int(i)
@@ -63,6 +64,7 @@ propagation_re=re.compile("^(?:z|Z|r?shared|r?slave|r?private)$")
 # NOTE: if a named volume is used but not defined it gives
 # ERROR: Named volume "so and so" is used in service "xyz" but no declaration was found in the volumes section.
 # unless it's anon-volume
+
 
 def parse_short_mount(mount_str, basedir):
     mount_a = mount_str.split(':')
@@ -106,6 +108,7 @@ def parse_short_mount(mount_str, basedir):
             raise ValueError("unknown mount option "+opt)
     return dict(type=mount_type, source=mount_src, target=mount_dst, **mount_opt_dict)
 
+
 def fix_mount_dict(mount_dict, proj_name, srv_name):
     """
     in-place fix mount dictionary to:
@@ -143,6 +146,7 @@ var_re = re.compile(r'\$(\{(?:[^\s\$:\-\}]+)\}|(?:[^\s\$\{\}]+))')
 var_def_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?-([^\}]+)\}')
 var_err_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?\?([^\}]+)\}')
 
+
 def dicts_get(dicts, key, fallback='', fallback_empty=False):
     """
     get the given key from any dict in dicts, trying them one by one
@@ -158,6 +162,7 @@ def dicts_get(dicts, key, fallback='', fallback_empty=False):
         if isinstance(value, Exception):
             raise value
     return value
+
 
 def rec_subs(value, dicts):
     """
@@ -176,6 +181,7 @@ def rec_subs(value, dicts):
     elif hasattr(value, "__iter__"):
         value = [rec_subs(i, dicts) for i in value]
     return value
+
 
 def norm_as_list(src):
     """
@@ -211,6 +217,7 @@ def norm_as_dict(src):
     else:
         raise ValueError("dictionary or iterable is expected")
     return dst
+
 
 def norm_ulimit(inner_value):
     if is_dict(inner_value):
@@ -399,6 +406,7 @@ def mount_dict_vol_to_bind(compose, mount_dict):
     except KeyError: pass
     return ret
 
+
 def mount_desc_to_args(compose, mount_desc, srv_name, cnt_name):
     basedir = compose.dirname
     proj_name = compose.project_name
@@ -576,6 +584,7 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
             podman_args.extend(command)
     return podman_args
 
+
 def rec_deps(services, service_name, start_point=None):
     """
     return all dependencies of service_name recursively
@@ -593,6 +602,7 @@ def rec_deps(services, service_name, start_point=None):
         new_deps = rec_deps(services, dep_name, start_point)
         deps.update(new_deps)
     return deps
+
 
 def flat_deps(services, with_extends=False):
     """
@@ -616,6 +626,7 @@ def flat_deps(services, with_extends=False):
 ###################
 # podman and compose classes
 ###################
+
 
 class Podman:
     def __init__(self, compose, podman_path='podman', dry_run=False):
@@ -641,6 +652,7 @@ class Podman:
             time.sleep(sleep)
         return p
 
+
 def normalize_service(service):
     for key in ("env_file", "security_opt"):
         if key not in service: continue
@@ -655,6 +667,7 @@ def normalize_service(service):
             service["extends"] = extends
     return service
 
+
 def normalize(compose):
     """
     convert compose dict of some keys from string or dicts into arrays
@@ -663,6 +676,7 @@ def normalize(compose):
     for service_name, service in services.items():
         normalize_service(service)
     return compose
+
 
 def rec_merge_one(target, source):
     """
@@ -687,6 +701,7 @@ def rec_merge_one(target, source):
             target[key]=value2
     return target
 
+
 def rec_merge(target, *sources):
     """
     update target recursively from sources
@@ -694,6 +709,7 @@ def rec_merge(target, *sources):
     for source in sources:
         ret = rec_merge_one(target, source)
     return ret
+
 
 def resolve_extends(services, service_names, dotenv_dict):
     for name in service_names:
@@ -923,6 +939,7 @@ podman_compose = PodmanCompose()
 # decorators to add commands and parse options
 ###################
 
+
 class cmd_run:
     def __init__(self, compose, cmd_name, cmd_desc):
         self.compose = compose
@@ -937,6 +954,7 @@ class cmd_run:
         wrapped._parse_args = []
         self.compose.commands[self.cmd_name] = wrapped
         return wrapped
+
 
 class cmd_parse:
     def __init__(self, compose, cmd_names):
@@ -954,16 +972,19 @@ class cmd_parse:
 # actual commands
 ###################
 
+
 @cmd_run(podman_compose, 'version', 'show version')
 def compose_version(compose, args):
     print("podman-composer version ", __version__)
     compose.podman.run(["--version"], sleep=0)
+
 
 @cmd_run(podman_compose, 'pull', 'pull stack images')
 def compose_pull(compose, args):
     for cnt in compose.containers:
         if cnt.get('build'): continue
         compose.podman.run(["pull", cnt["image"]], sleep=0)
+
 
 @cmd_run(podman_compose, 'push', 'push stack images')
 def compose_push(compose, args):
@@ -972,6 +993,7 @@ def compose_push(compose, args):
         if 'build' not in cnt: continue
         if services and cnt['_service'] not in services: continue
         compose.podman.run(["push", cnt["image"]], sleep=0)
+
 
 def build_one(compose, args, cnt):
     if 'build' not in cnt: return
@@ -1000,10 +1022,13 @@ def build_one(compose, args, cnt):
     build_args.append(ctx)
     compose.podman.run(build_args, sleep=0)
 
+
 @cmd_run(podman_compose, 'build', 'build stack images')
 def compose_build(compose, args):
     for cnt in compose.containers:
+
         build_one(compose, args, cnt)
+
 
 def create_pods(compose, args):
     for pod in compose.pods:
@@ -1017,6 +1042,7 @@ def create_pods(compose, args):
             podman_args.extend(['-p', i])
         compose.podman.run(podman_args)
 
+
 def up_specific(compose, args):
     deps = []
     if not args.no_deps:
@@ -1025,6 +1051,7 @@ def up_specific(compose, args):
     # args.always_recreate_deps 
     print("services", args.services)
     raise NotImplementedError("starting specific services is not yet implemented")
+
 
 @cmd_run(podman_compose, 'up', 'Create and start the entire stack or some of its services')
 def compose_up(compose, args):
@@ -1072,6 +1099,7 @@ def compose_up(compose, args):
             if args.abort_on_container_exit:
                 exit(-1)
 
+
 @cmd_run(podman_compose, 'down', 'tear down entire stack')
 def compose_down(compose, args):
     for cnt in compose.containers:
@@ -1081,6 +1109,7 @@ def compose_down(compose, args):
     for pod in compose.pods:
         compose.podman.run(["pod", "rm", pod["name"]], sleep=0)
 
+
 @cmd_run(podman_compose, 'ps', 'show status of containers')
 def compose_ps(compose, args):
     proj_name = compose.project_name
@@ -1088,6 +1117,7 @@ def compose_ps(compose, args):
         compose.podman.run(["ps", "--format", "{{.ID}}", "--filter", f"label=io.podman.compose.project={proj_name}"])
     else:
         compose.podman.run(["ps", "--filter", f"label=io.podman.compose.project={proj_name}"])
+
 
 @cmd_run(podman_compose, 'run', 'create a container similar to a service to run a one-off command')
 def compose_run(compose, args):
@@ -1139,13 +1169,16 @@ def transfer_service_status(compose, args, action):
     for target in targets:
         compose.podman.run(podman_args+[target], sleep=0)
 
+
 @cmd_run(podman_compose, 'start', 'start specific services')
 def compose_start(compose, args):
     transfer_service_status(compose, args, 'start')
 
+
 @cmd_run(podman_compose, 'stop', 'stop specific services')
 def compose_stop(compose, args):
     transfer_service_status(compose, args, 'start')
+
 
 @cmd_run(podman_compose, 'restart', 'restart specific services')
 def compose_restart(compose, args):
@@ -1154,6 +1187,7 @@ def compose_restart(compose, args):
 ###################
 # command arguments parsing
 ###################
+
 
 @cmd_parse(podman_compose, 'up')
 def compose_up_parse(parser):
@@ -1226,16 +1260,19 @@ def compose_run_parse(parser):
     parser.add_argument('cnt_command', metavar='command', nargs=argparse.REMAINDER,
         help='command and its arguments')
 
+
 @cmd_parse(podman_compose, ['stop', 'restart'])
 def compose_parse_timeout(parser):
     parser.add_argument("-t", "--timeout",
         help="Specify a shutdown timeout in seconds. ",
         type=float, default=10)
 
+
 @cmd_parse(podman_compose, ['start', 'stop', 'restart'])
 def compose_parse_services(parser):
     parser.add_argument('services', metavar='services', nargs='+',
         help='affected services')
+
 
 @cmd_parse(podman_compose, 'push')
 def compose_push_parse(parser):
@@ -1244,10 +1281,12 @@ def compose_push_parse(parser):
     parser.add_argument('services', metavar='services', nargs='*',
         help='services to push')
 
+
 @cmd_parse(podman_compose, 'ps')
 def compose_ps_parse(parser):
     parser.add_argument("-q", "--quiet",
         help="Only display container IDs", action='store_true')
+
 
 @cmd_parse(podman_compose, 'build')
 def compose_build_parse(parser):
