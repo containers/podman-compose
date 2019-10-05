@@ -635,7 +635,7 @@ class Podman:
         self.compose = compose
         self.podman_path = podman_path
         self.dry_run = dry_run
-    
+
     def output(self, podman_args):
         cmd = [self.podman_path]+podman_args
         return subprocess.check_output(cmd)
@@ -807,7 +807,7 @@ class PodmanCompose:
         if not project_name:
             project_name = dir_basename
         self.project_name = project_name
-        
+
 
         dotenv_path = os.path.join(dirname, ".env")
         if os.path.exists(dotenv_path):
@@ -1068,9 +1068,9 @@ def compose_up(compose, args):
             **args.__dict__,
         )
         compose.commands['build'](compose, build_args)
-    
+
     shared_vols = compose.shared_vols
-    
+
     # TODO: implement check hash label for change
     if args.force_recreate:
         compose.commands['down'](compose, args)
@@ -1155,7 +1155,7 @@ def compose_run(compose, args):
         if args.rm:
             podman_args.insert(1, '--rm')
     compose.podman.run(podman_args, sleep=0)
-    
+
 
 def transfer_service_status(compose, args, action):
     # TODO: handle dependencies, handle creations
