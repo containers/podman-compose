@@ -9,6 +9,7 @@
 
 from __future__ import print_function
 
+import atexit
 import sys
 import logging
 import os
@@ -631,18 +632,15 @@ class Podman:
         cmd = [self.podman_path]+podman_args
         return subprocess.check_output(cmd)
 
-    def run(self, podman_args, wait=True, sleep=1):
+    def run(self, podman_args, wait=False):
         podman_args_str = [str(arg) for arg in podman_args]
-        print("podman " + " ".join(podman_args_str))
+        logger.debug("podman %s"," ".join(podman_args_str))
         if self.dry_run:
             return None
         cmd = [self.podman_path]+podman_args_str
-        # subprocess.Popen(args, bufsize = 0, executable = None, stdin = None, stdout = None, stderr = None, preexec_fn = None, close_fds = False, shell = False, cwd = None, env = None, universal_newlines = False, startupinfo = None, creationflags = 0)
         p = subprocess.Popen(cmd)
         if wait:
-            print(p.wait())
-        if sleep:
-            time.sleep(sleep)
+            p.wait()
         return p
 
 def normalize_service(service):
@@ -722,6 +720,29 @@ def resolve_extends(services, service_names, dotenv_dict):
         new_service = rec_merge({}, from_service, service)
         services[name] = new_service
 
+class PodmanContainer:
+    def __init__(self, podman, name):
+        self.podman = podman
+        self.name = name
+        self.process = None
+
+    @property
+    def pid(self):
+        assert self.process
+        return self.process.pid
+
+    def run(self):
+        self.process = self.podman.run(podman_args=['start', '-a', self.name])
+        logger.debug("Started %r with pid %r", self.name, self.process.pid)
+
+    def stop(self):
+        logger.info("Stopping container %r", self.name)
+        self.podman.run(podman_args=['stop', self.name])
+
+    def wait(self):
+        logger.info("Wait for container %r", self.name)
+        assert self.process
+        self.process.wait()
 
 class PodmanCompose:
     def __init__(self):
@@ -973,7 +994,7 @@ def compose_version(compose, args):
 def compose_pull(compose, args):
     for cnt in compose.containers:
         if cnt.get('build'): continue
-        compose.podman.run(["pull", cnt["image"]], sleep=0)
+        compose.podman.run(["pull", cnt["image"]], wait=True)
 
 @cmd_run(podman_compose, 'push', 'push stack images')
 def compose_push(compose, args):
@@ -981,7 +1002,7 @@ def compose_push(compose, args):
     for cnt in compose.containers:
         if 'build' not in cnt: continue
         if services and cnt['_service'] not in services: continue
-        compose.podman.run(["push", cnt["image"]], sleep=0)
+        compose.podman.run(["push", cnt["image"]], wait=True)
 
 def build_one(compose, args, cnt):
     if 'build' not in cnt: return
@@ -1008,7 +1029,7 @@ def build_one(compose, args, cnt):
     for build_arg in args_list:
         build_args.extend(("--build-arg", build_arg,))
     build_args.append(ctx)
-    compose.podman.run(build_args, sleep=0)
+    compose.podman.run(build_args, wait=True)
 
 @cmd_run(podman_compose, 'build', 'build stack images')
 def compose_build(compose, args):
@@ -1017,6 +1038,7 @@ def compose_build(compose, args):
 
 def create_pods(compose, args):
     for pod in compose.pods:
+        logger.info("Create pod %r", pod["name"])
         podman_args = [
             "pod", "create",
             "--name={}".format(pod["name"]),
@@ -1025,7 +1047,7 @@ def create_pods(compose, args):
         ports = pod.get("ports") or []
         for i in ports:
             podman_args.extend(['-p', i])
-        compose.podman.run(podman_args)
+        compose.podman.run(podman_args, wait=True)
 
 def up_specific(compose, args):
     deps = []
@@ -1062,34 +1084,60 @@ def compose_up(compose, args):
     for cnt in compose.containers:
         podman_args = container_to_args(compose, cnt,
             detached=args.detach, podman_command=podman_command)
-        compose.podman.run(podman_args)
+        compose.podman.run(podman_args, wait=True)
     if args.no_start or args.detach or args.dry_run: return
     # TODO: handle already existing
     # TODO: if error creating do not enter loop
     # TODO: colors if sys.stdout.isatty()
 
-    threads = []
-    for cnt in compose.containers:
-        # TODO: remove sleep from podman.run
-        thread = Thread(target=compose.podman.run, args=[['start', '-a', cnt['name']]], daemon=True)
-        thread.start()
-        threads.append(thread)
-        time.sleep(1)
-    while True:
-        for thread in threads:
-            thread.join(timeout=1.0)
-            if thread.is_alive(): continue
+    container_map = {}
+    atexit.register(lambda x: _clean(x), container_map)
+
+    containers = [
+        PodmanContainer(podman=compose.podman, name=cnt['name'])
+        for cnt in compose.containers
+    ]
+    for container in containers:
+        container.run()
+
+    container_map.update({cnt.pid: cnt for cnt in containers})
+    logger.debug("Pids %r", list(container_map.keys()))
+
+    running = True
+    while running:
+        try:
+            pid, status = os.wait()
+            if pid not in container_map:
+                continue
+
+            logger.info("Container ended with %r", status)
+            stopped_container = container_map[pid]
+
             if args.abort_on_container_exit:
-                exit(-1)
+                running = False
+
+            stopped_container.run()
+            container_map[stopped_container.pid] = container_map.pop(pid)
+        except KeyboardInterrupt:
+            logger.debug("Caught interrupt")
+            running = False
+
+
+def _clean(container_map):
+    logger.debug("Stop all remaining containers")
+    for cnt in container_map.values():
+        cnt.stop()
+    for cnt in container_map.values():
+        cnt.wait()
 
 @cmd_run(podman_compose, 'down', 'tear down entire stack')
 def compose_down(compose, args):
     for cnt in compose.containers:
-        compose.podman.run(["stop", "-t=1", cnt["name"]], sleep=0)
+        compose.podman.run(["stop", "-t=1", cnt["name"]], wait=True)
     for cnt in compose.containers:
-        compose.podman.run(["rm", cnt["name"]], sleep=0)
+        compose.podman.run(["rm", cnt["name"]], wait=True)
     for pod in compose.pods:
-        compose.podman.run(["pod", "rm", pod["name"]], sleep=0)
+        compose.podman.run(["pod", "rm", pod["name"]], wait=True)
 
 @cmd_run(podman_compose, 'ps', 'show status of containers')
 def compose_ps(compose, args):
@@ -1131,7 +1179,7 @@ def compose_run(compose, args):
         podman_args.insert(1, '-i')
         if args.rm:
             podman_args.insert(1, '--rm')
-    compose.podman.run(podman_args, sleep=0)
+    compose.podman.run(podman_args, wait=True)
 
 
 def transfer_service_status(compose, args, action):
@@ -1147,7 +1195,7 @@ def transfer_service_status(compose, args, action):
     if timeout is not None:
         podman_args.extend(['-t', "{}".format(timeout)])
     for target in targets:
-        compose.podman.run(podman_args+[target], sleep=0)
+        compose.podman.run(podman_args+[target], wait=True)
 
 @cmd_run(podman_compose, 'start', 'start specific services')
 def compose_start(compose, args):
