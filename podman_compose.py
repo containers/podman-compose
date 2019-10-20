@@ -34,8 +34,6 @@ except ImportError:
 import json
 import yaml
 
-__version__ = '0.1.6dev'
-
 PY3 = sys.version_info[0] == 3
 if PY3:
     basestring = str
@@ -622,7 +620,7 @@ class Podman:
         self.compose = compose
         self.podman_path = podman_path
         self.dry_run = dry_run
-    
+
     def output(self, podman_args):
         cmd = [self.podman_path]+podman_args
         return subprocess.check_output(cmd)
@@ -789,7 +787,7 @@ class PodmanCompose:
         if not project_name:
             project_name = dir_basename
         self.project_name = project_name
-        
+
 
         dotenv_path = os.path.join(dirname, ".env")
         if os.path.exists(dotenv_path):
@@ -954,9 +952,13 @@ class cmd_parse:
 # actual commands
 ###################
 
+def get_version():
+    import pkg_resources
+    return pkg_resources.get_distribution("podman-compose").version
+
 @cmd_run(podman_compose, 'version', 'show version')
 def compose_version(compose, args):
-    print("podman-composer version ", __version__)
+    print("podman-composer version ", get_version())
     compose.podman.run(["--version"], sleep=0)
 
 @cmd_run(podman_compose, 'pull', 'pull stack images')
@@ -1022,7 +1024,7 @@ def up_specific(compose, args):
     if not args.no_deps:
         for service in args.services:
             deps.extend([])
-    # args.always_recreate_deps 
+    # args.always_recreate_deps
     print("services", args.services)
     raise NotImplementedError("starting specific services is not yet implemented")
 
@@ -1038,9 +1040,9 @@ def compose_up(compose, args):
             **args.__dict__,
         )
         compose.commands['build'](compose, build_args)
-    
+
     shared_vols = compose.shared_vols
-    
+
     # TODO: implement check hash label for change
     if args.force_recreate:
         compose.commands['down'](compose, args)
@@ -1122,7 +1124,7 @@ def compose_run(compose, args):
         if args.rm:
             podman_args.insert(1, '--rm')
     compose.podman.run(podman_args, sleep=0)
-    
+
 
 def transfer_service_status(compose, args, action):
     # TODO: handle dependencies, handle creations

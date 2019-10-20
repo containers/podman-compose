@@ -6,11 +6,9 @@ try:
 except:
     readme = ''
 
-from podman_compose import __version__ as podman_compose_version
-
 setup(
     name='podman-compose',
-    version=podman_compose_version,
+    version = '0.1.6dev',
     description="A script to run docker-compose.yml using podman",
     long_description=readme,
     long_description_content_type='text/markdown',
