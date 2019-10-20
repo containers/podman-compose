@@ -381,8 +381,11 @@ def mount_dict_vol_to_bind(compose, mount_dict):
     vol_name = mount_dict["source"]
     print("podman volume inspect {vol_name} || podman volume create {vol_name}".format(vol_name=vol_name))
     # podman volume list --format '{{.Name}}\t{{.MountPoint}}' -f 'label=io.podman.compose.project=HERE'
-    try: out = compose.podman.output(["volume", "inspect", vol_name]).decode('utf-8')
+    try:
+        logger.debug("Inspect volume %r", vol_name)
+        out = compose.podman.output(["volume", "inspect", vol_name]).decode('utf-8')
     except subprocess.CalledProcessError:
+        logger.debug("Creating volume %r", vol_name)
         compose.podman.output(["volume", "create", "--label", "io.podman.compose.project={}".format(proj_name), vol_name])
         out = compose.podman.output(["volume", "inspect", vol_name]).decode('utf-8')
     try:
@@ -411,8 +414,13 @@ def mount_desc_to_args(compose, mount_desc, srv_name, cnt_name):
     # not needed
     # podman support: podman run --rm -ti --mount type=volume,source=myvol,destination=/delme busybox
     mount_desc = mount_dict_vol_to_bind(compose, fix_mount_dict(mount_desc, proj_name, srv_name))
+    logger.debug("Mount descriptor %r", mount_desc)
     mount_type = mount_desc.get("type")
     source = mount_desc.get("source")
+    try:
+        os.makedirs(source)
+    except FileExistsError:
+        pass
     target = mount_desc["target"]
     opts=[]
     if mount_desc.get("bind"):
