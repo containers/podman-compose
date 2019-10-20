@@ -10,6 +10,7 @@
 from __future__ import print_function
 
 import sys
+import logging
 import os
 import argparse
 import subprocess
@@ -35,6 +36,9 @@ import json
 import yaml
 
 __version__ = '0.1.6dev'
+
+logger = logging.getLogger(__name__)
+logging.basicConfig()
 
 PY3 = sys.version_info[0] == 3
 if PY3:
@@ -622,7 +626,7 @@ class Podman:
         self.compose = compose
         self.podman_path = podman_path
         self.dry_run = dry_run
-    
+
     def output(self, podman_args):
         cmd = [self.podman_path]+podman_args
         return subprocess.check_output(cmd)
@@ -789,7 +793,7 @@ class PodmanCompose:
         if not project_name:
             project_name = dir_basename
         self.project_name = project_name
-        
+
 
         dotenv_path = os.path.join(dirname, ".env")
         if os.path.exists(dotenv_path):
@@ -809,7 +813,9 @@ class PodmanCompose:
                 rec_merge(compose, content)
         # debug mode
         if len(files)>1:
-            print(" ** merged:\n", json.dumps(compose, indent = 2))
+            logger.debug("merged: %r", compose)
+
+
         ver = compose.get('version')
         services = compose.get('services')
         # NOTE: maybe add "extends.service" to _deps at this stage
@@ -892,6 +898,9 @@ class PodmanCompose:
             for cmd_parser in cmd._parse_args:
                 cmd_parser(subparser)
         self.global_args = parser.parse_args()
+        log_level = logging.DEBUG if self.global_args.debug else logging.INFO
+        logger.setLevel(level=log_level)
+        logger.debug("Enabled debug mode")
         if not self.global_args.command or self.global_args.command=='help':
             parser.print_help()
             exit(-1)
@@ -916,6 +925,7 @@ class PodmanCompose:
         parser.add_argument("-t", "--transform_policy",
                             help="how to translate docker compose to podman [1pod|hostnet|accurate]",
                             choices=['1pod', '1podfw', 'hostnet', 'cntnet', 'publishall', 'identity'], default='1podfw')
+        parser.add_argument("--debug", help="Enables debug logging", action='store_true')
 
 podman_compose = PodmanCompose()
 
@@ -1022,7 +1032,7 @@ def up_specific(compose, args):
     if not args.no_deps:
         for service in args.services:
             deps.extend([])
-    # args.always_recreate_deps 
+    # args.always_recreate_deps
     print("services", args.services)
     raise NotImplementedError("starting specific services is not yet implemented")
 
@@ -1038,9 +1048,9 @@ def compose_up(compose, args):
             **args.__dict__,
         )
         compose.commands['build'](compose, build_args)
-    
+
     shared_vols = compose.shared_vols
-    
+
     # TODO: implement check hash label for change
     if args.force_recreate:
         compose.commands['down'](compose, args)
@@ -1122,7 +1132,7 @@ def compose_run(compose, args):
         if args.rm:
             podman_args.insert(1, '--rm')
     compose.podman.run(podman_args, sleep=0)
-    
+
 
 def transfer_service_status(compose, args, action):
     # TODO: handle dependencies, handle creations
