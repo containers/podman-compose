@@ -29,7 +29,6 @@ try:
     from shlex import quote as cmd_quote
 except ImportError:
     from pipes import quote as cmd_quote
-
 # import fnmatch
 # fnmatch.fnmatchcase(env, "*_HOST")
 
@@ -721,10 +720,11 @@ def resolve_extends(services, service_names, dotenv_dict):
         services[name] = new_service
 
 class PodmanContainer:
-    def __init__(self, podman, name):
+    def __init__(self, podman, name, policy="no"):
         self.podman = podman
         self.name = name
         self.process = None
+        self.policy = policy
 
     @property
     def pid(self):
@@ -732,6 +732,7 @@ class PodmanContainer:
         return self.process.pid
 
     def run(self):
+        # XXX add --restart policy
         self.process = self.podman.run(podman_args=['start', '-a', self.name])
         logger.debug("Started %r with pid %r", self.name, self.process.pid)
 
@@ -1082,6 +1083,8 @@ def compose_up(compose, args):
 
     create_pods(compose, args)
     for cnt in compose.containers:
+        # XXX add --restart policy
+        # XXX run or create !!
         podman_args = container_to_args(compose, cnt,
             detached=args.detach, podman_command=podman_command)
         compose.podman.run(podman_args, wait=True)
@@ -1103,24 +1106,11 @@ def compose_up(compose, args):
     container_map.update({cnt.pid: cnt for cnt in containers})
     logger.debug("Pids %r", list(container_map.keys()))
 
-    running = True
-    while running:
-        try:
-            pid, status = os.wait()
-            if pid not in container_map:
-                continue
-
-            logger.info("Container ended with %r", status)
-            stopped_container = container_map[pid]
-
-            if args.abort_on_container_exit:
-                running = False
-
-            stopped_container.run()
-            container_map[stopped_container.pid] = container_map.pop(pid)
-        except KeyboardInterrupt:
-            logger.debug("Caught interrupt")
-            running = False
+    while True:
+        pid, status = os.wait()
+        if pid not in container_map:
+            continue
+        logger.info("Container ended with %r", status)
 
 
 def _clean(container_map):
