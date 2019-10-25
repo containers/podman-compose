@@ -600,6 +600,7 @@ def flat_deps(services, with_extends=False):
     """
     for name, srv in services.items():
         deps = set()
+        srv["_deps"] = deps
         if with_extends:
             ext = srv.get("extends", {}).get("service", None)
             if ext:
@@ -609,7 +610,6 @@ def flat_deps(services, with_extends=False):
         # parse link to get service name and remove alias
         deps.update([(c.split(":")[0] if ":" in c else c)
             for c in srv.get("links", [])])
-        srv["_deps"] = deps
     for name, srv in services.items():
         rec_deps(services, name)
 
@@ -714,7 +714,10 @@ def resolve_extends(services, service_names, dotenv_dict):
         else:
             from_service = services.get(from_service_name, {}).copy()
             del from_service["_deps"]
-            del from_service["extends"]
+            try:
+                del from_service["extends"]
+            except KeyError:
+                pass
         new_service = rec_merge({}, from_service, service)
         services[name] = new_service
 
