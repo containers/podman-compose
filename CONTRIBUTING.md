@@ -55,20 +55,22 @@ def compose_up(compose, args):
 
 ## Missing Commands (help needed)
 
-  bundle             Generate a Docker bundle from the Compose file
-  config             Validate and view the Compose file
-  create             Create services
-  events             Receive real time events from containers
-  exec               Execute a command in a running container
-  images             List images
-  kill               Kill containers
-  logs               View output from containers
-  pause              Pause services
-  port               Print the public port for a port binding
-  ps                 List containers
-  rm                 Remove stopped containers
-  run                Run a one-off command
-  scale              Set number of containers for a service
-  top                Display the running processes
-  unpause            Unpause services
-  version            Show the Docker-Compose version information
+  Command name     | Command description
+  ---              | ---
+  bundle           | Generate a Docker bundle from the Compose file
+  config           | Validate and view the Compose file
+  create           | Create services
+  events           | Receive real time events from containers
+  exec             | Execute a command in a running container
+  images           | List images
+  kill             | Kill containers
+  logs             | View output from containers
+  pause            | Pause services
+  port             | Print the public port for a port binding
+  ps               | List containers
+  rm               | Remove stopped containers
+  run              | Run a one-off command
+  scale            | Set number of containers for a service
+  top              | Display the running processes
+  unpause          | Unpause services
+  version          | Show the Docker-Compose version information
