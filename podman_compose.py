@@ -100,6 +100,8 @@ def parse_short_mount(mount_str, basedir):
     for opt in mount_opts:
         if opt=='ro': mount_opt_dict["read_only"]=True
         elif opt=='rw': mount_opt_dict["read_only"]=False
+        elif opt=='delegated': mount_opt_dict["delegated"]=dict(propagation=opt)
+        elif opt=='cached': mount_opt_dict["cached"]=dict(propagation=opt)
         elif propagation_re.match(opt): mount_opt_dict["bind"]=dict(propagation=opt)
         else:
             # TODO: ignore
