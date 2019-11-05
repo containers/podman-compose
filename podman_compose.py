@@ -1088,9 +1088,9 @@ def compose_down(compose, args):
 def compose_ps(compose, args):
     proj_name = compose.project_name
     if args.quiet == True:
-        compose.podman.run(["ps", "--format", "{{.ID}}", "--filter", f"label=io.podman.compose.project={proj_name}"])
+        compose.podman.run(["ps", "-a", "--format", "{{.ID}}", "--filter", f"label=io.podman.compose.project={proj_name}"])
     else:
-        compose.podman.run(["ps", "--filter", f"label=io.podman.compose.project={proj_name}"])
+        compose.podman.run(["ps", "-a", "--filter", f"label=io.podman.compose.project={proj_name}"])
 
 @cmd_run(podman_compose, 'run', 'create a container similar to a service to run a one-off command')
 def compose_run(compose, args):
