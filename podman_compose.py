@@ -1154,6 +1154,24 @@ def compose_stop(compose, args):
 def compose_restart(compose, args):
     transfer_service_status(compose, args, 'restart')
 
+@cmd_run(podman_compose, 'logs', 'show logs from services')
+def compose_logs(compose, args):
+    container_names_by_service = compose.container_names_by_service
+    target = None
+    if args.service not in container_names_by_service:
+        raise ValueError("unknown service: " + args.service)
+    target = container_names_by_service[args.service]
+    podman_args = ['logs']
+    if args.follow:
+        podman_args.append('-f')
+    # the default value is to print all logs which is in podman = 0 and not
+    # needed to be passed
+    if args.tail and args.tail != 'all':
+        podman_args.extend(['--tail', args.tail])
+    if args.timestamps:
+        podman_args.append('-t')
+    compose.podman.run(podman_args+target)
+
 ###################
 # command arguments parsing
 ###################
@@ -1239,6 +1257,19 @@ def compose_parse_timeout(parser):
 def compose_parse_services(parser):
     parser.add_argument('services', metavar='services', nargs='+',
         help='affected services')
+
+@cmd_parse(podman_compose, ['logs'])
+def compose_logs_parse(parser):
+    parser.add_argument("-f", "--follow", action='store_true',
+                        help="Follow log output.")
+    parser.add_argument("-t", "--timestamps", action='store_true',
+                        help="Show timestamps.")
+    parser.add_argument("--tail",
+        help="Number of lines to show from the end of the logs for each "
+             "container.",
+        type=str, default="all")
+    parser.add_argument('service', metavar='service', nargs=None,
+        help='service name')
 
 @cmd_parse(podman_compose, 'push')
 def compose_push_parse(parser):
