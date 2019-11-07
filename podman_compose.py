@@ -769,6 +769,7 @@ class PodmanCompose:
         files = args.file
         if not files:
             print("no docker-compose.yml or container-compose.yml file found, pass files with -f")
+            exit(-1)
         ex = map(os.path.exists, files)
         missing = [ fn0 for ex0, fn0 in zip(ex, files) if not ex0 ]
         if missing:
