@@ -1149,7 +1149,7 @@ def compose_start(compose, args):
 
 @cmd_run(podman_compose, 'stop', 'stop specific services')
 def compose_stop(compose, args):
-    transfer_service_status(compose, args, 'start')
+    transfer_service_status(compose, args, 'stop')
 
 @cmd_run(podman_compose, 'restart', 'restart specific services')
 def compose_restart(compose, args):
