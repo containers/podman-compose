@@ -584,6 +584,9 @@ def rec_deps(services, service_name, start_point=None):
         start_point = service_name
     deps = services[service_name]["_deps"]
     for dep_name in deps.copy():
+        # avoid A depens on A
+        if dep_name==service_name:
+            continue
         dep_srv = services.get(dep_name)
         if not dep_srv:
             continue
@@ -604,7 +607,7 @@ def flat_deps(services, with_extends=False):
         if with_extends:
             ext = srv.get("extends", {}).get("service", None)
             if ext:
-                deps.add(ext)
+                if ext != name: deps.add(ext)
                 continue
         deps.update(srv.get("depends_on", []))
         # parse link to get service name and remove alias
