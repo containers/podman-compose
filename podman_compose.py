@@ -794,7 +794,7 @@ class PodmanCompose:
         os.chdir(dirname)
 
         if not project_name:
-            project_name = dir_basename
+            project_name = dir_basename.lower()
         self.project_name = project_name
         
 
