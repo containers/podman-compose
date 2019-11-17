@@ -502,6 +502,8 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
         podman_args.append('-i')
     if cnt.get('tty'):
         podman_args.append('--tty')
+    if cnt.get('privileged'):
+        podman_args.append('--privileged')
     ulimit = cnt.get('ulimits', [])
     if ulimit is not None:
         # ulimit can be a single value, i.e. ulimit: host
@@ -625,7 +627,7 @@ class Podman:
         self.compose = compose
         self.podman_path = podman_path
         self.dry_run = dry_run
-    
+
     def output(self, podman_args):
         cmd = [self.podman_path]+podman_args
         return subprocess.check_output(cmd)
@@ -796,7 +798,7 @@ class PodmanCompose:
         if not project_name:
             project_name = dir_basename.lower()
         self.project_name = project_name
-        
+
 
         dotenv_path = os.path.join(dirname, ".env")
         if os.path.exists(dotenv_path):
@@ -1029,7 +1031,7 @@ def up_specific(compose, args):
     if not args.no_deps:
         for service in args.services:
             deps.extend([])
-    # args.always_recreate_deps 
+    # args.always_recreate_deps
     print("services", args.services)
     raise NotImplementedError("starting specific services is not yet implemented")
 
@@ -1045,9 +1047,9 @@ def compose_up(compose, args):
             **args.__dict__,
         )
         compose.commands['build'](compose, build_args)
-    
+
     shared_vols = compose.shared_vols
-    
+
     # TODO: implement check hash label for change
     if args.force_recreate:
         compose.commands['down'](compose, args)
@@ -1130,7 +1132,7 @@ def compose_run(compose, args):
         if args.rm:
             podman_args.insert(1, '--rm')
     compose.podman.run(podman_args, sleep=0)
-    
+
 
 def transfer_service_status(compose, args, action):
     # TODO: handle dependencies, handle creations
