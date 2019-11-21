@@ -54,6 +54,12 @@ curl -o ~/.local/bin/podman-compose https://raw.githubusercontent.com/containers
 chmod +x ~/.local/bin/podman-compose
 ```
 
+or install from Fedora (starting from f31) repositories:
+
+```
+sudo dnf install podman-compose
+```
+
 ## Basic Usage
 
 We have included fully functional sample stacks inside `examples/` directory.
