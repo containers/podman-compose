@@ -525,6 +525,10 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
     if net:
         podman_args.extend(['--network', net])
     env = norm_as_list(cnt.get('environment', {}))
+    for c in cnt.get('cap_add', []):
+        podman_args.extend(['--cap-add', c])
+    for c in cnt.get('cap_drop', []):
+        podman_args.extend(['--cap-drop', c])
     for d in cnt.get('devices', []):
         podman_args.extend(['--device', d])
     for e in env:
