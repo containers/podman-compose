@@ -1,16 +1,18 @@
 import os
 from setuptools import setup
 
+from compose import __version__
+
 try:
     readme = open(os.path.join(os.path.dirname(__file__), 'README.md')).read()
 except:
     readme = ''
 
-from podman_compose import __version__ as podman_compose_version
 
 setup(
     name='podman-compose',
-    version=podman_compose_version,
+    packages=['compose',],
+    version=__version__,
     description="A script to run docker-compose.yml using podman",
     long_description=readme,
     long_description_content_type='text/markdown',
@@ -35,7 +37,7 @@ setup(
     py_modules=['podman_compose'],
     entry_points={
         'console_scripts': [
-            'podman-compose = podman_compose:main'
+            'podman-compose = compose.app:main'
         ]
     },
     include_package_data=True,

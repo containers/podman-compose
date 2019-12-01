@@ -34,7 +34,8 @@ except ImportError:
 import json
 import yaml
 
-__version__ = '0.1.6dev'
+from compose import __version__
+
 
 PY3 = sys.version_info[0] == 3
 if PY3:
