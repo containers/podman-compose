@@ -141,25 +141,19 @@ def fix_mount_dict(mount_dict, proj_name, srv_name):
 # ${VARIABLE?err} raise error if not set
 # $$ means $
 
-var_re = re.compile(r'\$(\{(?:[^\s\$:\-\}]+)\}|(?:[^\s\$\{\}]+))')
-var_def_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?-([^\}]+)\}')
-var_err_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?\?([^\}]+)\}')
-
-def dicts_get(dicts, key, fallback='', fallback_empty=False):
-    """
-    get the given key from any dict in dicts, trying them one by one
-    if not found in any, then use fallback, if fallback is Exception raise is
-    """
-    value = None
-    for d in dicts:
-        value = d.get(key)
-        if value is not None: break
-    if not value:
-        if fallback_empty or value is None:
-            value = fallback
-        if isinstance(value, Exception):
-            raise value
-    return value
+var_re = re.compile(r"""
+    \$(?:
+        (?P<escaped>\$) |
+        (?P<named>[_a-zA-Z][_a-zA-Z0-9]*) |
+        (?:{
+            (?P<braced>[_a-zA-Z][_a-zA-Z0-9]*)
+            (?:
+                (?::?-(?P<default>[^}]+)) |
+                (?::?\?(?P<err>[^}]+))
+            )?
+        })
+    )
+""", re.VERBOSE)
 
 def rec_subs(value, dicts):
     """
@@ -168,13 +162,18 @@ def rec_subs(value, dicts):
     if is_dict(value):
         value = dict([(k, rec_subs(v, dicts)) for k, v in value.items()])
     elif is_str(value):
-        value = var_re.sub(lambda m: dicts_get(dicts, m.group(1).strip('{}')), value)
-        sub_def = lambda m: dicts_get(dicts, m.group(1), m.group(3), m.group(2) == ':')
-        value = var_def_re.sub(sub_def, value)
-        sub_err = lambda m: dicts_get(dicts, m.group(1), RuntimeError(m.group(3)),
-                                      m.group(2) == ':')
-        value = var_err_re.sub(sub_err, value)
-        value = value.replace('$$', '$')
+        def convert(m):
+            if m.group("escaped") is not None:
+                return "$"
+            name = m.group("named") or m.group("braced")
+            for d in dicts:
+                value = d.get(name)
+                if value is not None:
+                    return "%s" % value
+            if m.group("err") is not None:
+                raise RuntimeError(m.group("err"))
+            return m.group("default") or ""
+        value = var_re.sub(convert, value)
     elif hasattr(value, "__iter__"):
         value = [rec_subs(i, dicts) for i in value]
     return value
