@@ -1,0 +1,14 @@
+version: "3.7"
+services:
+    variables:
+        image: busybox
+        command: ["/bin/busybox", "sh", "-c", "export | grep EXAMPLE"]
+        environment:
+            EXAMPLE_VARIABLE: "Host user: $USER"
+            EXAMPLE_BRACES: "Host user: ${USER}"
+            EXAMPLE_COLON_DASH_DEFAULT: ${NOT_A_VARIABLE:-My default}
+            EXAMPLE_DASH_DEFAULT: ${NOT_A_VARIABLE-My other default}
+            EXAMPLE_DOT_ENV: $DOT_ENV_VARIABLE
+            EXAMPLE_LITERAL: This is a $$literal
+            EXAMPLE_EMPTY: $NOT_A_VARIABLE
+
