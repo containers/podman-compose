@@ -498,6 +498,12 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
         podman_args.extend(['-w', cnt.get('working_dir')])
     if cnt.get('hostname'):
         podman_args.extend(['--hostname', cnt.get('hostname')])
+    for i in cnt.get('dns', []):
+        podman_args.extend(['--dns', i])
+    for i in cnt.get('dns_opt', []):
+        podman_args.extend(['--dns-opt', i])
+    for i in cnt.get('dns_search', []):
+        podman_args.extend(['--dns-search', i])
     if cnt.get('shm_size'):
         podman_args.extend(['--shm_size', '{}'.format(cnt.get('shm_size'))])
     if cnt.get('stdin_open'):
