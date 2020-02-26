@@ -27,6 +27,16 @@ services:
       working_dir: /var/www/html
       volumes:
         - myvol2:/var/www/html
+    prepopulate:
+      build: ./prepopulate
+      volumes:
+        - prepopulate:/volume
+    prepopulated:
+      image: busybox
+      command: ["/bin/cat", "/volume/test_file"]
+      volumes:
+        - prepopulate:/volume
+          
 
 volumes:
   myvol2:
@@ -38,3 +48,4 @@ volumes:
   data2:
     external:
       name: actual-name-of-volume
+  prepopulate:

@@ -387,7 +387,7 @@ def assert_volume(compose, mount_dict):
     try: out = compose.podman.output(["volume", "inspect", vol_name]).decode('utf-8')
     except subprocess.CalledProcessError:
         compose.podman.output(["volume", "create", "--label", "io.podman.compose.project={}".format(proj_name), vol_name])
-        out = compose.podman.output(["volume", "inspect", vol_name]).decode('utf-8')
+    ret=dict(mount_dict, _vol=vol_name)
 
 def mount_desc_to_mount_args(compose, mount_desc, srv_name, cnt_name):
     basedir = compose.dirname
@@ -427,6 +427,12 @@ def mount_desc_to_mount_args(compose, mount_desc, srv_name, cnt_name):
         return "type=tmpfs,destination={target},{opts}".format(
             target=target,
             opts=opts
+        ).rstrip(",")
+    elif mount_type=='volume':
+            return "type=volume,source={source},destination={target},{opts}".format(
+                source=source,
+                target=target,
+                opts=opts
         ).rstrip(",")
     else:
         raise ValueError("unknown mount type:"+mount_type)
