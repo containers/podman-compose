@@ -442,6 +442,21 @@ def mount_desc_to_args(compose, mount_desc, srv_name, cnt_name):
 
 
 
+def container_to_ulimit_args(cnt, podman_args):
+    ulimit = cnt.get('ulimits', [])
+    if ulimit is not None:
+        # ulimit can be a single value, i.e. ulimit: host
+        if is_str(ulimit):
+            podman_args.extend(['--ulimit', ulimit])
+        # or a dictionary or list:
+        else:
+            ulimit = norm_as_dict(ulimit)
+            ulimit = [ "{}={}".format(ulimit_key, norm_ulimit(inner_value)) for ulimit_key, inner_value in ulimit.items()]
+            for i in ulimit:
+                podman_args.extend(['--ulimit', i])
+
+
+
 def container_to_args(compose, cnt, detached=True, podman_command='run'):
     # TODO: double check -e , --add-host, -v, --read-only
     dirname = compose.dirname
@@ -506,17 +521,7 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
         podman_args.append('--tty')
     if cnt.get('privileged'):
         podman_args.append('--privileged')
-    ulimit = cnt.get('ulimits', [])
-    if ulimit is not None:
-        # ulimit can be a single value, i.e. ulimit: host
-        if is_str(ulimit):
-            podman_args.extend(['--ulimit', ulimit])
-        # or a dictionary or list:
-        else:
-            ulimit = norm_as_dict(ulimit)
-            ulimit = [ "{}={}".format(ulimit_key, norm_ulimit(inner_value)) for ulimit_key, inner_value in ulimit.items()]
-            for i in ulimit:
-                podman_args.extend(['--ulimit', i])
+    container_to_ulimit_args(cnt, podman_args)
     # currently podman shipped by fedora does not package this
     # if cnt.get('init'):
     #    args.append('--init')
@@ -1003,6 +1008,7 @@ def build_one(compose, args, cnt):
         "build", "-t", cnt["image"],
         "-f", dockerfile
     ]
+    container_to_ulimit_args(cnt, build_args)
     if getattr(args, 'pull_always', None): build_args.append("--pull-always")
     elif getattr(args, 'pull', None): build_args.append("--pull")
     args_list = norm_as_list(build_desc.get('args', {}))
