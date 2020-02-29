@@ -12,6 +12,7 @@ from __future__ import print_function
 import sys
 import os
 import argparse
+import shlex
 import subprocess
 import time
 import re
@@ -640,7 +641,7 @@ class Podman:
         return subprocess.check_output(cmd)
 
     def run(self, podman_args, wait=True, sleep=1):
-        podman_args_str = [str(arg) for arg in podman_args]
+        podman_args_str = [shlex.quote(str(arg)) for arg in podman_args]
         print("podman " + " ".join(podman_args_str))
         if self.dry_run:
             return None
