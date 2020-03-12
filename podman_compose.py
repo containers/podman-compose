@@ -34,6 +34,8 @@ except ImportError:
 import json
 import yaml
 
+from typing import Dict, Any
+
 __version__ = '0.1.6dev'
 
 PY3 = sys.version_info[0] == 3
@@ -457,7 +459,7 @@ def container_to_ulimit_args(cnt, podman_args):
 
 
 
-def container_to_args(compose, cnt, detached=True, podman_command='run'):
+def container_to_args(compose, cnt: Dict[str, Any], detached=True, podman_command='run'):
     # TODO: double check -e , --add-host, -v, --read-only
     dirname = compose.dirname
     shared_vols = compose.shared_vols
@@ -502,6 +504,22 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
         podman_args.extend(['--add-host', i])
     for i in cnt.get('expose', []):
         podman_args.extend(['--expose', i])
+    for cpu_period in cnt.get('cpu_period', []):
+        podman_args.extend(['--cpu-period', cpu_period])
+    for cpu_quota in cnt.get('cpu_quota', []):
+        podman_args.extend(['--cpu-quota', cpu_quota])
+    for cpu_shares in cnt.get('cpu_shares', []):
+        podman_args.extend(['--cpu-shares', cpu_shares])
+    for cpus in cnt.get('cpus', []):
+        podman_args.extend(['--cpus', cpus])
+    for cpuset in cnt.get('cpuset', []):
+        podman_args.extend(['--cpuset-cpus', cpuset])
+    for mem_limit in cnt.get('mem_limit', []):
+        podman_args.extend(['--memory', mem_limit])
+    for mem_reservation in cnt.get('mem_reservation', []):
+        podman_args.extend(['--memory-reservation', mem_reservation])
+    for memswap_limit in cnt.get('memswap_limit', []):
+        podman_args.extend(['--memory-swap', memswap_limit])
     if cnt.get('publishall'):
         podman_args.append('-P')
     for i in cnt.get('ports', []):
