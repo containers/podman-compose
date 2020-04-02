@@ -17,3 +17,9 @@ services:
       image: my-busybox-httpd2
       ports:
       - 8000:8000
+    test_build_arg_argument:
+      build:
+        context: ./context
+        dockerfile: Dockerfile-alt
+      image: my-busybox-httpd2
+      command: env

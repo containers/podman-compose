@@ -1067,7 +1067,7 @@ def build_one(compose, args, cnt):
     if getattr(args, 'pull_always', None): build_args.append("--pull-always")
     elif getattr(args, 'pull', None): build_args.append("--pull")
     args_list = norm_as_list(build_desc.get('args', {}))
-    for build_arg in args_list:
+    for build_arg in args_list + args.build_arg:
         build_args.extend(("--build-arg", build_arg,))
     build_args.append(ctx)
     compose.podman.run(build_args, sleep=0)
@@ -1360,6 +1360,8 @@ def compose_build_parse(parser):
         help="attempt to pull a newer version of the image", action='store_true')
     parser.add_argument("--pull-always",
         help="attempt to pull a newer version of the image, Raise an error even if the image is present locally.", action='store_true')
+    parser.add_argument("--build-arg", metavar="key=val", action="append", default=[],
+        help="Set build-time variables for services.")
 
 
 def main():
