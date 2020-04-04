@@ -6,7 +6,7 @@ This project is aimed to provide drop-in replacement for `docker-compose`,
 and it's very useful for certain cases because:
 
 - can run rootless
-- only depend on `podman` and Python3 and [PyYAML](https://pyyaml.org/)
+- only depend on `podman` and Python3.6+ and [PyYAML](https://pyyaml.org/)
 - no daemon, no setup.
 - can be used by developers to run single-machine containerized stacks using single familiar YAML file
 
