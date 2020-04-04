@@ -29,11 +29,13 @@ services:
         - myvol2:/var/www/html
 
 volumes:
+  myvol1:
+    labels:
+      mylabel: myval
   myvol2:
     labels:
       mylabel: myval
   data:
-    name: my-app-data
     external: true
   data2:
     external:

@@ -639,14 +639,15 @@ class Podman:
         cmd = [self.podman_path]+podman_args
         return subprocess.check_output(cmd)
 
-    def run(self, podman_args, wait=True, sleep=1):
+    def run(self, podman_args, wait=True, sleep=1, printcmd=True, **kwargs):
         podman_args_str = [str(arg) for arg in podman_args]
-        print("podman " + " ".join(podman_args_str))
+        if printcmd:
+            print("podman " + " ".join(podman_args_str))
         if self.dry_run:
             return None
         cmd = [self.podman_path]+podman_args_str
         # subprocess.Popen(args, bufsize = 0, executable = None, stdin = None, stdout = None, stderr = None, preexec_fn = None, close_fds = False, shell = False, cwd = None, env = None, universal_newlines = False, startupinfo = None, creationflags = 0)
-        p = subprocess.Popen(cmd)
+        p = subprocess.Popen(cmd, **kwargs)
         if wait:
             print(p.wait())
         if sleep:
@@ -745,6 +746,7 @@ class PodmanCompose:
         self.shared_vols = None
         self.container_names_by_service = None
         self.container_by_name = None
+        self.merged_compose = None
 
     def run(self):
         args = self._parse_args()
@@ -896,6 +898,7 @@ class PodmanCompose:
         self.pods = pods
         self.containers = containers
         self.container_by_name = dict([ (c["name"], c) for c in containers])
+        self.merged_compose = compose
 
 
     def _parse_args(self):
@@ -974,6 +977,35 @@ class cmd_parse:
 def compose_version(compose, args):
     print("podman-composer version ", __version__)
     compose.podman.run(["--version"], sleep=0)
+
+@cmd_run(podman_compose, 'config', 'show applied (merged/resolved) config')
+def compose_config(compose, args):
+    if args.quiet:
+        # Quiet syntax check
+        return
+
+    if args.services:
+        print("\n".join([x["service_name"] for x in compose.containers]))
+        return
+
+    if args.volumes:
+        print("\n".join(compose.shared_vols))
+        return
+
+    if args.resolve_image_digests:
+        def get_digest(imagename):
+            p = compose.podman.run(["inspect", "busybox", "-f", "{{.Digest}}"], wait=False, printcmd=False, stdout=subprocess.PIPE)
+            out, _ = p.communicate()
+            returnvalue = p.wait()
+            return out.decode("ascii").strip()
+        
+        for k, val in compose.merged_compose["services"].items():
+            imagename = compose.merged_compose["services"][k]["image"]
+            digest = get_digest(imagename)
+            imageparts = imagename.split(":")
+            compose.merged_compose["services"][k]["image"] = "{}@{}".format(imageparts[0], digest)
+
+    print(yaml.dump(compose.merged_compose, default_flow_style=False))
 
 @cmd_run(podman_compose, 'pull', 'pull stack images')
 def compose_pull(compose, args):
@@ -1190,6 +1222,17 @@ def compose_logs(compose, args):
 ###################
 # command arguments parsing
 ###################
+
+@cmd_parse(podman_compose, 'config')
+def compose_config_parse(parser):
+    parser.add_argument("-q", "--quiet", action="store_true",
+        help="Validate only the configuration, don't print result compose")
+    parser.add_argument("--services", action="store_true",
+        help="Print the list of services (one per line)")
+    parser.add_argument("--volumes", action="store_true",
+        help="Print the list of volumes (one per line)")
+    parser.add_argument("--resolve-image-digests", action="store_true",
+        help="Resolve image digests")
 
 @cmd_parse(podman_compose, 'up')
 def compose_up_parse(parser):
