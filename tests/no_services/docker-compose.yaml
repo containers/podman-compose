@@ -1,0 +1,7 @@
+version: '3'
+networks:
+  shared-network:
+    driver: bridge
+    ipam:
+      config:
+          - subnet: 172.19.0.0/24
