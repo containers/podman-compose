@@ -59,6 +59,8 @@ def try_int(i, fallback=None):
 
 dir_re = re.compile("^[~/\.]")
 propagation_re=re.compile("^(?:z|Z|r?shared|r?slave|r?private)$")
+invalid_proj_initial_re=re.compile("[^a-zA-Z0-9]")
+invalid_proj_name_re=re.compile("[^a-zA-Z0-9_.-]")
 
 # NOTE: if a named volume is used but not defined it gives
 # ERROR: Named volume "so and so" is used in service "xyz" but no declaration was found in the volumes section.
@@ -804,6 +806,11 @@ class PodmanCompose:
 
         if not project_name:
             project_name = dir_basename.lower()
+            project_name = invalid_proj_name_re.sub("", project_name)
+            project_name = invalid_proj_initial_re.sub("", project_name[0]) + project_name[1:]
+            if project_name == "":
+                print("Warning: invalid project directory name")
+                project_name = "invalid_name"
         self.project_name = project_name
 
 

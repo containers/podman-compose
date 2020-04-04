@@ -1,0 +1,11 @@
+version: "3"
+services:
+    redis:
+      image: redis:alpine
+      command: ["redis-server", "--appendonly yes", "--notify-keyspace-events", "Ex"]
+      tmpfs: /run1
+      ports:
+        - "6379"
+      environment:
+        - SECRET_KEY=aabbcc
+        - ENV_IS_SET
