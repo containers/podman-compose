@@ -33,6 +33,9 @@ except ImportError:
 
 import json
 import yaml
+import signal
+
+from asyncstreamreader import ASyncStreamReader
 
 __version__ = '0.1.6dev'
 
@@ -639,14 +642,15 @@ class Podman:
         cmd = [self.podman_path]+podman_args
         return subprocess.check_output(cmd)
 
-    def run(self, podman_args, wait=True, sleep=1):
+    def run(self, podman_args, wait=True, sleep=1, printcmd=True, **kwargs):
         podman_args_str = [str(arg) for arg in podman_args]
-        print("podman " + " ".join(podman_args_str))
+        if printcmd:
+            print("podman " + " ".join(podman_args_str))
         if self.dry_run:
             return None
         cmd = [self.podman_path]+podman_args_str
         # subprocess.Popen(args, bufsize = 0, executable = None, stdin = None, stdout = None, stderr = None, preexec_fn = None, close_fds = False, shell = False, cwd = None, env = None, universal_newlines = False, startupinfo = None, creationflags = 0)
-        p = subprocess.Popen(cmd)
+        p = subprocess.Popen(cmd, **kwargs)
         if wait:
             print(p.wait())
         if sleep:
@@ -732,6 +736,28 @@ def resolve_extends(services, service_names, dotenv_dict):
                 pass
         new_service = rec_merge({}, from_service, service)
         services[name] = new_service
+
+def mergesort_podman_logs(logs, keep_timestamp=False):
+    logfile = []
+    for svc, stdout in logs:
+        for row in stdout:
+            if row.strip() == "":
+                continue
+            ts, msg = row.split(" ", 1)
+            if keep_timestamp:
+                msg = " ".join([ts, msg])
+            logfile.append((svc, ts, msg))
+    
+    sorted(logfile, key=lambda x: x[1])
+    return "\n".join(["%-10s: %s" % (x[0][:10], x[2]) for x in logfile])
+
+def read_all_standard_line(stdout):
+    ret = []
+    while True:
+        line = stdout.readline()
+        if line is None:
+            return ret
+        ret.append(line.decode("utf8").strip())
 
 
 class PodmanCompose:
@@ -1075,19 +1101,24 @@ def compose_up(compose, args):
     # TODO: if error creating do not enter loop
     # TODO: colors if sys.stdout.isatty()
 
-    threads = []
+    # Note: to have timestamps (needed for log sorting) we need to create detached containers, then use podman logs
+
+    # register handler for Ctrl-C
+    def stop_all_containers(sig, frame):
+        # stop all containers
+        print("Stopping all containers")
+        for cnt in compose.containers:
+            print("Stopping %s" % cnt["name"])
+            compose.podman.run(["stop", cnt["name"]], wait=True, printcmd=False)
+        sys.exit(0)
+    
+    signal.signal(signal.SIGINT, stop_all_containers)
+
     for cnt in compose.containers:
-        # TODO: remove sleep from podman.run
-        thread = Thread(target=compose.podman.run, args=[['start', '-a', cnt['name']]], daemon=True)
-        thread.start()
-        threads.append(thread)
-        time.sleep(1)
-    while True:
-        for thread in threads:
-            thread.join(timeout=1.0)
-            if thread.is_alive(): continue
-            if args.abort_on_container_exit:
-                exit(-1)
+        compose.podman.run(["start", cnt["name"]], wait=False, printcmd=False)
+
+    # Display logs
+    compose_logs_processes(compose)
 
 @cmd_run(podman_compose, 'down', 'tear down entire stack')
 def compose_down(compose, args):
@@ -1171,21 +1202,45 @@ def compose_restart(compose, args):
 
 @cmd_run(podman_compose, 'logs', 'show logs from services')
 def compose_logs(compose, args):
+    compose_logs_processes(compose, args.service, args.follow, args.tail, args.timestamps)
+
+def compose_logs_processes(compose, services=None, follow=True, tail="all", keep_timestamp=False):
     container_names_by_service = compose.container_names_by_service
-    target = None
-    if args.service not in container_names_by_service:
-        raise ValueError("unknown service: " + args.service)
-    target = container_names_by_service[args.service]
-    podman_args = ['logs']
-    if args.follow:
-        podman_args.append('-f')
-    # the default value is to print all logs which is in podman = 0 and not
-    # needed to be passed
-    if args.tail and args.tail != 'all':
-        podman_args.extend(['--tail', args.tail])
-    if args.timestamps:
-        podman_args.append('-t')
-    compose.podman.run(podman_args+target)
+    if services is None or len(services) == 0:
+        services = container_names_by_service
+
+    processes = []
+    for svc in services:
+        if svc not in container_names_by_service:
+            raise ValueError("unknown service: " + svc)
+    
+        target = container_names_by_service[svc]
+        podman_args = ['logs', '-t']
+        if follow:
+            podman_args.append('-f')
+        # the default value is to print all logs which is in podman = 0 and not
+        # needed to be passed
+        if tail and tail != 'all':
+            podman_args.extend(['--tail', tail])
+
+        p = compose.podman.run(podman_args+target, wait=False, printcmd=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        processes.append((svc, p, ASyncStreamReader(p.stdout), ASyncStreamReader(p.stderr)))
+    
+    while len(processes) > 0:
+        logs = []
+        for p in processes:
+            svc = p[0]
+            exitcode = p[1].poll()
+            stdout = read_all_standard_line(p[2])
+            stderr = read_all_standard_line(p[3])
+            logs.append((svc, stdout))
+            logs.append((svc, stderr))
+            if exitcode is not None:
+                processes.remove(p)
+        logtoprint = mergesort_podman_logs(logs, keep_timestamp=keep_timestamp)
+        if logtoprint.strip() != "":
+            print(logtoprint)
+        time.sleep(0.2)
 
 ###################
 # command arguments parsing
@@ -1283,7 +1338,7 @@ def compose_logs_parse(parser):
         help="Number of lines to show from the end of the logs for each "
              "container.",
         type=str, default="all")
-    parser.add_argument('service', metavar='service', nargs=None,
+    parser.add_argument('service', metavar='service', nargs="*",
         help='service name')
 
 @cmd_parse(podman_compose, 'push')
