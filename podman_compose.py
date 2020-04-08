@@ -1079,6 +1079,8 @@ def build_one(compose, args, cnt):
     if "target" in build_desc:
         build_args.extend(["--target", build_desc["target"]])
     container_to_ulimit_args(cnt, build_args)
+    if args.no_cache:
+        build_args.append("--no-cache")
     if getattr(args, 'pull_always', None): build_args.append("--pull-always")
     elif getattr(args, 'pull', None): build_args.append("--pull")
     args_list = norm_as_list(build_desc.get('args', {}))
@@ -1394,6 +1396,8 @@ def compose_build_parse(parser):
         help="Set build-time variables for services.")
     parser.add_argument('services', metavar='services', nargs='*',default=None,
                         help='affected services')
+    parser.add_argument("--no-cache",
+                        help="Do not use cache when building the image.", action='store_true')
 
 def main():
     podman_compose.run()
