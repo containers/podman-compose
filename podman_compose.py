@@ -1019,7 +1019,8 @@ def build_one(compose, args, cnt):
     for build_arg in args_list:
         build_args.extend(("--build-arg", build_arg,))
     build_args.append(ctx)
-    compose.podman.run(build_args, sleep=0)
+    cmd=compose.podman.run(build_args, sleep=0)
+    return cmd
 
 @cmd_run(podman_compose, 'build', 'build stack images')
 def compose_build(compose, args):
@@ -1047,19 +1048,22 @@ def create_pods(compose, args):
             podman_args.extend(['-p', i])
         compose.podman.run(podman_args)
 
+
 def up_specific(compose, args):
     deps = []
     if not args.no_deps:
         for service in args.services:
             deps.extend([])
     # args.always_recreate_deps
+
+    compose_up(compose,args)
     print("services", args.services)
     raise NotImplementedError("starting specific services is not yet implemented")
 
 @cmd_run(podman_compose, 'up', 'Create and start the entire stack or some of its services')
 def compose_up(compose, args):
-    if args.services:
-        return up_specific(compose, args)
+    #if args.services:
+     #   return up_specific(compose, args)
 
     if not args.no_build:
         # `podman build` does not cache, so don't always build
@@ -1079,17 +1083,27 @@ def compose_up(compose, args):
     podman_command = 'run' if args.detach and not args.no_start else 'create'
 
     create_pods(compose, args)
-    for cnt in compose.containers:
-        podman_args = container_to_args(compose, cnt,
-            detached=args.detach, podman_command=podman_command)
-        compose.podman.run(podman_args)
+    started_containers = []
+    if args.services:
+        for cnt in compose.containers:
+            if cnt['service_name'] in args.services:
+                podman_args = container_to_args(compose, cnt,
+                                                detached=args.detach, podman_command=podman_command)
+                compose.podman.run(podman_args)
+                started_containers.append(cnt)
+    else:
+        for cnt in compose.containers:
+            podman_args = container_to_args(compose, cnt,
+                detached=args.detach, podman_command=podman_command)
+            compose.podman.run(podman_args)
+        started_containers=compose.containers
     if args.no_start or args.detach or args.dry_run: return
     # TODO: handle already existing
     # TODO: if error creating do not enter loop
     # TODO: colors if sys.stdout.isatty()
 
     threads = []
-    for cnt in compose.containers:
+    for cnt in started_containers:
         # TODO: remove sleep from podman.run
         thread = Thread(target=compose.podman.run, args=[['start', '-a', cnt['name']]], daemon=True)
         thread.start()
@@ -1101,6 +1115,7 @@ def compose_up(compose, args):
             if thread.is_alive(): continue
             if args.abort_on_container_exit:
                 exit(-1)
+
 
 @cmd_run(podman_compose, 'down', 'tear down entire stack')
 def compose_down(compose, args):
@@ -1317,6 +1332,7 @@ def compose_build_parse(parser):
         help="attempt to pull a newer version of the image", action='store_true')
     parser.add_argument("--pull-always",
         help="attempt to pull a newer version of the image, Raise an error even if the image is present locally.", action='store_true')
+
     parser.add_argument('services', metavar='services', nargs='*',default=None,
                         help='affected services')
 
