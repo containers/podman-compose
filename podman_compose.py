@@ -1013,14 +1013,15 @@ def build_one(compose, args, cnt):
         "-f", dockerfile
     ]
     container_to_ulimit_args(cnt, build_args)
+    if args.no_cache:
+        build_args.append("--no-cache")
     if getattr(args, 'pull_always', None): build_args.append("--pull-always")
     elif getattr(args, 'pull', None): build_args.append("--pull")
     args_list = norm_as_list(build_desc.get('args', {}))
     for build_arg in args_list:
         build_args.extend(("--build-arg", build_arg,))
     build_args.append(ctx)
-    cmd=compose.podman.run(build_args, sleep=0)
-    return cmd
+    compose.podman.run(build_args, sleep=0)
 
 @cmd_run(podman_compose, 'build', 'build stack images')
 def compose_build(compose, args):
@@ -1335,6 +1336,8 @@ def compose_build_parse(parser):
 
     parser.add_argument('services', metavar='services', nargs='*',default=None,
                         help='affected services')
+    parser.add_argument("--no-cache",
+                        help="Do not use cache when building the image.", action='store_true')
 
 def main():
     podman_compose.run()
