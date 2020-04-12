@@ -1370,7 +1370,7 @@ def compose_exec_parse(parser):
                         help='services to push')
     parser.add_argument('cmd', metavar='command', nargs=argparse.REMAINDER,
                         help='command to execute')
-    parser.add_argument("-u","--user",metavar='USER',
+    parser.add_argument("-u", "--user", metavar='USER',
         help="Run the command as this user.", action='append')
 @cmd_parse(podman_compose, 'build')
 def compose_build_parse(parser):
