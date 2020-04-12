@@ -1088,9 +1088,6 @@ def compose_up_run(compose, cnt, args):
 
 @cmd_run(podman_compose, 'up', 'Create and start the entire stack or some of its services')
 def compose_up(compose, args):
-    #if args.services:
-     #   return up_specific(compose, args)
-
     if not args.no_build:
         # `podman build` does not cache, so don't always build
         build_args = argparse.Namespace(
