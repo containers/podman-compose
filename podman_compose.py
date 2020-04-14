@@ -358,44 +358,14 @@ def tr_1podfw(project_name, services, given_containers):
     return pods, containers
 
 
-def mount_dict_vol_to_bind(compose, mount_dict):
-    """
-    inspect volume to get directory
-    create volume if needed
-    and return mount_dict as bind of that directory
-    """
-    proj_name = compose.project_name
-    shared_vols = compose.shared_vols
-    if mount_dict["type"]!="volume": return mount_dict
-    vol_name = mount_dict["source"]
-    print("podman volume inspect {vol_name} || podman volume create {vol_name}".format(vol_name=vol_name))
-    # podman volume list --format '{{.Name}}\t{{.MountPoint}}' -f 'label=io.podman.compose.project=HERE'
-    try: out = compose.podman.output(["volume", "inspect", vol_name])
-    except subprocess.CalledProcessError:
-        compose.podman.output(["volume", "create", "-l", "io.podman.compose.project={}".format(proj_name), vol_name])
-        out = compose.podman.output(["volume", "inspect", vol_name])
-    src = json.loads(out)[0]["mountPoint"]
-    ret=dict(mount_dict, type="bind", source=src, _vol=vol_name)
-    bind_prop=ret.get("bind", {}).get("propagation")
-    if not bind_prop:
-        if "bind" not in ret:
-            ret["bind"]={}
-        # if in top level volumes then it's shared bind-propagation=z
-        if vol_name in shared_vols:
-            ret["bind"]["propagation"]="z"
-        else:
-            ret["bind"]["propagation"]="Z"
-    try: del ret["volume"]
-    except KeyError: pass
-    return ret
-
 def mount_desc_to_args(compose, mount_desc, srv_name, cnt_name):
     basedir = compose.dirname
     proj_name = compose.project_name
     shared_vols = compose.shared_vols
     if is_str(mount_desc): mount_desc=parse_short_mount(mount_desc, basedir)
-    mount_desc = mount_dict_vol_to_bind(compose, fix_mount_dict(mount_desc, proj_name, srv_name))
     mount_type = mount_desc.get("type")
+    if mount_type == "volume":
+        mount_desc = fix_mount_dict(mount_desc, proj_name, srv_name)
     source = mount_desc.get("source")
     target = mount_desc["target"]
     opts=[]
@@ -411,6 +381,9 @@ def mount_desc_to_args(compose, mount_desc, srv_name, cnt_name):
         tmpfs_mode = tmpfs_opts.get("mode")
         if tmpfs_mode:
             opts.append("tmpfs-mode={}".format(tmpfs_mode))
+    if mount_type=='volume':
+        if "exec" not in opts and "noexec" not in opts:
+            opts.append("exec")
     opts=",".join(opts)
     if mount_type=='bind':
         return "type=bind,source={source},destination={target},{opts}".format(
@@ -420,6 +393,12 @@ def mount_desc_to_args(compose, mount_desc, srv_name, cnt_name):
         ).rstrip(",")
     elif mount_type=='tmpfs':
         return "type=tmpfs,destination={target},{opts}".format(
+            target=target,
+            opts=opts
+        ).rstrip(",")
+    elif mount_type=='volume':
+        return "type=volume,source={source},destination={target},{opts}".format(
+            source=source,
             target=target,
             opts=opts
         ).rstrip(",")
