@@ -635,9 +635,9 @@ class Podman:
         self.podman_path = podman_path
         self.dry_run = dry_run
 
-    def output(self, podman_args):
+    def output(self, podman_args,stderr=None):
         cmd = [self.podman_path]+podman_args
-        return subprocess.check_output(cmd)
+        return subprocess.check_output(cmd,stderr=stderr)
 
     def run(self, podman_args, wait=True, sleep=1):
         podman_args_str = [str(arg) for arg in podman_args]
@@ -1066,7 +1066,7 @@ def compose_up_run(compose, cnt, args):
     podman_args = container_to_args(compose, cnt,
                                     detached=args.detach, podman_command=podman_command)
     try:
-        res = json.loads(compose.podman.output(['inspect', cnt['name']]))
+        res = json.loads(compose.podman.output(['inspect', cnt['name']], stderr=subprocess.DEVNULL))
         inspect=res[0]
         if "CreateCommand" in inspect["Config"]:
             inpsect_args=inspect["Config"]["CreateCommand"][1:]
