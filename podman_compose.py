@@ -1251,7 +1251,7 @@ def compose_exec(compose, args):
             podman_args.append('--tty')
         podman_args.append(container_name)
         podman_args.extend(args.cmd)
-        compose.podman.run(podman_args , sleep=0)
+        exit(compose.podman.run(podman_args , sleep=0).returncode)
 
 ###################
 # command arguments parsing
