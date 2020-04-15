@@ -1070,7 +1070,7 @@ def compose_up_run(compose, cnt, args):
         inspect=res[0]
         if "CreateCommand" in inspect["Config"]:
             inpsect_args=inspect["Config"]["CreateCommand"][1:]
-            if inpsect_args != podman_args:
+            if args.force_recreate or inpsect_args != podman_args:
                 compose.podman.run(["stop", "-t=1", cnt["name"]], sleep=0)
                 compose.podman.run(["rm", cnt["name"]], sleep=0)
                 create = True
@@ -1102,7 +1102,7 @@ def compose_up(compose, args):
     shared_vols = compose.shared_vols
 
     # TODO: implement check hash label for change
-    if args.force_recreate:
+    if args.force_recreate and not args.services:
         compose.commands['down'](compose, args)
     # args.no_recreate disables check for changes (which is not implemented)
 
