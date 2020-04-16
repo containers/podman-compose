@@ -1018,12 +1018,16 @@ def build_one(compose, args, cnt):
     args_list = norm_as_list(build_desc.get('args', {}))
     for build_arg in args_list:
         build_args.extend(("--build-arg", build_arg,))
+    for build_arg in args.build_arg:
+        build_args.extend(("--build-arg", build_arg,))
     build_args.append(ctx)
     compose.podman.run(build_args, sleep=0)
 
 @cmd_run(podman_compose, 'build', 'build stack images')
 def compose_build(compose, args):
     for cnt in compose.containers:
+        if args.services and cnt['service_name'] not in args.services:
+            continue
         build_one(compose, args, cnt)
 
 def create_pods(compose, args):
@@ -1308,7 +1312,10 @@ def compose_build_parse(parser):
         help="attempt to pull a newer version of the image", action='store_true')
     parser.add_argument("--pull-always",
         help="attempt to pull a newer version of the image, Raise an error even if the image is present locally.", action='store_true')
-
+    parser.add_argument("--build-arg", metavar='key=value', action='append',
+        help="Specifies a build argument and its value.")
+    parser.add_argument("services", metavar='SERVICES', nargs='*',
+        help="Services to build.")
 
 def main():
     podman_compose.run()
