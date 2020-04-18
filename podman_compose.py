@@ -870,6 +870,10 @@ class PodmanCompose:
             print(" ** merged:\n", json.dumps(compose, indent = 2))
         ver = compose.get('version', None)
         services = compose.get('services', None)
+        if services is None:
+            services = {}
+            print("WARNING: No services defined")
+		
         # NOTE: maybe add "extends.service" to _deps at this stage
         flat_deps(services, with_extends=True)
         service_names = sorted([ (len(srv["_deps"]), name) for name, srv in services.items() ])
