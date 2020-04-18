@@ -798,8 +798,8 @@ class PodmanCompose:
             else:
                 # this also works if podman hasn't been installed now
                 if args.dry_run == False:
-                    raise IOError(
-                        "Binary {} has not been found.".format(podman_path))
+                    sys.stderr.write("Binary {} has not been found.\n".format(podman_path))
+                    exit(1)
         self.podman = Podman(self, podman_path, args.dry_run)
         if not args.dry_run:
             # just to make sure podman is running
@@ -808,8 +808,8 @@ class PodmanCompose:
             except subprocess.CalledProcessError:
                 self.podman_version = None
             if not self.podman_version:
-                sys.stderr.write('it seems that you do not useable `podman`\n')
-                exit(-1)
+                sys.stderr.write("it seems that you do not have `podman` installed\n")
+                exit(1)
             print("using podman version: "+self.podman_version)
         cmd_name = args.command
         cmd = self.commands[cmd_name]
