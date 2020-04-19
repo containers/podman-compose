@@ -1123,7 +1123,9 @@ def compose_up(compose, args):
     for cnt in compose.containers:
         podman_args = container_to_args(compose, cnt,
             detached=args.detach, podman_command=podman_command)
-        compose.podman.run(podman_args)
+        subproc = compose.podman.run(podman_args)
+        if podman_command == 'run' and subproc.returncode:
+            compose.podman.run(['start', cnt['name']])
     if args.no_start or args.detach or args.dry_run: return
     # TODO: handle already existing
     # TODO: if error creating do not enter loop
