@@ -1080,8 +1080,17 @@ def build_one(compose, args, cnt):
 
 @cmd_run(podman_compose, 'build', 'build stack images')
 def compose_build(compose, args):
-    for cnt in compose.containers:
-        build_one(compose, args, cnt)
+    if args.services:
+        container_names_by_service = compose.container_names_by_service
+        for service in args.services:
+            try:
+                cnt = compose.container_by_name[container_names_by_service[service][0]]
+            except:
+                raise ValueError("unknown service: " + service)
+            build_one(compose, args, cnt)
+    else:
+        for cnt in compose.containers:
+            build_one(compose, args, cnt)
 
 def create_pods(compose, args):
     for pod in compose.pods:
@@ -1368,7 +1377,8 @@ def compose_build_parse(parser):
         help="attempt to pull a newer version of the image, Raise an error even if the image is present locally.", action='store_true')
     parser.add_argument("--build-arg", metavar="key=val", action="append", default=[],
         help="Set build-time variables for services.")
-
+    parser.add_argument('services', metavar='services', nargs='*',default=None,
+                        help='affected services')
 
 def main():
     podman_compose.run()
