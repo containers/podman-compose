@@ -680,9 +680,9 @@ class Podman:
         self.podman_path = podman_path
         self.dry_run = dry_run
 
-    def output(self, podman_args):
-        cmd = [self.podman_path]+podman_args
-        return subprocess.check_output(cmd)
+    def output(self, podman_args, stderr=None):
+        cmd = [self.podman_path] + podman_args
+        return subprocess.check_output(cmd, stderr=stderr)
 
     def run(self, podman_args, wait=True, sleep=1):
         podman_args_str = [str(arg) for arg in podman_args]
@@ -1095,20 +1095,36 @@ def create_pods(compose, args):
             podman_args.extend(['-p', i])
         compose.podman.run(podman_args)
 
-def up_specific(compose, args):
-    deps = []
-    if not args.no_deps:
-        for service in args.services:
-            deps.extend([])
-    # args.always_recreate_deps
-    print("services", args.services)
-    raise NotImplementedError("starting specific services is not yet implemented")
+def compose_up_run(compose, cnt, args):
+    podman_command = 'run' if args.detach and not args.no_start else 'create'
+    create=False
+    podman_args = container_to_args(compose, cnt,
+                                    detached=args.detach, podman_command=podman_command)
+    try:
+        res = json.loads(compose.podman.output(['inspect', cnt['name']], stderr=subprocess.DEVNULL))
+        inspect=res[0]
+        if "CreateCommand" in inspect["Config"]:
+            inpsect_args=inspect["Config"]["CreateCommand"][1:]
+            if args.force_recreate or inpsect_args != podman_args:
+                compose.podman.run(["stop", "-t=1", cnt["name"]], sleep=0)
+                compose.podman.run(["rm", cnt["name"]], sleep=0)
+                create = True
+            elif inspect['State']['Running'] == False and podman_command == 'run':
+                compose.podman.run(["start", cnt["name"]], sleep=0)
+            else:
+                print(cnt['name'], " already started")
+        else:
+            create=True
+    except subprocess.CalledProcessError:
+        create=True
+    if create:
+        subproc = compose.podman.run(podman_args)
+        if podman_command == 'run' and subproc.returncode:
+            compose.podman.run(['start', cnt['name']])
+
 
 @cmd_run(podman_compose, 'up', 'Create and start the entire stack or some of its services')
 def compose_up(compose, args):
-    if args.services:
-        return up_specific(compose, args)
-
     if not args.no_build:
         # `podman build` does not cache, so don't always build
         build_args = argparse.Namespace(
@@ -1119,26 +1135,29 @@ def compose_up(compose, args):
     shared_vols = compose.shared_vols
 
     # TODO: implement check hash label for change
-    if args.force_recreate:
+    if args.force_recreate and not args.services:
         compose.commands['down'](compose, args)
     # args.no_recreate disables check for changes (which is not implemented)
 
-    podman_command = 'run' if args.detach and not args.no_start else 'create'
 
     create_pods(compose, args)
-    for cnt in compose.containers:
-        podman_args = container_to_args(compose, cnt,
-            detached=args.detach, podman_command=podman_command)
-        subproc = compose.podman.run(podman_args)
-        if podman_command == 'run' and subproc.returncode:
-            compose.podman.run(['start', cnt['name']])
+    started_containers = []
+    if args.services:
+        for cnt in compose.containers:
+            if cnt['service_name'] in args.services:
+                compose_up_run(compose,cnt,args)
+                started_containers.append(cnt)
+    else:
+        for cnt in compose.containers:
+            compose_up_run(compose, cnt, args)
+        started_containers=compose.containers
+
     if args.no_start or args.detach or args.dry_run: return
-    # TODO: handle already existing
     # TODO: if error creating do not enter loop
     # TODO: colors if sys.stdout.isatty()
 
     threads = []
-    for cnt in compose.containers:
+    for cnt in started_containers:
         # TODO: remove sleep from podman.run
         thread = Thread(target=compose.podman.run, args=[['start', '-a', cnt['name']]], daemon=True)
         thread.start()
