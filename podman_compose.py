@@ -1249,6 +1249,26 @@ def compose_logs(compose, args):
         podman_args.append('-t')
     compose.podman.run(podman_args+target)
 
+@cmd_run(podman_compose, 'exec','Execute a command in a running container')
+def compose_exec(compose, args):
+        container_names_by_service = compose.container_names_by_service
+        service=args.services[0]
+        try:
+            container_name=container_names_by_service[service][0]
+        except:
+            raise ValueError("unknown service: " + service)
+        cnt=compose.container_by_name[container_name]
+        podman_args = ['exec']
+        if args.user:
+            podman_args.extend(["-u", args.user[0]])
+        if cnt.get('stdin_open'):
+            podman_args.append('-i')
+        if cnt.get('tty'):
+            podman_args.append('--tty')
+        podman_args.append(container_name)
+        podman_args.extend(args.cmd)
+        exit(compose.podman.run(podman_args , sleep=0).returncode)
+
 ###################
 # command arguments parsing
 ###################
@@ -1360,6 +1380,14 @@ def compose_ps_parse(parser):
     parser.add_argument("-q", "--quiet",
         help="Only display container IDs", action='store_true')
 
+@cmd_parse(podman_compose, 'exec')
+def compose_exec_parse(parser):
+    parser.add_argument('services', metavar='services', nargs=1,
+                        help='services to push')
+    parser.add_argument('cmd', metavar='command', nargs=argparse.REMAINDER,
+                        help='command to execute')
+    parser.add_argument("-u", "--user", metavar='USER',
+        help="Run the command as this user.", action='append')
 @cmd_parse(podman_compose, 'build')
 def compose_build_parse(parser):
     parser.add_argument("--pull",
