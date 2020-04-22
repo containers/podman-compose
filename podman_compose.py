@@ -1068,7 +1068,7 @@ def build_one(compose, args, cnt):
         "-f", dockerfile
     ]
     if "target" in build_desc:
-        build_args.extend(["--target", build_desc.get("target")])
+        build_args.extend(["--target", build_desc["target"]])
     container_to_ulimit_args(cnt, build_args)
     if getattr(args, 'pull_always', None): build_args.append("--pull-always")
     elif getattr(args, 'pull', None): build_args.append("--pull")
@@ -1076,9 +1076,6 @@ def build_one(compose, args, cnt):
     for build_arg in args_list + args.build_arg:
         build_args.extend(("--build-arg", build_arg,))
     build_args.append(ctx)
-    build_target = build_desc.get('target')
-    if build_target:
-        build_args.extend(('--target', build_target))
     compose.podman.run(build_args, sleep=0)
 
 @cmd_run(podman_compose, 'build', 'build stack images')
