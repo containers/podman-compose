@@ -28,7 +28,7 @@ This project is still underdevelopment.
 
 Install latest stable version from PyPI:
 
-```
+```sh
 pip3 install podman-compose
 ```
 
@@ -36,27 +36,27 @@ pass `--user` to install inside regular user home without being root.
 
 Or latest development version from GitHub:
 
-```
+```sh
 pip3 install https://github.com/containers/podman-compose/archive/devel.tar.gz
 ```
 
 or
 
-```
+```sh
 curl -o /usr/local/bin/podman-compose https://raw.githubusercontent.com/containers/podman-compose/devel/podman_compose.py
 chmod +x /usr/local/bin/podman-compose
 ```
 
 or 
 
-```
+```sh
 curl -o ~/.local/bin/podman-compose https://raw.githubusercontent.com/containers/podman-compose/devel/podman_compose.py
 chmod +x ~/.local/bin/podman-compose
 ```
 
 or install from Fedora (starting from f31) repositories:
 
-```
+```sh
 sudo dnf install podman-compose
 ```
 
@@ -66,7 +66,7 @@ We have included fully functional sample stacks inside `examples/` directory.
 
 A quick example would be
 
-```
+```sh
 cd examples/busybox
 podman-compose --help
 podman-compose up --help
