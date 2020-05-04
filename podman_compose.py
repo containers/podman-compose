@@ -507,6 +507,7 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
     podman_args = [
         podman_command,
         '--name={}'.format(cnt.get('name', None)),
+        '--hostname={}'.format(cnt.get('name', None)),
     ]
 
     if detached:
@@ -886,7 +887,7 @@ class PodmanCompose:
         if services is None:
             services = {}
             print("WARNING: No services defined")
-		
+
         # NOTE: maybe add "extends.service" to _deps at this stage
         flat_deps(services, with_extends=True)
         service_names = sorted([ (len(srv["_deps"]), name) for name, srv in services.items() ])
