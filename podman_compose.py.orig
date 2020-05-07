@@ -641,23 +641,14 @@ class Podman:
 
     def run(self, podman_args, wait=True, sleep=1):
         podman_args_str = [str(arg) for arg in podman_args]
-#ifndef VERSION1
         print("podman " + " ".join(podman_args_str))
-#else /* VERSION1 */
-        #print("podman " + " ".join(podman_args_str))
-#endif /* VERSION1 */
         if self.dry_run:
             return None
         cmd = [self.podman_path]+podman_args_str
         # subprocess.Popen(args, bufsize = 0, executable = None, stdin = None, stdout = None, stderr = None, preexec_fn = None, close_fds = False, shell = False, cwd = None, env = None, universal_newlines = False, startupinfo = None, creationflags = 0)
         p = subprocess.Popen(cmd)
         if wait:
-#ifndef VERSION1
             print(p.wait())
-#else /* VERSION1 */
-            #print(p.wait())
-            p.wait()
-#endif /* VERSION1 */
         if sleep:
             time.sleep(sleep)
         return p
@@ -982,17 +973,6 @@ class cmd_parse:
 ###################
 # actual commands
 ###################
-#ifdef VERSION1
-@cmd_run(podman_compose, 'exec', 'exec desc')
-def compose_exec(compose, args):
-     service_containers = compose.container_names_by_service[args.service]
-     podman_args = [
-         "exec",
-         "-it",
-         service_containers[0]
-     ] + args.cnt_command
-     compose.podman.run(podman_args)
-#endif /* VERSION1 */
 
 @cmd_run(podman_compose, 'version', 'show version')
 def compose_version(compose, args):
@@ -1133,11 +1113,7 @@ def compose_ps(compose, args):
 @cmd_run(podman_compose, 'run', 'create a container similar to a service to run a one-off command')
 def compose_run(compose, args):
     create_pods(compose, args)
-#ifndef VERSION1
     print(args)
-#else /* VERSION1 */
-    #print(args)
-#endif /* VERSION1 */
     container_names=compose.container_names_by_service[args.service]
     container_name=container_names[0]
     cnt = compose.container_by_name[container_name]
@@ -1218,24 +1194,6 @@ def compose_logs(compose, args):
 ###################
 # command arguments parsing
 ###################
-#ifdef VERSION1
-@cmd_parse(podman_compose, 'exec')
-def compose_exec_parse(parser):
-    parser.add_argument("-u", "--user", type=str, default=None,
-        help="Run the command as this user.")
-    parser.add_argument("-T", action='store_true',
-        help="Disable pseudo-tty allocation. By default docker-compose exec allocates a TTY.")
-    parser.add_argument("-d", "--detach", action='store_true',
-        help="Detached mode: Run command in the background.")
-    parser.add_argument("--privileged", action='append',
-        help="Give extended privileges to the process.")
-    parser.add_argument("-w", "--workdir", type=str, default=None,
-        help="Path to workdir directory for this command.")
-    parser.add_argument('service', metavar='service', nargs=None,
-        help='service name')
-    parser.add_argument('cnt_command', metavar='command', nargs=argparse.REMAINDER,
-        help='command and its arguments')
-#endif /* VERSION1 */
 
 @cmd_parse(podman_compose, 'up')
 def compose_up_parse(parser):
