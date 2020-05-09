@@ -874,6 +874,9 @@ class PodmanCompose:
             with open(filename, 'r') as f:
                 content = yaml.safe_load(f)
                 #print(filename, json.dumps(content, indent = 2))
+                if not isinstance(content, dict):
+                    sys.stderr.write("Compose file does not contain a top level object: %s\n"%filename)
+                    exit(1)
                 content = normalize(content)
                 #print(filename, json.dumps(content, indent = 2))
                 content = rec_subs(content, [os.environ, dotenv_dict])
