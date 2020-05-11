@@ -1,6 +1,6 @@
 # Podman Compose
 
-An implementation of `docker-compose` with [podman](https://podman.io/) backend.
+An implementation of `docker-compose` with [Podman](https://podman.io/) backend.
 The main objective of this project is to be able to run `docker-compose.yml` unmodified and rootless.
 This project is aimed to provide drop-in replacement for `docker-compose`,
 and it's very useful for certain cases because:
