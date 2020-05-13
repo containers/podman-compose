@@ -146,8 +146,8 @@ def fix_mount_dict(mount_dict, proj_name, srv_name):
 # $$ means $
 
 var_re = re.compile(r'\$(\{(?:[^\s\$:\-\}]+)\}|(?:[^\s\$\{\}]+))')
-var_def_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?-([^\}]+)\}')
-var_err_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?\?([^\}]+)\}')
+var_def_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?-([^\}]*)\}')
+var_err_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?\?([^\}]*)\}')
 
 def dicts_get(dicts, key, fallback='', fallback_empty=False):
     """
