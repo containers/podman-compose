@@ -1076,7 +1076,7 @@ def build_one(compose, args, cnt):
     if getattr(args, 'pull_always', None): build_args.append("--pull-always")
     elif getattr(args, 'pull', None): build_args.append("--pull")
     args_list = norm_as_list(build_desc.get('args', {}))
-    for build_arg in args_list + args.build_arg:
+    for build_arg in args_list:
         build_args.extend(("--build-arg", build_arg,))
     build_args.append(ctx)
     compose.podman.run(build_args, sleep=0)
