@@ -570,8 +570,10 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
         podman_args.extend(['--restart', cnt['restart']])
     container_to_ulimit_args(cnt, podman_args)
     # currently podman shipped by fedora does not package this
-    # if cnt.get('init', None):
-    #    args.append('--init')
+    if cnt.get('init', None):
+        podman_args.append('--init')
+    if cnt.get('init-path', None):
+        podman_args.extend(['--init-path', cnt['init-path']])
     entrypoint = cnt.get('entrypoint', None)
     if entrypoint is not None:
         if is_str(entrypoint):
