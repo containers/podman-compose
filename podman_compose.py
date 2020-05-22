@@ -1280,6 +1280,8 @@ def compose_up_parse(parser):
         help="Don't start the services after creating them.")
     parser.add_argument("--build", action='store_true',
         help="Build images before starting containers.")
+    parser.add_argument("--build-arg", metavar="key=val", action="append", default=[],
+        help="Set build-time variables for services.")
     parser.add_argument("--abort-on-container-exit", action='store_true',
         help="Stops all containers if any container was stopped. Incompatible with -d.")
     parser.add_argument("-t", "--timeout", type=float, default=10,
