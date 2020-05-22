@@ -566,6 +566,8 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
         podman_args.append('--tty')
     if cnt.get('privileged', None):
         podman_args.append('--privileged')
+    if cnt.get('restart', None) is not None:
+        podman_args.append(['--restart', cnt['restart']])
     container_to_ulimit_args(cnt, podman_args)
     # currently podman shipped by fedora does not package this
     # if cnt.get('init', None):
@@ -1294,7 +1296,8 @@ def compose_up_parse(parser):
         help="Return the exit code of the selected service container. Implies --abort-on-container-exit.")
     parser.add_argument('services', metavar='SERVICES', nargs='*',
         help='service names to start')
-
+    # might want to add build-related options to  'up' command as 'up' might evoke build if images not available
+    compose_build_parse(parser)
 
 @cmd_parse(podman_compose, 'run')
 def compose_run_parse(parser):
