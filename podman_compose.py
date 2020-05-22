@@ -1280,8 +1280,6 @@ def compose_up_parse(parser):
         help="Don't start the services after creating them.")
     parser.add_argument("--build", action='store_true',
         help="Build images before starting containers.")
-    parser.add_argument("--build-arg", metavar="key=val", action="append", default=[],
-        help="Set build-time variables for services.")
     parser.add_argument("--abort-on-container-exit", action='store_true',
         help="Stops all containers if any container was stopped. Incompatible with -d.")
     parser.add_argument("-t", "--timeout", type=float, default=10,
@@ -1296,8 +1294,6 @@ def compose_up_parse(parser):
         help="Return the exit code of the selected service container. Implies --abort-on-container-exit.")
     parser.add_argument('services', metavar='SERVICES', nargs='*',
         help='service names to start')
-    # might want to add build-related options to  'up' command as 'up' might evoke build if images not available
-    compose_build_parse(parser)
 
 @cmd_parse(podman_compose, 'run')
 def compose_run_parse(parser):
@@ -1368,7 +1364,7 @@ def compose_ps_parse(parser):
     parser.add_argument("-q", "--quiet",
         help="Only display container IDs", action='store_true')
 
-@cmd_parse(podman_compose, 'build')
+@cmd_parse(podman_compose, ['build', 'up'])
 def compose_build_parse(parser):
     parser.add_argument("--pull",
         help="attempt to pull a newer version of the image", action='store_true')
