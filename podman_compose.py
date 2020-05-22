@@ -567,7 +567,7 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
     if cnt.get('privileged', None):
         podman_args.append('--privileged')
     if cnt.get('restart', None) is not None:
-        podman_args.append(['--restart', cnt['restart']])
+        podman_args.extend(['--restart', cnt['restart']])
     container_to_ulimit_args(cnt, podman_args)
     # currently podman shipped by fedora does not package this
     # if cnt.get('init', None):
