@@ -1341,7 +1341,7 @@ def compose_run_parse(parser):
 def compose_parse_timeout(parser):
     parser.add_argument("-t", "--timeout",
         help="Specify a shutdown timeout in seconds. ",
-        type=float, default=10)
+        type=int, default=10)
 
 @cmd_parse(podman_compose, ['start', 'stop', 'restart'])
 def compose_parse_services(parser):
