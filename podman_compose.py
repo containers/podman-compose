@@ -1160,8 +1160,14 @@ def compose_up(compose, args):
 
 @cmd_run(podman_compose, 'down', 'tear down entire stack')
 def compose_down(compose, args):
+    podman_args=[]
+    timeout=getattr(args, 'timeout', None)
+    if timeout is None:
+        timeout = 1
+    podman_args.extend(['-t', "{}".format(timeout)])
+
     for cnt in compose.containers:
-        compose.podman.run(["stop", "-t=1", cnt["name"]], sleep=0)
+        compose.podman.run(["stop", *podman_args, cnt["name"]], sleep=0)
     for cnt in compose.containers:
         compose.podman.run(["rm", cnt["name"]], sleep=0)
     for pod in compose.pods:
@@ -1330,7 +1336,7 @@ def compose_run_parse(parser):
     parser.add_argument('cnt_command', metavar='command', nargs=argparse.REMAINDER,
         help='command and its arguments')
 
-@cmd_parse(podman_compose, ['stop', 'restart'])
+@cmd_parse(podman_compose, ['down', 'stop', 'restart'])
 def compose_parse_timeout(parser):
     parser.add_argument("-t", "--timeout",
         help="Specify a shutdown timeout in seconds. ",
