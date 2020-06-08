@@ -146,8 +146,8 @@ def fix_mount_dict(mount_dict, proj_name, srv_name):
 # $$ means $
 
 var_re = re.compile(r'\$(\{(?:[^\s\$:\-\}]+)\}|(?:[^\s\$\{\}]+))')
-var_def_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?-([^\}]+)\}')
-var_err_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?\?([^\}]+)\}')
+var_def_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?-([^\}]*)\}')
+var_err_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?\?([^\}]*)\}')
 
 def dicts_get(dicts, key, fallback='', fallback_empty=False):
     """
@@ -567,10 +567,14 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
         podman_args.append('--tty')
     if cnt.get('privileged', None):
         podman_args.append('--privileged')
+    if cnt.get('restart', None) is not None:
+        podman_args.extend(['--restart', cnt['restart']])
     container_to_ulimit_args(cnt, podman_args)
     # currently podman shipped by fedora does not package this
-    # if cnt.get('init', None):
-    #    args.append('--init')
+    if cnt.get('init', None):
+        podman_args.append('--init')
+    if cnt.get('init-path', None):
+        podman_args.extend(['--init-path', cnt['init-path']])
     entrypoint = cnt.get('entrypoint', None)
     if entrypoint is not None:
         if is_str(entrypoint):
@@ -875,6 +879,9 @@ class PodmanCompose:
             with open(filename, 'r') as f:
                 content = yaml.safe_load(f)
                 #print(filename, json.dumps(content, indent = 2))
+                if not isinstance(content, dict):
+                    sys.stderr.write("Compose file does not contain a top level object: %s\n"%filename)
+                    exit(1)
                 content = normalize(content)
                 #print(filename, json.dumps(content, indent = 2))
                 content = rec_subs(content, [os.environ, dotenv_dict])
@@ -1145,12 +1152,13 @@ def compose_up(compose, args):
         thread.start()
         threads.append(thread)
         time.sleep(1)
-    while True:
+    while threads:
         for thread in threads:
             thread.join(timeout=1.0)
-            if thread.is_alive(): continue
-            if args.abort_on_container_exit:
-                exit(-1)
+            if not thread.is_alive():
+                threads.remove(thread)
+                if args.abort_on_container_exit:
+                    exit(-1)
 
 @cmd_run(podman_compose, 'down', 'tear down entire stack')
 def compose_down(compose, args):
@@ -1291,7 +1299,6 @@ def compose_up_parse(parser):
     parser.add_argument('services', metavar='SERVICES', nargs='*',
         help='service names to start')
 
-
 @cmd_parse(podman_compose, 'run')
 def compose_run_parse(parser):
     parser.add_argument("-d", "--detach", action='store_true',
@@ -1361,7 +1368,7 @@ def compose_ps_parse(parser):
     parser.add_argument("-q", "--quiet",
         help="Only display container IDs", action='store_true')
 
-@cmd_parse(podman_compose, 'build')
+@cmd_parse(podman_compose, ['build', 'up'])
 def compose_build_parse(parser):
     parser.add_argument("--pull",
         help="attempt to pull a newer version of the image", action='store_true')
