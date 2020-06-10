@@ -691,16 +691,24 @@ class Podman:
         cmd = [self.podman_path]+podman_args
         return subprocess.check_output(cmd)
 
-    def run(self, podman_args, wait=True, sleep=1):
+    def run(self, podman_args, log_formatter=None, wait=True, sleep=1):
         podman_args_str = [str(arg) for arg in podman_args]
         print("podman " + " ".join(podman_args_str))
         if self.dry_run:
             return None
+
         cmd = [self.podman_path]+podman_args_str
         # subprocess.Popen(args, bufsize = 0, executable = None, stdin = None, stdout = None, stderr = None, preexec_fn = None, close_fds = False, shell = False, cwd = None, env = None, universal_newlines = False, startupinfo = None, creationflags = 0)
-        p = subprocess.Popen(cmd)
+        if log_formatter is not None:
+            # Pipe podman process output through log_formatter (which can add colored prefix)
+            p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+            _ = subprocess.Popen(log_formatter, stdin=p.stdout)
+            p.stdout.close() # Allow p_process to receive a SIGPIPE if logging process exits.
+        else:
+            p = subprocess.Popen(cmd)
+
         if wait:
-            print(p.wait())
+            print(p.wait(), "\n")
         if sleep:
             time.sleep(sleep)
         return p
@@ -798,6 +806,7 @@ class PodmanCompose:
         self.container_names_by_service = None
         self.container_by_name = None
         self._prefer_volume_over_mount = True
+        self.console_colors = ["\x1B[1;32m", "\x1B[1;33m", "\x1B[1;34m", "\x1B[1;35m", "\x1B[1;36m"]
 
     def run(self):
         args = self._parse_args()
@@ -1175,9 +1184,16 @@ def compose_up(compose, args):
     # TODO: colors if sys.stdout.isatty()
 
     threads = []
-    for cnt in compose.containers:
+    for i, cnt in enumerate(compose.containers):
+        # Add colored service prefix to output by piping output through sed
+        color_idx = i % len(compose.console_colors)
+        color = compose.console_colors[color_idx]
+        log_formatter = 's/^/{}[{}]\x1B[0m\ /;'.format(color, cnt["_service"])
+        log_formatter = ["sed", "-e", log_formatter]
+
         # TODO: remove sleep from podman.run
-        thread = Thread(target=compose.podman.run, args=[['start', '-a', cnt['name']]], daemon=True)
+        run_args = ['start', '-a', cnt['name']]
+        thread = Thread(target=compose.podman.run, args=(run_args, log_formatter), daemon=True)
         thread.start()
         threads.append(thread)
         time.sleep(1)
