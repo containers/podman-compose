@@ -525,6 +525,9 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
     net = cnt.get("network_mode", None)
     if net:
         podman_args.extend(['--network', net])
+    ipc = cnt.get("ipc", None)
+    if ipc:
+        podman_args.extend(['--ipc', ipc])
     for c in cnt.get('cap_add', []):
         podman_args.extend(['--cap-add', c])
     for c in cnt.get('cap_drop', []):
