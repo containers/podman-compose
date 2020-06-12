@@ -89,6 +89,12 @@ def parse_short_mount(mount_str, basedir):
         mount_type = "bind"
         # TODO: should we use os.path.realpath(basedir)?
         mount_src = os.path.join(basedir, os.path.expanduser(mount_src))
+        try:
+            os.makedirs(mount_src, exist_ok=True)
+        except FileExistsError:
+            # This error may occur if mount_src is a path to an existing file. If
+            # it's an existing directory, an exception is not raised.
+            pass
     else:
         # Named volume
         # - datavolume:/var/lib/mysql
