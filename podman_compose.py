@@ -126,7 +126,7 @@ def fix_mount_dict(mount_dict, proj_name, srv_name):
             # missing source
             mount_dict["source"] = "_".join([
                 proj_name, srv_name,
-                hashlib.md5(mount_dict["target"].encode("utf-8")).hexdigest(),
+                hashlib.sha256(mount_dict["target"].encode("utf-8")).hexdigest(),
             ])
         else:
             # prefix with proj_name
