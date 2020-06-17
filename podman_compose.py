@@ -9,19 +9,19 @@
 
 from __future__ import print_function
 
-import sys
-import os
-import argparse
-import subprocess
-import time
-import re
-import hashlib
-import random
-import json
-
+from argparse import REMAINDER, ArgumentParser, Namespace
+from hashlib import sha256
+from json import dumps
+from os import path, access, X_OK, chdir, environ
+from random import randrange
+from re import compile
+from shlex import split
+from subprocess import Popen, check_output, CalledProcessError
+from sys import version_info, stderr
 from threading import Thread
+from time import sleep
 
-import shlex
+from yaml import safe_load
 
 try:
     from shlex import quote as cmd_quote
@@ -31,12 +31,9 @@ except ImportError:
 # import fnmatch
 # fnmatch.fnmatchcase(env, "*_HOST")
 
-import json
-import yaml
-
 __version__ = '0.1.7dev'
 
-PY3 = sys.version_info[0] == 3
+PY3 = version_info[0] == 3
 if PY3:
     basestring = str
 
@@ -57,8 +54,8 @@ def try_int(i, fallback=None):
         pass
     return fallback
 
-dir_re = re.compile("^[~/\.]")
-propagation_re = re.compile("^(?:z|Z|r?shared|r?slave|r?private)$")
+dir_re = compile("^[~/\.]")
+propagation_re = compile("^(?:z|Z|r?shared|r?slave|r?private)$")
 
 def parse_short_mount(mount_str, basedir):
     mount_a = mount_str.split(':')
@@ -88,7 +85,7 @@ def parse_short_mount(mount_str, basedir):
         # - ~/configs:/etc/configs/:ro
         mount_type = "bind"
         # TODO: should we use os.path.realpath(basedir)?
-        mount_src = os.path.join(basedir, os.path.expanduser(mount_src))
+        mount_src = path.join(basedir, path.expanduser(mount_src))
     else:
         # Named volume
         # - datavolume:/var/lib/mysql
@@ -126,7 +123,7 @@ def fix_mount_dict(mount_dict, proj_name, srv_name):
             # missing source
             mount_dict["source"] = "_".join([
                 proj_name, srv_name,
-                hashlib.sha256(mount_dict["target"].encode("utf-8")).hexdigest(),
+                sha256(mount_dict["target"].encode("utf-8")).hexdigest(),
             ])
         else:
             # prefix with proj_name
@@ -145,9 +142,9 @@ def fix_mount_dict(mount_dict, proj_name, srv_name):
 # ${VARIABLE?err} raise error if not set
 # $$ means $
 
-var_re = re.compile(r'\$(\{(?:[^\s\$:\-\}]+)\}|(?:[^\s\$\{\}]+))')
-var_def_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?-([^\}]*)\}')
-var_err_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?\?([^\}]*)\}')
+var_re = compile(r'\$(\{(?:[^\s\$:\-\}]+)\}|(?:[^\s\$\{\}]+))')
+var_def_re = compile(r'\$\{([^\s\$:\-\}]+)(:)?-([^\}]*)\}')
+var_err_re = compile(r'\$\{([^\s\$:\-\}]+)(:)?\?([^\}]*)\}')
 
 def dicts_get(dicts, key, fallback='', fallback_empty=False):
     """
@@ -385,7 +382,7 @@ def assert_volume(compose, mount_dict):
     # TODO: might move to using "volume list"
     # podman volume list --format '{{.Name}}\t{{.MountPoint}}' -f 'label=io.podman.compose.project=HERE'
     try: out = compose.podman.output(["volume", "inspect", vol_name]).decode('utf-8')
-    except subprocess.CalledProcessError:
+    except CalledProcessError:
         compose.podman.output(["volume", "create", "--label", "io.podman.compose.project={}".format(proj_name), vol_name])
         out = compose.podman.output(["volume", "inspect", vol_name]).decode('utf-8')
 
@@ -534,7 +531,7 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
     for e in env:
         podman_args.extend(['-e', e])
     for i in cnt.get('env_file', []):
-        i = os.path.realpath(os.path.join(dirname, i))
+        i = path.realpath(path.join(dirname, i))
         podman_args.extend(['--env-file', i])
     tmpfs_ls = cnt.get('tmpfs', [])
     if is_str(tmpfs_ls): tmpfs_ls = [tmpfs_ls]
@@ -579,7 +576,7 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
         if is_str(entrypoint):
             podman_args.extend(['--entrypoint', entrypoint])
         else:
-            podman_args.extend(['--entrypoint', json.dumps(entrypoint)])
+            podman_args.extend(['--entrypoint', dumps(entrypoint)])
 
     # WIP: healthchecks are still work in progress
     healthcheck = cnt.get('healthcheck', None) or {}
@@ -629,7 +626,7 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
     command = cnt.get('command', None)
     if command is not None:
         if is_str(command):
-            podman_args.extend(shlex.split(command))
+            podman_args.extend(split(command))
         else:
             podman_args.extend(command)
     return podman_args
@@ -686,7 +683,7 @@ class Podman:
 
     def output(self, podman_args):
         cmd = [self.podman_path]+podman_args
-        return subprocess.check_output(cmd)
+        return check_output(cmd)
 
     def run(self, podman_args, wait=True, sleep=1):
         podman_args_str = [str(arg) for arg in podman_args]
@@ -695,11 +692,11 @@ class Podman:
             return None
         cmd = [self.podman_path]+podman_args_str
         # subprocess.Popen(args, bufsize = 0, executable = None, stdin = None, stdout = None, stderr = None, preexec_fn = None, close_fds = False, shell = False, cwd = None, env = None, universal_newlines = False, startupinfo = None, creationflags = 0)
-        p = subprocess.Popen(cmd)
+        p = Popen(cmd)
         if wait:
             print(p.wait())
         if sleep:
-            time.sleep(sleep)
+            sleep(sleep)
         return p
 
 def normalize_service(service):
@@ -766,10 +763,10 @@ def resolve_extends(services, service_names, dotenv_dict):
         filename = ext.get("file", None)
         if filename:
             with open(filename, 'r') as f:
-                content = yaml.safe_load(f) or {}
+                content = safe_load(f) or {}
             if "services" in content:
                 content = content["services"]
-            content = rec_subs(content, [os.environ, dotenv_dict])
+            content = rec_subs(content, [environ, dotenv_dict])
             from_service = content.get(from_service_name, {})
             normalize_service(from_service)
         else:
@@ -801,22 +798,22 @@ class PodmanCompose:
         self._parse_compose_file()
         podman_path = args.podman_path
         if podman_path != 'podman':
-            if os.path.isfile(podman_path) and os.access(podman_path, os.X_OK):
-                podman_path = os.path.realpath(podman_path)
+            if path.isfile(podman_path) and access(podman_path, X_OK):
+                podman_path = path.realpath(podman_path)
             else:
                 # this also works if podman hasn't been installed now
                 if args.dry_run == False:
-                    sys.stderr.write("Binary {} has not been found.\n".format(podman_path))
+                    stderr.write("Binary {} has not been found.\n".format(podman_path))
                     exit(1)
         self.podman = Podman(self, podman_path, args.dry_run)
         if not args.dry_run:
             # just to make sure podman is running
             try:
                 self.podman_version = self.podman.output(["--version"]).decode('utf-8').strip()
-            except subprocess.CalledProcessError:
+            except CalledProcessError:
                 self.podman_version = None
             if not self.podman_version:
-                sys.stderr.write("it seems that you do not have `podman` installed\n")
+                stderr.write("it seems that you do not have `podman` installed\n")
                 exit(1)
             print("using podman version: "+self.podman_version)
         cmd_name = args.command
@@ -827,7 +824,7 @@ class PodmanCompose:
         args = self.global_args
         cmd = args.command
         if not args.file:
-            args.file = list(filter(os.path.exists, [
+            args.file = list(filter(path.exists, [
                 "docker-compose.yml",
                 "docker-compose.yaml",
                 "docker-compose.override.yml",
@@ -841,13 +838,13 @@ class PodmanCompose:
         if not files:
             print("no docker-compose.yml or container-compose.yml file found, pass files with -f")
             exit(-1)
-        ex = map(os.path.exists, files)
+        ex = map(path.exists, files)
         missing = [ fn0 for ex0, fn0 in zip(ex, files) if not ex0 ]
         if missing:
             print("missing files: ", missing)
             exit(1)
         # make absolute
-        files = list(map(os.path.realpath, files))
+        files = list(map(path.realpath, files))
         filename = files[0]
         project_name = args.project_name
         no_ansi = args.no_ansi
@@ -855,19 +852,19 @@ class PodmanCompose:
         dry_run = args.dry_run
         transform_policy = args.transform_policy
         host_env = None
-        dirname = os.path.dirname(filename)
-        dir_basename = os.path.basename(dirname)
+        dirname = path.dirname(filename)
+        dir_basename = path.basename(dirname)
         self.dirname = dirname
         # TODO: remove next line
-        os.chdir(dirname)
+        chdir(dirname)
 
         if not project_name:
             project_name = dir_basename.lower()
         self.project_name = project_name
 
 
-        dotenv_path = os.path.join(dirname, ".env")
-        if os.path.exists(dotenv_path):
+        dotenv_path = path.join(dirname, ".env")
+        if path.exists(dotenv_path):
             with open(dotenv_path, 'r') as f:
                 dotenv_ls = [l.strip() for l in f if l.strip() and not l.startswith('#')]
                 dotenv_dict = dict([l.split("=", 1) for l in dotenv_ls if "=" in l])
@@ -876,18 +873,18 @@ class PodmanCompose:
         compose = {'_dirname': dirname}
         for filename in files:
             with open(filename, 'r') as f:
-                content = yaml.safe_load(f)
+                content = safe_load(f)
                 #print(filename, json.dumps(content, indent = 2))
                 if not isinstance(content, dict):
-                    sys.stderr.write("Compose file does not contain a top level object: %s\n"%filename)
+                    stderr.write("Compose file does not contain a top level object: %s\n" % filename)
                     exit(1)
                 content = normalize(content)
                 #print(filename, json.dumps(content, indent = 2))
-                content = rec_subs(content, [os.environ, dotenv_dict])
+                content = rec_subs(content, [environ, dotenv_dict])
                 rec_merge(compose, content)
         # debug mode
         if len(files)>1:
-            print(" ** merged:\n", json.dumps(compose, indent = 2))
+            print(" ** merged:\n", dumps(compose, indent = 2))
         ver = compose.get('version', None)
         services = compose.get('services', None)
         if services is None:
@@ -965,7 +962,7 @@ class PodmanCompose:
 
 
     def _parse_args(self):
-        parser = argparse.ArgumentParser()
+        parser = ArgumentParser()
         self._init_global_parser(parser)
         subparsers = parser.add_subparsers(title='command', dest='command')
         subparser = subparsers.add_parser('help', help='show help')
@@ -1059,16 +1056,16 @@ def build_one(compose, args, cnt):
     if 'build' not in cnt: return
     if getattr(args, 'if_not_exists', None):
         try: img_id = compose.podman.output(['inspect', '-t', 'image', '-f', '{{.Id}}', cnt["image"]])
-        except subprocess.CalledProcessError: img_id = None
+        except CalledProcessError: img_id = None
         if img_id: return
     build_desc = cnt['build']
     if not hasattr(build_desc, 'items'):
         build_desc = dict(context=build_desc)
     ctx = build_desc.get('context', '.')
-    dockerfile = os.path.join(ctx, build_desc.get("dockerfile", "Dockerfile"))
-    if not os.path.exists(dockerfile):
-        dockerfile = os.path.join(ctx, build_desc.get("dockerfile", "dockerfile"))
-        if not os.path.exists(dockerfile):
+    dockerfile = path.join(ctx, build_desc.get("dockerfile", "Dockerfile"))
+    if not path.exists(dockerfile):
+        dockerfile = path.join(ctx, build_desc.get("dockerfile", "dockerfile"))
+        if not path.exists(dockerfile):
             raise OSError("Dockerfile not found in "+ctx)
     build_args = [
         "build", "-t", cnt["image"],
@@ -1118,7 +1115,7 @@ def compose_up(compose, args):
 
     if not args.no_build:
         # `podman build` does not cache, so don't always build
-        build_args = argparse.Namespace(
+        build_args = Namespace(
             if_not_exists=(not args.build),
             **args.__dict__)
         compose.commands['build'](compose, build_args)
@@ -1150,7 +1147,7 @@ def compose_up(compose, args):
         thread = Thread(target=compose.podman.run, args=[['start', '-a', cnt['name']]], daemon=True)
         thread.start()
         threads.append(thread)
-        time.sleep(1)
+        sleep(1)
     while threads:
         for thread in threads:
             thread.join(timeout=1.0)
@@ -1188,7 +1185,7 @@ def compose_run(compose, args):
         # TODO: start services in deps
         pass
     # adjust one-off container options
-    name0 = "{}_{}_tmp{}".format(compose.project_name, args.service, random.randrange(0, 65536))
+    name0 = "{}_{}_tmp{}".format(compose.project_name, args.service, randrange(0, 65536))
     cnt["name"] = args.name or name0
     if args.entrypoint: cnt["entrypoint"] = args.entrypoint
     if args.user: cnt["user"] = args.user
@@ -1328,8 +1325,8 @@ def compose_run_parse(parser):
         help="Working directory inside the container")
     parser.add_argument('service', metavar='service', nargs=None,
         help='service name')
-    parser.add_argument('cnt_command', metavar='command', nargs=argparse.REMAINDER,
-        help='command and its arguments')
+    parser.add_argument('cnt_command', metavar='command', nargs=REMAINDER,
+                        help='command and its arguments')
 
 @cmd_parse(podman_compose, ['stop', 'restart'])
 def compose_parse_timeout(parser):
