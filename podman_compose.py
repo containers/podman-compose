@@ -888,7 +888,7 @@ class PodmanCompose:
         if services is None:
             services = {}
             print("WARNING: No services defined")
-		
+
         # NOTE: maybe add "extends.service" to _deps at this stage
         flat_deps(services, with_extends=True)
         service_names = sorted([ (len(srv["_deps"]), name) for name, srv in services.items() ])
@@ -922,10 +922,7 @@ class PodmanCompose:
                     service_name=service_name,
                     num=num,
                 )
-                if num == 1:
-                    name = service_desc.get("container_name", name0)
-                else:
-                    name = name0
+                name = service_desc.get("container_name", name0) if num == 1 else name0
                 container_names_by_service[service_name].append(name)
                 # print(service_name,service_desc)
                 cnt = dict(name=name, num=num,
