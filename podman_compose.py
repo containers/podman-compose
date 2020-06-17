@@ -449,7 +449,7 @@ def mount_desc_to_volume_args(compose, mount_desc, srv_name, cnt_name):
     source = mount_desc.get("source", None)
     target = mount_desc["target"]
     opts = []
-    if mount_type != 'bind' and mount_type != 'volume':
+    if mount_type not in ['bind', 'volume']:
         raise ValueError("unknown mount type:"+mount_type)
     propagations = set(filteri(mount_desc.get(mount_type, {}).get("propagation", "").split(',')))
     if mount_type != 'bind':
