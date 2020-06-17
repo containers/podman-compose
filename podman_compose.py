@@ -289,9 +289,7 @@ def trans(func):
 
 @trans
 def tr_identity(project_name, services, given_containers):
-    containers = []
-    for cnt in given_containers:
-        containers.append(dict(cnt))
+    containers = [dict(cnt) for cnt in given_containers]
     return [], containers
 
 
