@@ -709,6 +709,9 @@ def normalize_service(service):
     for key in ("env_file", "security_opt"):
         if key not in service: continue
         if is_str(service[key]): service[key]=[service[key]]
+        for i in range(len(service[key])):
+            if service[key][i] == 'seccomp:unconfined':
+                service[key][i] = 'seccomp=unconfined'
     for key in ("environment", "labels"):
         if key not in service: continue
         service[key] = norm_as_dict(service[key])

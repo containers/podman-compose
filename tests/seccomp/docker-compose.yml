@@ -1,0 +1,10 @@
+version: "3"
+services:
+  web1:
+    build: ./context
+    image: my-busybox-httpd
+    ports:
+      - "8080:80"
+    command: env
+    security_opt:
+      - seccomp:unconfined
