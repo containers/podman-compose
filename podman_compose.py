@@ -1162,7 +1162,7 @@ def compose_up(compose, args):
 @cmd_run(podman_compose, 'down', 'tear down entire stack')
 def compose_down(compose, args):
     for cnt in compose.containers:
-        compose.podman.run(["stop", "-t=1", cnt["name"]], sleep=0)
+        compose.podman.run(["stop", cnt["name"]], sleep=0)
     for cnt in compose.containers:
         compose.podman.run(["rm", cnt["name"]], sleep=0)
     for pod in compose.pods:
