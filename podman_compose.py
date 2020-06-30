@@ -1072,8 +1072,13 @@ def build_one(compose, args, cnt):
             raise OSError("Dockerfile not found in "+ctx)
     build_args = [
         "build", "-t", cnt["image"],
-        "-f", dockerfile
     ]
+
+    for it in cnt['build']['volumes']:
+        build_args += ['-v', it]
+
+    build_args += ["-f", dockerfile]
+
     if "target" in build_desc:
         build_args.extend(["--target", build_desc["target"]])
     container_to_ulimit_args(cnt, build_args)
