@@ -524,14 +524,22 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
     net = cnt.get("network_mode", None)
     if net:
         podman_args.extend(['--network', net])
-    env = norm_as_list(cnt.get('environment', {}))
     for c in cnt.get('cap_add', []):
         podman_args.extend(['--cap-add', c])
     for c in cnt.get('cap_drop', []):
         podman_args.extend(['--cap-drop', c])
     for d in cnt.get('devices', []):
         podman_args.extend(['--device', d])
-    for e in env:
+    env = compose.dotenv_dict.copy()
+    env.update(os.environ)  # Shell environment variables take precedence.
+    # Pass through variables defined for container environment only.
+    filtered_env = {}
+    for k, v in cnt.get('environment', {}).items():
+        if v is None and k in env:
+            filtered_env[k] = env[k]
+        else:
+            filtered_env[k] = v
+    for e in norm_as_list(filtered_env):
         podman_args.extend(['-e', e])
     for i in cnt.get('env_file', []):
         i = os.path.realpath(os.path.join(dirname, i))
@@ -786,6 +794,7 @@ def resolve_extends(services, service_names, dotenv_dict):
 class PodmanCompose:
     def __init__(self):
         self.commands = {}
+        self.dotenv_dict = {}
         self.global_args = None
         self.project_name = None
         self.dirname = None
@@ -870,9 +879,7 @@ class PodmanCompose:
         if os.path.exists(dotenv_path):
             with open(dotenv_path, 'r') as f:
                 dotenv_ls = [l.strip() for l in f if l.strip() and not l.startswith('#')]
-                dotenv_dict = dict([l.split("=", 1) for l in dotenv_ls if "=" in l])
-        else:
-            dotenv_dict = {}
+                self.dotenv_dict = dict([l.split("=", 1) for l in dotenv_ls if "=" in l])
         compose = {'_dirname': dirname}
         for filename in files:
             with open(filename, 'r') as f:
@@ -883,7 +890,7 @@ class PodmanCompose:
                     exit(1)
                 content = normalize(content)
                 #print(filename, json.dumps(content, indent = 2))
-                content = rec_subs(content, [os.environ, dotenv_dict])
+                content = rec_subs(content, [os.environ, self.dotenv_dict])
                 rec_merge(compose, content)
         # debug mode
         if len(files)>1:
@@ -898,7 +905,7 @@ class PodmanCompose:
         flat_deps(services, with_extends=True)
         service_names = sorted([ (len(srv["_deps"]), name) for name, srv in services.items() ])
         service_names = [ name for _, name in service_names]
-        resolve_extends(services, service_names, dotenv_dict)
+        resolve_extends(services, service_names, self.dotenv_dict)
         flat_deps(services)
         service_names = sorted([ (len(srv["_deps"]), name) for name, srv in services.items() ])
         service_names = [ name for _, name in service_names]

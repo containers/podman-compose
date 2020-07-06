@@ -1,0 +1,10 @@
+version: "3"
+services:
+  print_env:
+    image: busybox
+    command: ["/bin/busybox", "env"]
+    environment:
+      - THIS_VARIABLE_SHOULD_BE_SET # Default value provided in .env file.
+      - THIS_VARIABLE_SHOULD_BE_SET_BY_SHELL # Set this when running compose.
+      - THIS_VARIABLE_SHOULD_BE_SET_TOO=SUCCESS
+      - THIS_VARIABLE_SHOULD_BE_UNSET # Default not provided in .env file.
