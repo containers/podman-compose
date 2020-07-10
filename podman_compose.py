@@ -446,6 +446,8 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
     sec = norm_as_list(cnt.get("security_opt"))
     for s in sec:
         podman_args.extend(['--security-opt', s])
+    if cnt.get('privileged'):
+        podman_args.append('--privileged')
     if cnt.get('read_only'):
         podman_args.append('--read-only')
     for i in cnt.get('labels', []):
