@@ -560,6 +560,8 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
         podman_args.extend(['--hostname', cnt['hostname']])
     if cnt.get('shm_size', None):
         podman_args.extend(['--shm-size', '{}'.format(cnt['shm_size'])])
+    if cnt.get('ipc', None):
+        podman_args.extend(['--ipc', cnt['ipc']])
     if cnt.get('stdin_open', None):
         podman_args.append('-i')
     if cnt.get('tty', None):
