@@ -813,7 +813,7 @@ class PodmanCompose:
             # just to make sure podman is running
             try:
                 self.podman_version = self.podman.output(["--version"]).decode('utf-8').strip()
-            except(subprocess.CalledProcessError, FileNotFoundError):
+            except (subprocess.CalledProcessError, FileNotFoundError):
                 self.podman_version = None
             if not self.podman_version:
                 sys.stderr.write("it seems that you do not have `podman` installed\n")
