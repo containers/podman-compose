@@ -973,7 +973,7 @@ class PodmanCompose:
             subparser = subparsers.add_parser(cmd_name, help=cmd._cmd_desc)
             for cmd_parser in cmd._parse_args:
                 cmd_parser(subparser)
-        self.global_args = parser.parse_args()
+        self.global_args = parser.parse_known_args()[0]
         if not self.global_args.command or self.global_args.command=='help':
             parser.print_help()
             exit(-1)
@@ -1257,6 +1257,20 @@ def compose_logs(compose, args):
         podman_args.append('-t')
     compose.podman.run(podman_args+target)
 
+@cmd_run(podman_compose, 'exec', 'execute command inside container')
+def compose_exec(compose, args):
+    container_names_by_service = compose.container_names_by_service
+    if args.service not in container_names_by_service:
+        raise ValueError("unknown service: " + args.service)
+    target = container_names_by_service[args.service]
+    exec_command=sys.argv[sys.argv.index(args.service)+1:]
+    podman_args = ['exec']
+    if args.tty:
+        podman_args.extend(['-t'])
+    if args.interactive:
+        podman_args.extend(['-i'])
+    compose.podman.run(podman_args+target+exec_command)
+
 ###################
 # command arguments parsing
 ###################
@@ -1354,6 +1368,13 @@ def compose_logs_parse(parser):
         type=str, default="all")
     parser.add_argument('service', metavar='service', nargs=None,
         help='service name')
+
+@cmd_parse(podman_compose, ['exec'])
+def compose_exec_parse(parser):
+    parser.add_argument("-i", "--interactive", action='store_true', help="Keep STDIN open even if not attached.")
+    parser.add_argument("-t", "--tty", action='store_true', help="Allocate a pseudo-TTY. The default is false.")
+    parser.add_argument('service', metavar='service', nargs=None, help='service name')
+    parser.add_argument('exec_command', metavar='exec_command', nargs=None, help='command to execute')
 
 @cmd_parse(podman_compose, 'push')
 def compose_push_parse(parser):
