@@ -126,7 +126,7 @@ def fix_mount_dict(mount_dict, proj_name, srv_name):
             # missing source
             mount_dict["source"] = "_".join([
                 proj_name, srv_name,
-                hashlib.md5(mount_dict["target"].encode("utf-8")).hexdigest(),
+                hashlib.sha256(mount_dict["target"].encode("utf-8")).hexdigest(),
             ])
         else:
             # prefix with proj_name
@@ -1151,12 +1151,13 @@ def compose_up(compose, args):
         thread.start()
         threads.append(thread)
         time.sleep(1)
-    while True:
+    while threads:
         for thread in threads:
             thread.join(timeout=1.0)
-            if thread.is_alive(): continue
-            if args.abort_on_container_exit:
-                exit(-1)
+            if not thread.is_alive():
+                threads.remove(thread)
+                if args.abort_on_container_exit:
+                    exit(-1)
 
 @cmd_run(podman_compose, 'down', 'tear down entire stack')
 def compose_down(compose, args):
