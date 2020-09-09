@@ -533,7 +533,9 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
         podman_args.extend(['--device', d])
     for e in env:
         podman_args.extend(['-e', e])
-    for i in cnt.get('env_file', []):
+    env_file = cnt.get('env_file', [])
+    if is_str(env_file): env_file = [env_file]
+    for i in env_file:
         i = os.path.realpath(os.path.join(dirname, i))
         podman_args.extend(['--env-file', i])
     tmpfs_ls = cnt.get('tmpfs', [])
