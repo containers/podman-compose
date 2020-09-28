@@ -865,7 +865,8 @@ class PodmanCompose:
         os.chdir(dirname)
 
         if not project_name:
-            project_name = dir_basename.lower()
+            # More strict then acually needed for simplicity: podman requires [a-zA-Z0-9][a-zA-Z0-9_.-]*
+            project_name = re.sub(r'[^a-zA-Z0-9]', '', dir_basename)
         self.project_name = project_name
 
 
