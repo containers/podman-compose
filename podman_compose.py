@@ -524,20 +524,20 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
     net = cnt.get("network_mode", None)
     if net:
         podman_args.extend(['--network', net])
-    env = norm_as_list(cnt.get('environment', {}))
     for c in cnt.get('cap_add', []):
         podman_args.extend(['--cap-add', c])
     for c in cnt.get('cap_drop', []):
         podman_args.extend(['--cap-drop', c])
     for d in cnt.get('devices', []):
         podman_args.extend(['--device', d])
-    for e in env:
-        podman_args.extend(['-e', e])
     env_file = cnt.get('env_file', [])
     if is_str(env_file): env_file = [env_file]
     for i in env_file:
         i = os.path.realpath(os.path.join(dirname, i))
         podman_args.extend(['--env-file', i])
+    env = norm_as_list(cnt.get('environment', {}))
+    for e in env:
+        podman_args.extend(['-e', e])
     tmpfs_ls = cnt.get('tmpfs', [])
     if is_str(tmpfs_ls): tmpfs_ls = [tmpfs_ls]
     for i in tmpfs_ls:
