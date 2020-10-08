@@ -191,7 +191,7 @@ def norm_as_list(src):
     if src is None:
         dst = []
     elif is_dict(src):
-        dst = [("{}={}".format(k, v) if v else k) for k, v in src.items()]
+        dst = [("{}={}".format(k, v) if v is not None else k) for k, v in src.items()]
     elif is_list(src):
         dst = list(src)
     else:
