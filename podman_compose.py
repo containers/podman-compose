@@ -60,7 +60,7 @@ def try_int(i, fallback=None):
 dir_re = re.compile("^[~/\.]")
 propagation_re = re.compile("^(?:z|Z|r?shared|r?slave|r?private)$")
 
-def parse_short_mount(mount_str, basedir):
+def parse_short_mount(compose, mount_str, basedir):
     mount_a = mount_str.split(':')
     mount_opt_dict = {}
     mount_opt = None
@@ -89,12 +89,13 @@ def parse_short_mount(mount_str, basedir):
         mount_type = "bind"
         # TODO: should we use os.path.realpath(basedir)?
         mount_src = os.path.join(basedir, os.path.expanduser(mount_src))
-        try:
-            os.makedirs(mount_src, exist_ok=True)
-        except FileExistsError:
-            # This error may occur if mount_src is a path to an existing file. If
-            # it's an existing directory, an exception is not raised.
-            pass
+        if compose.compatibility_mode:
+            try:
+                os.makedirs(mount_src, exist_ok=True)
+            except FileExistsError:
+                # This error may occur if mount_src is a path to an existing file. If
+                # it's an existing directory, an exception is not raised.
+                pass
     else:
         # Named volume
         # - datavolume:/var/lib/mysql
@@ -483,7 +484,7 @@ def get_mount_args(compose, cnt, volume):
     proj_name = compose.project_name
     srv_name = cnt['_service']
     basedir = compose.dirname
-    if is_str(volume): volume = parse_short_mount(volume, basedir)
+    if is_str(volume): volume = parse_short_mount(compose, volume, basedir)
     mount_type = volume["type"]
     assert_volume(compose, fix_mount_dict(volume, proj_name, srv_name))
     if compose._prefer_volume_over_mount:
@@ -831,6 +832,10 @@ class PodmanCompose:
         cmd = self.commands[cmd_name]
         cmd(self, args)
 
+    @property
+    def compatibility_mode(self):
+        return self.global_args.compatibility_mode
+
     def _parse_compose_file(self):
         args = self.global_args
         cmd = args.command
@@ -901,7 +906,7 @@ class PodmanCompose:
         if services is None:
             services = {}
             print("WARNING: No services defined")
-		
+
         # NOTE: maybe add "extends.service" to _deps at this stage
         flat_deps(services, with_extends=True)
         service_names = sorted([ (len(srv["_deps"]), name) for name, srv in services.items() ])
@@ -1006,6 +1011,9 @@ class PodmanCompose:
         parser.add_argument("-t", "--transform_policy",
                             help="how to translate docker compose to podman [1pod|hostnet|accurate]",
                             choices=['1pod', '1podfw', 'hostnet', 'cntnet', 'publishall', 'identity'], default='1podfw')
+        parser.add_argument("-C", "--compatibility-mode",
+                            help="Run in compatibility mode with docker and docker-compose to create binding volumes if missing",
+                            action='store_true')
 
 podman_compose = PodmanCompose()
 
