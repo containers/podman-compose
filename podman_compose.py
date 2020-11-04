@@ -875,6 +875,14 @@ class PodmanCompose:
                 dotenv_dict = dict([l.split("=", 1) for l in dotenv_ls if "=" in l])
         else:
             dotenv_dict = {}
+        # TODO: should read and respect those env variables
+        # see: https://docs.docker.com/compose/reference/envvars/
+        # see: https://docs.docker.com/compose/env-file/
+        dotenv_dict.update({
+            "COMPOSE_FILE": filename,
+            "COMPOSE_PROJECT_NAME": self.project_name,
+            "COMPOSE_PATH_SEPARATOR": ":",
+        })
         compose = {'_dirname': dirname}
         for filename in files:
             with open(filename, 'r') as f:
