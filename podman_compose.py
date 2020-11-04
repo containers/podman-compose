@@ -829,6 +829,11 @@ class PodmanCompose:
         args = self.global_args
         cmd = args.command
         if not args.file:
+            file_from_env = os.environ.get("COMPOSE_FILE")
+            separator = os.environ.get("COMPOSE_PATH_SEPARATOR", ":")
+            if file_from_env:
+                args.file = file_from_env.split(separator)
+        if not args.file:
             args.file = list(filter(os.path.exists, [
                 "docker-compose.yml",
                 "docker-compose.yaml",
@@ -995,7 +1000,7 @@ class PodmanCompose:
                             metavar='file', action='append', default=[])
         parser.add_argument("-p", "--project-name",
                             help="Specify an alternate project name (default: directory name)",
-                            type=str, default=None)
+                            type=str, default=os.environ.get("COMPOSE_PROJECT_NAME"))
         parser.add_argument("--podman-path",
                             help="Specify an alternate path to podman (default: use location in $PATH variable)",
                             type=str, default="podman")
