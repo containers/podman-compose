@@ -879,7 +879,7 @@ class PodmanCompose:
         # see: https://docs.docker.com/compose/reference/envvars/
         # see: https://docs.docker.com/compose/env-file/
         dotenv_dict.update({
-            "COMPOSE_FILE": filename,
+            "COMPOSE_FILE": os.path.basename(filename),
             "COMPOSE_PROJECT_NAME": self.project_name,
             "COMPOSE_PATH_SEPARATOR": ":",
         })
