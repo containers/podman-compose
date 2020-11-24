@@ -800,7 +800,6 @@ class PodmanCompose:
 
     def run(self):
         args = self._parse_args()
-        self._parse_compose_file()
         podman_path = args.podman_path
         if podman_path != 'podman':
             if os.path.isfile(podman_path) and os.access(podman_path, os.X_OK):
@@ -822,6 +821,8 @@ class PodmanCompose:
                 exit(1)
             print("using podman version: "+self.podman_version)
         cmd_name = args.command
+        if (cmd_name != "version"):
+            self._parse_compose_file()
         cmd = self.commands[cmd_name]
         cmd(self, args)
 
@@ -883,7 +884,8 @@ class PodmanCompose:
         os.chdir(dirname)
 
         if not project_name:
-            project_name = environ.get("COMPOSE_PROJECT_NAME", dir_basename.lower())
+            project_name = re.sub(r'[^a-zA-Z0-9]', '', dir_basename)
+            project_name = environ.get("COMPOSE_PROJECT_NAME", project_name)
         self.project_name = project_name
 
         environ.update({
