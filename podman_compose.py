@@ -758,7 +758,7 @@ def rec_merge(target, *sources):
         ret = rec_merge_one(target, source)
     return ret
 
-def resolve_extends(services, service_names, dotenv_dict):
+def resolve_extends(services, service_names, env_dict):
     for name in service_names:
         service = services[name]
         ext = service.get("extends", {})
@@ -771,7 +771,7 @@ def resolve_extends(services, service_names, dotenv_dict):
                 content = yaml.safe_load(f) or {}
             if "services" in content:
                 content = content["services"]
-            content = rec_subs(content, [os.environ, dotenv_dict])
+            content = rec_subs(content, [env_dict])
             from_service = content.get(from_service_name, {})
             normalize_service(from_service)
         else:
@@ -825,12 +825,26 @@ class PodmanCompose:
         cmd = self.commands[cmd_name]
         cmd(self, args)
 
+    @staticmethod
+    def _parse_env():
+        """Parse the .env from current working directory and merge with os.environ"""
+        env_dict = {}
+        dotenv_path = ".env"
+        if os.path.exists(dotenv_path):
+            with open(dotenv_path, 'r') as f:
+                dotenv_ls = [l.strip() for l in f if l.strip() and not l.startswith('#')]
+                env_dict = dict([l.split("=", 1) for l in dotenv_ls if "=" in l])
+        env_dict.update(os.environ)
+        env_dict.setdefault("COMPOSE_PATH_SEPARATOR", ":")
+        return env_dict
+
     def _parse_compose_file(self):
         args = self.global_args
         cmd = args.command
+        environ = self._parse_env()
         if not args.file:
-            file_from_env = os.environ.get("COMPOSE_FILE")
-            separator = os.environ.get("COMPOSE_PATH_SEPARATOR", ":")
+            separator = environ["COMPOSE_PATH_SEPARATOR"]
+            file_from_env = environ.get("COMPOSE_FILE")
             if file_from_env:
                 args.file = file_from_env.split(separator)
         if not args.file:
@@ -869,25 +883,14 @@ class PodmanCompose:
         os.chdir(dirname)
 
         if not project_name:
-            project_name = dir_basename.lower()
+            project_name = environ.get("COMPOSE_PROJECT_NAME", dir_basename.lower())
         self.project_name = project_name
 
-
-        dotenv_path = os.path.join(dirname, ".env")
-        if os.path.exists(dotenv_path):
-            with open(dotenv_path, 'r') as f:
-                dotenv_ls = [l.strip() for l in f if l.strip() and not l.startswith('#')]
-                dotenv_dict = dict([l.split("=", 1) for l in dotenv_ls if "=" in l])
-        else:
-            dotenv_dict = {}
-        # TODO: should read and respect those env variables
-        # see: https://docs.docker.com/compose/reference/envvars/
-        # see: https://docs.docker.com/compose/env-file/
-        dotenv_dict.update({
+        environ.update({
             "COMPOSE_FILE": os.path.basename(filename),
             "COMPOSE_PROJECT_NAME": self.project_name,
-            "COMPOSE_PATH_SEPARATOR": ":",
         })
+
         compose = {'_dirname': dirname}
         for filename in files:
             with open(filename, 'r') as f:
@@ -898,7 +901,7 @@ class PodmanCompose:
                     exit(1)
                 content = normalize(content)
                 #print(filename, json.dumps(content, indent = 2))
-                content = rec_subs(content, [os.environ, dotenv_dict])
+                content = rec_subs(content, [environ])
                 rec_merge(compose, content)
         # debug mode
         if len(files)>1:
@@ -913,7 +916,7 @@ class PodmanCompose:
         flat_deps(services, with_extends=True)
         service_names = sorted([ (len(srv["_deps"]), name) for name, srv in services.items() ])
         service_names = [ name for _, name in service_names]
-        resolve_extends(services, service_names, dotenv_dict)
+        resolve_extends(services, service_names, environ)
         flat_deps(services)
         service_names = sorted([ (len(srv["_deps"]), name) for name, srv in services.items() ])
         service_names = [ name for _, name in service_names]
@@ -1000,7 +1003,7 @@ class PodmanCompose:
                             metavar='file', action='append', default=[])
         parser.add_argument("-p", "--project-name",
                             help="Specify an alternate project name (default: directory name)",
-                            type=str, default=os.environ.get("COMPOSE_PROJECT_NAME"))
+                            type=str, default=None)
         parser.add_argument("--podman-path",
                             help="Specify an alternate path to podman (default: use location in $PATH variable)",
                             type=str, default="podman")
