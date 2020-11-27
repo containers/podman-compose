@@ -1055,9 +1055,12 @@ def compose_version(compose, args):
 
 @cmd_run(podman_compose, 'pull', 'pull stack images')
 def compose_pull(compose, args):
+    images = set()
     for cnt in compose.containers:
         if cnt.get('build', None): continue
-        compose.podman.run(["pull", cnt["image"]], sleep=0)
+        images.add(cnt["image"])
+    for image in images:
+        compose.podman.run(["pull", image], sleep=0)
 
 @cmd_run(podman_compose, 'push', 'push stack images')
 def compose_push(compose, args):
