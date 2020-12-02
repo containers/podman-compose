@@ -59,6 +59,7 @@ def try_int(i, fallback=None):
 
 dir_re = re.compile("^[~/\.]")
 propagation_re = re.compile("^(?:z|Z|r?shared|r?slave|r?private)$")
+norm_re =  re.compile('[^-_a-z0-9]')
 
 def parse_short_mount(mount_str, basedir):
     mount_a = mount_str.split(':')
@@ -866,7 +867,10 @@ class PodmanCompose:
 
         if not project_name:
             # More strict then acually needed for simplicity: podman requires [a-zA-Z0-9][a-zA-Z0-9_.-]*
-            project_name = re.sub(r'[^a-zA-Z0-9]', '', dir_basename)
+            project_name = norm_re.sub('', dir_basename.lower())
+            if not project_name:
+                raise RuntimeError("Project name [{}] normalized to empty".format(dir_basename))
+
         self.project_name = project_name
 
 
