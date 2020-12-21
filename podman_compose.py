@@ -130,8 +130,12 @@ def fix_mount_dict(mount_dict, proj_name, srv_name):
                 hashlib.sha256(mount_dict["target"].encode("utf-8")).hexdigest(),
             ])
         else:
-            # prefix with proj_name
-            mount_dict["source"] = proj_name+"_"+source
+            name = mount_dict.get('name')
+            if name:
+                mount_dict["source"] = name
+            else:
+                # prefix with proj_name
+                mount_dict["source"] = proj_name+"_"+source
     return mount_dict
 
 # docker and docker-compose support subset of bash variable substitution
@@ -376,7 +380,7 @@ def assert_volume(compose, mount_dict):
     inspect volume to get directory
     create volume if needed
     """
-    if mount_dict["type"] != "volume": return
+    if mount_dict["type"] != "volume" or mount_dict["external"]: return
     proj_name = compose.project_name
     shared_vols = compose.shared_vols
 
@@ -480,6 +484,19 @@ def get_mount_args(compose, cnt, volume):
     basedir = compose.dirname
     if is_str(volume): volume = parse_short_mount(volume, basedir)
     mount_type = volume["type"]
+
+    vol = None
+    source = volume.get('source')
+    if source:
+      vol = compose.shared_vols[source]
+    if vol:
+      name = vol.get('name')
+      if name:
+        volume['name'] = name
+      external = vol.get('external')
+      if  external:
+        volume['external'] = external
+
     assert_volume(compose, fix_mount_dict(volume, proj_name, srv_name))
     if compose._prefer_volume_over_mount:
         if mount_type == 'tmpfs':
@@ -920,8 +937,6 @@ class PodmanCompose:
         service_names = [ name for _, name in service_names]
         # volumes: [...]
         shared_vols = compose.get('volumes', {})
-        # shared_vols = list(shared_vols.keys())
-        shared_vols = set(shared_vols.keys())
         self.shared_vols = shared_vols
         podman_compose_labels = [
             "io.podman.compose.config-hash=123",
