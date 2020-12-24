@@ -568,6 +568,8 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
         podman_args.extend(['--shm-size', '{}'.format(cnt['shm_size'])])
     if cnt.get('stdin_open', None):
         podman_args.append('-i')
+    for i in cnt.get('sysctls', []):
+        podman_args.extend(['--sysctl', i])
     if cnt.get('tty', None):
         podman_args.append('--tty')
     if cnt.get('privileged', None):
