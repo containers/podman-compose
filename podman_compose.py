@@ -490,7 +490,7 @@ def get_mount_args(compose, cnt, volume):
             size = tmpfs_opts.get("size", None)
             if size: opts.append('size={}'.format(size))
             mode = tmpfs_opts.get("mode", None)
-            if mode: opts.append('mode={}'.format(size))
+            if mode: opts.append('mode={}'.format(mode))
             if opts: args += ':' + ','.join(opts)
             return ['--tmpfs', args]
         else:
