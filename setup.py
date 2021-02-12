@@ -40,14 +40,4 @@ setup(
     },
     include_package_data=True,
     license='GPL-2.0-only',
-    install_requires=[
-        'pyyaml'
-    ],
-    # test_suite='tests',
-    # tests_require=[
-    #     'coverage',
-    #     'pytest-cov',
-    #     'pytest',
-    #     'tox',
-    # ]
 )
