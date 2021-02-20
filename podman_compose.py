@@ -518,6 +518,9 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
     sec = norm_as_list(cnt.get("security_opt", None))
     for s in sec:
         podman_args.extend(['--security-opt', s])
+    ann = norm_as_list(cnt.get("annotations", None))
+    for a in ann:
+        podman_args.extend(['--annotation', a])
     if cnt.get('read_only', None):
         podman_args.append('--read-only')
     for i in cnt.get('labels', []):
