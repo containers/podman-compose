@@ -876,7 +876,7 @@ class PodmanCompose:
 
 
         dotenv_path = os.path.join(dirname, ".env")
-        if os.path.exists(dotenv_path):
+        if os.path.isfile(dotenv_path):
             with open(dotenv_path, 'r') as f:
                 dotenv_ls = [l.strip() for l in f if l.strip() and not l.startswith('#')]
                 dotenv_dict = dict([l.split("=", 1) for l in dotenv_ls if "=" in l])
