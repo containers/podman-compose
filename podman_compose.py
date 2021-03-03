@@ -387,7 +387,7 @@ def assert_volume(compose, mount_dict):
     # podman volume list --format '{{.Name}}\t{{.MountPoint}}' -f 'label=io.podman.compose.project=HERE'
     try: out = compose.podman.output(["volume", "inspect", vol_name]).decode('utf-8')
     except subprocess.CalledProcessError:
-        compose.podman.output(["volume", "create", "--label", "io.podman.compose.project={}".format(proj_name), vol_name])
+        compose.podman.output(["volume", "create", "--label", "io.podman.compose.project={}".format(proj_name), "com.docker.compose.project={}".format(proj_name), vol_name])
         out = compose.podman.output(["volume", "inspect", vol_name]).decode('utf-8')
 
 def mount_desc_to_mount_args(compose, mount_desc, srv_name, cnt_name):
@@ -851,6 +851,7 @@ class PodmanCompose:
             print("missing files: ", missing)
             exit(1)
         # make absolute
+        relative_files = files
         files = list(map(os.path.realpath, files))
         filename = files[0]
         project_name = args.project_name
@@ -927,6 +928,9 @@ class PodmanCompose:
             "io.podman.compose.config-hash=123",
             "io.podman.compose.project=" + project_name,
             "io.podman.compose.version=0.0.1",
+            "com.docker.compose.project=" + project_name,
+            "com.docker.compose.project.working_dir=" + dirname,
+            "com.docker.compose.project.config_files=" + ','.join(relative_files),
         ]
         # other top-levels:
         # networks: {driver: ...}
