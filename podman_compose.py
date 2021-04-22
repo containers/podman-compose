@@ -19,7 +19,7 @@ import hashlib
 import random
 import json
 
-from threading import Thread
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
 import shlex
 
@@ -947,6 +947,8 @@ class PodmanCompose:
                     name = service_desc.get("container_name", name0)
                 else:
                     name = name0
+                if hasattr(args, 'exit_code_from') and args.exit_code_from == service_name:
+                    args.exit_code_from = name
                 container_names_by_service[service_name].append(name)
                 # print(service_name,service_desc)
                 cnt = dict(name=name, num=num,
@@ -1174,20 +1176,26 @@ def compose_up(compose, args):
     # TODO: if error creating do not enter loop
     # TODO: colors if sys.stdout.isatty()
 
-    threads = []
-    for cnt in compose.containers:
-        # TODO: remove sleep from podman.run
-        thread = Thread(target=compose.podman.run, args=[['start', '-a', cnt['name']]], daemon=True)
-        thread.start()
-        threads.append(thread)
-        time.sleep(1)
-    while threads:
-        for thread in threads:
-            thread.join(timeout=1.0)
-            if not thread.is_alive():
-                threads.remove(thread)
-                if args.abort_on_container_exit:
-                    exit(-1)
+    threads = {}
+    with ThreadPoolExecutor(max_workers=len(compose.containers)) as executor:
+        for cnt in compose.containers:
+            # TODO: remove sleep from podman.run
+            threads[cnt['name']] = (executor.submit(compose.podman.run, ['start', '-a', cnt['name']]))
+        while threads:
+            for name, thread in threads.items():
+                try:
+                    res = thread.result(timeout=1.0)
+                    if args.abort_on_container_exit or (
+                        hasattr(args.exit_code_from) and args.exit_code_from
+                    ):
+                        for cnt in compose.containers:
+                            compose.podman.run(["stop", cnt["name"]], sleep=0)
+                        if args.exit_code_from == name:
+                            exit(res.returncode)
+                        else:
+                            exit(-1)
+                except TimeoutError:
+                    pass
 
 @cmd_run(podman_compose, 'down', 'tear down entire stack')
 def compose_down(compose, args):
