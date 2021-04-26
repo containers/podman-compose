@@ -1252,16 +1252,20 @@ def compose_exec(compose, args):
     container_names=compose.container_names_by_service[args.service]
     container_name=container_names[args.index - 1]
     cnt = compose.container_by_name[container_name]
-    if args.user: cnt["user"] = args.user
-    if args.workdir: cnt["working_dir"] = args.workdir
-    cnt['tty']=False if args.T else True
-    if args.cnt_command is not None and len(args.cnt_command) > 0:
-        cnt['command']=args.cnt_command
+    podman_args = ['exec', '--interactive']
+    if args.privileged: podman_args += ['--privileged']
+    if args.user: podman_args += ['--user', args.user]
+    if args.workdir: podman_args += ['--workdir', args.workdir]
+    if not args.T: podman_args += ['--tty']
+    env = dict(cnt['environment'])
     if args.env:
         additional_env_vars = dict(map(lambda each: each.split('='), args.env))
-        cnt['environment'].update(additional_env_vars)
-    # run podman
-    podman_args = container_to_args(compose, cnt, args.detach, podman_command="exec")
+        env.update(additional_env_vars)
+    for name, value in env.items():
+        podman_args += ['--env', "%s=%s" % (name, value)]
+    podman_args += [container_name]
+    if args.cnt_command is not None and len(args.cnt_command) > 0:
+        podman_args += args.cnt_command
     compose.podman.run(podman_args, sleep=0)
 
 
@@ -1388,7 +1392,8 @@ def compose_run_parse(parser):
 def compose_run_parse(parser):
     parser.add_argument("-d", "--detach", action='store_true',
         help="Detached mode: Run container in the background, print new container name.")
-    # --privileged - not supported yet
+    parser.add_argument("--privileged", action='store_true', default=False,
+        help="Give the process extended Linux capabilities inside the container")
     parser.add_argument("-u", "--user", type=str, default=None,
         help="Run as specified username or uid")
     parser.add_argument("-T", action='store_true',
