@@ -59,7 +59,6 @@ def compose_up(compose, args):
   config             Validate and view the Compose file
   create             Create services
   events             Receive real time events from containers
-  exec               Execute a command in a running container
   images             List images
   kill               Kill containers
   logs               View output from containers
