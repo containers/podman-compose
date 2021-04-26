@@ -1247,6 +1247,25 @@ def compose_run(compose, args):
             podman_args.insert(1, '--rm')
     compose.podman.run(podman_args, sleep=0)
 
+@cmd_run(podman_compose, 'exec', 'execute a command in a running container')
+def compose_exec(compose, args):
+    container_names=compose.container_names_by_service[args.service]
+    container_name=container_names[args.index - 1]
+    cnt = compose.container_by_name[container_name]
+    if args.user: cnt["user"] = args.user
+    if args.workdir: cnt["working_dir"] = args.workdir
+    cnt['tty']=False if args.T else True
+    if args.cnt_command is not None and len(args.cnt_command) > 0:
+        cnt['command']=args.cnt_command
+    if args.env:
+        additional_env_vars = dict(map(lambda each: each.split('='), args.env))
+        cnt['environment'].update(additional_env_vars)
+    # run podman
+    podman_args = container_to_args(compose, cnt, args.detach, podman_command="exec")
+    print(podman_args)
+    return
+    compose.podman.run(podman_args, sleep=0)
+
 
 def transfer_service_status(compose, args, action):
     # TODO: handle dependencies, handle creations
@@ -1366,6 +1385,27 @@ def compose_run_parse(parser):
         help='service name')
     parser.add_argument('cnt_command', metavar='command', nargs=argparse.REMAINDER,
         help='command and its arguments')
+
+@cmd_parse(podman_compose, 'exec')
+def compose_run_parse(parser):
+    parser.add_argument("-d", "--detach", action='store_true',
+        help="Detached mode: Run container in the background, print new container name.")
+    # --privileged - not supported yet
+    parser.add_argument("-u", "--user", type=str, default=None,
+        help="Run as specified username or uid")
+    parser.add_argument("-T", action='store_true',
+        help="Disable pseudo-tty allocation. By default `podman-compose run` allocates a TTY.")
+    parser.add_argument("--index", type=int, default=1,
+        help="Index of the container if there are multiple instances of a service")
+    parser.add_argument('-e', '--env', metavar="KEY=VAL", action='append',
+        help="Set an environment variable (can be used multiple times)")
+    parser.add_argument("-w", "--workdir", type=str, default=None,
+        help="Working directory inside the container")
+    parser.add_argument('service', metavar='service', nargs=None,
+        help='service name')
+    parser.add_argument('cnt_command', metavar='command', nargs=argparse.REMAINDER,
+        help='command and its arguments')
+
 
 @cmd_parse(podman_compose, ['down', 'stop', 'restart'])
 def compose_parse_timeout(parser):
