@@ -387,7 +387,7 @@ def assert_volume(compose, mount_dict):
     # podman volume list --format '{{.Name}}\t{{.MountPoint}}' -f 'label=io.podman.compose.project=HERE'
     try: out = compose.podman.output(["volume", "inspect", vol_name]).decode('utf-8')
     except subprocess.CalledProcessError:
-        compose.podman.output(["volume", "create", "--label", "io.podman.compose.project={}".format(proj_name), "com.docker.compose.project={}".format(proj_name), vol_name])
+        compose.podman.output(["volume", "create", "--label", "io.podman.compose.project={}".format(proj_name), "--label", "com.docker.compose.project={}".format(proj_name), vol_name])
         out = compose.podman.output(["volume", "inspect", vol_name]).decode('utf-8')
 
 def mount_desc_to_mount_args(compose, mount_desc, srv_name, cnt_name):
