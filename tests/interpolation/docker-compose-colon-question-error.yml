@@ -1,0 +1,8 @@
+version: "3.7"
+services:
+    variables:
+        image: busybox
+        command: ["/bin/busybox", "sh", "-c", "export | grep EXAMPLE"]
+        environment:
+            EXAMPLE_COLON_QUESTION_ERROR: ${NOT_A_VARIABLE:?Missing variable}
+
