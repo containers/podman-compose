@@ -695,7 +695,7 @@ class Podman:
         cmd = [self.podman_path]+podman_args
         return subprocess.check_output(cmd)
 
-    def run(self, podman_args, wait=True, sleep=1):
+    def run(self, podman_args, wait=True, sleep=1, obj=None):
         podman_args_str = [str(arg) for arg in podman_args]
         print("podman " + " ".join(podman_args_str))
         if self.dry_run:
@@ -704,7 +704,11 @@ class Podman:
         # subprocess.Popen(args, bufsize = 0, executable = None, stdin = None, stdout = None, stderr = None, preexec_fn = None, close_fds = False, shell = False, cwd = None, env = None, universal_newlines = False, startupinfo = None, creationflags = 0)
         p = subprocess.Popen(cmd)
         if wait:
-            print(p.wait())
+            exit_code = p.wait()
+            print(exit_code)
+            if obj is not None:
+                obj.exit_code = exit_code
+            
         if sleep:
             time.sleep(sleep)
         return p
@@ -792,6 +796,7 @@ def resolve_extends(services, service_names, dotenv_dict):
 
 class PodmanCompose:
     def __init__(self):
+        self.exit_code = None
         self.commands = {}
         self.global_args = None
         self.project_name = None
@@ -1189,7 +1194,8 @@ def compose_up(compose, args):
     threads = []
     for cnt in compose.containers:
         # TODO: remove sleep from podman.run
-        thread = Thread(target=compose.podman.run, args=[['start', '-a', cnt['name']]], daemon=True)
+        obj = compose if args.get(exit_code_from, None) == cnt['name'] else None
+        thread = Thread(target=compose.podman.run, args=[['start', '-a', cnt['name']], obj], daemon=True, name=cnt['name'])
         thread.start()
         threads.append(thread)
         time.sleep(1)
@@ -1199,7 +1205,8 @@ def compose_up(compose, args):
             if not thread.is_alive():
                 threads.remove(thread)
                 if args.abort_on_container_exit:
-                    exit(-1)
+                    exit_code = compose.exit_code if compose.exit_code is not None else -1
+                    exit(exit_code)
 
 @cmd_run(podman_compose, 'down', 'tear down entire stack')
 def compose_down(compose, args):
