@@ -1227,7 +1227,6 @@ def compose_ps(compose, args):
 @cmd_run(podman_compose, 'run', 'create a container similar to a service to run a one-off command')
 def compose_run(compose, args):
     create_pods(compose, args)
-    print(args)
     container_names=compose.container_names_by_service[args.service]
     container_name=container_names[0]
     cnt = compose.container_by_name[container_name]
@@ -1241,6 +1240,11 @@ def compose_run(compose, args):
     if args.entrypoint: cnt["entrypoint"] = args.entrypoint
     if args.user: cnt["user"] = args.user
     if args.workdir: cnt["working_dir"] = args.workdir
+    env = dict(cnt.get('environment', {}))
+    if args.env:
+        additional_env_vars = dict(map(lambda each: each.split('='), args.env))
+        env.update(additional_env_vars)
+        cnt['environment'] = env
     if not args.service_ports:
         for k in ("expose", "publishall", "ports"):
             try: del cnt[k]
@@ -1375,7 +1379,7 @@ def compose_run_parse(parser):
         help="Assign a name to the container")
     parser.add_argument("--entrypoint", type=str, default=None,
         help="Override the entrypoint of the image.")
-    parser.add_argument('-e', metavar="KEY=VAL", action='append',
+    parser.add_argument('-e',  '--env', metavar="KEY=VAL", action='append',
         help="Set an environment variable (can be used multiple times)")
     parser.add_argument('-l', '--label', metavar="KEY=VAL", action='append',
         help="Add or override a label (can be used multiple times)")
