@@ -61,6 +61,11 @@ dir_re = re.compile("^[~/\.]")
 propagation_re = re.compile("^(?:z|Z|r?shared|r?slave|r?private)$")
 norm_re =  re.compile('[^-_a-z0-9]')
 
+PODMAN_CMDS = (
+    "pull", "push", "build", "inspect",
+    "run", "start", "stop", "rm", "volume",
+)
+
 def parse_short_mount(mount_str, basedir):
     mount_a = mount_str.split(':')
     mount_opt_dict = {}
@@ -384,10 +389,10 @@ def assert_volume(compose, mount_dict):
     print("podman volume inspect {vol_name} || podman volume create {vol_name}".format(vol_name=vol_name))
     # TODO: might move to using "volume list"
     # podman volume list --format '{{.Name}}\t{{.MountPoint}}' -f 'label=io.podman.compose.project=HERE'
-    try: out = compose.podman.output(["volume", "inspect", vol_name]).decode('utf-8')
+    try: out = compose.podman.output([], "volume", ["inspect", vol_name]).decode('utf-8')
     except subprocess.CalledProcessError:
-        compose.podman.output(["volume", "create", "--label", "io.podman.compose.project={}".format(proj_name), "--label", "com.docker.compose.project={}".format(proj_name), vol_name])
-        out = compose.podman.output(["volume", "inspect", vol_name]).decode('utf-8')
+        compose.podman.output([], "volume", ["create", "--label", "io.podman.compose.project={}".format(proj_name), "--label", "com.docker.compose.project={}".format(proj_name), vol_name])
+        out = compose.podman.output([], "volume", ["inspect", vol_name]).decode('utf-8')
 
 def mount_desc_to_mount_args(compose, mount_desc, srv_name, cnt_name):
     basedir = compose.dirname
@@ -499,13 +504,12 @@ def get_mount_args(compose, cnt, volume):
         args = mount_desc_to_mount_args(compose, volume, srv_name, cnt['name'])
         return ['--mount', args]
 
-def container_to_args(compose, cnt, detached=True, podman_command='run'):
+def container_to_args(compose, cnt, detached=True):
     # TODO: double check -e , --add-host, -v, --read-only
     dirname = compose.dirname
     shared_vols = compose.shared_vols
     pod = cnt.get('pod', None) or ''
     podman_args = [
-        podman_command,
         '--name={}'.format(cnt.get('name', None)),
     ]
 
@@ -691,18 +695,22 @@ class Podman:
         self.podman_path = podman_path
         self.dry_run = dry_run
 
-    def output(self, podman_args):
-        cmd = [self.podman_path]+podman_args
-        return subprocess.check_output(cmd)
+    def output(self, podman_args, cmd='', cmd_args=None):
+        cmd_args = cmd_args or []
+        xargs = self.compose.get_podman_args(cmd) if cmd else []
+        cmd_ls = [self.podman_path, *podman_args, cmd] + xargs + cmd_args
+        print(cmd_ls)
+        return subprocess.check_output(cmd_ls)
 
-    def run(self, podman_args, wait=True, sleep=1, obj=None):
-        podman_args_str = [str(arg) for arg in podman_args]
-        print("podman " + " ".join(podman_args_str))
+    def run(self, podman_args, cmd='', cmd_args=None, wait=True, sleep=1, obj=None):
+        cmd_args = cmd_args or []
+        xargs = self.compose.get_podman_args(cmd) if cmd else []
+        cmd_ls = [self.podman_path, *podman_args, cmd] + xargs + cmd_args
+        print(" ".join(cmd_ls))
         if self.dry_run:
             return None
-        cmd = [self.podman_path]+podman_args_str
         # subprocess.Popen(args, bufsize = 0, executable = None, stdin = None, stdout = None, stderr = None, preexec_fn = None, close_fds = False, shell = False, cwd = None, env = None, universal_newlines = False, startupinfo = None, creationflags = 0)
-        p = subprocess.Popen(cmd)
+        p = subprocess.Popen(cmd_ls)
         if wait:
             exit_code = p.wait()
             print(exit_code)
@@ -808,6 +816,16 @@ class PodmanCompose:
         self.container_by_name = None
         self._prefer_volume_over_mount = True
 
+    def get_podman_args(self, cmd):
+        xargs = []
+        for args in self.global_args.podman_args:
+            xargs.extend(shlex.split(args))
+        cmd_norm = cmd if cmd != 'create' else 'run'
+        cmd_args = self.global_args.__dict__.get(f"podman_{cmd_norm}_args", None) or []
+        for args in cmd_args:
+            xargs.extend(shlex.split(args))
+        return xargs
+
     def run(self):
         args = self._parse_args()
         podman_path = args.podman_path
@@ -823,7 +841,7 @@ class PodmanCompose:
         if not args.dry_run:
             # just to make sure podman is running
             try:
-                self.podman_version = self.podman.output(["--version"]).decode('utf-8').strip()
+                self.podman_version = self.podman.output(["--version"], '', []).decode('utf-8').strip()
             except subprocess.CalledProcessError:
                 self.podman_version = None
             if not self.podman_version:
@@ -1022,6 +1040,13 @@ class PodmanCompose:
         parser.add_argument("--podman-path",
                             help="Specify an alternate path to podman (default: use location in $PATH variable)",
                             type=str, default="podman")
+        parser.add_argument("--podman-args",
+                            help="custom global arguments to be passed to `podman`",
+                            metavar='args', action='append', default=[])
+        for podman_cmd in PODMAN_CMDS:
+            parser.add_argument(f"--podman-{podman_cmd}-args",
+                help=f"custom arguments to be passed to `podman {podman_cmd}`",
+                metavar='args', action='append', default=[])
         parser.add_argument("--no-ansi",
                             help="Do not print ANSI control characters", action='store_true')
         parser.add_argument("--no-cleanup",
@@ -1072,7 +1097,7 @@ class cmd_parse:
 @cmd_run(podman_compose, 'version', 'show version')
 def compose_version(compose, args):
     print("podman-composer version ", __version__)
-    compose.podman.run(["--version"], sleep=0)
+    compose.podman.run(["--version"], "", [], sleep=0)
 
 @cmd_run(podman_compose, 'pull', 'pull stack images')
 def compose_pull(compose, args):
@@ -1081,7 +1106,7 @@ def compose_pull(compose, args):
         if cnt.get('build', None): continue
         images.add(cnt["image"])
     for image in images:
-        compose.podman.run(["pull", image], sleep=0)
+        compose.podman.run([], "pull", [image], sleep=0)
 
 @cmd_run(podman_compose, 'push', 'push stack images')
 def compose_push(compose, args):
@@ -1089,12 +1114,12 @@ def compose_push(compose, args):
     for cnt in compose.containers:
         if 'build' not in cnt: continue
         if services and cnt['_service'] not in services: continue
-        compose.podman.run(["push", cnt["image"]], sleep=0)
+        compose.podman.run([], "push", [cnt["image"]], sleep=0)
 
 def build_one(compose, args, cnt):
     if 'build' not in cnt: return
     if getattr(args, 'if_not_exists', None):
-        try: img_id = compose.podman.output(['inspect', '-t', 'image', '-f', '{{.Id}}', cnt["image"]])
+        try: img_id = compose.podman.output([], 'inspect', ['-t', 'image', '-f', '{{.Id}}', cnt["image"]])
         except subprocess.CalledProcessError: img_id = None
         if img_id: return
     build_desc = cnt['build']
@@ -1106,10 +1131,7 @@ def build_one(compose, args, cnt):
         dockerfile = os.path.join(ctx, build_desc.get("dockerfile", "dockerfile"))
         if not os.path.exists(dockerfile):
             raise OSError("Dockerfile not found in "+ctx)
-    build_args = [
-        "build", "-t", cnt["image"],
-        "-f", dockerfile
-    ]
+    build_args = ["-t", cnt["image"], "-f", dockerfile]
     if "target" in build_desc:
         build_args.extend(["--target", build_desc["target"]])
     container_to_ulimit_args(cnt, build_args)
@@ -1121,7 +1143,7 @@ def build_one(compose, args, cnt):
     for build_arg in args_list + args.build_arg:
         build_args.extend(("--build-arg", build_arg,))
     build_args.append(ctx)
-    compose.podman.run(build_args, sleep=0)
+    compose.podman.run([], "build", build_args, sleep=0)
 
 @cmd_run(podman_compose, 'build', 'build stack images')
 def compose_build(compose, args):
@@ -1140,14 +1162,14 @@ def compose_build(compose, args):
 def create_pods(compose, args):
     for pod in compose.pods:
         podman_args = [
-            "pod", "create",
+            "create",
             "--name={}".format(pod["name"]),
             "--share", "net",
         ]
         ports = pod.get("ports", None) or []
         for i in ports:
             podman_args.extend(['-p', i])
-        compose.podman.run(podman_args)
+        compose.podman.run([], "pod", podman_args)
 
 def up_specific(compose, args):
     deps = []
@@ -1181,12 +1203,12 @@ def compose_up(compose, args):
 
     create_pods(compose, args)
     for cnt in compose.containers:
-        podman_args = container_to_args(compose, cnt,
-            detached=args.detach, podman_command=podman_command)
-        subproc = compose.podman.run(podman_args)
+        podman_args = container_to_args(compose, cnt, detached=args.detach)
+        subproc = compose.podman.run([], podman_command, podman_args)
         if podman_command == 'run' and subproc.returncode:
-            compose.podman.run(['start', cnt['name']])
-    if args.no_start or args.detach or args.dry_run: return
+            compose.podman.run([], 'start', [cnt['name']])
+    if args.no_start or args.detach or args.dry_run:
+        return
     # TODO: handle already existing
     # TODO: if error creating do not enter loop
     # TODO: colors if sys.stdout.isatty()
@@ -1194,8 +1216,8 @@ def compose_up(compose, args):
     threads = []
     for cnt in compose.containers:
         # TODO: remove sleep from podman.run
-        obj = compose if args.get(exit_code_from, None) == cnt['name'] else None
-        thread = Thread(target=compose.podman.run, args=[['start', '-a', cnt['name']], obj], daemon=True, name=cnt['name'])
+        obj = compose if args.__dict__.get('exit_code_from', None) == cnt['name'] else None
+        thread = Thread(target=compose.podman.run, args=[[], 'start', ['-a', cnt['name']]], kwargs={"obj":obj}, daemon=True, name=cnt['name'])
         thread.start()
         threads.append(thread)
         time.sleep(1)
@@ -1217,19 +1239,19 @@ def compose_down(compose, args):
     podman_args.extend(['-t', "{}".format(timeout)])
 
     for cnt in compose.containers:
-        compose.podman.run(["stop", *podman_args, cnt["name"]], sleep=0)
+        compose.podman.run([], "stop", [*podman_args, cnt["name"]], sleep=0)
     for cnt in compose.containers:
-        compose.podman.run(["rm", cnt["name"]], sleep=0)
+        compose.podman.run([], "rm", [cnt["name"]], sleep=0)
     for pod in compose.pods:
-        compose.podman.run(["pod", "rm", pod["name"]], sleep=0)
+        compose.podman.run([], "pod", ["rm", pod["name"]], sleep=0)
 
 @cmd_run(podman_compose, 'ps', 'show status of containers')
 def compose_ps(compose, args):
     proj_name = compose.project_name
     if args.quiet == True:
-        compose.podman.run(["ps", "-a", "--format", "{{.ID}}", "--filter", f"label=io.podman.compose.project={proj_name}"])
+        compose.podman.run([], "ps", ["-a", "--format", "{{.ID}}", "--filter", f"label=io.podman.compose.project={proj_name}"])
     else:
-        compose.podman.run(["ps", "-a", "--filter", f"label=io.podman.compose.project={proj_name}"])
+        compose.podman.run([], "ps", ["-a", "--filter", f"label=io.podman.compose.project={proj_name}"])
 
 @cmd_run(podman_compose, 'run', 'create a container similar to a service to run a one-off command')
 def compose_run(compose, args):
@@ -1268,14 +1290,14 @@ def compose_run(compose, args):
         podman_args.insert(1, '-i')
         if args.rm:
             podman_args.insert(1, '--rm')
-    compose.podman.run(podman_args, sleep=0)
+    compose.podman.run([], 'run', podman_args, sleep=0)
 
 @cmd_run(podman_compose, 'exec', 'execute a command in a running container')
 def compose_exec(compose, args):
     container_names=compose.container_names_by_service[args.service]
     container_name=container_names[args.index - 1]
     cnt = compose.container_by_name[container_name]
-    podman_args = ['exec', '--interactive']
+    podman_args = ['--interactive']
     if args.privileged: podman_args += ['--privileged']
     if args.user: podman_args += ['--user', args.user]
     if args.workdir: podman_args += ['--workdir', args.workdir]
@@ -1289,7 +1311,7 @@ def compose_exec(compose, args):
     podman_args += [container_name]
     if args.cnt_command is not None and len(args.cnt_command) > 0:
         podman_args += args.cnt_command
-    compose.podman.run(podman_args, sleep=0)
+    compose.podman.run([], 'exec', podman_args, sleep=0)
 
 
 def transfer_service_status(compose, args, action):
@@ -1300,12 +1322,12 @@ def transfer_service_status(compose, args, action):
         if service not in container_names_by_service:
             raise ValueError("unknown service: " + service)
         targets.extend(container_names_by_service[service])
-    podman_args=[action]
+    podman_args=[]
     timeout=getattr(args, 'timeout', None)
     if timeout is not None:
         podman_args.extend(['-t', "{}".format(timeout)])
     for target in targets:
-        compose.podman.run(podman_args+[target], sleep=0)
+        compose.podman.run([], action, podman_args+[target], sleep=0)
 
 @cmd_run(podman_compose, 'start', 'start specific services')
 def compose_start(compose, args):
@@ -1326,7 +1348,7 @@ def compose_logs(compose, args):
     if args.service not in container_names_by_service:
         raise ValueError("unknown service: " + args.service)
     target = container_names_by_service[args.service]
-    podman_args = ['logs']
+    podman_args = []
     if args.follow:
         podman_args.append('-f')
     # the default value is to print all logs which is in podman = 0 and not
@@ -1335,7 +1357,7 @@ def compose_logs(compose, args):
         podman_args.extend(['--tail', args.tail])
     if args.timestamps:
         podman_args.append('-t')
-    compose.podman.run(podman_args+target)
+    compose.podman.run([], 'logs', podman_args+target)
 
 ###################
 # command arguments parsing
