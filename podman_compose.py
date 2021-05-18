@@ -571,6 +571,8 @@ def container_to_args(compose, cnt, detached=True):
         podman_args.extend(['--shm-size', '{}'.format(cnt['shm_size'])])
     if cnt.get('stdin_open', None):
         podman_args.append('-i')
+    if cnt.get('stop_signal', None):
+        podman_args.extend(['--stop-signal', cnt['stop_signal']])
     for i in cnt.get('sysctls', []):
         podman_args.extend(['--sysctl', i])
     if cnt.get('tty', None):
