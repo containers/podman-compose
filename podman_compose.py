@@ -1170,8 +1170,9 @@ def create_pods(compose, args):
         ]
         ports = pod.get("ports", None) or []
         for i in ports:
-            podman_args.extend(['-p', i])
+            podman_args.extend(['-p', str(i)])
         compose.podman.run([], "pod", podman_args)
+
 
 def up_specific(compose, args):
     deps = []
