@@ -876,7 +876,7 @@ class PodmanCompose:
             ]))
         files = args.file
         if not files:
-            print("no compose.yaml, docker-compose.yml ot container-compose.yml file found, pass files with -f")
+            print("no compose.yaml, docker-compose.yml or container-compose.yml file found, pass files with -f")
             exit(-1)
         ex = map(os.path.exists, files)
         missing = [ fn0 for ex0, fn0 in zip(ex, files) if not ex0 ]
@@ -900,7 +900,7 @@ class PodmanCompose:
         os.chdir(dirname)
 
         if not project_name:
-            # More strict then acually needed for simplicity: podman requires [a-zA-Z0-9][a-zA-Z0-9_.-]*
+            # More strict then actually needed for simplicity: podman requires [a-zA-Z0-9][a-zA-Z0-9_.-]*
             project_name = norm_re.sub('', dir_basename.lower())
             if not project_name:
                 raise RuntimeError("Project name [{}] normalized to empty".format(dir_basename))
