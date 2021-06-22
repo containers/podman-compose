@@ -531,13 +531,13 @@ def container_to_res_args(cnt, podman_args):
     # add args
     cpus = cpus_limit_v3 or cpus_limit_v2
     if cpus:
-        podman_args.add('--cpus', str(cpus))
+        podman_args.extend(('--cpus', str(cpus),))
     mem = mem_limit_v3 or mem_limit_v2
     if mem:
-        podman_args.add('-m', str(mem).lower())
+        podman_args.extend(('-m', str(mem).lower(),))
     mem_res = mem_res_v3 or mem_res_v2
     if mem_res:
-        podman_args.add('--memory-reservation', str(mem_res).lower())
+        podman_args.extend(('--memory-reservation', str(mem_res).lower(),))
 
 def container_to_args(compose, cnt, detached=True):
     # TODO: double check -e , --add-host, -v, --read-only
