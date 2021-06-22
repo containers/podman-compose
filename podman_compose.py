@@ -57,6 +57,15 @@ def try_int(i, fallback=None):
         pass
     return fallback
 
+def try_float(i, fallback=None):
+    try:
+        return float(i)
+    except ValueError:
+        pass
+    except TypeError:
+        pass
+    return fallback
+
 dir_re = re.compile("^[~/\.]")
 propagation_re = re.compile("^(?:z|Z|r?shared|r?slave|r?private)$")
 norm_re =  re.compile('[^-_a-z0-9]')
@@ -504,6 +513,29 @@ def get_mount_args(compose, cnt, volume):
         args = mount_desc_to_mount_args(compose, volume, srv_name, cnt['name'])
         return ['--mount', args]
 
+def container_to_res_args(cnt, podman_args):
+    # v2 < https://docs.docker.com/compose/compose-file/compose-file-v2/#cpu-and-other-resources
+    cpus_v2 = try_float(cnt.get('cpus', None), None)
+    mem_limit_v2 = cnt.get('mem_limit', None)
+    mem_res_v2 = cnt.get('mem_reservation', None)
+    # v3 < https://docs.docker.com/compose/compose-file/compose-file-v3/#resources
+    # spec < https://github.com/compose-spec/compose-spec/blob/master/deploy.md#resources
+    deploy = cnt.get('deploy', None) or {}
+    res = deploy.get('resources', None) or {}
+    limits = res.get('limits', None) or {}
+    cpus_limit_v3 = try_float(limits.get('cpus', None), None)
+    mem_limit_v3 = limits.get('memory', None)
+    reservations = res.get('reservations', None) or {}
+    #cpus_res_v3 = try_float(reservations.get('cpus', None), None)
+    mem_res_v3 = reservations.get('memory', None)
+    # add args
+    cpus = cpus_v3 or cpus_v2
+    podman_args.add('--cpus', str(cpus))
+    mem = mem_limit_v3 or mem_limit_v2
+    podman_args.add('-m', str(mem).lower())
+    mem_res = mem_res_v3 or mem_res_v2
+    podman_args.add('--memory-reservation', str(mem_res).lower())
+
 def container_to_args(compose, cnt, detached=True):
     # TODO: double check -e , --add-host, -v, --read-only
     dirname = compose.dirname
@@ -582,6 +614,7 @@ def container_to_args(compose, cnt, detached=True):
     if cnt.get('restart', None) is not None:
         podman_args.extend(['--restart', cnt['restart']])
     container_to_ulimit_args(cnt, podman_args)
+    container_to_res_args(cnt, podman_args)
     # currently podman shipped by fedora does not package this
     if cnt.get('init', None):
         podman_args.append('--init')
