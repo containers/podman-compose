@@ -515,7 +515,7 @@ def get_mount_args(compose, cnt, volume):
 
 def container_to_res_args(cnt, podman_args):
     # v2 < https://docs.docker.com/compose/compose-file/compose-file-v2/#cpu-and-other-resources
-    cpus_v2 = try_float(cnt.get('cpus', None), None)
+    cpus_limit_v2 = try_float(cnt.get('cpus', None), None)
     mem_limit_v2 = cnt.get('mem_limit', None)
     mem_res_v2 = cnt.get('mem_reservation', None)
     # v3 < https://docs.docker.com/compose/compose-file/compose-file-v3/#resources
@@ -529,12 +529,15 @@ def container_to_res_args(cnt, podman_args):
     #cpus_res_v3 = try_float(reservations.get('cpus', None), None)
     mem_res_v3 = reservations.get('memory', None)
     # add args
-    cpus = cpus_v3 or cpus_v2
-    podman_args.add('--cpus', str(cpus))
+    cpus = cpus_limit_v3 or cpus_limit_v2
+    if cpus:
+        podman_args.add('--cpus', str(cpus))
     mem = mem_limit_v3 or mem_limit_v2
-    podman_args.add('-m', str(mem).lower())
+    if mem:
+        podman_args.add('-m', str(mem).lower())
     mem_res = mem_res_v3 or mem_res_v2
-    podman_args.add('--memory-reservation', str(mem_res).lower())
+    if mem_res:
+        podman_args.add('--memory-reservation', str(mem_res).lower())
 
 def container_to_args(compose, cnt, detached=True):
     # TODO: double check -e , --add-host, -v, --read-only
