@@ -1341,7 +1341,7 @@ def compose_exec(compose, args):
     if args.user: podman_args += ['--user', args.user]
     if args.workdir: podman_args += ['--workdir', args.workdir]
     if not args.T: podman_args += ['--tty']
-    env = dict(cnt['environment'])
+    env = dict(cnt.get('environment', {}))
     if args.env:
         additional_env_vars = dict(map(lambda each: each.split('='), args.env))
         env.update(additional_env_vars)
