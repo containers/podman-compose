@@ -1164,12 +1164,19 @@ def build_one(compose, args, cnt):
     if not hasattr(build_desc, 'items'):
         build_desc = dict(context=build_desc)
     ctx = build_desc.get('context', '.')
-    dockerfile = os.path.join(ctx, build_desc.get("dockerfile", "Dockerfile"))
-    if not os.path.exists(dockerfile):
-        dockerfile = os.path.join(ctx, build_desc.get("dockerfile", "dockerfile"))
-        if not os.path.exists(dockerfile):
-            raise OSError("Dockerfile not found in "+ctx)
-    build_args = ["-t", cnt["image"], "-f", dockerfile]
+    cntfiles = filter(lambda f: f is not None, [
+        build_desc.get('containerfile'),
+        build_desc.get('dockerfile'),
+        'Containerfile',
+        'containerfile',
+        'Dockerfile',
+        'dockerfile'
+    ])
+    cntfilepaths = map(lambda f: os.path.join(ctx, f), cntfiles)
+    existing_cntfiles = list(filter(os.path.exists, cntfilepaths))
+    if not existing_cntfiles:
+        raise OSError('Dockerfile not found in ' + ctx)
+    build_args = ["-t", cnt["image"], "-f", existing_cntfiles[0]]
     if "target" in build_desc:
         build_args.extend(["--target", build_desc["target"]])
     container_to_ulimit_args(cnt, build_args)

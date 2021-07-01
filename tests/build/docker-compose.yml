@@ -20,6 +20,6 @@ services:
     test_build_arg_argument:
       build:
         context: ./context
-        dockerfile: Dockerfile-alt
+        containerfile: Dockerfile-alt
       image: my-busybox-httpd2
       command: env
