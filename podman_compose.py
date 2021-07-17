@@ -901,6 +901,8 @@ class PodmanCompose:
                 "compose.yml",
                 "compose.override.yaml",
                 "compose.override.yml",
+		"podman-compose.yaml",
+		"podman-compose.yml",
                 "docker-compose.yml",
                 "docker-compose.yaml",
                 "docker-compose.override.yml",
