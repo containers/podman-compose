@@ -513,6 +513,74 @@ def get_mount_args(compose, cnt, volume):
         args = mount_desc_to_mount_args(compose, volume, srv_name, cnt['name'])
         return ['--mount', args]
 
+
+def get_secret_args(compose, cnt, secret):
+    secret_name = secret if is_str(secret) else secret.get('source', None)
+    if not secret_name or secret_name not in compose.declared_secrets.keys():
+        raise ValueError(
+            'ERROR: undeclared secret: "{}", service: "{}"'
+            .format(secret, cnt['_service'])
+        )
+    declared_secret = compose.declared_secrets[secret_name]
+
+    source_file = declared_secret.get('file', None)
+    dest_file = ''
+    secret_opts = ''
+
+    target = None if is_str(secret) else secret.get('target', None)
+    uid = None if is_str(secret) else secret.get('uid', None)
+    gid = None if is_str(secret) else secret.get('gid', None)
+    mode = None if is_str(secret) else secret.get('mode', None)
+
+    if source_file:
+        if not target:
+            dest_file = '/run/secrets/{}'.format(secret_name)
+        elif not target.startswith("/"):
+            dest_file = '/run/secrets/{}'.format(target if target else secret_name)
+        else:
+            dest_file = target
+        volume_ref = [
+            '--volume', '{}:{}:ro,rprivate,rbind'.format(source_file, dest_file)
+        ]
+        if uid or gid or mode:
+            print(
+                'WARNING: Service "{}" uses secret "{}" with uid, gid, or mode.'
+                    .format(cnt['_service'], target if target else secret_name)
+                + ' These fields are not supported by this implementation of the Compose file'
+            )
+        return volume_ref
+    # v3.5 and up added external flag, earlier the spec
+    # only required a name to be specified.
+    # docker-compose does not support external secrets outside of swarm mode.
+    # However accessing these via podman is trivial
+    # since these commands are directly translated to
+    # podman-create commands, albiet we can only support a 1:1 mapping
+    # at the moment
+    if declared_secret.get('external', False) or declared_secret.get('name', None):
+        secret_opts += ',uid={}'.format(uid) if uid else ''
+        secret_opts += ',gid={}'.format(gid) if gid else ''
+        secret_opts += ',mode={}'.format(mode) if mode else ''
+        # The target option is only valid for type=env,
+        # which in an ideal world would work
+        # for type=mount as well.
+        # having a custom name for the external secret
+        # has the same problem as well
+        ext_name = declared_secret.get('name', None)
+        err_str = 'ERROR: Custom name/target reference "{}" for mounted external secret "{}" is not supported'
+        if ext_name and ext_name != secret_name:
+            raise ValueError(err_str.format(secret_name, ext_name))
+        elif target and target != secret_name:
+            raise ValueError(err_str.format(target, secret_name))
+        elif target:
+            print('WARNING: Service "{}" uses target: "{}" for secret: "{}".'
+                    .format(cnt['_service'], target, secret_name)
+                  + ' That is un-supported and a no-op and is ignored.')
+        return [ '--secret', '{}{}'.format(secret_name, secret_opts) ]
+
+    raise ValueError('ERROR: unparseable secret: "{}", service: "{}"'
+                        .format(secret_name, cnt['_service']))
+
+
 def container_to_res_args(cnt, podman_args):
     # v2 < https://docs.docker.com/compose/compose-file/compose-file-v2/#cpu-and-other-resources
     cpus_limit_v2 = try_float(cnt.get('cpus', None), None)
@@ -587,6 +655,8 @@ def container_to_args(compose, cnt, detached=True):
     for volume in cnt.get('volumes', []):
         # TODO: should we make it os.path.realpath(os.path.join(, i))?
         podman_args.extend(get_mount_args(compose, cnt, volume))
+    for secret in cnt.get('secrets', []):
+        podman_args.extend(get_secret_args(compose, cnt, secret))
     for i in cnt.get('extra_hosts', []):
         podman_args.extend(['--add-host', i])
     for i in cnt.get('expose', []):
@@ -850,6 +920,7 @@ class PodmanCompose:
         self.pods = None
         self.containers = None
         self.shared_vols = None
+        self.declared_secrets = None
         self.container_names_by_service = None
         self.container_by_name = None
         self._prefer_volume_over_mount = True
@@ -1006,7 +1077,7 @@ class PodmanCompose:
         # other top-levels:
         # networks: {driver: ...}
         # configs: {...}
-        # secrets: {...}
+        self.declared_secrets = compose.get('secrets', {})
         given_containers = []
         container_names_by_service = {}
         for service_name, service_desc in services.items():
