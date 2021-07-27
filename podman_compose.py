@@ -238,7 +238,7 @@ def norm_ulimit(inner_value):
         soft = inner_value.get("soft", inner_value.get("hard", None))
         hard = inner_value.get("hard", inner_value.get("soft", None))
         return "{}:{}".format(soft, hard)
-    elif is_list(inner_value): return norm_ulimit(norm_as_dict(inner_value))
+    if is_list(inner_value): return norm_ulimit(norm_as_dict(inner_value))
     # if int or string return as is
     return inner_value
 
@@ -425,19 +425,18 @@ def mount_desc_to_mount_args(compose, mount_desc, srv_name, cnt_name):
             target=target,
             opts=opts
         ).rstrip(",")
-    elif mount_type == 'volume':
+    if mount_type == 'volume':
         return "type=volume,source={source},destination={target},{opts}".format(
             source=source,
             target=target,
             opts=opts
         ).rstrip(",")
-    elif mount_type == 'tmpfs':
+    if mount_type == 'tmpfs':
         return "type=tmpfs,destination={target},{opts}".format(
             target=target,
             opts=opts
         ).rstrip(",")
-    else:
-        raise ValueError("unknown mount type:"+mount_type)
+    raise ValueError("unknown mount type:" + mount_type)
 
 def container_to_ulimit_args(cnt, podman_args):
     ulimit = cnt.get('ulimits', [])
@@ -497,12 +496,10 @@ def get_mount_args(compose, cnt, volume):
             if mode: opts.append('mode={}'.format(mode))
             if opts: args += ':' + ','.join(opts)
             return ['--tmpfs', args]
-        else:
-            args = mount_desc_to_volume_args(compose, volume, srv_name, cnt['name'])
-            return ['-v', args]
-    else:
-        args = mount_desc_to_mount_args(compose, volume, srv_name, cnt['name'])
-        return ['--mount', args]
+        args = mount_desc_to_volume_args(compose, volume, srv_name, cnt['name'])
+        return ['-v', args]
+    args = mount_desc_to_mount_args(compose, volume, srv_name, cnt['name'])
+    return ['--mount', args]
 
 
 def get_secret_args(compose, cnt, secret):
@@ -560,9 +557,9 @@ def get_secret_args(compose, cnt, secret):
         err_str = 'ERROR: Custom name/target reference "{}" for mounted external secret "{}" is not supported'
         if ext_name and ext_name != secret_name:
             raise ValueError(err_str.format(secret_name, ext_name))
-        elif target and target != secret_name:
+        if target and target != secret_name:
             raise ValueError(err_str.format(target, secret_name))
-        elif target:
+        if target:
             print('WARNING: Service "{}" uses target: "{}" for secret: "{}".'
                     .format(cnt['_service'], target, secret_name)
                   + ' That is un-supported and a no-op and is ignored.')
@@ -1253,7 +1250,7 @@ def compose_build(compose, args):
             try:
                 cnt = compose.container_by_name[container_names_by_service[service][0]]
             except:
-                raise ValueError("unknown service: " + service)
+                raise ValueError("unknown service: " + service) from None
             build_one(compose, args, cnt)
     else:
         for cnt in compose.containers:
