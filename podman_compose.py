@@ -31,7 +31,6 @@ except ImportError:
 # import fnmatch
 # fnmatch.fnmatchcase(env, "*_HOST")
 
-import json
 import yaml
 
 __version__ = '0.1.7dev'
@@ -391,9 +390,7 @@ def assert_volume(compose, mount_dict):
     """
     if mount_dict["type"] != "volume": return
     proj_name = compose.project_name
-    shared_vols = compose.shared_vols
 
-    vol_name_orig = mount_dict.get("_source", None)
     vol_name = mount_dict["source"]
     print("podman volume inspect {vol_name} || podman volume create {vol_name}".format(vol_name=vol_name))
     # TODO: might move to using "volume list"
@@ -404,9 +401,6 @@ def assert_volume(compose, mount_dict):
         out = compose.podman.output([], "volume", ["inspect", vol_name]).decode('utf-8')
 
 def mount_desc_to_mount_args(compose, mount_desc, srv_name, cnt_name):
-    basedir = compose.dirname
-    proj_name = compose.project_name
-    shared_vols = compose.shared_vols
     mount_type = mount_desc.get("type", None)
     source = mount_desc.get("source", None)
     target = mount_desc["target"]
@@ -459,9 +453,6 @@ def container_to_ulimit_args(cnt, podman_args):
                 podman_args.extend(['--ulimit', i])
 
 def mount_desc_to_volume_args(compose, mount_desc, srv_name, cnt_name):
-    basedir = compose.dirname
-    proj_name = compose.project_name
-    shared_vols = compose.shared_vols
     mount_type = mount_desc["type"]
     source = mount_desc.get("source", None)
     target = mount_desc["target"]
@@ -610,7 +601,6 @@ def container_to_res_args(cnt, podman_args):
 def container_to_args(compose, cnt, detached=True):
     # TODO: double check -e , --add-host, -v, --read-only
     dirname = compose.dirname
-    shared_vols = compose.shared_vols
     pod = cnt.get('pod', None) or ''
     podman_args = [
         '--name={}'.format(cnt.get('name', None)),
@@ -829,7 +819,7 @@ class Podman:
             print(exit_code)
             if obj is not None:
                 obj.exit_code = exit_code
-            
+
         if sleep:
             time.sleep(sleep)
         return p
@@ -970,7 +960,6 @@ class PodmanCompose:
 
     def _parse_compose_file(self):
         args = self.global_args
-        cmd = args.command
         if not args.file:
             args.file = list(filter(os.path.exists, [
                 "compose.yaml",
@@ -1002,11 +991,7 @@ class PodmanCompose:
         files = list(map(os.path.realpath, files))
         filename = files[0]
         project_name = args.project_name
-        no_ansi = args.no_ansi
-        no_cleanup = args.no_cleanup
-        dry_run = args.dry_run
         transform_policy = args.transform_policy
-        host_env = None
         dirname = os.path.dirname(filename)
         dir_basename = os.path.basename(dirname)
         self.dirname = dirname
@@ -1052,12 +1037,11 @@ class PodmanCompose:
         # debug mode
         if len(files)>1:
             print(" ** merged:\n", json.dumps(compose, indent = 2))
-        ver = compose.get('version', None)
         services = compose.get('services', None)
         if services is None:
             services = {}
             print("WARNING: No services defined")
-		
+
         # NOTE: maybe add "extends.service" to _deps at this stage
         flat_deps(services, with_extends=True)
         service_names = sorted([ (len(srv["_deps"]), name) for name, srv in services.items() ])
@@ -1309,8 +1293,6 @@ def compose_up(compose, args):
             **args.__dict__)
         compose.commands['build'](compose, build_args)
 
-    shared_vols = compose.shared_vols
-
     # TODO: implement check hash label for change
     if args.force_recreate:
         compose.commands['down'](compose, args)
@@ -1376,7 +1358,6 @@ def compose_run(compose, args):
     container_names=compose.container_names_by_service[args.service]
     container_name=container_names[0]
     cnt = compose.container_by_name[container_name]
-    deps = cnt["_deps"]
     if not args.no_deps:
         # TODO: start services in deps
         pass
