@@ -65,7 +65,7 @@ def try_float(i, fallback=None):
         pass
     return fallback
 
-dir_re = re.compile("^[~/\.]")
+dir_re = re.compile(r"^[~/\.]")
 propagation_re = re.compile("^(?:z|Z|r?shared|r?slave|r?private)$")
 norm_re =  re.compile('[^-_a-z0-9]')
 
@@ -178,7 +178,7 @@ def rec_subs(value, dicts):
     do bash-like substitution in value and if list of dictionary do that recursively
     """
     if is_dict(value):
-        value = dict([(k, rec_subs(v, dicts)) for k, v in value.items()])
+        value = dict((k, rec_subs(v, dicts)) for k, v in value.items())
     elif is_str(value):
         def convert(m):
             if m.group("escaped") is not None:
@@ -223,7 +223,7 @@ def norm_as_dict(src):
         dst = dict(src)
     elif is_list(src):
         dst = [i.split("=", 1) for i in src if i]
-        dst = dict([(a if len(a) == 2 else (a[0], None)) for a in dst])
+        dst = dict((a if len(a) == 2 else (a[0], None)) for a in dst)
     elif is_str(src):
         key, value = src.split("=", 1) if "=" in src else (src, None)
         dst = {key: value}
@@ -457,7 +457,7 @@ def mount_desc_to_volume_args(compose, mount_desc, srv_name, cnt_name):
     source = mount_desc.get("source", None)
     target = mount_desc["target"]
     opts = []
-    if mount_type != 'bind' and mount_type != 'volume':
+    if mount_type not in ('bind', 'volume'):
         raise ValueError("unknown mount type:"+mount_type)
     propagations = set(filteri(mount_desc.get(mount_type, {}).get("propagation", "").split(',')))
     if mount_type != 'bind':
@@ -938,9 +938,9 @@ class PodmanCompose:
                 podman_path = os.path.realpath(podman_path)
             else:
                 # this also works if podman hasn't been installed now
-                if args.dry_run == False:
+                if args.dry_run is False:
                     sys.stderr.write("Binary {} has not been found.\n".format(podman_path))
-                    exit(1)
+                    sys.exit(1)
         self.podman = Podman(self, podman_path, args.dry_run)
         if not args.dry_run:
             # just to make sure podman is running
@@ -950,10 +950,10 @@ class PodmanCompose:
                 self.podman_version = None
             if not self.podman_version:
                 sys.stderr.write("it seems that you do not have `podman` installed\n")
-                exit(1)
+                sys.exit(1)
             print("using podman version: "+self.podman_version)
         cmd_name = args.command
-        if (cmd_name != "version"):
+        if cmd_name != "version":
             self._parse_compose_file()
         cmd = self.commands[cmd_name]
         cmd(self, args)
@@ -980,12 +980,12 @@ class PodmanCompose:
         files = args.file
         if not files:
             print("no compose.yaml, docker-compose.yml or container-compose.yml file found, pass files with -f")
-            exit(-1)
+            sys.exit(-1)
         ex = map(os.path.exists, files)
         missing = [ fn0 for ex0, fn0 in zip(ex, files) if not ex0 ]
         if missing:
             print("missing files: ", missing)
-            exit(1)
+            sys.exit(1)
         # make absolute
         relative_files = files
         files = list(map(os.path.realpath, files))
@@ -1011,7 +1011,7 @@ class PodmanCompose:
         if os.path.isfile(dotenv_path):
             with open(dotenv_path, 'r') as f:
                 dotenv_ls = [l.strip() for l in f if l.strip() and not l.startswith('#')]
-                dotenv_dict = dict([l.split("=", 1) for l in dotenv_ls if "=" in l])
+                dotenv_dict = dict(l.split("=", 1) for l in dotenv_ls if "=" in l)
         else:
             dotenv_dict = {}
         # TODO: should read and respect those env variables
@@ -1029,7 +1029,7 @@ class PodmanCompose:
                 #print(filename, json.dumps(content, indent = 2))
                 if not isinstance(content, dict):
                     sys.stderr.write("Compose file does not contain a top level object: %s\n"%filename)
-                    exit(1)
+                    sys.exit(1)
                 content = normalize(content)
                 #print(filename, json.dumps(content, indent = 2))
                 content = rec_subs(content, [os.environ, dotenv_dict])
@@ -1102,7 +1102,7 @@ class PodmanCompose:
                 cnt['_project'] = project_name
                 given_containers.append(cnt)
         self.container_names_by_service = container_names_by_service
-        container_by_name = dict([(c["name"], c) for c in given_containers])
+        container_by_name = dict((c["name"], c) for c in given_containers)
         #print("deps:", [(c["name"], c["_deps"]) for c in given_containers])
         given_containers = list(container_by_name.values())
         given_containers.sort(key=lambda c: len(c.get('_deps', None) or []))
@@ -1112,7 +1112,7 @@ class PodmanCompose:
             project_name, container_names_by_service, given_containers)
         self.pods = pods
         self.containers = containers
-        self.container_by_name = dict([ (c["name"], c) for c in containers])
+        self.container_by_name = dict((c["name"], c) for c in containers)
 
 
     def _parse_args(self):
@@ -1127,7 +1127,7 @@ class PodmanCompose:
         self.global_args = parser.parse_args()
         if not self.global_args.command or self.global_args.command=='help':
             parser.print_help()
-            exit(-1)
+            sys.exit(-1)
         return self.global_args
 
     def _init_global_parser(self, parser):
@@ -1327,7 +1327,7 @@ def compose_up(compose, args):
                 threads.remove(thread)
                 if args.abort_on_container_exit:
                     exit_code = compose.exit_code if compose.exit_code is not None else -1
-                    exit(exit_code)
+                    sys.exit(exit_code)
 
 @cmd_run(podman_compose, 'down', 'tear down entire stack')
 def compose_down(compose, args):
@@ -1347,7 +1347,7 @@ def compose_down(compose, args):
 @cmd_run(podman_compose, 'ps', 'show status of containers')
 def compose_ps(compose, args):
     proj_name = compose.project_name
-    if args.quiet == True:
+    if args.quiet is True:
         compose.podman.run([], "ps", ["-a", "--format", "{{.ID}}", "--filter", f"label=io.podman.compose.project={proj_name}"])
     else:
         compose.podman.run([], "ps", ["-a", "--filter", f"label=io.podman.compose.project={proj_name}"])
@@ -1379,7 +1379,7 @@ def compose_run(compose, args):
     if args.volume:
         # TODO: handle volumes
         pass
-    cnt['tty']=False if args.T else True
+    cnt['tty'] = not args.T
     if args.cnt_command is not None and len(args.cnt_command) > 0:
         cnt['command']=args.cnt_command
     # run podman
