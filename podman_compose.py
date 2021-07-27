@@ -50,20 +50,14 @@ filteri = lambda a: filter(lambda i: i, a)
 def try_int(i, fallback=None):
     try:
         return int(i)
-    except ValueError:
-        pass
-    except TypeError:
-        pass
-    return fallback
+    except (ValueError, TypeError):
+        return fallback
 
 def try_float(i, fallback=None):
     try:
         return float(i)
-    except ValueError:
-        pass
-    except TypeError:
-        pass
-    return fallback
+    except (ValueError, TypeError):
+        return fallback
 
 dir_re = re.compile(r"^[~/\.]")
 propagation_re = re.compile("^(?:z|Z|r?shared|r?slave|r?private)$")
