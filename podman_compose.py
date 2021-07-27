@@ -655,6 +655,11 @@ def container_to_args(compose, cnt, detached=True):
     for volume in cnt.get('volumes', []):
         # TODO: should we make it os.path.realpath(os.path.join(, i))?
         podman_args.extend(get_mount_args(compose, cnt, volume))
+    log = cnt.get('logging')
+    if log is not None:
+        podman_args.append(f'--log-driver={log.get("driver", "k8s-file")}')
+        log_opts = log.get('options') or {}
+        podman_args += [f'--log-opt={name}={value}' for name, value in log_opts.items()]
     for secret in cnt.get('secrets', []):
         podman_args.extend(get_secret_args(compose, cnt, secret))
     for i in cnt.get('extra_hosts', []):
