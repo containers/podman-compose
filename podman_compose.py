@@ -1215,12 +1215,24 @@ def compose_version(compose, args):
     print("podman-composer version ", __version__)
     compose.podman.run(["--version"], "", [], sleep=0)
 
-@cmd_run(podman_compose, 'pull', 'pull stack images')
+def is_local(container: dict) -> bool:
+    """Test if a container is local, i.e. if it is
+    * prefixed with localhost/
+    * has a build section and is not prefixed
+    """
+    return (
+        not "/" in container["image"]
+        if "build" in container
+        else container["image"].startswith("localhost/")
+    )
+
+@cmd_run(podman_compose, "pull", "pull stack images")
 def compose_pull(compose, args):
-    images = set()
-    for cnt in compose.containers:
-        if cnt.get('build', None): continue
-        images.add(cnt["image"])
+    img_containers = [cnt for cnt in compose.containers if "image" in cnt]
+    images = {cnt["image"] for cnt in img_containers}
+    if not args.force_local:
+        local_images = {cnt["image"] for cnt in img_containers if is_local(cnt)}
+        images -= local_images
     for image in images:
         compose.podman.run([], "pull", [image], sleep=0)
 
@@ -1595,6 +1607,11 @@ def compose_logs_parse(parser):
         type=str, default="all")
     parser.add_argument('service', metavar='service', nargs=None,
         help='service name')
+
+@cmd_parse(podman_compose, 'pull')
+def compose_pull_parse(parser):
+    parser.add_argument("--force-local", action='store_true', default=False,
+        help="Also pull unprefixed images for services which have a build section")
 
 @cmd_parse(podman_compose, 'push')
 def compose_push_parse(parser):
