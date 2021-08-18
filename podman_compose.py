@@ -602,7 +602,7 @@ def container_to_res_args(cnt, podman_args):
     if cpus:
         podman_args.extend(('--cpus', str(cpus),))
     if cpu_shares_v2:
-        podman_args.extend(('--cpu_shares', str(cpu_shares_v2),))
+        podman_args.extend(('--cpu-shares', str(cpu_shares_v2),))
     mem = mem_limit_v3 or mem_limit_v2
     if mem:
         podman_args.extend(('-m', str(mem).lower(),))
