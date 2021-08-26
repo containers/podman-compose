@@ -671,7 +671,10 @@ def container_to_args(compose, cnt, detached=True):
         podman_args.extend(['--expose', i])
     if cnt.get('publishall', None):
         podman_args.append('-P')
-    for i in cnt.get('ports', []):
+    ports = cnt.get('ports', None) or []
+    if isinstance(ports, str):
+        ports = [ports]
+    for i in ports:
         podman_args.extend(['-p', i])
     user = cnt.get('user', None)
     if user is not None:
@@ -1298,6 +1301,8 @@ def create_pods(compose, args):
             "--share", "net",
         ]
         ports = pod.get("ports", None) or []
+        if isinstance(ports, str):
+            ports = [ports]
         for i in ports:
             podman_args.extend(['-p', str(i)])
         compose.podman.run([], "pod", podman_args)
