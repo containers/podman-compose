@@ -1534,8 +1534,6 @@ def compose_up_parse(parser):
         help="Scale SERVICE to NUM instances. Overrides the `scale` setting in the Compose file if present.")
     parser.add_argument("--exit-code-from", metavar='SERVICE', type=str, default=None,
         help="Return the exit code of the selected service container. Implies --abort-on-container-exit.")
-    parser.add_argument('services', metavar='SERVICES', nargs='*',
-        help='service names to start')
 
 @cmd_parse(podman_compose, 'run')
 def compose_run_parse(parser):
