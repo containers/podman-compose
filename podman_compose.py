@@ -13,6 +13,7 @@ import sys
 import os
 import argparse
 import subprocess
+import textwrap
 import time
 import re
 import hashlib
@@ -835,7 +836,7 @@ class Podman:
             print(exit_code)
             if obj is not None:
                 obj.exit_code = exit_code
-            
+
         if sleep:
             time.sleep(sleep)
         return p
@@ -1063,7 +1064,7 @@ class PodmanCompose:
         if services is None:
             services = {}
             print("WARNING: No services defined")
-		
+
         # NOTE: maybe add "extends.service" to _deps at this stage
         flat_deps(services, with_extends=True)
         service_names = sorted([ (len(srv["_deps"]), name) for name, srv in services.items() ])
@@ -1138,7 +1139,9 @@ class PodmanCompose:
 
 
     def _parse_args(self):
-        parser = argparse.ArgumentParser()
+        parser = argparse.ArgumentParser(
+            formatter_class=argparse.RawTextHelpFormatter
+        )
         self._init_global_parser(parser)
         subparsers = parser.add_subparsers(title='command', dest='command')
         subparser = subparsers.add_parser('help', help='show help')
@@ -1176,7 +1179,15 @@ class PodmanCompose:
         parser.add_argument("--dry-run",
                             help="No action; perform a simulation of commands", action='store_true')
         parser.add_argument("-t", "--transform_policy",
-                            help="how to translate docker compose to podman [1pod|hostnet|accurate]",
+                            help=textwrap.dedent("""\
+                            how to translate docker compose to podman (default: 1podfw)
+                                1podfw - create all containers in one pod (inter-container communication is done via localhost), doing port mapping in that pod
+                                1pod - create all containers in one pod, doing port mapping in each container (does not work)
+                                identity - no mapping
+                                hostnet - use host network, and inter-container communication is done via host gateway and published ports
+                                cntnet - create a container and use it via --network container:name (inter-container communication via localhost)
+                                publishall - publish all ports to host (using -P) and communicate via gateway
+                            """),
                             choices=['1pod', '1podfw', 'hostnet', 'cntnet', 'publishall', 'identity'], default='1podfw')
 
 podman_compose = PodmanCompose()
