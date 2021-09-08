@@ -1150,12 +1150,16 @@ class PodmanCompose:
             for cmd_parser in cmd._parse_args:
                 cmd_parser(subparser)
         self.global_args = parser.parse_args()
+        if self.global_args.version:
+            self.global_args.command = "version"
         if not self.global_args.command or self.global_args.command=='help':
             parser.print_help()
             exit(-1)
         return self.global_args
 
     def _init_global_parser(self, parser):
+        parser.add_argument("-v", "--version",
+                            help="show version", action='store_true')
         parser.add_argument("-f", "--file",
                             help="Specify an alternate compose file (default: docker-compose.yml)",
                             metavar='file', action='append', default=[])
