@@ -54,7 +54,7 @@ def compose_up(compose, args):
 
 
 ## Missing Commands (help needed)
-
+```
   bundle             Generate a Docker bundle from the Compose file
   config             Validate and view the Compose file
   create             Create services
@@ -71,3 +71,4 @@ def compose_up(compose, args):
   top                Display the running processes
   unpause            Unpause services
   version            Show the Docker-Compose version information
+```
