@@ -1358,7 +1358,7 @@ def compose_up(compose, args):
         podman_args = container_to_args(compose, cnt, detached=args.detach)
         subproc = compose.podman.run([], podman_command, podman_args)
         if podman_command == 'run' and subproc.returncode:
-            compose.podman.run([], 'start', [cnt['name']])
+            compose.podman.run([], 'start', [cnt['name']]) # potentila issue using container run instead of pod start
     if args.no_start or args.detach or args.dry_run:
         return
     # TODO: handle already existing
@@ -1395,7 +1395,8 @@ def compose_down(compose, args):
     for cnt in compose.containers:
         compose.podman.run([], "rm", [cnt["name"]], sleep=0)
     for pod in compose.pods:
-        compose.podman.run([], "pod", ["rm", pod["name"]], sleep=0)
+        compose.podman.run([], "pod", ["stop", pod["name"]], sleep=0) # stop pod for the purpose of stopping infra container if still running
+        compose.podman.run([], "pod", ["rm", "--force", pod["name"]], sleep=0)
 
 @cmd_run(podman_compose, 'ps', 'show status of containers')
 def compose_ps(compose, args):
