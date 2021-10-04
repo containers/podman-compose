@@ -1313,6 +1313,7 @@ def create_pods(compose, args):
         podman_args = [
             "create",
             "--name={}".format(pod["name"]),
+            "--infra-name={}_infra".format(pod["name"]),
             "--share", "net",
         ]
         ports = pod.get("ports", None) or []
