@@ -14,5 +14,20 @@ services:
       working_dir: /var/www/html
       ports:
       - 8002:8002
+      - target: 8003
+        host_ip: 127.0.0.1
+        published: 8003
+        protocol: udp
+      - target: 8004
+        host_ip: 127.0.0.1
+        published: 8004
+        protocol: tcp
+      - target: 8005
+        published: 8005
+      - target: 8006
+        protocol: udp
+      - target: 8007
+        host_ip: 127.0.0.1
       volumes:
       - ./test2.txt:/var/www/html/index.txt:ro
+

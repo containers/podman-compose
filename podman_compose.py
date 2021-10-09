@@ -611,6 +611,36 @@ def container_to_res_args(cnt, podman_args):
     if mem_res:
         podman_args.extend(('--memory-reservation', str(mem_res).lower(),))
 
+def port_dict_to_str(port_desc):
+    # NOTE: `mode: host|ingress` is ignored
+    cnt_port = port_desc.get("target", None)
+    published = port_desc.get("published", None) or ""
+    host_ip = port_desc.get("host_ip", None)
+    protocol = port_desc.get("protocol", None) or "tcp"
+    if not cnt_port:
+        raise ValueError("target container port must be specified")
+    if host_ip:
+        ret = f"{host_ip}:{published}:{cnt_port}"
+    else:
+        ret = f"{published}:{cnt_port}" if published else f"{cnt_port}"
+    if protocol!="tcp":
+        ret+= f"/{protocol}"
+    return ret
+
+def norm_ports(ports_in):
+    if not ports_in:
+        ports_in = []
+    if isinstance(ports_in, str):
+        ports_in = [ports_in]
+    ports_out = []
+    for port in ports_in:
+        if isinstance(port, dict):
+            port = port_dict_to_str(port)
+        elif not isinstance(port, str):
+            raise TypeError("port should be either string or dict")
+        ports_out.append(port)
+    return ports_out
+
 def container_to_args(compose, cnt, detached=True):
     # TODO: double check -e , --add-host, -v, --read-only
     dirname = compose.dirname
@@ -675,8 +705,13 @@ def container_to_args(compose, cnt, detached=True):
     ports = cnt.get('ports', None) or []
     if isinstance(ports, str):
         ports = [ports]
-    for i in ports:
-        podman_args.extend(['-p', i])
+    for port in ports:
+        if isinstance(port, dict):
+            port = port_dict_to_str(port)
+        elif not isinstance(port, str):
+            raise TypeError("port should be either string or dict")
+        podman_args.extend(['-p', port])
+        
     user = cnt.get('user', None)
     if user is not None:
         podman_args.extend(['-u', user])
@@ -1115,6 +1150,7 @@ class PodmanCompose:
                         service_name=service_name,
                     )
                 labels = norm_as_list(cnt.get('labels', None))
+                cnt["ports"] = norm_ports(cnt.get("ports", None))
                 labels.extend(podman_compose_labels)
                 labels.extend([
                     "com.docker.compose.container-number={}".format(num),
