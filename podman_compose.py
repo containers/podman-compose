@@ -126,31 +126,30 @@ def parse_short_mount(mount_str, basedir):
 #   but no declaration was found in the volumes section.
 # unless it's anonymous-volume
 
-def fix_mount_dict(mount_dict, proj_name, srv_name):
+def fix_mount_dict(compose, mount_dict, proj_name, srv_name):
     """
     in-place fix mount dictionary to:
-    - add missing source
-    - prefix source with proj_name
+    - define _vol to be the corresponding top-level volume
+    - if name is missing it would be source prefixed with project
+    - if no source it would be generated
     """
     # if already applied nothing todo
-    if "_source" in mount_dict: return mount_dict
+    if "_vol" in mount_dict: return mount_dict
     if mount_dict["type"] == "volume":
+        vols = compose.vols
         source = mount_dict.get("source", None)
-        # keep old source
-        mount_dict["_source"] = source
+        vol = (vols.get(source, None) or {}) if source else {}
+        name = vol.get('name', None)
+        mount_dict["_vol"] = vol
+        # handle anonymouse or implied volume
         if not source:
             # missing source
-            mount_dict["source"] = "_".join([
+            vol["name"] = "_".join([
                 proj_name, srv_name,
                 hashlib.sha256(mount_dict["target"].encode("utf-8")).hexdigest(),
             ])
-        else:
-            name = mount_dict.get('name')
-            if name:
-                mount_dict["source"] = name
-            else:
-                # prefix with proj_name
-                mount_dict["source"] = proj_name+"_"+source
+        elif not name:
+            vol["name"] = f"{proj_name}_{source}"
     return mount_dict
 
 # docker and docker-compose support subset of bash variable substitution
@@ -394,12 +393,10 @@ def assert_volume(compose, mount_dict):
     inspect volume to get directory
     create volume if needed
     """
-    if mount_dict["type"] != "volume" or mount_dict["external"]: return
+    vol = mount_dict.get("_vol", None)
+    if mount_dict["type"] != "volume" or not vol or vol.get("external", None) or not vol.get("name", None): return
     proj_name = compose.project_name
-    shared_vols = compose.shared_vols
-
-    vol_name_orig = mount_dict.get("_source", None)
-    vol_name = mount_dict["source"]
+    vol_name = vol["name"]
     print("podman volume inspect {vol_name} || podman volume create {vol_name}".format(vol_name=vol_name))
     # TODO: might move to using "volume list"
     # podman volume list --format '{{.Name}}\t{{.MountPoint}}' -f 'label=io.podman.compose.project=HERE'
@@ -409,11 +406,9 @@ def assert_volume(compose, mount_dict):
         out = compose.podman.output([], "volume", ["inspect", vol_name]).decode('utf-8')
 
 def mount_desc_to_mount_args(compose, mount_desc, srv_name, cnt_name):
-    basedir = compose.dirname
-    proj_name = compose.project_name
-    shared_vols = compose.shared_vols
     mount_type = mount_desc.get("type", None)
-    source = mount_desc.get("source", None)
+    vol = mount_desc.get("_vol", None) if mount_type=="volume" else None
+    source = vol["name"] if vol else mount_desc.get("source", None)
     target = mount_desc["target"]
     opts = []
     if mount_desc.get(mount_type, None):
@@ -464,15 +459,16 @@ def container_to_ulimit_args(cnt, podman_args):
                 podman_args.extend(['--ulimit', i])
 
 def mount_desc_to_volume_args(compose, mount_desc, srv_name, cnt_name):
-    basedir = compose.dirname
-    proj_name = compose.project_name
-    shared_vols = compose.shared_vols
     mount_type = mount_desc["type"]
-    source = mount_desc.get("source", None)
-    target = mount_desc["target"]
-    opts = []
     if mount_type != 'bind' and mount_type != 'volume':
         raise ValueError("unknown mount type:"+mount_type)
+    vol = mount_desc.get("_vol", None) if mount_type=="volume" else None
+    source = vol["name"] if vol else mount_desc.get("source", None)
+    if not source:
+        raise ValueError(f"missing mount source for {mount_type} on {srv_name}")
+    target = mount_desc["target"]
+    opts = []
+
     propagations = set(filteri(mount_desc.get(mount_type, {}).get("propagation", "").split(',')))
     if mount_type != 'bind':
         propagations.update(filteri(mount_desc.get('bind', {}).get("propagation", "").split(',')))
@@ -499,19 +495,7 @@ def get_mount_args(compose, cnt, volume):
     if is_str(volume): volume = parse_short_mount(volume, basedir)
     mount_type = volume["type"]
 
-    vol = None
-    source = volume.get('source')
-    if source:
-      vol = compose.shared_vols[source]
-    if vol:
-      name = vol.get('name')
-      if name:
-        volume['name'] = name
-      external = vol.get('external')
-      if  external:
-        volume['external'] = external
-
-    assert_volume(compose, fix_mount_dict(volume, proj_name, srv_name))
+    assert_volume(compose, fix_mount_dict(compose, volume, proj_name, srv_name))
     if compose._prefer_volume_over_mount:
         if mount_type == 'tmpfs':
             # TODO: --tmpfs /tmp:rw,size=787448k,mode=1777
@@ -661,7 +645,6 @@ def norm_ports(ports_in):
 def container_to_args(compose, cnt, detached=True):
     # TODO: double check -e , --add-host, -v, --read-only
     dirname = compose.dirname
-    shared_vols = compose.shared_vols
     pod = cnt.get('pod', None) or ''
     podman_args = [
         '--name={}'.format(cnt.get('name', None)),
@@ -983,7 +966,7 @@ class PodmanCompose:
         self.dirname = None
         self.pods = None
         self.containers = None
-        self.shared_vols = None
+        self.vols = None
         self.declared_secrets = None
         self.container_names_by_service = None
         self.container_by_name = None
@@ -1126,8 +1109,7 @@ class PodmanCompose:
         service_names = sorted([ (len(srv["_deps"]), name) for name, srv in services.items() ])
         service_names = [ name for _, name in service_names]
         # volumes: [...]
-        shared_vols = compose.get('volumes', {})
-        self.shared_vols = shared_vols
+        self.vols = compose.get('volumes', {})
         podman_compose_labels = [
             "io.podman.compose.config-hash=123",
             "io.podman.compose.project=" + project_name,
@@ -1395,8 +1377,6 @@ def compose_up(compose, args):
             if_not_exists=(not args.build),
             **args.__dict__)
         compose.commands['build'](compose, build_args)
-
-    shared_vols = compose.shared_vols
 
     # TODO: implement check hash label for change
     if args.force_recreate:
