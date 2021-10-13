@@ -27,6 +27,9 @@ services:
       working_dir: /var/www/html
       volumes:
         - myvol2:/var/www/html
+        - data:/var/www/html_data
+        - data2:/var/www/html_data2
+        - data3:/var/www/html_data3
 
 volumes:
   myvol2:
@@ -38,3 +41,6 @@ volumes:
   data2:
     external:
       name: actual-name-of-volume
+  data3:
+    name: my-app-data3
+

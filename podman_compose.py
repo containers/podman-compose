@@ -139,7 +139,7 @@ def fix_mount_dict(compose, mount_dict, proj_name, srv_name):
         vols = compose.vols
         source = mount_dict.get("source", None)
         vol = (vols.get(source, None) or {}) if source else {}
-        name = vol.get('name', None)
+        name = vol.get('name', None) 
         mount_dict["_vol"] = vol
         # handle anonymouse or implied volume
         if not source:
@@ -149,7 +149,9 @@ def fix_mount_dict(compose, mount_dict, proj_name, srv_name):
                 hashlib.sha256(mount_dict["target"].encode("utf-8")).hexdigest(),
             ])
         elif not name:
-            vol["name"] = f"{proj_name}_{source}"
+            external = vol.get("external", None)
+            ext_name = external.get("name", None) if isinstance(external, dict) else None
+            vol["name"] =  ext_name if ext_name else f"{proj_name}_{source}"
     return mount_dict
 
 # docker and docker-compose support subset of bash variable substitution
@@ -397,12 +399,22 @@ def assert_volume(compose, mount_dict):
     if mount_dict["type"] != "volume" or not vol or vol.get("external", None) or not vol.get("name", None): return
     proj_name = compose.project_name
     vol_name = vol["name"]
+    print(mount_dict, vol)
     print("podman volume inspect {vol_name} || podman volume create {vol_name}".format(vol_name=vol_name))
     # TODO: might move to using "volume list"
     # podman volume list --format '{{.Name}}\t{{.MountPoint}}' -f 'label=io.podman.compose.project=HERE'
     try: out = compose.podman.output([], "volume", ["inspect", vol_name]).decode('utf-8')
     except subprocess.CalledProcessError:
-        compose.podman.output([], "volume", ["create", "--label", "io.podman.compose.project={}".format(proj_name), "--label", "com.docker.compose.project={}".format(proj_name), vol_name])
+        labels = vol.get("labels", None) or []
+        args = [
+            "create",
+            "--label", "io.podman.compose.project={}".format(proj_name),
+            "--label", "com.docker.compose.project={}".format(proj_name),
+        ]
+        for item in norm_as_list(labels):
+            args.extend(["--label", item])
+        args.append(vol_name)
+        compose.podman.output([], "volume", args)
         out = compose.podman.output([], "volume", ["inspect", vol_name]).decode('utf-8')
 
 def mount_desc_to_mount_args(compose, mount_desc, srv_name, cnt_name):
