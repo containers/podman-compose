@@ -763,9 +763,8 @@ def container_to_args(compose, cnt, detached=True):
     entrypoint = cnt.get('entrypoint', None)
     if entrypoint is not None:
         if is_str(entrypoint):
-            podman_args.extend(['--entrypoint', entrypoint])
-        else:
-            podman_args.extend(['--entrypoint', json.dumps(entrypoint)])
+            entrypoint = shlex.split(entrypoint)
+        podman_args.extend(['--entrypoint', json.dumps(entrypoint)])
 
     # WIP: healthchecks are still work in progress
     healthcheck = cnt.get('healthcheck', None) or {}
