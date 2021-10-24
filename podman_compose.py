@@ -70,11 +70,20 @@ def try_float(i, fallback=None):
 dir_re = re.compile("^[~/\.]")
 propagation_re = re.compile("^(?:z|Z|r?shared|r?slave|r?private)$")
 norm_re =  re.compile('[^-_a-z0-9]')
+num_split_re = re.compile(r'(\d+|\D+)')
 
 PODMAN_CMDS = (
     "pull", "push", "build", "inspect",
     "run", "start", "stop", "rm", "volume",
 )
+
+def ver_as_list(a):
+    return [try_int(i, i) for i in num_split_re.findall(a)]
+
+def strverscmp_lt(a, b):
+    a_ls = ver_as_list(a)
+    b_ls = ver_as_list(b)
+    return a_ls < b_ls
 
 def parse_short_mount(mount_str, basedir):
     mount_a = mount_str.split(':')
@@ -1008,7 +1017,8 @@ class PodmanCompose:
         if not args.dry_run:
             # just to make sure podman is running
             try:
-                self.podman_version = self.podman.output(["--version"], '', []).decode('utf-8').strip()
+                self.podman_version = self.podman.output(["--version"], '', []).decode('utf-8').strip() or ""
+                self.podman_version = (self.podman_version.split() or [""])[-1]
             except subprocess.CalledProcessError:
                 self.podman_version = None
             if not self.podman_version:
@@ -1357,9 +1367,10 @@ def create_pods(compose, args):
         podman_args = [
             "create",
             "--name={}".format(pod["name"]),
-            "--infra-name={}_infra".format(pod["name"]),
             "--share", "net",
         ]
+        if not strverscmp_lt(compose.podman_version, "3.4.0"):
+            podman_args.append("--infra-name={}_infra".format(pod["name"]))
         ports = pod.get("ports", None) or []
         if isinstance(ports, str):
             ports = [ports]
