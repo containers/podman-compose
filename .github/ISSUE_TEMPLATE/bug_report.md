@@ -9,8 +9,11 @@ assignees: ''
 
 **Describe the bug**
 A clear and concise description of what the bug is.
+
 Please make sure it's not a bug in podman (in that case report it to podman)
 or your understanding of docker-compose or how rootless containers work (for example, it's normal for rootless container not to be able to listen for port less than 1024 like 80)
+
+please try to reproduce the bug in latest devel branch
 
 **To Reproduce**
 Steps to reproduce the behavior:
