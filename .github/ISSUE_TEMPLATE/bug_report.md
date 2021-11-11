@@ -17,6 +17,9 @@ Steps to reproduce the behavior:
 1. what is the content of the current working directory (ex. `docker-compose.yml`, `.env`, `Dockerfile`, ...etc.)
 2. what is the sequence of commands you typed
 
+please use [minimal reproducible example](https://stackoverflow.com/help/minimal-reproducible-example) for example give me a small busybox-based compose yaml
+
+
 **Expected behavior**
 A clear and concise description of what you expected to happen.
 
