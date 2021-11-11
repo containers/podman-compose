@@ -816,7 +816,7 @@ def container_to_args(compose, cnt, detached=True):
         if is_str(command):
             podman_args.extend(shlex.split(command))
         else:
-            podman_args.extend(command)
+            podman_args.extend([str(i) for i in command])
     return podman_args
 
 def rec_deps(services, service_name, start_point=None):
