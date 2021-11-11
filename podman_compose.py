@@ -1328,11 +1328,19 @@ def build_one(compose, args, cnt):
     if not hasattr(build_desc, 'items'):
         build_desc = dict(context=build_desc)
     ctx = build_desc.get('context', '.')
-    dockerfile = os.path.join(ctx, build_desc.get("dockerfile", "Dockerfile"))
+    dockerfile = build_desc.get("dockerfile", None)
+    if dockerfile:
+        dockerfile = os.path.join(ctx, dockerfile)
+    else:
+        dockerfile_alts = [
+            'Containerfile', 'ContainerFile', 'containerfile',
+            'Dockerfile', 'DockerFile','dockerfile',
+        ]
+        for dockerfile in dockerfile_alts:
+            dockerfile = os.path.join(ctx, dockerfile)
+            if os.path.exists(dockerfile): break
     if not os.path.exists(dockerfile):
-        dockerfile = os.path.join(ctx, build_desc.get("dockerfile", "dockerfile"))
-        if not os.path.exists(dockerfile):
-            raise OSError("Dockerfile not found in "+ctx)
+        raise OSError("Dockerfile not found in "+ctx)
     build_args = ["-t", cnt["image"], "-f", dockerfile]
     if "target" in build_desc:
         build_args.extend(["--target", build_desc["target"]])
