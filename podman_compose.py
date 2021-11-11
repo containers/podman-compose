@@ -1450,10 +1450,11 @@ def compose_down(compose, args):
     if timeout is None:
         timeout = 1
     podman_args.extend(['-t', "{}".format(timeout)])
+    containers = list(reversed(compose.containers))
 
-    for cnt in compose.containers:
+    for cnt in containers:
         compose.podman.run([], "stop", [*podman_args, cnt["name"]], sleep=0)
-    for cnt in compose.containers:
+    for cnt in containers:
         compose.podman.run([], "rm", [cnt["name"]], sleep=0)
     for pod in compose.pods:
         compose.podman.run([], "pod", ["rm", pod["name"]], sleep=0)
