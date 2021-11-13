@@ -1143,6 +1143,7 @@ class PodmanCompose:
         self.declared_secrets = compose.get('secrets', {})
         given_containers = []
         container_names_by_service = {}
+        self.services = services
         for service_name, service_desc in services.items():
             replicas = try_int(service_desc.get('deploy', {}).get('replicas', '1'))
             container_names_by_service[service_name] = []
@@ -1394,11 +1395,19 @@ def up_specific(compose, args):
     print("services", args.services)
     raise NotImplementedError("starting specific services is not yet implemented")
 
+def get_excluded(compose, args):
+    excluded = set()
+    if args.services:
+        excluded = set(compose.services)
+        for service in args.services:
+            excluded-= compose.services[service]['_deps']
+            excluded.discard(service)
+    print("** excluding: ", excluded)
+    return excluded
+
 @cmd_run(podman_compose, 'up', 'Create and start the entire stack or some of its services')
 def compose_up(compose, args):
-    if args.services:
-        return up_specific(compose, args)
-
+    excluded = get_excluded(compose, args)
     if not args.no_build:
         # `podman build` does not cache, so don't always build
         build_args = argparse.Namespace(
@@ -1415,9 +1424,12 @@ def compose_up(compose, args):
 
     create_pods(compose, args)
     for cnt in compose.containers:
+        if cnt["_service"] in excluded:
+            print("** skipping: ", cnt['name'])
+            continue
         podman_args = container_to_args(compose, cnt, detached=args.detach)
         subproc = compose.podman.run([], podman_command, podman_args)
-        if podman_command == 'run' and subproc.returncode:
+        if podman_command == 'run' and subproc and subproc.returncode:
             compose.podman.run([], 'start', [cnt['name']])
     if args.no_start or args.detach or args.dry_run:
         return
@@ -1427,6 +1439,9 @@ def compose_up(compose, args):
 
     threads = []
     for cnt in compose.containers:
+        if cnt["_service"] in excluded:
+            print("** skipping: ", cnt['name'])
+            continue
         # TODO: remove sleep from podman.run
         obj = compose if args.__dict__.get('exit_code_from', None) == cnt['name'] else None
         thread = Thread(target=compose.podman.run, args=[[], 'start', ['-a', cnt['name']]], kwargs={"obj":obj}, daemon=True, name=cnt['name'])
@@ -1444,6 +1459,7 @@ def compose_up(compose, args):
 
 @cmd_run(podman_compose, 'down', 'tear down entire stack')
 def compose_down(compose, args):
+    excluded = get_excluded(compose, args)
     podman_args=[]
     timeout=getattr(args, 'timeout', None)
     if timeout is None:
@@ -1452,9 +1468,13 @@ def compose_down(compose, args):
     containers = list(reversed(compose.containers))
 
     for cnt in containers:
+        if cnt["_service"] in excluded: continue
         compose.podman.run([], "stop", [*podman_args, cnt["name"]], sleep=0)
     for cnt in containers:
+        if cnt["_service"] in excluded: continue
         compose.podman.run([], "rm", [cnt["name"]], sleep=0)
+    if excluded:
+        return
     for pod in compose.pods:
         compose.podman.run([], "pod", ["rm", pod["name"]], sleep=0)
 
@@ -1715,10 +1735,13 @@ def compose_build_parse(parser):
         help="attempt to pull a newer version of the image, Raise an error even if the image is present locally.", action='store_true')
     parser.add_argument("--build-arg", metavar="key=val", action="append", default=[],
         help="Set build-time variables for services.")
-    parser.add_argument('services', metavar='services', nargs='*',default=None,
-                        help='affected services')
     parser.add_argument("--no-cache",
                         help="Do not use cache when building the image.", action='store_true')
+
+@cmd_parse(podman_compose, ['build', 'up', 'down'])
+def compose_build_parse(parser):
+    parser.add_argument('services', metavar='services', nargs='*',default=None,
+                        help='affected services')
 
 def main():
     podman_compose.run()
