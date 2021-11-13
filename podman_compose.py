@@ -851,10 +851,14 @@ def flat_deps(services, with_extends=False):
             if ext:
                 if ext != name: deps.add(ext)
                 continue
-        deps.update(srv.get("depends_on", []))
+        deps_ls = srv.get("depends_on", None) or []
+        if not is_list(deps_ls): deps_ls=[deps_ls]
+        deps.update(deps_ls)
         # parse link to get service name and remove alias
+        links_ls = srv.get("links", None) or []
+        if not is_list(links_ls): links_ls=[links_ls]
         deps.update([(c.split(":")[0] if ":" in c else c)
-            for c in srv.get("links", [])])
+            for c in links_ls])
     for name, srv in services.items():
         rec_deps(services, name)
 
@@ -1501,8 +1505,13 @@ def compose_run(compose, args):
     cnt = compose.container_by_name[container_name]
     deps = cnt["_deps"]
     if not args.no_deps:
-        # TODO: start services in deps
-        pass
+        up_args = argparse.Namespace(**dict(args.__dict__,
+               detach=True, services=deps,
+               # defaults
+               no_build=False, build=True, force_recreate=False, no_start=False,
+               )
+        )
+        compose.commands['up'](compose, up_args)
     # adjust one-off container options
     name0 = "{}_{}_tmp{}".format(compose.project_name, args.service, random.randrange(0, 65536))
     cnt["name"] = args.name or name0

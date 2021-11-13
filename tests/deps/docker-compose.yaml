@@ -1,0 +1,24 @@
+version: "3.7"
+services:
+    web:
+      image: busybox
+      command: ["/bin/busybox", "httpd", "-f", "-h", "/etc/", "-p", "8000"]
+      tmpfs:
+        - /run
+        - /tmp
+    sleep:
+      image: busybox
+      command: ["/bin/busybox", "sh", "-c", "sleep 3600"]
+      depends_on: "web"
+      tmpfs:
+        - /run
+        - /tmp
+    sleep2:
+      image: busybox
+      command: ["/bin/busybox", "sh", "-c", "sleep 3600"]
+      depends_on:
+      - sleep
+      tmpfs:
+        - /run
+        - /tmp
+
