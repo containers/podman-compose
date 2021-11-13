@@ -876,6 +876,8 @@ class Podman:
         return subprocess.check_output(cmd_ls)
 
     def run(self, podman_args, cmd='', cmd_args=None, wait=True, sleep=1, obj=None):
+        if obj is not None:
+            obj.exit_code = None
         cmd_args = list(map(str, cmd_args or []))
         xargs = self.compose.get_podman_args(cmd) if cmd else []
         cmd_ls = [self.podman_path, *podman_args, cmd] + xargs + cmd_args
@@ -886,7 +888,7 @@ class Podman:
         p = subprocess.Popen(cmd_ls)
         if wait:
             exit_code = p.wait()
-            print(exit_code)
+            print("exit code:", exit_code)
             if obj is not None:
                 obj.exit_code = exit_code
 
@@ -1436,6 +1438,9 @@ def compose_up(compose, args):
     # TODO: handle already existing
     # TODO: if error creating do not enter loop
     # TODO: colors if sys.stdout.isatty()
+    exit_code_from = args.__dict__.get('exit_code_from', None)
+    if exit_code_from:
+        args.abort_on_container_exit=True
 
     threads = []
     for cnt in compose.containers:
@@ -1443,17 +1448,19 @@ def compose_up(compose, args):
             print("** skipping: ", cnt['name'])
             continue
         # TODO: remove sleep from podman.run
-        obj = compose if args.__dict__.get('exit_code_from', None) == cnt['name'] else None
+        obj = compose if exit_code_from == cnt['_service'] else None
         thread = Thread(target=compose.podman.run, args=[[], 'start', ['-a', cnt['name']]], kwargs={"obj":obj}, daemon=True, name=cnt['name'])
         thread.start()
         threads.append(thread)
         time.sleep(1)
+    
     while threads:
         for thread in threads:
             thread.join(timeout=1.0)
             if not thread.is_alive():
                 threads.remove(thread)
                 if args.abort_on_container_exit:
+                    time.sleep(1)
                     exit_code = compose.exit_code if compose.exit_code is not None else -1
                     exit(exit_code)
 
