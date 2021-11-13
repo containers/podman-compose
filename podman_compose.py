@@ -81,8 +81,8 @@ def ver_as_list(a):
     return [try_int(i, i) for i in num_split_re.findall(a)]
 
 def strverscmp_lt(a, b):
-    a_ls = ver_as_list(a)
-    b_ls = ver_as_list(b)
+    a_ls = ver_as_list(a or '')
+    b_ls = ver_as_list(b or '')
     return a_ls < b_ls
 
 def parse_short_mount(mount_str, basedir):
@@ -978,6 +978,7 @@ def resolve_extends(services, service_names, dotenv_dict):
 
 class PodmanCompose:
     def __init__(self):
+        self.podman_version = None
         self.exit_code = None
         self.commands = {}
         self.global_args = None
@@ -1376,7 +1377,7 @@ def create_pods(compose, args):
             "--name={}".format(pod["name"]),
             "--share", "net",
         ]
-        if not strverscmp_lt(compose.podman_version, "3.4.0"):
+        if compose.podman_version and not strverscmp_lt(compose.podman_version, "3.4.0"):
             podman_args.append("--infra-name={}_infra".format(pod["name"]))
         ports = pod.get("ports", None) or []
         if isinstance(ports, str):
