@@ -189,27 +189,26 @@ var_re = re.compile(r"""
     )
 """, re.VERBOSE)
 
-def rec_subs(value, dicts):
+def rec_subs(value, subs_dict):
     """
     do bash-like substitution in value and if list of dictionary do that recursively
     """
     if is_dict(value):
-        value = dict([(k, rec_subs(v, dicts)) for k, v in value.items()])
+        value = dict([(k, rec_subs(v, subs_dict)) for k, v in value.items()])
     elif is_str(value):
         def convert(m):
             if m.group("escaped") is not None:
                 return "$"
             name = m.group("named") or m.group("braced")
-            for d in dicts:
-                value = d.get(name)
-                if value is not None:
-                    return "%s" % value
+            value = subs_dict.get(name)
+            if value is not None:
+                return "%s" % value
             if m.group("err") is not None:
                 raise RuntimeError(m.group("err"))
             return m.group("default") or ""
         value = var_re.sub(convert, value)
     elif hasattr(value, "__iter__"):
-        value = [rec_subs(i, dicts) for i in value]
+        value = [rec_subs(i, subs_dict) for i in value]
     return value
 
 def norm_as_list(src):
@@ -949,7 +948,7 @@ def rec_merge(target, *sources):
         ret = rec_merge_one(target, source)
     return ret
 
-def resolve_extends(services, service_names, dotenv_dict):
+def resolve_extends(services, service_names, environ):
     for name in service_names:
         service = services[name]
         ext = service.get("extends", {})
@@ -962,7 +961,7 @@ def resolve_extends(services, service_names, dotenv_dict):
                 content = yaml.safe_load(f) or {}
             if "services" in content:
                 content = content["services"]
-            content = rec_subs(content, [os.environ, dotenv_dict])
+            content = rec_subs(content, environ)
             from_service = content.get(from_service_name, {})
             normalize_service(from_service)
         else:
@@ -1086,16 +1085,15 @@ class PodmanCompose:
 
 
         dotenv_path = os.path.join(dirname, ".env")
+        self.environ = dict(os.environ)
         if os.path.isfile(dotenv_path):
             with open(dotenv_path, 'r') as f:
                 dotenv_ls = [l.strip() for l in f if l.strip() and not l.startswith('#')]
-                dotenv_dict = dict([l.split("=", 1) for l in dotenv_ls if "=" in l])
-        else:
-            dotenv_dict = {}
+                self.environ.update(dict([l.split("=", 1) for l in dotenv_ls if "=" in l]))
         # TODO: should read and respect those env variables
         # see: https://docs.docker.com/compose/reference/envvars/
         # see: https://docs.docker.com/compose/env-file/
-        dotenv_dict.update({
+        self.environ.update({
             "COMPOSE_FILE": os.path.basename(filename),
             "COMPOSE_PROJECT_NAME": self.project_name,
             "COMPOSE_PATH_SEPARATOR": ":",
@@ -1110,7 +1108,7 @@ class PodmanCompose:
                     exit(1)
                 content = normalize(content)
                 #print(filename, json.dumps(content, indent = 2))
-                content = rec_subs(content, [os.environ, dotenv_dict])
+                content = rec_subs(content, self.environ)
                 rec_merge(compose, content)
         # debug mode
         if len(files)>1:
@@ -1125,7 +1123,7 @@ class PodmanCompose:
         flat_deps(services, with_extends=True)
         service_names = sorted([ (len(srv["_deps"]), name) for name, srv in services.items() ])
         service_names = [ name for _, name in service_names]
-        resolve_extends(services, service_names, dotenv_dict)
+        resolve_extends(services, service_names, self.environ)
         flat_deps(services)
         service_names = sorted([ (len(srv["_deps"]), name) for name, srv in services.items() ])
         service_names = [ name for _, name in service_names]
