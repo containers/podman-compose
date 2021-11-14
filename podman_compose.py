@@ -35,7 +35,7 @@ except ImportError:
 import json
 import yaml
 
-__version__ = '0.1.7dev'
+__version__ = '0.1.8'
 
 PY3 = sys.version_info[0] == 3
 if PY3:
