@@ -750,6 +750,9 @@ def container_to_args(compose, cnt, detached=True):
         podman_args.append('--tty')
     if cnt.get('privileged', None):
         podman_args.append('--privileged')
+    pull_policy = cnt.get('pull_policy', None)
+    if pull_policy is not None and pull_policy!='build':
+        podman_args.extend(['--pull', pull_policy])
     if cnt.get('restart', None) is not None:
         podman_args.extend(['--restart', cnt['restart']])
     container_to_ulimit_args(cnt, podman_args)
