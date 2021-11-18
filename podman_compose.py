@@ -862,6 +862,69 @@ def flat_deps(services, with_extends=False):
     for name, srv in services.items():
         rec_deps(services, name)
 
+
+def argparse2dict(parser):
+    from collections import OrderedDict
+    jsonargs = OrderedDict()
+    jsonargs["usage"] = parser.usage # or parser.format_usage()
+
+    jsonargs["commands"] = []
+    # https://stackoverflow.com/questions/20094215/argparse#20096044
+    # parser._subparsers -> _ArgumentGroup
+    # parser._actions -> [...]
+    for action in parser._actions:
+        # filter commands
+        if isinstance(action, argparse._SubParsersAction):
+            # _SubParsersAction.choices -> {'command': ArgumentParser, ...}
+            # _SubParsersAction._choices_actions -> [_ChoicesPseudoAction, ...]
+            for pseudo_action in action._choices_actions:
+                command = pseudo_action.dest
+                help_ = pseudo_action.help
+                entry = {command: {"help": help_}}
+                jsonargs["commands"].append(entry)
+
+    jsonargs["options"] = []
+    for action in parser._actions:
+        # filter options
+        if not isinstance(action, argparse._SubParsersAction):
+            # option_strings -> ["-h", "--help"]
+            opts = action.option_strings
+            if len(opts) == 1:
+                short, long = opts[0], ""
+                if opts[0].startswith('--'):
+                    short, long = long, short
+            elif len(opts) == 2:
+                short, long = opts
+            else:
+                sys.exit("too many options, please fill an issue")
+
+            choices = []
+            if action.metavar:
+                metavar = action.metavar
+            elif action.choices:
+                metavar = action.dest
+                choices = action.choices
+            else:
+                metavar = ""
+
+            entry = {"short": short, "long": long, "metavar": metavar, "choices": choices, "help": action.help}
+
+            jsonargs["options"].append(entry)
+    return jsonargs
+
+def argparse2json(parser):
+    import json
+    argdict = argparse2dict(parser)
+    return json.dumps(argdict, indent=2)
+
+def print_help(parser):
+    argdict = argparse2dict(parser)
+
+    print(argparse2json(parser))
+    #si["options"].append("{:>2} {} {} {} ({})".format(short, long, metavar.upper(), help_, choices))
+
+    #parser.print_help()
+
 ###################
 # podman and compose classes
 ###################
@@ -1212,7 +1275,7 @@ class PodmanCompose:
         if self.global_args.version:
             self.global_args.command = "version"
         if not self.global_args.command or self.global_args.command=='help':
-            parser.print_help()
+            print_help(parser)
             exit(-1)
         return self.global_args
 
