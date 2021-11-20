@@ -1,10 +1,15 @@
 version: "3"
+networks:
+    net1:
+    net2:
 services:
     web1:
       image: busybox
       hostname: web1
       command: ["/bin/busybox", "httpd", "-f", "-h", "/var/www/html", "-p", "8001"]
       working_dir: /var/www/html
+      networks:
+      - net1
       ports:
       - 8001:8001
       volumes:
@@ -12,24 +17,13 @@ services:
     web2:
       image: busybox
       hostname: web2
-      command: ["/bin/busybox", "httpd", "-f", "-h", "/var/www/html", "-p", "8002"]
+      command: ["/bin/busybox", "httpd", "-f", "-h", "/var/www/html", "-p", "8001"]
       working_dir: /var/www/html
+      networks:
+      - net1
+      - net2
       ports:
-      - 8002:8002
-      - target: 8003
-        host_ip: 127.0.0.1
-        published: 8003
-        protocol: udp
-      - target: 8004
-        host_ip: 127.0.0.1
-        published: 8004
-        protocol: tcp
-      - target: 8005
-        published: 8005
-      - target: 8006
-        protocol: udp
-      - target: 8007
-        host_ip: 127.0.0.1
+      - 8002:8001
       volumes:
       - ./test2.txt:/var/www/html/index.txt:ro
 

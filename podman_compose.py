@@ -257,145 +257,19 @@ def norm_ulimit(inner_value):
     # if int or string return as is
     return inner_value
 
+#def tr_identity(project_name, given_containers):
+#    pod_name = f'pod_{project_name}'
+#    pod = dict(name=pod_name)
+#    containers = []
+#    for cnt in given_containers:
+#        containers.append(dict(cnt, pod=pod_name))
+#    return [pod], containers
 
-# transformation helpers
-
-def adj_hosts(services, cnt, dst="127.0.0.1"):
-    """
-    adjust container cnt in-place to add hosts pointing to dst for services
-    """
-    common_extra_hosts = []
-    for srv, cnts in services.items():
-        common_extra_hosts.append("{}:{}".format(srv, dst))
-        for cnt0 in cnts:
-            common_extra_hosts.append("{}:{}".format(cnt0, dst))
-    extra_hosts = list(cnt.get("extra_hosts", []))
-    extra_hosts.extend(common_extra_hosts)
-    # link aliases
-    for link in cnt.get("links", []):
-        a = link.strip().split(':', 1)
-        if len(a) == 2:
-            alias = a[1].strip()
-            extra_hosts.append("{}:{}".format(alias, dst))
-    cnt["extra_hosts"] = extra_hosts
-
-
-def move_list(dst, containers, key):
-    """
-    move key (like port forwarding) from containers to dst (a pod or a infra container)
-    """
-    a = set(dst.get(key, None) or [])
-    for cnt in containers:
-        a0 = cnt.get(key, None)
-        if a0:
-            a.update(a0)
-            del cnt[key]
-    if a:
-        dst[key] = list(a)
-
-
-def move_port_fw(dst, containers):
-    """
-    move port forwarding from containers to dst (a pod or a infra container)
-    """
-    move_list(dst, containers, "ports")
-
-
-def move_extra_hosts(dst, containers):
-    """
-    move port forwarding from containers to dst (a pod or a infra container)
-    """
-    move_list(dst, containers, "extra_hosts")
-
-
-# transformations
-
-transformations = {}
-
-
-def trans(func):
-    transformations[func.__name__.replace("tr_", "")] = func
-    return func
-
-
-@trans
-def tr_identity(project_name, services, given_containers):
+def tr_identity(project_name, given_containers):
     containers = []
     for cnt in given_containers:
         containers.append(dict(cnt))
     return [], containers
-
-
-@trans
-def tr_publishall(project_name, services, given_containers):
-    containers = []
-    for cnt0 in given_containers:
-        cnt = dict(cnt0, publishall=True)
-        # adjust hosts to point to the gateway, TODO: adjust host env
-        adj_hosts(services, cnt, '10.0.2.2')
-        containers.append(cnt)
-    return [], containers
-
-
-@trans
-def tr_hostnet(project_name, services, given_containers):
-    containers = []
-    for cnt0 in given_containers:
-        cnt = dict(cnt0, network_mode="host")
-        # adjust hosts to point to localhost, TODO: adjust host env
-        adj_hosts(services, cnt, '127.0.0.1')
-        containers.append(cnt)
-    return [], containers
-
-
-@trans
-def tr_cntnet(project_name, services, given_containers):
-    containers = []
-    infra_name = project_name + "_infra"
-    infra = dict(
-        name=infra_name,
-        image="k8s.gcr.io/pause:3.1",
-    )
-    for cnt0 in given_containers:
-        cnt = dict(cnt0, network_mode="container:"+infra_name)
-        deps = cnt.get("depends_on", None) or []
-        deps.append(infra_name)
-        cnt["depends_on"] = deps
-        # adjust hosts to point to localhost, TODO: adjust host env
-        adj_hosts(services, cnt, '127.0.0.1')
-        if "hostname" in cnt:
-            del cnt["hostname"]
-        containers.append(cnt)
-    move_port_fw(infra, containers)
-    move_extra_hosts(infra, containers)
-    containers.insert(0, infra)
-    return [], containers
-
-
-@trans
-def tr_1pod(project_name, services, given_containers):
-    """
-    project_name:
-    services: {service_name: ["container_name1", "..."]}, currently only one is supported
-    given_containers: [{}, ...]
-    """
-    pod = dict(name=project_name)
-    containers = []
-    for cnt0 in given_containers:
-        cnt = dict(cnt0, pod=project_name)
-        # services can be accessed as localhost because they are on one pod
-        # adjust hosts to point to localhost, TODO: adjust host env
-        adj_hosts(services, cnt, '127.0.0.1')
-        containers.append(cnt)
-    return [pod], containers
-
-
-@trans
-def tr_1podfw(project_name, services, given_containers):
-    pods, containers = tr_1pod(project_name, services, given_containers)
-    pod = pods[0]
-    move_port_fw(pod, containers)
-    return pods, containers
 
 
 def assert_volume(compose, mount_dict):
@@ -661,6 +535,46 @@ def norm_ports(ports_in):
         ports_out.append(port)
     return ports_out
 
+def assert_cnt_nets(compose, cnt):
+    """
+    create missing networks
+    """
+    proj_name = compose.project_name
+    nets = compose.networks
+    default_net = compose.default_net
+    cnt_nets = norm_as_list(cnt.get("networks", None) or default_net)
+    for net in cnt_nets:
+        net_desc = nets[net] or {}
+        net_name = net_desc.get("name", None) or f"{proj_name}_{net}"
+        print(f"podman network exists '{net_name}' || podman network create '{net_name}'")
+        try: compose.podman.output([], "network", ["exists", net_name])
+        except subprocess.CalledProcessError:
+            args = [
+                "create",
+                "--label", "io.podman.compose.project={}".format(proj_name),
+                "--label", "com.docker.compose.project={}".format(proj_name),
+            ]
+            # TODO: add more options here, like driver, internal, ..etc
+            labels = net_desc.get("labels", None) or []
+            for item in norm_as_list(labels):
+                args.extend(["--label", item])
+            args.append(net_name)
+            compose.podman.output([], "network", args)
+            compose.podman.output([], "network", ["exists", net_name])
+
+def get_net_args(compose, cnt):
+    project_name = compose.project_name
+    default_net = compose.default_net
+    nets = compose.networks
+    cnt_nets = norm_as_list(cnt.get("networks", None) or default_net)
+    net_names = set()
+    for net in cnt_nets:
+        net_desc = nets[net] or {}
+        net_name = net_desc.get("name", None) or f"{project_name}_{net}"
+        net_names.add(net_name)
+    net_names_str = ",".join(net_names)
+    return ["--net", net_names_str]
+
 def container_to_args(compose, cnt, detached=True):
     # TODO: double check -e , --add-host, -v, --read-only
     dirname = compose.dirname
@@ -708,6 +622,8 @@ def container_to_args(compose, cnt, detached=True):
     for volume in cnt.get('volumes', []):
         # TODO: should we make it os.path.realpath(os.path.join(, i))?
         podman_args.extend(get_mount_args(compose, cnt, volume))
+    assert_cnt_nets(compose, cnt)
+    podman_args.extend(get_net_args(compose, cnt))
     log = cnt.get('logging')
     if log is not None:
         podman_args.append(f'--log-driver={log.get("driver", "k8s-file")}')
@@ -730,7 +646,7 @@ def container_to_args(compose, cnt, detached=True):
         elif not isinstance(port, str):
             raise TypeError("port should be either string or dict")
         podman_args.extend(['-p', port])
-        
+
     user = cnt.get('user', None)
     if user is not None:
         podman_args.extend(['-u', user])
@@ -995,6 +911,8 @@ class PodmanCompose:
         self.pods = None
         self.containers = None
         self.vols = None
+        self.networks = {}
+        self.default_net = "default"
         self.declared_secrets = None
         self.container_names_by_service = None
         self.container_by_name = None
@@ -1076,7 +994,6 @@ class PodmanCompose:
         no_ansi = args.no_ansi
         no_cleanup = args.no_cleanup
         dry_run = args.dry_run
-        transform_policy = args.transform_policy
         host_env = None
         dirname = os.path.dirname(filename)
         dir_basename = os.path.basename(dirname)
@@ -1136,6 +1053,26 @@ class PodmanCompose:
         flat_deps(services)
         service_names = sorted([ (len(srv["_deps"]), name) for name, srv in services.items() ])
         service_names = [ name for _, name in service_names]
+        nets = compose.get("networks", None) or {}
+        if not nets:
+            nets["default"] = None
+        self.networks = nets
+        if len(self.networks)==1:
+            self.default_net = list(nets.keys())[0]
+        elif "default" in nets:
+            self.default_net = "default"
+        else:
+            self.default_net = None
+        default_net = self.default_net
+        allnets = set()
+        for name, srv in services.items():
+            srv_nets = norm_as_list(srv.get("networks", None) or default_net)
+            allnets.update(srv_nets)
+        given_nets = set(nets.keys())
+        missing_nets = given_nets - allnets
+        if len(missing_nets):
+            missing_nets_str= ",".join(missing_nets)
+            raise RuntimeError(f"missing networks: {missing_nets_str}")
         # volumes: [...]
         self.vols = compose.get('volumes', {})
         podman_compose_labels = [
@@ -1192,13 +1129,10 @@ class PodmanCompose:
         given_containers = list(container_by_name.values())
         given_containers.sort(key=lambda c: len(c.get('_deps', None) or []))
         #print("sorted:", [c["name"] for c in given_containers])
-        tr = transformations[transform_policy]
-        pods, containers = tr(
-            project_name, container_names_by_service, given_containers)
+        pods, containers = tr_identity(project_name, given_containers)
         self.pods = pods
         self.containers = containers
         self.container_by_name = dict([ (c["name"], c) for c in containers])
-
 
     def _parse_args(self):
         parser = argparse.ArgumentParser(
@@ -1244,17 +1178,6 @@ class PodmanCompose:
                             help="Do not stop and remove existing pod & containers", action='store_true')
         parser.add_argument("--dry-run",
                             help="No action; perform a simulation of commands", action='store_true')
-        parser.add_argument("-t", "--transform_policy",
-                            help=textwrap.dedent("""\
-                            how to translate docker compose to podman (default: 1podfw)
-                                1podfw - create all containers in one pod (inter-container communication is done via localhost), doing port mapping in that pod
-                                1pod - create all containers in one pod, doing port mapping in each container (does not work)
-                                identity - no mapping
-                                hostnet - use host network, and inter-container communication is done via host gateway and published ports
-                                cntnet - create a container and use it via --network container:name (inter-container communication via localhost)
-                                publishall - publish all ports to host (using -P) and communicate via gateway
-                            """),
-                            choices=['1pod', '1podfw', 'hostnet', 'cntnet', 'publishall', 'identity'], default='1podfw')
 
 podman_compose = PodmanCompose()
 
@@ -1383,10 +1306,9 @@ def create_pods(compose, args):
         podman_args = [
             "create",
             "--name={}".format(pod["name"]),
-            "--share", "net",
         ]
-        if compose.podman_version and not strverscmp_lt(compose.podman_version, "3.4.0"):
-            podman_args.append("--infra-name={}_infra".format(pod["name"]))
+        #if compose.podman_version and not strverscmp_lt(compose.podman_version, "3.4.0"):
+        #    podman_args.append("--infra-name={}_infra".format(pod["name"]))
         ports = pod.get("ports", None) or []
         if isinstance(ports, str):
             ports = [ports]
