@@ -35,7 +35,7 @@ except ImportError:
 import json
 import yaml
 
-__version__ = '0.1.8'
+__version__ = '0.1.9'
 
 PY3 = sys.version_info[0] == 3
 if PY3:
@@ -355,6 +355,8 @@ def tr_cntnet(project_name, services, given_containers):
     infra = dict(
         name=infra_name,
         image="k8s.gcr.io/pause:3.1",
+        _service=None,
+        service_name=None
     )
     for cnt0 in given_containers:
         cnt = dict(cnt0, network_mode="container:"+infra_name)
