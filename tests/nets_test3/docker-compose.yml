@@ -5,6 +5,7 @@ networks:
 services:
     web1:
       image: busybox
+      #container_name: web1
       hostname: web1
       command: ["/bin/busybox", "httpd", "-f", "-h", "/var/www/html", "-p", "8001"]
       working_dir: /var/www/html
@@ -16,6 +17,7 @@ services:
       - ./test1.txt:/var/www/html/index.txt:ro
     web2:
       image: busybox
+      #container_name: web2
       hostname: web2
       command: ["/bin/busybox", "httpd", "-f", "-h", "/var/www/html", "-p", "8001"]
       working_dir: /var/www/html

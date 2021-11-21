@@ -563,6 +563,7 @@ def assert_cnt_nets(compose, cnt):
             compose.podman.output([], "network", ["exists", net_name])
 
 def get_net_args(compose, cnt):
+    service_name = cnt["service_name"]
     project_name = compose.project_name
     default_net = compose.default_net
     nets = compose.networks
@@ -573,7 +574,7 @@ def get_net_args(compose, cnt):
         net_name = net_desc.get("name", None) or f"{project_name}_{net}"
         net_names.add(net_name)
     net_names_str = ",".join(net_names)
-    return ["--net", net_names_str]
+    return ["--net", net_names_str, "--network-alias", service_name]
 
 def container_to_args(compose, cnt, detached=True):
     # TODO: double check -e , --add-host, -v, --read-only
