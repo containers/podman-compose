@@ -4,7 +4,7 @@ services:
     image: busybox
     command: busybox httpd -h /var/www/html/ -f -p 8001
     volumes:
-    - ./1.env:/var/www/html/index.txt
+      - ./1.env:/var/www/html/index.txt:z
     env_file: ./1.env
     labels:
       l1: v1

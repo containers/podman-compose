@@ -1,10 +1,11 @@
 version: '3'
 services:
   web1:
+    image: busybox
     env_file: ./12.env
     labels:
-    - l1=v2
-    - l2=v2
+      - l1=v2
+      - l2=v2
     environment:
         mykey1: myval2
         mykey2: myval2
@@ -13,6 +14,6 @@ services:
     image: busybox
     command: busybox httpd -h /var/www/html/ -f -p 8002
     volumes:
-    - ./2.env:/var/www/html/index.txt
+      - ./2.env:/var/www/html/index.txt:z
     env_file: ./2.env
 
