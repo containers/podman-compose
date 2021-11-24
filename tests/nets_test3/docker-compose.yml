@@ -12,9 +12,9 @@ services:
       networks:
       - net1
       ports:
-      - 8001:8001
+        - 8001:8001
       volumes:
-      - ./test1.txt:/var/www/html/index.txt:ro
+        - ./test1.txt:/var/www/html/index.txt:ro,z
     web2:
       image: busybox
       #container_name: web2
@@ -25,7 +25,7 @@ services:
       - net1
       - net2
       ports:
-      - 8002:8001
+        - 8002:8001
       volumes:
-      - ./test2.txt:/var/www/html/index.txt:ro
+        - ./test2.txt:/var/www/html/index.txt:ro,z
 
