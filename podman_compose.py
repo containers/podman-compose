@@ -866,7 +866,8 @@ def flat_deps(services, with_extends=False):
 def argparse2dict(parser):
     from collections import OrderedDict
     jsonargs = OrderedDict()
-    jsonargs["usage"] = parser.usage # or parser.format_usage()
+    jsonargs["program"] = parser.prog or ""
+    jsonargs["usage"] = parser.usage or ""  # or parser.format_usage()
 
     jsonargs["commands"] = []
     # https://stackoverflow.com/questions/20094215/argparse#20096044
@@ -880,7 +881,7 @@ def argparse2dict(parser):
             for pseudo_action in action._choices_actions:
                 command = pseudo_action.dest
                 help_ = pseudo_action.help
-                entry = {command: {"help": help_}}
+                entry = OrderedDict(command=command, help=help_)
                 jsonargs["commands"].append(entry)
 
     jsonargs["options"] = []
@@ -906,22 +907,37 @@ def argparse2dict(parser):
                 choices = action.choices
             else:
                 metavar = ""
+            default = action.default or ""
 
-            entry = {"short": short, "long": long, "metavar": metavar, "choices": choices, "help": action.help}
+            entry = OrderedDict(short=short, long=long, metavar=metavar,
+                                choices=choices, default=default,
+                                help=action.help)
 
             jsonargs["options"].append(entry)
     return jsonargs
 
 def argparse2json(parser):
-    import json
     argdict = argparse2dict(parser)
     return json.dumps(argdict, indent=2)
 
 def print_help(parser):
     argdict = argparse2dict(parser)
 
-    print(argparse2json(parser))
-    #si["options"].append("{:>2} {} {} {} ({})".format(short, long, metavar.upper(), help_, choices))
+    print("""\
+usage: {program} [options] [command]
+""".format(**argdict))
+
+    print("commands:")
+    commands = sorted(argdict["commands"], key=lambda x: x["command"])
+    comwidth = max([len(x["command"]) for x in commands])+1
+    for c in commands:
+        print("  {c[command]:{width}} {c[help]}".format(c=c, width=comwidth))
+
+    print("\noptions:")
+    for o in argdict["options"]:
+        olong = f"{o['long']} {o['metavar'].upper()}"
+        print(f"  {o['short']:2} {olong:26}  {o['help']}")
+        # o['choices'] o['default']
 
     #parser.print_help()
 
