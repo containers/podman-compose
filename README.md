@@ -6,9 +6,18 @@ This project is aimed to provide drop-in replacement for `docker-compose`,
 and it's very useful for certain cases because:
 
 - can run rootless
-- only depend on `podman` and Python3 and [PyYAML](https://pyyaml.org/)
 - no daemon, no setup.
 - can be used by developers to run single-machine containerized stacks using single familiar YAML file
+
+This project only depend on:
+
+* `podman`
+* Python3
+* [PyYAML](https://pyyaml.org/)
+* [python-dotenv](https://pypi.org/project/python-dotenv/)
+
+And it's formed as a single python file script that you can drop into your PATH and run.
+
 
 For production-like single-machine containerized environment consider
 
@@ -20,9 +29,12 @@ For production-like single-machine containerized environment consider
 For the real thing (multi-node clusters) check any production
 OpenShift/Kubernetes distribution like [OKD](https://www.okd.io/minishift/).
 
-## NOTE
+## Versions
 
-This project is still under development.
+If you have legacy version of `podman` (before 3.x) you might need to stick with legacy `podman-compose` `0.1.x` branch.
+The legacy branch 0.1.x uses mappings and workarounds to compensate for rootless limitations.
+
+Modern podman versions (>=3.4) do not have those limitations and thus you can use latest and stable 1.x branch.
 
 ## Installation
 

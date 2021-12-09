@@ -32,8 +32,8 @@ except ImportError:
 # import fnmatch
 # fnmatch.fnmatchcase(env, "*_HOST")
 
-import json
 import yaml
+from dotenv import dotenv_values
 
 __version__ = '0.1.9'
 
@@ -1001,6 +1001,10 @@ def resolve_extends(services, service_names, environ):
         new_service = rec_merge({}, from_service, service)
         services[name] = new_service
 
+def dotenv_to_dict(dotenv_path):
+    if not os.path.isfile(dotenv_path):
+        return {}
+    return dotenv_values(dotenv_path)
 
 class PodmanCompose:
     def __init__(self):
@@ -1113,10 +1117,7 @@ class PodmanCompose:
 
         dotenv_path = os.path.join(dirname, ".env")
         self.environ = dict(os.environ)
-        if os.path.isfile(dotenv_path):
-            with open(dotenv_path, 'r') as f:
-                dotenv_ls = [l.strip() for l in f if l.strip() and not l.startswith('#')]
-                self.environ.update(dict([l.split("=", 1) for l in dotenv_ls if "=" in l]))
+        self.environ.update(dotenv_to_dict(dotenv_path))
         # TODO: should read and respect those env variables
         # see: https://docs.docker.com/compose/reference/envvars/
         # see: https://docs.docker.com/compose/env-file/
