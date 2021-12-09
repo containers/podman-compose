@@ -857,7 +857,8 @@ def flat_deps(services, with_extends=False):
                 if ext != name: deps.add(ext)
                 continue
         deps_ls = srv.get("depends_on", None) or []
-        if not is_list(deps_ls): deps_ls=[deps_ls]
+        if is_str(deps_ls): deps_ls=[deps_ls]
+        elif is_dict(deps_ls): deps_ls=list(deps_ls.keys())
         deps.update(deps_ls)
         # parse link to get service name and remove alias
         links_ls = srv.get("links", None) or []
