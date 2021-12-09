@@ -6,7 +6,13 @@ This project focus on:
 * rootless
 * daemon-less process model, we directly execute podman, no running daemon.
 
-This project only depend on `podman` and Python3 and [PyYAML](https://pyyaml.org/).
+This project only depend on:
+
+* `podman`
+* Python3
+* [PyYAML](https://pyyaml.org/)
+* [python-dotenv](https://pypi.org/project/python-dotenv/)
+
 And it's formed as a single python file script that you can drop into your PATH and run.
 
 ## References:
