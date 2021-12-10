@@ -112,8 +112,7 @@ def parse_short_mount(mount_str, basedir):
         # User-relative path
         # - ~/configs:/etc/configs/:ro
         mount_type = "bind"
-        basedir = os.path.realpath(basedir)
-        mount_src = os.path.join(basedir, os.path.expanduser(mount_src))
+        mount_src = os.path.realpath(os.path.join(basedir, os.path.expanduser(mount_src)))
     else:
         # Named volume
         # - datavolume:/var/lib/mysql
@@ -409,7 +408,7 @@ def assert_volume(compose, mount_dict):
     if mount_dict["type"] == "bind":
         basedir = os.path.realpath(compose.dirname)
         mount_src = mount_dict["source"]
-        mount_src = os.path.join(basedir, os.path.expanduser(mount_src))
+        mount_src = os.path.realpath(os.path.join(basedir, os.path.expanduser(mount_src)))
         if not os.path.exists(mount_src):
             try:
                 os.makedirs(mount_src, exist_ok=True)
@@ -718,7 +717,6 @@ def container_to_args(compose, cnt, detached=True):
     for i in tmpfs_ls:
         podman_args.extend(['--tmpfs', i])
     for volume in cnt.get('volumes', []):
-        # TODO: should we make it os.path.realpath(os.path.join(, i))?
         podman_args.extend(get_mount_args(compose, cnt, volume))
     log = cnt.get('logging')
     if log is not None:
@@ -924,9 +922,14 @@ class Podman:
         return self.run(["volume", "rm", name])
 
 def normalize_service(service):
-    for key in ("env_file", "security_opt"):
+    for key in ("env_file", "security_opt", "volumes"):
         if key not in service: continue
         if is_str(service[key]): service[key]=[service[key]]
+    if "security_opt" in service:
+        sec_ls = service["security_opt"]
+        for ix, item in enumerate(sec_ls):
+            if item=="seccomp:unconfined" or item=="apparmor:unconfined":
+                sec_ls[ix] = item.replace(":", "=")
     for key in ("environment", "labels"):
         if key not in service: continue
         service[key] = norm_as_dict(service[key])
