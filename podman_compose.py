@@ -867,7 +867,15 @@ def rec_merge_one(target, source):
         if type(value2)!=type(value):
             raise ValueError("can't merge value of {} of type {} and {}".format(key, type(value), type(value2)))
         if is_list(value2):
-            value.extend(value2)
+            if key == 'volumes':
+                # clean duplicate mount targets
+                pts = set([ v.split(':', 1)[1] for v in value2 if ":" in v ])
+                del_ls = [ ix for (ix, v) in enumerate(value) if ":" in v and v.split(':', 1)[1] in pts ]
+                for ix in reversed(del_ls):
+                    del value[ix]
+                value.extend(value2)
+            else:
+                value.extend(value2)
         elif is_dict(value2):
             rec_merge_one(value, value2)
         else:
