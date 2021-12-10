@@ -278,6 +278,16 @@ def assert_volume(compose, mount_dict):
     create volume if needed
     """
     vol = mount_dict.get("_vol", None)
+    if mount_dict["type"] == "bind":
+        basedir = os.path.realpath(compose.dirname)
+        mount_src = mount_dict["source"]
+        mount_src = os.path.join(basedir, os.path.expanduser(mount_src))
+        if not os.path.exists(mount_src):
+            try:
+                os.makedirs(mount_src, exist_ok=True)
+            except OSError:
+                pass
+        return
     if mount_dict["type"] != "volume" or not vol or vol.get("external", None) or not vol.get("name", None): return
     proj_name = compose.project_name
     vol_name = vol["name"]
@@ -1016,7 +1026,7 @@ class PodmanCompose:
         no_cleanup = args.no_cleanup
         dry_run = args.dry_run
         host_env = None
-        dirname = os.path.dirname(filename)
+        dirname = os.path.realpath(os.path.dirname(filename))
         dir_basename = os.path.basename(dirname)
         self.dirname = dirname
         # TODO: remove next line
