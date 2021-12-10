@@ -931,6 +931,23 @@ def dotenv_to_dict(dotenv_path):
         return {}
     return dotenv_values(dotenv_path)
 
+COMPOSE_DEFAULT_LS = [
+    "compose.yaml",
+    "compose.yml",
+    "compose.override.yaml",
+    "compose.override.yml",
+    "podman-compose.yaml",
+    "podman-compose.yml",
+    "docker-compose.yml",
+    "docker-compose.yaml",
+    "docker-compose.override.yml",
+    "docker-compose.override.yaml",
+    "container-compose.yml",
+    "container-compose.yaml",
+    "container-compose.override.yml",
+    "container-compose.override.yaml",
+]
+
 class PodmanCompose:
     def __init__(self):
         self.podman_version = None
@@ -991,23 +1008,14 @@ class PodmanCompose:
     def _parse_compose_file(self):
         args = self.global_args
         cmd = args.command
+        pathsep = os.environ.get("COMPOSE_PATH_SEPARATOR", None) or os.pathsep
         if not args.file:
-            args.file = list(filter(os.path.exists, [
-                "compose.yaml",
-                "compose.yml",
-                "compose.override.yaml",
-                "compose.override.yml",
-                "podman-compose.yaml",
-                "podman-compose.yml",
-                "docker-compose.yml",
-                "docker-compose.yaml",
-                "docker-compose.override.yml",
-                "docker-compose.override.yaml",
-                "container-compose.yml",
-                "container-compose.yaml",
-                "container-compose.override.yml",
-                "container-compose.override.yaml"
-            ]))
+            default_str = os.environ.get("COMPOSE_FILE", None)
+            if default_str:
+                default_ls = default_str.split(pathsep)
+            else:
+                default_ls = COMPOSE_DEFAULT_LS
+            args.file = list(filter(os.path.exists, default_ls))
         files = args.file
         if not files:
             print("no compose.yaml, docker-compose.yml or container-compose.yml file found, pass files with -f")
@@ -1044,13 +1052,12 @@ class PodmanCompose:
         dotenv_path = os.path.join(dirname, ".env")
         self.environ = dict(os.environ)
         self.environ.update(dotenv_to_dict(dotenv_path))
-        # TODO: should read and respect those env variables
         # see: https://docs.docker.com/compose/reference/envvars/
         # see: https://docs.docker.com/compose/env-file/
         self.environ.update({
             "COMPOSE_FILE": os.path.basename(filename),
             "COMPOSE_PROJECT_NAME": self.project_name,
-            "COMPOSE_PATH_SEPARATOR": ":",
+            "COMPOSE_PATH_SEPARATOR": pathsep,
         })
         compose = {'_dirname': dirname}
         for filename in files:
