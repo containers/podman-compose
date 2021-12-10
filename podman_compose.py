@@ -112,7 +112,7 @@ def parse_short_mount(mount_str, basedir):
         # User-relative path
         # - ~/configs:/etc/configs/:ro
         mount_type = "bind"
-        # TODO: should we use os.path.realpath(basedir)?
+        basedir = os.path.realpath(basedir)
         mount_src = os.path.join(basedir, os.path.expanduser(mount_src))
     else:
         # Named volume
