@@ -35,7 +35,7 @@ except ImportError:
 import yaml
 from dotenv import dotenv_values
 
-__version__ = '0.1.9'
+__version__ = '0.1.10'
 
 PY3 = sys.version_info[0] == 3
 if PY3:
