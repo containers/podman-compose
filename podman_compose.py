@@ -577,14 +577,16 @@ def assert_cnt_nets(compose, cnt):
 
 def get_net_args(compose, cnt):
     service_name = cnt["service_name"]
-    project_name = compose.project_name
+    proj_name = compose.project_name
     default_net = compose.default_net
     nets = compose.networks
     cnt_nets = norm_as_list(cnt.get("networks", None) or default_net)
     net_names = set()
     for net in cnt_nets:
         net_desc = nets[net] or {}
-        net_name = net_desc.get("name", None) or f"{project_name}_{net}"
+        is_ext = net_desc.get("external", None)
+        default_net_name = net if is_ext else f"{proj_name}_{net}"
+        net_name = net_desc.get("name", None) or default_net_name
         net_names.add(net_name)
     net_names_str = ",".join(net_names)
     return ["--net", net_names_str, "--network-alias", service_name]
