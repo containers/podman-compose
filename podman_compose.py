@@ -555,8 +555,9 @@ def assert_cnt_nets(compose, cnt):
     for net in cnt_nets:
         net_desc = nets[net] or {}
         is_ext = net_desc.get("external", None)
+        ext_desc = is_ext if is_dict(is_ext) else {}
         default_net_name = net if is_ext else f"{proj_name}_{net}"
-        net_name = net_desc.get("name", None) or default_net_name
+        net_name = ext_desc.get("name", None) or net_desc.get("name", None) or default_net_name
         try: compose.podman.output([], "network", ["exists", net_name])
         except subprocess.CalledProcessError:
             if is_ext:
@@ -585,8 +586,9 @@ def get_net_args(compose, cnt):
     for net in cnt_nets:
         net_desc = nets[net] or {}
         is_ext = net_desc.get("external", None)
+        ext_desc = is_ext if is_dict(is_ext) else {}
         default_net_name = net if is_ext else f"{proj_name}_{net}"
-        net_name = net_desc.get("name", None) or default_net_name
+        net_name = ext_desc.get("name", None) or net_desc.get("name", None) or default_net_name
         net_names.add(net_name)
     net_names_str = ",".join(net_names)
     return ["--net", net_names_str, "--network-alias", service_name]
