@@ -554,10 +554,13 @@ def assert_cnt_nets(compose, cnt):
     cnt_nets = norm_as_list(cnt.get("networks", None) or default_net)
     for net in cnt_nets:
         net_desc = nets[net] or {}
-        net_name = net_desc.get("name", None) or f"{proj_name}_{net}"
-        print(f"podman network exists '{net_name}' || podman network create '{net_name}'")
+        is_ext = net_desc.get("external", None)
+        default_net_name = net if is_ext else f"{proj_name}_{net}"
+        net_name = net_desc.get("name", None) or default_net_name
         try: compose.podman.output([], "network", ["exists", net_name])
         except subprocess.CalledProcessError:
+            if is_ext:
+                raise RuntimeError(f"External network [{net_name}] does not exists")
             args = [
                 "create",
                 "--label", "io.podman.compose.project={}".format(proj_name),
@@ -567,7 +570,8 @@ def assert_cnt_nets(compose, cnt):
             labels = net_desc.get("labels", None) or []
             for item in norm_as_list(labels):
                 args.extend(["--label", item])
-            args.append(net_name)
+            if net_desc.get("internal", None):
+                args.append("--internal")
             compose.podman.output([], "network", args)
             compose.podman.output([], "network", ["exists", net_name])
 
