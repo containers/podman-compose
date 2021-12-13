@@ -1544,11 +1544,15 @@ def compose_exec(compose, args):
 def transfer_service_status(compose, args, action):
     # TODO: handle dependencies, handle creations
     container_names_by_service = compose.container_names_by_service
+    if not args.services:
+        args.services = container_names_by_service.keys()
     targets = []
     for service in args.services:
         if service not in container_names_by_service:
             raise ValueError("unknown service: " + service)
         targets.extend(container_names_by_service[service])
+    if action in ['stop', 'restart']:
+        targets = list(reversed(targets))
     podman_args=[]
     timeout=getattr(args, 'timeout', None)
     if timeout is not None:
@@ -1692,11 +1696,6 @@ def compose_parse_timeout(parser):
         help="Specify a shutdown timeout in seconds. ",
         type=int, default=10)
 
-@cmd_parse(podman_compose, ['start', 'stop', 'restart'])
-def compose_parse_services(parser):
-    parser.add_argument('services', metavar='services', nargs='+',
-        help='affected services')
-
 @cmd_parse(podman_compose, ['logs'])
 def compose_logs_parse(parser):
     parser.add_argument("-f", "--follow", action='store_true',
@@ -1738,7 +1737,7 @@ def compose_build_parse(parser):
     parser.add_argument("--no-cache",
                         help="Do not use cache when building the image.", action='store_true')
 
-@cmd_parse(podman_compose, ['build', 'up', 'down'])
+@cmd_parse(podman_compose, ['build', 'up', 'down', 'start', 'stop', 'restart'])
 def compose_build_parse(parser):
     parser.add_argument('services', metavar='services', nargs='*',default=None,
                         help='affected services')
