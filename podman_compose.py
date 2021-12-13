@@ -573,6 +573,7 @@ def assert_cnt_nets(compose, cnt):
                 args.extend(["--label", item])
             if net_desc.get("internal", None):
                 args.append("--internal")
+            args.append(net_name)
             compose.podman.output([], "network", args)
             compose.podman.output([], "network", ["exists", net_name])
 
