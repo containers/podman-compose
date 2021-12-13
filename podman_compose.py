@@ -1575,10 +1575,13 @@ def compose_restart(compose, args):
 @cmd_run(podman_compose, 'logs', 'show logs from services')
 def compose_logs(compose, args):
     container_names_by_service = compose.container_names_by_service
-    target = None
-    if args.service not in container_names_by_service:
-        raise ValueError("unknown service: " + args.service)
-    target = container_names_by_service[args.service]
+    if not args.services:
+        args.services = container_names_by_service.keys()
+    targets = []
+    for service in args.services:
+        if service not in container_names_by_service:
+            raise ValueError("unknown service: " + service)
+        targets.extend(container_names_by_service[service])
     podman_args = []
     if args.follow:
         podman_args.append('-f')
@@ -1588,7 +1591,9 @@ def compose_logs(compose, args):
         podman_args.extend(['--tail', args.tail])
     if args.timestamps:
         podman_args.append('-t')
-    compose.podman.run([], 'logs', podman_args+target)
+    for target in targets:
+        podman_args.append(target)
+    compose.podman.run([], 'logs', podman_args)
 
 ###################
 # command arguments parsing
@@ -1706,8 +1711,8 @@ def compose_logs_parse(parser):
         help="Number of lines to show from the end of the logs for each "
              "container.",
         type=str, default="all")
-    parser.add_argument('service', metavar='service', nargs=None,
-        help='service name')
+    parser.add_argument('services', metavar='services', nargs='*', default=None,
+        help='service names')
 
 @cmd_parse(podman_compose, 'pull')
 def compose_pull_parse(parser):
