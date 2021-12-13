@@ -1575,7 +1575,7 @@ def compose_restart(compose, args):
 @cmd_run(podman_compose, 'logs', 'show logs from services')
 def compose_logs(compose, args):
     container_names_by_service = compose.container_names_by_service
-    if not args.services:
+    if not args.services and not args.latest:
         args.services = container_names_by_service.keys()
     targets = []
     for service in args.services:
@@ -1585,12 +1585,20 @@ def compose_logs(compose, args):
     podman_args = []
     if args.follow:
         podman_args.append('-f')
+    if args.latest:
+        podman_args.append("-l")
+    if args.names:
+        podman_args.append('-n')
+    if args.since:
+        podman_args.extend(['--since', args.since])
     # the default value is to print all logs which is in podman = 0 and not
     # needed to be passed
     if args.tail and args.tail != 'all':
         podman_args.extend(['--tail', args.tail])
     if args.timestamps:
         podman_args.append('-t')
+    if args.until:
+        podman_args.extend(['--until', args.until])
     for target in targets:
         podman_args.append(target)
     compose.podman.run([], 'logs', podman_args)
@@ -1704,13 +1712,21 @@ def compose_parse_timeout(parser):
 @cmd_parse(podman_compose, ['logs'])
 def compose_logs_parse(parser):
     parser.add_argument("-f", "--follow", action='store_true',
-                        help="Follow log output.")
+                        help="Follow log output. The default is false")
+    parser.add_argument("-l", "--latest", action='store_true',
+                        help="Act on the latest container podman is aware of")
+    parser.add_argument("-n", "--names", action='store_true',
+                        help="Output the container name in the log")
+    parser.add_argument("--since", help="Show logs since TIMESTAMP",
+        type=str, default=None)
     parser.add_argument("-t", "--timestamps", action='store_true',
                         help="Show timestamps.")
     parser.add_argument("--tail",
         help="Number of lines to show from the end of the logs for each "
              "container.",
         type=str, default="all")
+    parser.add_argument("--until", help="Show logs until TIMESTAMP",
+        type=str, default=None)
     parser.add_argument('services', metavar='services', nargs='*', default=None,
         help='service names')
 
