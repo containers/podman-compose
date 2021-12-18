@@ -35,7 +35,7 @@ OpenShift/Kubernetes distribution like [OKD](https://www.okd.io/).
 
 ## Versions
 
-If you have legacy version of `podman` (before 3.x) you might need to stick with legacy `podman-compose` `0.1.x` branch.
+If you have legacy version of `podman` (before 3.1.0) you might need to stick with legacy `podman-compose` `0.1.x` branch.
 The legacy branch 0.1.x uses mappings and workarounds to compensate for rootless limitations.
 
 Modern podman versions (>=3.4) do not have those limitations and thus you can use latest and stable 1.x branch.
