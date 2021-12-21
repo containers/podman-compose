@@ -1395,7 +1395,8 @@ def compose_up(compose, args):
 
     # TODO: implement check hash label for change
     if args.force_recreate:
-        compose.commands['down'](compose, args)
+        down_args = argparse.Namespace(**dict(args.__dict__, volumes=False))
+        compose.commands['down'](compose, down_args)
     # args.no_recreate disables check for changes (which is not implemented)
 
     podman_command = 'run' if args.detach and not args.no_start else 'create'
