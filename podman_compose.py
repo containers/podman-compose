@@ -68,7 +68,7 @@ def try_float(i, fallback=None):
     return fallback
 
 dir_re = re.compile("^[~/\.]")
-propagation_re = re.compile("^(?:z|Z|r?shared|r?slave|r?private)$")
+propagation_re = re.compile("^(?:z|Z|O|U|r?shared|r?slave|r?private|r?unbindable|r?bind|(?:no)?(?:exec|dev|suid))$")
 norm_re =  re.compile('[^-_a-z0-9]')
 num_split_re = re.compile(r'(\d+|\D+)')
 
@@ -378,11 +378,13 @@ def mount_desc_to_volume_args(compose, mount_desc, srv_name, cnt_name):
     # --volume, -v[=[[SOURCE-VOLUME|HOST-DIR:]CONTAINER-DIR[:OPTIONS]]]
     # [rw|ro]
     # [z|Z]
-    # [[r]shared|[r]slave|[r]private]
+    # [[r]shared|[r]slave|[r]private]|[r]unbindable
     # [[r]bind]
     # [noexec|exec]
     # [nodev|dev]
     # [nosuid|suid]
+    # [O]
+    # [U]
     read_only = mount_desc.get("read_only", None)
     if read_only is not None:
         opts.append('ro' if read_only else 'rw')
