@@ -841,11 +841,15 @@ class Podman:
         return p
 
     def volume_inspect_all(self):
-        output = self.output(["volume", "inspect", "--all"]).decode('utf-8')
+        output = self.output([], "volume", ["inspect", "--all"]).decode('utf-8')
         return json.loads(output)
-
-    def volume_rm(self, name):
-        return self.run(["volume", "rm", name])
+    
+    def volume_inspect_proj(self, proj=None):
+        if not proj:
+            proj = self.compose.project_name
+        volumes = [(vol.get("Labels", {}), vol) for vol in self.volume_inspect_all()]
+        volumes = [(labels.get("io.podman.compose.project", None), vol) for labels, vol in volumes]
+        return [vol for vol_proj, vol in volumes if vol_proj==proj]
 
 def normalize_service(service):
     for key in ("env_file", "security_opt", "volumes"):
@@ -1464,11 +1468,9 @@ def compose_down(compose, args):
     for pod in compose.pods:
         compose.podman.run([], "pod", ["rm", pod["name"]], sleep=0)
     if args.volumes:
-        volumes = compose.podman.volume_inspect_all()
-        for volume in volumes:
-            project = volume.get("Labels", {}).get("io.podman.compose.project")
-            if project == compose.project_name:
-                compose.podman.volume_rm(volume["Name"])
+        volume_names = [vol["Name"] for vol in compose.podman.volume_inspect_proj()]
+        for volume_name in volume_names:
+            compose.podman.run([], "volume", ["rm", volume_name])
 
 @cmd_run(podman_compose, 'ps', 'show status of containers')
 def compose_ps(compose, args):
