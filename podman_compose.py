@@ -1555,7 +1555,7 @@ def compose_run(compose, args):
     create_pods(compose, args)
     container_names=compose.container_names_by_service[args.service]
     container_name=container_names[0]
-    cnt = compose.container_by_name[container_name]
+    cnt = dict(compose.container_by_name[container_name])
     deps = cnt["_deps"]
     if not args.no_deps:
         up_args = argparse.Namespace(**dict(args.__dict__,
@@ -1586,6 +1586,9 @@ def compose_run(compose, args):
     cnt['tty']=False if args.T else True
     if args.cnt_command is not None and len(args.cnt_command) > 0:
         cnt['command']=args.cnt_command
+    # can't restart and --rm 
+    if args.rm and 'restart' in cnt:
+        del cnt['restart']
     # run podman
     podman_args = container_to_args(compose, cnt, args.detach)
     if not args.detach:
