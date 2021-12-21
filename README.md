@@ -100,7 +100,7 @@ which have
 
 
 When testing the `AWX3` example, if you got errors just wait for db migrations to end. 
-
+There is also AWX 17.1.0
 
 ## Tests
 
