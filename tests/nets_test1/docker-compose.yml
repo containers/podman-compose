@@ -11,7 +11,7 @@ services:
         - ./test1.txt:/var/www/html/index.txt:ro,z
     web2:
       image: busybox
-      hostname: web1
+      hostname: web2
       command: ["/bin/busybox", "httpd", "-f", "-h", "/var/www/html", "-p", "8001"]
       working_dir: /var/www/html
       ports:
