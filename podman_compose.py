@@ -1447,8 +1447,23 @@ def compose_up(compose, args):
                     exit_code = compose.exit_code if compose.exit_code is not None else -1
                     exit(exit_code)
 
+def get_volume_names(compose, cnt):
+    proj_name = compose.project_name
+    basedir = compose.dirname
+    srv_name = cnt['_service']
+    ls = []
+    for volume in cnt.get('volumes', []):
+        if is_str(volume): volume = parse_short_mount(volume, basedir)
+        volume = fix_mount_dict(compose, volume, proj_name, srv_name)
+        mount_type = volume["type"]
+        if mount_type!='volume': continue
+        volume_name = (volume.get("_vol", None) or {}).get("name", None)
+        ls.append(volume_name)
+    return ls
+
 @cmd_run(podman_compose, 'down', 'tear down entire stack')
 def compose_down(compose, args):
+    proj_name = compose.project_name
     excluded = get_excluded(compose, args)
     podman_args=[]
     timeout=getattr(args, 'timeout', None)
@@ -1463,14 +1478,21 @@ def compose_down(compose, args):
     for cnt in containers:
         if cnt["_service"] in excluded: continue
         compose.podman.run([], "rm", [cnt["name"]], sleep=0)
+    if args.volumes:
+        vol_names_to_keep = set()
+        for cnt in containers:
+            if cnt["_service"] not in excluded: continue
+            vol_names_to_keep.update(get_volume_names(compose, cnt))
+        print("keep", vol_names_to_keep)
+        volume_names = [vol["Name"] for vol in compose.podman.volume_inspect_proj()]
+        for volume_name in volume_names:
+            if volume_name in vol_names_to_keep: continue
+            compose.podman.run([], "volume", ["rm", volume_name])
+
     if excluded:
         return
     for pod in compose.pods:
         compose.podman.run([], "pod", ["rm", pod["name"]], sleep=0)
-    if args.volumes:
-        volume_names = [vol["Name"] for vol in compose.podman.volume_inspect_proj()]
-        for volume_name in volume_names:
-            compose.podman.run([], "volume", ["rm", volume_name])
 
 @cmd_run(podman_compose, 'ps', 'show status of containers')
 def compose_ps(compose, args):
