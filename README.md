@@ -9,6 +9,7 @@ This project focus on:
 This project only depend on:
 
 * `podman`
+* [podman dnsname plugin](https://github.com/containers/dnsname) (Optional requirement. If necessary, the containers be able to resolve each other if they are on the same CNI network. In distributions, it is usually found in the `podman-plugins` package)
 * Python3
 * [PyYAML](https://pyyaml.org/)
 * [python-dotenv](https://pypi.org/project/python-dotenv/)
@@ -99,7 +100,7 @@ which have
 - a django tasks
 
 
-When testing the `AWX3` example, if you got errors just wait for db migrations to end. 
+When testing the `AWX3` example, if you got errors just wait for db migrations to end.
 There is also AWX 17.1.0
 
 ## Tests
