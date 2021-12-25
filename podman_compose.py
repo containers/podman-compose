@@ -551,7 +551,10 @@ def assert_cnt_nets(compose, cnt):
     proj_name = compose.project_name
     nets = compose.networks
     default_net = compose.default_net
-    cnt_nets = norm_as_list(cnt.get("networks", None) or default_net)
+    cnt_nets = cnt.get("networks", None)
+    if cnt_nets and is_dict(cnt_nets):
+        cnt_nets = list(cnt_nets.keys())
+    cnt_nets = norm_as_list(cnt_nets or default_net)
     for net in cnt_nets:
         net_desc = nets[net] or {}
         is_ext = net_desc.get("external", None)
@@ -582,7 +585,15 @@ def get_net_args(compose, cnt):
     proj_name = compose.project_name
     default_net = compose.default_net
     nets = compose.networks
-    cnt_nets = norm_as_list(cnt.get("networks", None) or default_net)
+    cnt_nets = cnt.get("networks", None)
+    aliases = [service_name]
+    # NOTE: from podman manpage:
+    # NOTE: A container will only have access to aliases on the first network that it joins. This is a limitation that will be removed in a later release.
+    if cnt_nets and is_dict(cnt_nets):
+        for net_key, net_value in cnt_nets.items():
+            aliases.extend(norm_as_list(net_value.get("aliases", None)))
+        cnt_nets = list(cnt_nets.keys())
+    cnt_nets = norm_as_list(cnt_nets or default_net)
     net_names = set()
     for net in cnt_nets:
         net_desc = nets[net] or {}
@@ -592,7 +603,7 @@ def get_net_args(compose, cnt):
         net_name = ext_desc.get("name", None) or net_desc.get("name", None) or default_net_name
         net_names.add(net_name)
     net_names_str = ",".join(net_names)
-    return ["--net", net_names_str, "--network-alias", service_name]
+    return ["--net", net_names_str, "--network-alias", ",".join(aliases)]
 
 def container_to_args(compose, cnt, detached=True):
     # TODO: double check -e , --add-host, -v, --read-only
