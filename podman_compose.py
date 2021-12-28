@@ -1522,7 +1522,7 @@ def compose_run(compose, args):
         up_args = argparse.Namespace(**dict(args.__dict__,
                detach=True, services=deps,
                # defaults
-               no_build=False, build=True, force_recreate=False, no_start=False, no_cache=False, build_arg=[],
+               no_build=False, build=None, force_recreate=False, no_start=False, no_cache=False, build_arg=[],
                )
         )
         compose.commands['up'](compose, up_args)
