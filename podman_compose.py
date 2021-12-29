@@ -301,6 +301,12 @@ def assert_volume(compose, mount_dict):
         ]
         for item in norm_as_list(labels):
             args.extend(["--label", item])
+        driver = vol.get("driver")
+        if driver:
+            args.extend(["--driver", driver])
+        driver_opts = vol.get("driver_opts", {})
+        for opt, value in driver_opts.items():
+            args.extend(["--opt", "{opt}={value}".format(opt=opt, value=value)])
         args.append(vol_name)
         compose.podman.output([], "volume", args)
         out = compose.podman.output([], "volume", ["inspect", vol_name]).decode('utf-8')
