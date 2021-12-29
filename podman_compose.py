@@ -1280,7 +1280,13 @@ class cmd_parse:
 
 @cmd_run(podman_compose, 'version', 'show version')
 def compose_version(compose, args):
-    log("podman-composer version ", __version__)
+    # log("podman-composer version", __version__)
+    if getattr(args, 'short', False): 
+        print(__version__)
+        return
+    if getattr(args, 'format', 'pretty') == 'json':
+        print('{ "version": "{version}" }'.replace('{version}', __version__))
+        return
     compose.podman.run(["--version"], "", [], sleep=0)
 
 def is_local(container: dict) -> bool:
@@ -1645,6 +1651,13 @@ def compose_logs(compose, args):
 ###################
 # command arguments parsing
 ###################
+
+@cmd_parse(podman_compose, 'version')
+def compose_version_parse(parser):
+    parser.add_argument("-f", "--format", type=str, default='pretty', 
+        help="Format the output. Values: [pretty | json].")
+    parser.add_argument("--short", action='store_true', 
+        help="Shows only Podman Compose's version number")
 
 @cmd_parse(podman_compose, 'up')
 def compose_up_parse(parser):
