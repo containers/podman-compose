@@ -178,10 +178,10 @@ var_re = re.compile(r"""
         (?P<named>[_a-zA-Z][_a-zA-Z0-9]*) |
         (?:{
             (?P<braced>[_a-zA-Z][_a-zA-Z0-9]*)
-            (?:
-                (?::?-(?P<default>[^}]+)) |
-                (?::?\?(?P<err>[^}]+))
-            )?
+            (?:(?P<empty>:)?(?:
+                (?:-(?P<default>[^}]+)) |
+                (?:\?(?P<err>[^}]+))
+            ))?
         })
     )
 """, re.VERBOSE)
@@ -198,6 +198,8 @@ def rec_subs(value, subs_dict):
                 return "$"
             name = m.group("named") or m.group("braced")
             value = subs_dict.get(name)
+            if value == "" and m.group('empty'):
+                value = None
             if value is not None:
                 return "%s" % value
             if m.group("err") is not None:
