@@ -1347,7 +1347,7 @@ def build_one(compose, args, cnt):
     if "target" in build_desc:
         build_args.extend(["--target", build_desc["target"]])
     container_to_ulimit_args(cnt, build_args)
-    if args.no_cache:
+    if getattr(args, 'no_cache', None):
         build_args.append("--no-cache")
     if getattr(args, 'pull_always', None): build_args.append("--pull-always")
     elif getattr(args, 'pull', None): build_args.append("--pull")
