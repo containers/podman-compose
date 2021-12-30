@@ -303,10 +303,10 @@ def assert_volume(compose, mount_dict):
         ]
         for item in norm_as_list(labels):
             args.extend(["--label", item])
-        driver = vol.get("driver")
+        driver = vol.get("driver", None)
         if driver:
             args.extend(["--driver", driver])
-        driver_opts = vol.get("driver_opts", {})
+        driver_opts = vol.get("driver_opts", None) or {}
         for opt, value in driver_opts.items():
             args.extend(["--opt", "{opt}={value}".format(opt=opt, value=value)])
         args.append(vol_name)
