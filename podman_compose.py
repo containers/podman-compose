@@ -179,8 +179,8 @@ var_re = re.compile(r"""
         (?:{
             (?P<braced>[_a-zA-Z][_a-zA-Z0-9]*)
             (?:(?P<empty>:)?(?:
-                (?:-(?P<default>[^}]+)) |
-                (?:\?(?P<err>[^}]+))
+                (?:-(?P<default>[^}]*)) |
+                (?:\?(?P<err>[^}]*))
             ))?
         })
     )
