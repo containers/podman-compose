@@ -70,5 +70,4 @@ def compose_up(compose, args):
   scale              Set number of containers for a service
   top                Display the running processes
   unpause            Unpause services
-  version            Show the Docker-Compose version information
 ```
