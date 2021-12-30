@@ -1292,7 +1292,8 @@ def compose_version(compose, args):
         print(__version__)
         return
     if getattr(args, 'format', 'pretty') == 'json':
-        print('{ "version": "{version}" }'.replace('{version}', __version__))
+        res = {"version": __version__}
+        print(json.dumps(res))
         return
     log("podman-composer version", __version__)
     compose.podman.run(["--version"], "", [], sleep=0)
@@ -1659,9 +1660,6 @@ def compose_logs(compose, args):
 @cmd_run(podman_compose, 'config', "displays the compose file")
 def compose_config(compose, args):
     file_path = getattr(args, 'file', [])[0]
-    if (file_path == None):
-        sys.stderr("File path is required. use -f flag to set the input file")
-        return
     f = open(file_path, "r")
     print(f.read())
 
@@ -1671,8 +1669,8 @@ def compose_config(compose, args):
 
 @cmd_parse(podman_compose, 'version')
 def compose_version_parse(parser):
-    parser.add_argument("-f", "--format", type=str, default='pretty', 
-        help="Format the output. Values: [pretty | json].")
+    parser.add_argument("-f", "--format", choices=['pretty', 'json'], default='pretty',
+        help="Format the output")
     parser.add_argument("--short", action='store_true', 
         help="Shows only Podman Compose's version number")
 
