@@ -1094,7 +1094,7 @@ class PodmanCompose:
             "COMPOSE_PROJECT_NAME": self.project_name,
             "COMPOSE_PATH_SEPARATOR": pathsep,
         })
-        compose = {'_dirname': dirname}
+        compose = {}
         for filename in files:
             with open(filename, 'r') as f:
                 content = yaml.safe_load(f)
@@ -1106,6 +1106,8 @@ class PodmanCompose:
                 #log(filename, json.dumps(content, indent = 2))
                 content = rec_subs(content, self.environ)
                 rec_merge(compose, content)
+        self.merged_yaml = yaml.safe_dump(compose)
+        compose['_dirname'] = dirname
         # debug mode
         if len(files)>1:
             log(" ** merged:\n", json.dumps(compose, indent = 2))
@@ -1659,9 +1661,7 @@ def compose_logs(compose, args):
 
 @cmd_run(podman_compose, 'config', "displays the compose file")
 def compose_config(compose, args):
-    file_path = getattr(args, 'file', [])[0]
-    f = open(file_path, "r")
-    print(f.read())
+    print(compose.merged_yaml)
 
 ###################
 # command arguments parsing
