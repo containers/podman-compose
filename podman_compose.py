@@ -1648,6 +1648,15 @@ def compose_logs(compose, args):
         podman_args.append(target)
     compose.podman.run([], 'logs', podman_args)
 
+@cmd_run(podman_compose, 'config', "displays the compose file")
+def compose_config(compose, args):
+    file_path = getattr(args, 'file', [])[0]
+    if (file_path == None):
+        sys.stderr("File path is required. use -f flag to set the input file")
+        return
+    f = open(file_path, "r")
+    print(f.read())
+
 ###################
 # command arguments parsing
 ###################
