@@ -1280,13 +1280,13 @@ class cmd_parse:
 
 @cmd_run(podman_compose, 'version', 'show version')
 def compose_version(compose, args):
-    # log("podman-composer version", __version__)
     if getattr(args, 'short', False): 
         print(__version__)
         return
     if getattr(args, 'format', 'pretty') == 'json':
         print('{ "version": "{version}" }'.replace('{version}', __version__))
         return
+    log("podman-composer version", __version__)
     compose.podman.run(["--version"], "", [], sleep=0)
 
 def is_local(container: dict) -> bool:
