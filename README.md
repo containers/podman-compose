@@ -9,7 +9,7 @@ This project focus on:
 This project only depend on:
 
 * `podman`
-* [podman dnsname plugin](https://github.com/containers/dnsname) (Optional requirement. If necessary, the containers be able to resolve each other if they are on the same CNI network. In distributions, it is usually found in the `podman-plugins` package)
+* [podman dnsname plugin](https://github.com/containers/dnsname) (Optional requirement. If necessary, the containers be able to resolve each other if they are on the same CNI network. In distributions, it is usually found in the `podman-plugins` or `podman-dnsname` package)
 * Python3
 * [PyYAML](https://pyyaml.org/)
 * [python-dotenv](https://pypi.org/project/python-dotenv/)
