@@ -857,16 +857,15 @@ class Podman:
             time.sleep(sleep)
         return p
 
-    def volume_inspect_all(self):
-        output = self.output([], "volume", ["inspect", "--all"]).decode('utf-8')
-        return json.loads(output)
-    
-    def volume_inspect_proj(self, proj=None):
+    def volume_ls(self, proj=None):
         if not proj:
             proj = self.compose.project_name
-        volumes = [(vol.get("Labels", {}), vol) for vol in self.volume_inspect_all()]
-        volumes = [(labels.get("io.podman.compose.project", None), vol) for labels, vol in volumes]
-        return [vol for vol_proj, vol in volumes if vol_proj==proj]
+        output = self.output([], "volume", [
+            "ls", "--noheading", "--filter", f"label=io.podman.compose.project={proj}",
+            "--format", "{{.Name}}",
+        ]).decode('utf-8')
+        volumes = output.splitlines()
+        return volumes
 
 def normalize_service(service):
     for key in ("env_file", "security_opt", "volumes"):
@@ -1510,8 +1509,7 @@ def compose_down(compose, args):
             if cnt["_service"] not in excluded: continue
             vol_names_to_keep.update(get_volume_names(compose, cnt))
         log("keep", vol_names_to_keep)
-        volume_names = [vol["Name"] for vol in compose.podman.volume_inspect_proj()]
-        for volume_name in volume_names:
+        for volume_name in compose.podman.volume_ls():
             if volume_name in vol_names_to_keep: continue
             compose.podman.run([], "volume", ["rm", volume_name])
 
