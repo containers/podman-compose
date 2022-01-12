@@ -1109,7 +1109,9 @@ class PodmanCompose:
 
         dotenv_path = os.path.join(dirname, ".env")
         self.environ = dict(os.environ)
-        self.environ.update(dotenv_to_dict(dotenv_path))
+        dotenv_dict = dotenv_to_dict(dotenv_path)
+        self.environ.update(dotenv_dict)
+        os.environ.update({ key: value for key, value in dotenv_dict.items() if key.startswith('PODMAN_')})
         # see: https://docs.docker.com/compose/reference/envvars/
         # see: https://docs.docker.com/compose/env-file/
         self.environ.update({
