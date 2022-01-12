@@ -636,9 +636,6 @@ def container_to_args(compose, cnt, detached=True):
         podman_args.append('--read-only')
     for i in cnt.get('labels', []):
         podman_args.extend(['--label', i])
-    net = cnt.get("network_mode", None)
-    if net:
-        podman_args.extend(['--network', net])
     for c in cnt.get('cap_add', []):
         podman_args.extend(['--cap-add', c])
     for c in cnt.get('cap_drop', []):
@@ -659,8 +656,14 @@ def container_to_args(compose, cnt, detached=True):
         podman_args.extend(['--tmpfs', i])
     for volume in cnt.get('volumes', []):
         podman_args.extend(get_mount_args(compose, cnt, volume))
-    assert_cnt_nets(compose, cnt)
-    podman_args.extend(get_net_args(compose, cnt))
+
+    net = cnt.get("network_mode", None)
+    if net:
+        podman_args.extend(['--network', net])
+    else:
+        assert_cnt_nets(compose, cnt)
+        podman_args.extend(get_net_args(compose, cnt))
+
     log = cnt.get('logging')
     if log is not None:
         podman_args.append(f'--log-driver={log.get("driver", "k8s-file")}')
