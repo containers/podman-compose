@@ -584,6 +584,19 @@ def assert_cnt_nets(compose, cnt):
                 args.extend(["--label", item])
             if net_desc.get("internal", None):
                 args.append("--internal")
+            driver = net_desc.get("driver", None)
+            if driver:
+                args.extend(("--driver", driver))
+            ipam_config_ls = (net_desc.get("ipam", None) or {}).get("config", None) or []
+            if is_dict(ipam_config_ls):
+                ipam_config_ls=[ipam_config_ls]
+            for ipam in ipam_config_ls:
+                subnet = ipam.get("subnet", None)
+                ip_range = ipam.get("ip_range", None)
+                gateway = ipam.get("gateway", None)
+                if subnet: args.extend(("--subnet", subnet))
+                if ip_range: args.extend(("--ip-range", ip_range))
+                if gateway: args.extend(("--gateway", gateway))
             args.append(net_name)
             compose.podman.output([], "network", args)
             compose.podman.output([], "network", ["exists", net_name])
@@ -597,9 +610,12 @@ def get_net_args(compose, cnt):
     aliases = [service_name]
     # NOTE: from podman manpage:
     # NOTE: A container will only have access to aliases on the first network that it joins. This is a limitation that will be removed in a later release.
+    ip = None
     if cnt_nets and is_dict(cnt_nets):
         for net_key, net_value in cnt_nets.items():
             aliases.extend(norm_as_list(net_value.get("aliases", None)))
+            if ip: continue
+            ip = net_value.get("ipv4_address", None)
         cnt_nets = list(cnt_nets.keys())
     cnt_nets = norm_as_list(cnt_nets or default_net)
     net_names = set()
@@ -611,7 +627,11 @@ def get_net_args(compose, cnt):
         net_name = ext_desc.get("name", None) or net_desc.get("name", None) or default_net_name
         net_names.add(net_name)
     net_names_str = ",".join(net_names)
-    return ["--net", net_names_str, "--network-alias", ",".join(aliases)]
+    net_args = ["--net", net_names_str, "--network-alias", ",".join(aliases)]
+    if ip:
+        net_args.append(f"--ip={ip}")
+    return net_args
+
 
 def container_to_args(compose, cnt, detached=True):
     # TODO: double check -e , --add-host, -v, --read-only
@@ -1141,10 +1161,12 @@ class PodmanCompose:
         default_net = self.default_net
         allnets = set()
         for name, srv in services.items():
-            srv_nets = norm_as_list(srv.get("networks", None) or default_net)
+            srv_nets = srv.get("networks", None) or default_net
+            srv_nets = list(srv_nets.keys()) if is_dict(srv_nets) else norm_as_list(srv_nets)
             allnets.update(srv_nets)
         given_nets = set(nets.keys())
         missing_nets = given_nets - allnets
+        print(given_nets, allnets)
         if len(missing_nets):
             missing_nets_str= ",".join(missing_nets)
             raise RuntimeError(f"missing networks: {missing_nets_str}")
