@@ -1076,7 +1076,8 @@ class PodmanCompose:
 
         if not project_name:
             # More strict then actually needed for simplicity: podman requires [a-zA-Z0-9][a-zA-Z0-9_.-]*
-            project_name = norm_re.sub('', dir_basename.lower())
+            project_name = os.environ.get("COMPOSE_PROJECT_NAME", None) or dir_basename.lower()
+            project_name = norm_re.sub('', project_name)
             if not project_name:
                 raise RuntimeError("Project name [{}] normalized to empty".format(dir_basename))
 
