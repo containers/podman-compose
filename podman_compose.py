@@ -755,6 +755,7 @@ def container_to_args(compose, cnt, detached=True):
             # podman does not add shell to handle command with whitespace
             podman_args.extend(['--healthcheck-command', '/bin/sh -c {}'.format(cmd_quote(healthcheck_test))])
         elif is_list(healthcheck_test):
+            healthcheck_test = healthcheck_test.copy()
             # If it's a list, first item is either NONE, CMD or CMD-SHELL.
             healthcheck_type = healthcheck_test.pop(0)
             if healthcheck_type == 'NONE':
