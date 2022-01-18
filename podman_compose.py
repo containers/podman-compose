@@ -556,6 +556,9 @@ def assert_cnt_nets(compose, cnt):
     """
     create missing networks
     """
+    net = cnt.get("network_mode", None)
+    if net and not net.startswith("bridge"):
+        return
     proj_name = compose.project_name
     nets = compose.networks
     default_net = compose.default_net
@@ -603,6 +606,14 @@ def assert_cnt_nets(compose, cnt):
 
 def get_net_args(compose, cnt):
     service_name = cnt["service_name"]
+    net = cnt.get("network_mode", None)
+    if net:
+        if net=="host":
+            return ['--network', net]
+        if net.startswith("service:"):
+            other_srv = net.split(":", 1)[1].strip()
+            other_cnt = compose.container_names_by_service[other_srv][0]
+            return ['--network', f"container:{other_cnt}"]
     proj_name = compose.project_name
     default_net = compose.default_net
     nets = compose.networks
@@ -677,12 +688,8 @@ def container_to_args(compose, cnt, detached=True):
     for volume in cnt.get('volumes', []):
         podman_args.extend(get_mount_args(compose, cnt, volume))
 
-    net = cnt.get("network_mode", None)
-    if net:
-        podman_args.extend(['--network', net])
-    else:
-        assert_cnt_nets(compose, cnt)
-        podman_args.extend(get_net_args(compose, cnt))
+    assert_cnt_nets(compose, cnt)
+    podman_args.extend(get_net_args(compose, cnt))
 
     log = cnt.get('logging')
     if log is not None:
