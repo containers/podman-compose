@@ -398,14 +398,20 @@ def mount_desc_to_volume_args(compose, mount_desc, srv_name, cnt_name):
     if opts: args += ':' + ','.join(opts)
     return args
 
-def get_mount_args(compose, cnt, volume):
+def get_mnt_dict(compose, cnt, volume):
     proj_name = compose.project_name
     srv_name = cnt['_service']
     basedir = compose.dirname
-    if is_str(volume): volume = parse_short_mount(volume, basedir)
-    mount_type = volume["type"]
+    if is_str(volume):
+        volume = parse_short_mount(volume, basedir)
+    return fix_mount_dict(compose, volume, proj_name, srv_name)
 
-    assert_volume(compose, fix_mount_dict(compose, volume, proj_name, srv_name))
+def get_mount_args(compose, cnt, volume):
+    volume = get_mnt_dict(compose, cnt, volume)
+    proj_name = compose.project_name
+    srv_name = cnt['_service']
+    mount_type = volume["type"]
+    assert_volume(compose, volume)
     if compose._prefer_volume_over_mount:
         if mount_type == 'tmpfs':
             # TODO: --tmpfs /tmp:rw,size=787448k,mode=1777
@@ -1230,6 +1236,12 @@ class PodmanCompose:
                 cnt['_service'] = service_name
                 cnt['_project'] = project_name
                 given_containers.append(cnt)
+                volumes = cnt.get("volumes", None) or []
+                for volume in volumes:
+                    mnt_dict = get_mnt_dict(self, cnt, volume)
+                    if mnt_dict.get("type", None)=="volume" and mnt_dict["source"] and mnt_dict["source"] not in self.vols:
+                        vol_name = mnt_dict["source"]
+                        raise RuntimeError(f"volume [{vol_name}] not defined in top level")
         self.container_names_by_service = container_names_by_service
         container_by_name = dict([(c["name"], c) for c in given_containers])
         #log("deps:", [(c["name"], c["_deps"]) for c in given_containers])
