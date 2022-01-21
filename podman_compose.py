@@ -1619,7 +1619,8 @@ def compose_run(compose, args):
         podman_args.insert(1, '-i')
         if args.rm:
             podman_args.insert(1, '--rm')
-    compose.podman.run([], 'run', podman_args, sleep=0)
+    p = compose.podman.run([], 'run', podman_args, sleep=0)
+    exit(p.returncode)
 
 @cmd_run(podman_compose, 'exec', 'execute a command in a running container')
 def compose_exec(compose, args):
@@ -1640,7 +1641,8 @@ def compose_exec(compose, args):
     podman_args += [container_name]
     if args.cnt_command is not None and len(args.cnt_command) > 0:
         podman_args += args.cnt_command
-    compose.podman.run([], 'exec', podman_args, sleep=0)
+    p = compose.podman.run([], 'exec', podman_args, sleep=0)
+    exit(p.returncode)
 
 
 def transfer_service_status(compose, args, action):
