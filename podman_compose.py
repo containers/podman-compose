@@ -1462,6 +1462,38 @@ def get_excluded(compose, args):
     log("** excluding: ", excluded)
     return excluded
 
+def init_hosts(project_name):
+    hosts = [
+'''127.0.0.1       localhost
+::1             localhost ip6-localhost ip6-loopback
+ff02::1         ip6-allnodes
+ff02::2         ip6-allrouters
+''']
+
+    hosts_file = os.path.join('/dev/shm',
+        '%s.%s' % (project_name, 'hosts'))
+    with open(hosts_file, 'w') as fd:
+        fd.writelines(hosts)
+        fd.flush()
+    return hosts_file
+
+def generate_hosts(hosts_file, container_name):
+    cmd_ls = ["podman", "inspect"]
+    cmd_ls.append(container_name)
+
+    hosts = []
+    output = subprocess.check_output(cmd_ls)
+    output_parserd = json.loads(output)
+    for host in output_parserd:
+        networks = host["NetworkSettings"]["Networks"]
+        for v in networks.values():
+            ip_address = v.get("IPAddress")
+            for a in v.get("Aliases", []):
+                hosts.append('%s %s\n' % (ip_address, a))
+    with open(hosts_file, 'a') as fd:
+        fd.writelines(hosts)
+        fd.flush()
+
 @cmd_run(podman_compose, 'up', 'Create and start the entire stack or some of its services')
 def compose_up(compose, args):
     excluded = get_excluded(compose, args)
@@ -1480,12 +1512,15 @@ def compose_up(compose, args):
 
     podman_command = 'run' if args.detach and not args.no_start else 'create'
 
+    hosts_file = init_hosts(compose.project_name)
     create_pods(compose, args)
     for cnt in compose.containers:
         if cnt["_service"] in excluded:
             log("** skipping: ", cnt['name'])
             continue
         podman_args = container_to_args(compose, cnt, detached=args.detach)
+        podman_args.insert(0, '-v')
+        podman_args.insert(1, '%s:/etc/hosts' % hosts_file)
         subproc = compose.podman.run([], podman_command, podman_args)
         if podman_command == 'run' and subproc and subproc.returncode:
             compose.podman.run([], 'start', [cnt['name']])
@@ -1509,6 +1544,7 @@ def compose_up(compose, args):
         thread.start()
         threads.append(thread)
         time.sleep(1)
+        generate_hosts(hosts_file, cnt['name'])
     
     while threads:
         for thread in threads:
