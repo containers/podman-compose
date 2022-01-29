@@ -620,6 +620,9 @@ def get_net_args(compose, cnt):
             other_srv = net.split(":", 1)[1].strip()
             other_cnt = compose.container_names_by_service[other_srv][0]
             return ['--network', f"container:{other_cnt}"]
+        if net.startswith("container:"):
+            other_cnt = net.split(":",1)[1].strip()
+            return ['--network', f"container:{other_cnt}"]
     proj_name = compose.project_name
     default_net = compose.default_net
     nets = compose.networks
