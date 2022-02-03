@@ -188,13 +188,25 @@ def compose_up(compose, args):
         args.abort_on_container_exit=True
 
     threads = []
+    # for cnt in compose.containers:
+    max_service_length=0
     for cnt in compose.containers:
+        curr_length = len(cnt["_service"])
+        max_service_length = curr_length if curr_length > max_service_length else max_service_length
+
+    for i, cnt in enumerate(compose.containers):
+        # Add colored service prefix to output by piping output through sed
+        color_idx = i % len(compose.console_colors)
+        color = compose.console_colors[color_idx]
+        space_suffix=' ' * (max_service_length - len(cnt["_service"]) + 1)
+        log_formatter = 's/^/{}[{}]{}|\x1B[0m\ /;'.format(color, cnt["_service"], space_suffix)
+        log_formatter = ["sed", "-e", log_formatter]
         if cnt["_service"] in excluded:
             log("** skipping: ", cnt['name'])
             continue
         # TODO: remove sleep from podman.run
         obj = compose if exit_code_from == cnt['_service'] else None
-        thread = Thread(target=compose.podman.run, args=[[], 'start', ['-a', cnt['name']]], kwargs={"obj":obj}, daemon=True, name=cnt['name'])
+        thread = Thread(target=compose.podman.run, args=[[], 'start', ['-a', cnt['name']]], kwargs={"obj":obj, "log_formatter": log_formatter}, daemon=True, name=cnt['name'])
         thread.start()
         threads.append(thread)
         time.sleep(1)
