@@ -1530,7 +1530,8 @@ def compose_up(compose, args):
             continue
         # TODO: remove sleep from podman.run
         obj = compose if exit_code_from == cnt['_service'] else None
-        thread = Thread(target=compose.podman.run, args=[[], 'start', ['-a', cnt['name']]], kwargs={"obj":obj, "log_formatter": log_formatter}, daemon=True, name=cnt['name'])thread.start()
+        thread = Thread(target=compose.podman.run, args=[[], 'start', ['-a', cnt['name']]], kwargs={"obj":obj, "log_formatter": log_formatter}, daemon=True, name=cnt['name'])
+        thread.start()
         threads.append(thread)
         time.sleep(1)
     
