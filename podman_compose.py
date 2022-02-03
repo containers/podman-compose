@@ -876,7 +876,7 @@ class Podman:
         log(cmd_ls)
         return subprocess.check_output(cmd_ls)
 
-    def run(self, podman_args, cmd='', cmd_args=None, wait=True, sleep=1, obj=None):
+    def run(self, podman_args, cmd='', cmd_args=None, wait=True, sleep=1, obj=None, log_formatter=None):
         if obj is not None:
             obj.exit_code = None
         cmd_args = list(map(str, cmd_args or []))
@@ -886,7 +886,14 @@ class Podman:
         if self.dry_run:
             return None
         # subprocess.Popen(args, bufsize = 0, executable = None, stdin = None, stdout = None, stderr = None, preexec_fn = None, close_fds = False, shell = False, cwd = None, env = None, universal_newlines = False, startupinfo = None, creationflags = 0)
-        p = subprocess.Popen(cmd_ls)
+        if log_formatter is not None:
+            # Pipe podman process output through log_formatter (which can add colored prefix)
+            p = subprocess.Popen(cmd_ls, stdout=subprocess.PIPE)
+            _ = subprocess.Popen(log_formatter, stdin=p.stdout)
+            p.stdout.close() # Allow p_process to receive a SIGPIPE if logging process exits.
+        else:
+            p = subprocess.Popen(cmd_ls)
+
         if wait:
             exit_code = p.wait()
             log("exit code:", exit_code)
@@ -1039,6 +1046,7 @@ class PodmanCompose:
         self.container_names_by_service = None
         self.container_by_name = None
         self._prefer_volume_over_mount = True
+        self.console_colors = ["\x1B[1;32m", "\x1B[1;33m", "\x1B[1;34m", "\x1B[1;35m", "\x1B[1;36m"]
 
     def get_podman_args(self, cmd):
         xargs = []
@@ -1502,14 +1510,25 @@ def compose_up(compose, args):
         args.abort_on_container_exit=True
 
     threads = []
+
+    max_service_length = 0
     for cnt in compose.containers:
+        curr_length = len(cnt["_service"])
+        max_service_length = curr_length if curr_length > max_service_length else max_service_length
+
+    for i, cnt in enumerate(compose.containers):
+        # Add colored service prefix to output by piping output through sed
+        color_idx = i % len(compose.console_colors)
+        color = compose.console_colors[color_idx]
+        space_suffix=' ' * (max_service_length - len(cnt["_service"]) + 1)
+        log_formatter = 's/^/{}[{}]{}|\x1B[0m\ /;'.format(color, cnt["_service"], space_suffix)
+        log_formatter = ["sed", "-e", log_formatter]
         if cnt["_service"] in excluded:
             log("** skipping: ", cnt['name'])
             continue
         # TODO: remove sleep from podman.run
         obj = compose if exit_code_from == cnt['_service'] else None
-        thread = Thread(target=compose.podman.run, args=[[], 'start', ['-a', cnt['name']]], kwargs={"obj":obj}, daemon=True, name=cnt['name'])
-        thread.start()
+        thread = Thread(target=compose.podman.run, args=[[], 'start', ['-a', cnt['name']]], kwargs={"obj":obj, "log_formatter": log_formatter}, daemon=True, name=cnt['name'])thread.start()
         threads.append(thread)
         time.sleep(1)
     
