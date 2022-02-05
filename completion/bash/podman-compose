@@ -1,0 +1,411 @@
+# Naming convention:
+# * _camelCase for function names
+# * snake_case for variable names
+
+# all functions will return 0 if they successfully complete the argument
+# (or establish there is no need or no way to complete), and something
+# other than 0 if that's not the case
+
+# complete arguments to global options
+_completeGlobalOptArgs() {
+    # arguments to options that take paths as arguments: complete paths
+    for el in ${path_arg_global_opts}; do
+        if [[ ${prev} == ${el} ]]; then
+            COMPREPLY=( $(compgen -f -- ${cur}) )
+            return 0
+        fi
+    done
+
+    # arguments to options that take generic arguments: don't complete
+    for el in ${generic_arg_global_opts}; do
+        if [[ ${prev} == ${el} ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# complete root subcommands and options
+_completeRoot() {
+    # if we're completing an option
+    if [[ ${cur} == -* ]]; then
+        COMPREPLY=( $(compgen -W "${global_opts}" -- ${cur}) )
+        return 0
+    fi
+    # complete root commands
+    COMPREPLY=( $(compgen -W "${root_commands}" -- ${cur}) )
+    return 0
+}
+
+# complete names of Compose services
+_completeServiceNames() {
+    # ideally we should complete service names,
+    # but parsing the compose spec file in the
+    # completion script is quite complex
+    return 0
+}
+
+# complete commands to run inside containers
+_completeCommand() {
+    # we would need to complete commands to run inside
+    # a container
+    return 0
+}
+
+
+# complete the arguments for `podman-compose up` and return 0
+_completeUpArgs() {
+    up_opts="${help_opts} -d --detach --no-color --quiet-pull --no-deps --force-recreate --always-recreate-deps --no-recreate --no-build --no-start --build --abort-on-container-exit -t --timeout -V --renew-anon-volumes --remove-orphans --scale --exit-code-from --pull --pull-always --build-arg --no-cache"
+    if [[ ${prev} == "--scale" || ${prev} == "-t" || ${prev} == "--timeout" ]]; then
+        return 0
+    elif [[ ${cur} == -* ]]; then
+        COMPREPLY=( $(compgen -W "${up_opts}" -- ${cur}) )
+        return 0
+    else
+        _completeServiceNames
+        if [[ $? -eq 0 ]]; then
+            return 0
+        fi
+        return 0
+    fi
+
+}
+
+# complete the arguments for `podman-compose exec` and return 0
+_completeExecArgs() {
+    exec_opts="${help_opts} -d --detach --privileged -u --user -T --index -e --env -w --workdir"
+    if [[ ${prev} == "-u" || ${prev} == "--user" || ${prev} == "--index" || ${prev} == "-e" || ${prev} == "--env" || ${prev} == "-w" || ${prev} == "--workdir" ]]; then
+        return 0
+    elif [[ ${cur} == -* ]]; then
+        COMPREPLY=( $(compgen -W "${exec_opts}" -- ${cur}) )
+        return 0
+    elif [[ ${comp_cword_adj} -eq 2 ]]; then
+        # complete service name
+        _completeServiceNames
+        if [[ $? -eq 0 ]]; then
+            return 0
+        fi
+    elif [[ ${comp_cword_adj} -eq 3 ]]; then
+        _completeCommand
+        if [[ $? -eq 0 ]]; then
+            return 0
+        fi
+        return 0
+    fi
+
+}
+
+
+# complete the arguments for `podman-compose down` and return 0
+_completeDownArgs() {
+    down_opts="${help_opts} -v --volumes -t --timeout"
+    if [[ ${prev} == "-t" || ${prev} == "--timeout" ]]; then
+        return 0
+    elif [[ ${cur} == -* ]]; then
+        COMPREPLY=( $(compgen -W "${down_opts}" -- ${cur}) )
+        return 0
+    else
+        _completeServiceNames
+        if [[ $? -eq 0 ]]; then
+            return 0
+        fi
+        return 0
+    fi
+
+}
+
+
+# complete the arguments for `podman-compose build` and return 0
+_completeBuildArgs() {
+    build_opts="${help_opts} --pull --pull-always --build-arg --no-cache"
+    if [[ ${prev} == "--build-arg" ]]; then
+        return 0
+    elif [[ ${cur} == -* ]]; then
+        COMPREPLY=( $(compgen -W "${build_opts}" -- ${cur}) )
+        return 0
+    else
+        _completeServiceNames
+        if [[ $? -eq 0 ]]; then
+            return 0
+        fi
+        return 0
+    fi
+}
+
+# complete the arguments for `podman-compose logs` and return 0
+_completeLogsArgs() {
+    logs_opts="${help_opts} -f --follow -l --latest -n --names --since -t --timestamps --tail --until"
+    if [[ ${prev} == "--since" || ${prev} == "--tail" || ${prev} == "--until" ]]; then
+        return 0
+    elif [[ ${cur} == -* ]]; then
+        COMPREPLY=( $(compgen -W "${logs_opts}" -- ${cur}) )
+        return 0
+    else
+        _completeServiceNames
+        if [[ $? -eq 0 ]]; then
+            return 0
+        fi
+        return 0
+    fi
+}
+
+# complete the arguments for `podman-compose ps` and return 0
+_completePsArgs() {
+    ps_opts="${help_opts} -q --quiet"
+    if [[ ${cur} == -* ]]; then
+        COMPREPLY=( $(compgen -W "${ps_opts}" -- ${cur}) )
+        return 0
+    else
+        return 0
+    fi
+}
+
+# complete the arguments for `podman-compose pull` and return 0
+_completePullArgs() {
+    pull_opts="${help_opts} --force-local"
+    if [[ ${cur} == -* ]]; then
+        COMPREPLY=( $(compgen -W "${pull_opts}" -- ${cur}) )
+        return 0
+    else
+        return 0
+    fi
+}
+
+# complete the arguments for `podman-compose push` and return 0
+_completePushArgs() {
+    push_opts="${help_opts} --ignore-push-failures"
+    if [[ ${cur} == -* ]]; then
+        COMPREPLY=( $(compgen -W "${push_opts}" -- ${cur}) )
+        return 0
+    else
+        _completeServiceNames
+        if [[ $? -eq 0 ]]; then
+            return 0
+        fi
+        return 0
+    fi
+}
+
+# complete the arguments for `podman-compose restart` and return 0
+_completeRestartArgs() {
+    restart_opts="${help_opts} -t --timeout"
+    if [[ ${prev} == "-t" || ${prev} == "--timeout" ]]; then
+        return 0
+    elif [[ ${cur} == -* ]]; then
+        COMPREPLY=( $(compgen -W "${restart_opts}" -- ${cur}) )
+        return 0
+    else
+        _completeServiceNames
+        if [[ $? -eq 0 ]]; then
+            return 0
+        fi
+        return 0
+    fi
+}
+
+# complete the arguments for `podman-compose stop` and return 0
+_completeStopArgs() {
+    stop_opts="${help_opts} -t --timeout"
+    if [[ ${prev} == "-t" || ${prev} == "--timeout" ]]; then
+        return 0
+    elif [[ ${cur} == -* ]]; then
+        COMPREPLY=( $(compgen -W "${stop_opts}" -- ${cur}) )
+        return 0
+    else
+        _completeServiceNames
+        if [[ $? -eq 0 ]]; then
+            return 0
+        fi
+        return 0
+    fi
+}
+
+# complete the arguments for `podman-compose start` and return 0
+_completeStartArgs() {
+    start_opts="${help_opts}"
+    if [[ ${cur} == -* ]]; then
+        COMPREPLY=( $(compgen -W "${start_opts}" -- ${cur}) )
+        return 0
+    else
+        _completeServiceNames
+        if [[ $? -eq 0 ]]; then
+            return 0
+        fi
+        return 0
+    fi
+}
+
+# complete the arguments for `podman-compose run` and return 0
+_completeRunArgs() {
+    run_opts="${help_opts} -d --detach --privileged -u --user -T --index -e --env -w --workdir"
+    if [[ ${prev} == "-u" || ${prev} == "--user" || ${prev} == "--index" || ${prev} == "-e" || ${prev} == "--env" || ${prev} == "-w" || ${prev} == "--workdir" ]]; then
+        return 0
+    elif  [[ ${cur} == -* ]]; then
+        COMPREPLY=( $(compgen -W "${run_opts}" -- ${cur}) )
+        return 0
+    elif [[ ${comp_cword_adj} -eq 2 ]]; then
+        # complete service name
+        _completeServiceNames
+        if [[ $? -eq 0 ]]; then
+            return 0
+        fi
+    elif [[ ${comp_cword_adj} -eq 3 ]]; then
+        _completeCommand
+        if [[ $? -eq 0 ]]; then
+            return 0
+        fi
+    fi
+}
+
+
+_podmanCompose() {
+    cur="${COMP_WORDS[COMP_CWORD]}"
+	prev="${COMP_WORDS[COMP_CWORD-1]}"
+    root_commands="help version pull push build up down ps run exec start stop restart logs"
+
+    # options to output help text (used as global and subcommand options)
+    help_opts="-h --help"
+
+    # global options that don't take additional arguments
+    basic_global_opts="${help_opts} -v --no-ansi --no-cleanup --dry-run" 
+
+    # global options that take paths as arguments
+    path_arg_global_opts="-f --file --podman-path"
+    path_arg_global_opts_array=($arg_global_opts)
+
+    # global options that take arguments that are not files
+    generic_arg_global_opts="-p --project-name --podman-path --podman-args --podman-pull-args --podman-push-args --podman-build-args --podman-inspect-args --podman-run-args --podman-start-args --podman-stop-args --podman-rm-args --podman-volume-args"
+    generic_arg_global_opts_array=($generic_arg_global_opts)
+
+    # all global options that take arguments
+    arg_global_opts="${path_arg_global_opts} ${generic_arg_global_opts}"
+    arg_global_opts_array=($arg_global_opts)
+
+    # all global options
+    global_opts="${basic_global_opts} ${arg_global_opts}"
+
+    chosen_root_command=""
+
+
+    _completeGlobalOptArgs
+    if [[ $? -eq 0 ]]; then
+        return 0
+    fi
+   
+    # computing comp_cword_adj, which thruthfully tells us how deep in the subcommands tree we are
+    # additionally, set the chosen_root_command if possible
+    comp_cword_adj=${COMP_CWORD}
+    if [[ ${COMP_CWORD} -ge 2 ]]; then
+        skip_next="no"
+        for el in ${COMP_WORDS[@]}; do
+            # if the user has asked for help text there's no need to complete further
+            if [[ ${el} == "-h" || ${el} == "--help" ]]; then
+                return 0
+            fi
+            if [[ ${skip_next} == "yes" ]]; then
+                let "comp_cword_adj--"
+                skip_next="no"
+                continue
+            fi
+            if [[ ${el} == -* && ${el} != ${cur} ]]; then
+                let "comp_cword_adj--"
+                
+                for opt in ${arg_global_opts_array[@]}; do
+                    if [[ ${el} == ${opt} ]]; then
+                        skip_next="yes"
+                    fi
+                done
+            elif [[ ${el} != ${cur} && ${el} != ${COMP_WORDS[0]} && ${chosen_root_command} == "" ]]; then
+                chosen_root_command=${el}
+            fi
+        done
+    fi
+    
+    if [[ ${comp_cword_adj} -eq 1 ]]; then
+       _completeRoot
+
+       # Given that we check the value of comp_cword_adj outside
+       # of it, at the moment _completeRoot should always return
+       # 0, this is just here in case changes are made. The same
+       # will apply to similar functions below
+        if [[ $? -eq 0 ]]; then
+            return 0
+        fi
+    fi
+    case $chosen_root_command in
+        up)
+            _completeUpArgs
+            if [[ $? -eq 0 ]]; then
+                return 0
+            fi
+            ;;
+        down)
+            _completeDownArgs
+            if [[ $? -eq 0 ]]; then
+                return 0
+            fi
+            ;;
+        exec)
+            _completeExecArgs
+            if [[ $? -eq 0 ]]; then
+                return 0
+            fi
+            ;;
+        build)
+            _completeBuildArgs
+            if [[ $? -eq 0 ]]; then
+                return 0
+            fi
+            ;;
+        logs)
+            _completeLogsArgs
+            if [[ $? -eq 0 ]]; then
+                return 0
+            fi
+            ;;
+        ps)
+            _completePsArgs
+            if [[ $? -eq 0 ]]; then
+                return 0
+            fi
+            ;;
+        pull)
+            _completePullArgs
+            if [[ $? -eq 0 ]]; then
+                return 0
+            fi
+            ;;
+        push)
+            _completePushArgs
+            if [[ $? -eq 0 ]]; then
+                return 0
+            fi
+            ;;
+        restart)
+            _completeRestartArgs
+            if [[ $? -eq 0 ]]; then
+                return 0
+            fi
+            ;;
+        start)
+            _completeStartArgs
+            if [[ $? -eq 0 ]]; then
+                return 0
+            fi
+            ;;
+        stop)
+            _completeStopArgs
+            if [[ $? -eq 0 ]]; then
+                return 0
+            fi
+            ;;
+        run)
+            _completeRunArgs
+            if [[ $? -eq 0 ]]; then
+                return 0
+            fi
+            ;;
+    esac
+}
+
+complete -F _podmanCompose podman-compose
