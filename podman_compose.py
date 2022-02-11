@@ -1185,7 +1185,6 @@ class PodmanCompose:
             allnets.update(srv_nets)
         given_nets = set(nets.keys())
         missing_nets = given_nets - allnets
-        print(given_nets, allnets)
         if len(missing_nets):
             missing_nets_str= ",".join(missing_nets)
             raise RuntimeError(f"missing networks: {missing_nets_str}")
