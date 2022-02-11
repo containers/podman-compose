@@ -116,15 +116,18 @@ def parse_short_mount(mount_str, basedir):
         # - datavolume:/var/lib/mysql
         mount_type = "volume"
     mount_opts = filteri((mount_opt or '').split(','))
+    propagation_opts = []
     for opt in mount_opts:
         if opt == 'ro': mount_opt_dict["read_only"] = True
         elif opt == 'rw': mount_opt_dict["read_only"] = False
         elif opt in ('consistent', 'delegated', 'cached'):
             mount_opt_dict["consistency"] = opt
-        elif propagation_re.match(opt): mount_opt_dict["bind"] = dict(propagation=opt)
+        elif propagation_re.match(opt):
+            propagation_opts.append(opt)
         else:
             # TODO: ignore
             raise ValueError("unknown mount option "+opt)
+    mount_opt_dict["bind"] = dict(propagation=','.join(propagation_opts))
     return dict(type=mount_type, source=mount_src, target=mount_dst, **mount_opt_dict)
 
 # NOTE: if a named volume is used but not defined it
