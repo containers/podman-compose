@@ -1,0 +1,9 @@
+version: "3"
+services:
+    loop1:
+      image: busybox
+      command: ["/bin/sh", "-c", "for i in `seq 1 10000`; do echo \"loop1: $$i\"; sleep 1; done"]
+    loop2:
+      image: busybox
+      command: ["/bin/sh", "-c", "for i in `seq 1 10000`; do echo \"loop2: $$i\"; sleep 3; done"]
+
