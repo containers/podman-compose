@@ -621,6 +621,8 @@ def get_net_args(compose, cnt):
     if net:
         if net=="host":
             return ['--network', net]
+        if net.startswith("slirp4netns:"):
+            return ['--network', net]
         if net.startswith("service:"):
             other_srv = net.split(":", 1)[1].strip()
             other_cnt = compose.container_names_by_service[other_srv][0]
