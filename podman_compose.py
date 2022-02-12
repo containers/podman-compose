@@ -503,13 +503,15 @@ def get_secret_args(compose, cnt, secret):
 
 
 def container_to_res_args(cnt, podman_args):
-    # v2 < https://docs.docker.com/compose/compose-file/compose-file-v2/#cpu-and-other-resources
+    # v2: https://docs.docker.com/compose/compose-file/compose-file-v2/#cpu-and-other-resources
+    # cpus, cpu_shares, mem_limit, mem_reservation
     cpus_limit_v2 = try_float(cnt.get('cpus', None), None)
     cpu_shares_v2 = try_int(cnt.get('cpu_shares', None), None)
     mem_limit_v2 = cnt.get('mem_limit', None)
     mem_res_v2 = cnt.get('mem_reservation', None)
-    # v3 < https://docs.docker.com/compose/compose-file/compose-file-v3/#resources
-    # spec < https://github.com/compose-spec/compose-spec/blob/master/deploy.md#resources
+    # v3: https://docs.docker.com/compose/compose-file/compose-file-v3/#resources
+    # spec: https://github.com/compose-spec/compose-spec/blob/master/deploy.md#resources
+    # deploy.resources.{limits,reservations}.{cpus, memory}
     deploy = cnt.get('deploy', None) or {}
     res = deploy.get('resources', None) or {}
     limits = res.get('limits', None) or {}
