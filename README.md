@@ -41,6 +41,10 @@ The legacy branch 0.1.x uses mappings and workarounds to compensate for rootless
 
 Modern podman versions (>=3.4) do not have those limitations and thus you can use latest and stable 1.x branch.
 
+If you are upgrading from `podman-compose` version `0.1.x` then we no longer have global option `-t` to set mapping type
+like `hostnet`. If you desire that behavior pass it the standard way like `network_mode: host` in the YAML.
+
+
 ## Installation
 
 Install latest stable version from PyPI:
