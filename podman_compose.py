@@ -673,6 +673,11 @@ def container_to_args(compose, cnt, detached=True):
 
     if pod:
         podman_args.append('--pod={}'.format(pod))
+    deps = []
+    for dep_srv in (cnt.get("_deps", None) or []):
+        deps.extend(compose.container_names_by_service.get(dep_srv, None) or [])
+    if deps:
+        podman_args.append('--requires={}'.format(",".join(deps)))
     sec = norm_as_list(cnt.get("security_opt", None))
     for s in sec:
         podman_args.extend(['--security-opt', s])
