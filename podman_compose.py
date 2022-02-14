@@ -268,10 +268,12 @@ def norm_ulimit(inner_value):
 #    return [pod], containers
 
 def tr_identity(project_name, given_containers):
+    pod_name = f"pod_{project_name}"
+    pod = dict(name=pod_name)
     containers = []
     for cnt in given_containers:
-        containers.append(dict(cnt))
-    return [], containers
+        containers.append(dict(cnt, pod=pod_name))
+    return [pod], containers
 
 
 def assert_volume(compose, mount_dict):
