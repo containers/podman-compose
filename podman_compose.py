@@ -1474,7 +1474,6 @@ ff02::2         ip6-allrouters
         '%s.%s' % (project_name, 'hosts'))
     with open(hosts_file, 'w') as fd:
         fd.writelines(hosts)
-        fd.flush()
     return hosts_file
 
 def generate_hosts(hosts_file, container_name):
@@ -1492,7 +1491,6 @@ def generate_hosts(hosts_file, container_name):
                 hosts.append('%s %s\n' % (ip_address, a))
     with open(hosts_file, 'a') as fd:
         fd.writelines(hosts)
-        fd.flush()
 
 @cmd_run(podman_compose, 'up', 'Create and start the entire stack or some of its services')
 def compose_up(compose, args):
@@ -1687,6 +1685,7 @@ def transfer_service_status(compose, args, action):
     if not args.services:
         args.services = container_names_by_service.keys()
     targets = []
+    hosts_file = init_hosts(compose.project_name)
     for service in args.services:
         if service not in container_names_by_service:
             raise ValueError("unknown service: " + service)
@@ -1699,6 +1698,8 @@ def transfer_service_status(compose, args, action):
         podman_args.extend(['-t', "{}".format(timeout)])
     for target in targets:
         compose.podman.run([], action, podman_args+[target], sleep=0)
+        generate_hosts(hosts_file,
+            target)
 
 @cmd_run(podman_compose, 'start', 'start specific services')
 def compose_start(compose, args):
