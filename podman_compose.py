@@ -1782,7 +1782,7 @@ def compose_up_parse(parser):
         help="Build images before starting containers.")
     parser.add_argument("--abort-on-container-exit", action='store_true',
         help="Stops all containers if any container was stopped. Incompatible with -d.")
-    parser.add_argument("-t", "--timeout", type=float, default=10,
+    parser.add_argument("-t", "--timeout", type=int, default=10,
         help="Use this timeout in seconds for container shutdown when attached or when containers are already running. (default: 10)")
     parser.add_argument("-V", "--renew-anon-volumes", action='store_true',
         help="Recreate anonymous volumes instead of retrieving data from the previous containers.")
