@@ -1456,6 +1456,7 @@ def create_pods(compose, args):
         podman_args = [
             "create",
             "--name={}".format(pod["name"]),
+            "--share=",
         ]
         #if compose.podman_version and not strverscmp_lt(compose.podman_version, "3.4.0"):
         #    podman_args.append("--infra-name={}_infra".format(pod["name"]))
