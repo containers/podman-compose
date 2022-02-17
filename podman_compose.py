@@ -33,7 +33,7 @@ except ImportError:
 import yaml
 from dotenv import dotenv_values
 
-__version__ = '1.0.3'
+__version__ = '1.0.4'
 
 # helper functions
 is_str  = lambda s: isinstance(s, str)
@@ -1073,6 +1073,7 @@ class PodmanCompose:
         return xargs
 
     def run(self):
+        log("podman-compose version: "+__version__)
         args = self._parse_args()
         podman_path = args.podman_path
         if podman_path != 'podman':
@@ -1368,7 +1369,7 @@ def compose_version(compose, args):
         res = {"version": __version__}
         print(json.dumps(res))
         return
-    log("podman-composer version", __version__)
+    print("podman-composer version", __version__)
     compose.podman.run(["--version"], "", [], sleep=0)
 
 def is_local(container: dict) -> bool:
