@@ -696,6 +696,12 @@ def container_to_args(compose, cnt, detached=True):
         podman_args.extend(['--cap-drop', c])
     for d in cnt.get('devices', []):
         podman_args.extend(['--device', d])
+    for d in norm_as_list(cnt.get('dns', None)):
+        podman_args.extend(['--dns', d])
+    for d in norm_as_list(cnt.get('dns_opt', None)):
+        podman_args.extend(['--dns-opt', d])
+    for d in norm_as_list(cnt.get('dns_search', None)):
+        podman_args.extend(['--dns-search', d])
     env_file = cnt.get('env_file', [])
     if is_str(env_file): env_file = [env_file]
     for i in env_file:
