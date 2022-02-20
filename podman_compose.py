@@ -148,7 +148,7 @@ def fix_mount_dict(compose, mount_dict, proj_name, srv_name):
         vols = compose.vols
         source = mount_dict.get("source", None)
         vol = (vols.get(source, None) or {}) if source else {}
-        name = vol.get('name', None) 
+        name = vol.get('name', None)
         mount_dict["_vol"] = vol
         # handle anonymouse or implied volume
         if not source:
@@ -928,7 +928,15 @@ class Podman:
         volumes = output.splitlines()
         return volumes
 
-def normalize_service(service):
+def normalize_service(service, sub_dir=''):
+    if sub_dir and 'build' in service and 'context' in service['build']:
+        context = service['build']['context']
+        if re.match('^(((\./)?(\w+)+(/\w+)+?$)|(\.$))', context):
+            if context.startswith('.'):
+                context = context.replace('.', sub_dir)
+            else:
+                context = sub_dir + os.sep + context
+            service['build']['context'] = context
     for key in ("env_file", "security_opt", "volumes"):
         if key not in service: continue
         if is_str(service[key]): service[key]=[service[key]]
@@ -1008,9 +1016,12 @@ def resolve_extends(services, service_names, environ):
                 content = yaml.safe_load(f) or {}
             if "services" in content:
                 content = content["services"]
+            subdirectory = filename.rsplit(os.sep, 1)[0]
+            if filename == subdirectory:
+                subdirectory = ''
             content = rec_subs(content, environ)
             from_service = content.get(from_service_name, {})
-            normalize_service(from_service)
+            normalize_service(from_service, subdirectory)
         else:
             from_service = services.get(from_service_name, {}).copy()
             del from_service["_deps"]
@@ -1362,7 +1373,7 @@ class cmd_parse:
 
 @cmd_run(podman_compose, 'version', 'show version')
 def compose_version(compose, args):
-    if getattr(args, 'short', False): 
+    if getattr(args, 'short', False):
         print(__version__)
         return
     if getattr(args, 'format', 'pretty') == 'json':
@@ -1548,7 +1559,7 @@ def compose_up(compose, args):
         thread.start()
         threads.append(thread)
         time.sleep(1)
-    
+
     while threads:
         for thread in threads:
             thread.join(timeout=1.0)
@@ -1649,7 +1660,7 @@ def compose_run(compose, args):
     cnt['tty']=False if args.T else True
     if args.cnt_command is not None and len(args.cnt_command) > 0:
         cnt['command']=args.cnt_command
-    # can't restart and --rm 
+    # can't restart and --rm
     if args.rm and 'restart' in cnt:
         del cnt['restart']
     # run podman
@@ -1758,7 +1769,7 @@ def compose_config(compose, args):
 def compose_version_parse(parser):
     parser.add_argument("-f", "--format", choices=['pretty', 'json'], default='pretty',
         help="Format the output")
-    parser.add_argument("--short", action='store_true', 
+    parser.add_argument("--short", action='store_true',
         help="Shows only Podman Compose's version number")
 
 @cmd_parse(podman_compose, 'up')
