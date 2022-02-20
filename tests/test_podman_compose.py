@@ -1,6 +1,4 @@
 from pathlib import Path
-import pytest
-import podman_compose
 import subprocess
 
 
