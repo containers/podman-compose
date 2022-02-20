@@ -112,4 +112,8 @@ There is also AWX 17.1.0
 Inside `tests/` directory we have many useless docker-compose stacks
 that are meant to test as much cases as we can to make sure we are compatible
 
-
+### pytest
+run a pytest with following command
+````shell
+pytest tests/test_podman_compose.py
+````

@@ -1,0 +1,8 @@
+version: "3"
+services:
+  web:
+    extends:
+      file: sub/docker-compose.yml
+      service: webapp
+    environment:
+      - DEBUG=1
