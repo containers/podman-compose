@@ -1,0 +1,12 @@
+version: "3"
+services:
+  webapp:
+    build:
+      context: docker/example
+      dockerfile: Dockerfile
+    image: localhost/subdir_test:me
+    ports:
+      - "8000:8000"
+    volumes:
+      - "/data"
+
