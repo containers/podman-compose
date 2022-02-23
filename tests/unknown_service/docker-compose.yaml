@@ -1,0 +1,5 @@
+version: "3.7"
+services:
+    sleep:
+      image: busybox
+      command: ["/bin/busybox", "sh", "-c", "sleep 3600"]

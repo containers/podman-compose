@@ -677,7 +677,7 @@ def container_to_args(compose, cnt, detached=True):
         podman_args.append('--pod={}'.format(pod))
     deps = []
     for dep_srv in (cnt.get("_deps", None) or []):
-        deps.extend(compose.container_names_by_service.get(dep_srv, None) or [])
+        deps.extend(compose.service_or_none(dep_srv) or [])
     if deps:
         podman_args.append('--requires={}'.format(",".join(deps)))
     sec = norm_as_list(cnt.get("security_opt", None))
@@ -1089,6 +1089,25 @@ class PodmanCompose:
             xargs.extend(shlex.split(args))
         return xargs
 
+    def service_or_exit(self, service_name):
+        """
+        Return service as declared or terminate the current process.
+        """
+        try:
+            return self.container_by_name[service_name]
+        except KeyError:
+            sys.stderr.write("Service {} has not been found.\n".format(service_name))
+            exit(1)
+
+    def service_or_none(self, service_name):
+        """
+        Return service as declared or None.
+        """
+        try:
+            return self.container_by_name[service_name]
+        except KeyError:
+            return None
+
     def run(self):
         log("podman-compose version: "+__version__)
         args = self._parse_args()
@@ -1360,6 +1379,7 @@ class cmd_run:
         wrapped._parse_args = []
         self.compose.commands[self.cmd_name] = wrapped
         return wrapped
+
 
 class cmd_parse:
     def __init__(self, compose, cmd_names):
@@ -1633,7 +1653,7 @@ def compose_ps(compose, args):
 @cmd_run(podman_compose, 'run', 'create a container similar to a service to run a one-off command')
 def compose_run(compose, args):
     create_pods(compose, args)
-    container_names=compose.container_names_by_service[args.service]
+    container_names = compose.service_or_exit(args.service)
     container_name=container_names[0]
     cnt = dict(compose.container_by_name[container_name])
     deps = cnt["_deps"]
@@ -1680,7 +1700,7 @@ def compose_run(compose, args):
 
 @cmd_run(podman_compose, 'exec', 'execute a command in a running container')
 def compose_exec(compose, args):
-    container_names=compose.container_names_by_service[args.service]
+    container_names = compose.service_or_exit(args.service)
     container_name=container_names[args.index - 1]
     cnt = compose.container_by_name[container_name]
     podman_args = ['--interactive']
@@ -1710,7 +1730,7 @@ def transfer_service_status(compose, args, action):
     for service in args.services:
         if service not in container_names_by_service:
             raise ValueError("unknown service: " + service)
-        targets.extend(container_names_by_service[service])
+        targets.extend(compose.service_or_fail(service))
     if action in ['stop', 'restart']:
         targets = list(reversed(targets))
     podman_args=[]
@@ -1734,14 +1754,11 @@ def compose_restart(compose, args):
 
 @cmd_run(podman_compose, 'logs', 'show logs from services')
 def compose_logs(compose, args):
-    container_names_by_service = compose.container_names_by_service
     if not args.services and not args.latest:
-        args.services = container_names_by_service.keys()
+        args.services = list(compose.container_names_by_service.keys())
     targets = []
     for service in args.services:
-        if service not in container_names_by_service:
-            raise ValueError("unknown service: " + service)
-        targets.extend(container_names_by_service[service])
+        targets.extend(compose.service_or_exit(service))
     podman_args = []
     if args.follow:
         podman_args.append('-f')
