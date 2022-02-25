@@ -935,14 +935,22 @@ class Podman:
         return volumes
 
 def normalize_service(service, sub_dir=''):
-    if sub_dir and 'build' in service and 'context' in service['build']:
-        context = service['build']['context']
-        if re.match('^(((\./)?(\w+)+(/\w+)+?$)|(\.$))', context):
-            if context.startswith('.'):
-                context = context.replace('.', sub_dir)
+    if sub_dir and 'build' in service:
+        build = service['build']
+        context = build if is_str(build) else build.get('context', None)
+        context = context or ''
+        if context or sub_dir:
+            if context.startswith('./'):
+                context = context[2:]
+            if sub_dir:
+                context = os.path.join(sub_dir, context)
+            context = context.rstrip('/')
+            if not context:
+                context = '.'
+            if is_str(build):
+                service['build'] = context
             else:
-                context = sub_dir + os.sep + context
-            service['build']['context'] = context
+                service['build']['context'] = context
     for key in ("env_file", "security_opt", "volumes"):
         if key not in service: continue
         if is_str(service[key]): service[key]=[service[key]]
@@ -1018,13 +1026,13 @@ def resolve_extends(services, service_names, environ):
         if not from_service_name: continue
         filename = ext.get("file", None)
         if filename:
+            if filename.startswith('./'):
+                filename = filename[2:]
             with open(filename, 'r') as f:
                 content = yaml.safe_load(f) or {}
             if "services" in content:
                 content = content["services"]
-            subdirectory = filename.rsplit(os.sep, 1)[0]
-            if filename == subdirectory:
-                subdirectory = ''
+            subdirectory = os.path.dirname(filename)
             content = rec_subs(content, environ)
             from_service = content.get(from_service_name, {})
             normalize_service(from_service, subdirectory)
