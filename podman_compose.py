@@ -1085,6 +1085,7 @@ class PodmanCompose:
         self.container_names_by_service = None
         self.container_by_name = None
         self._prefer_volume_over_mount = True
+        self.yaml_hash = ''
         self.console_colors = ["\x1B[1;32m", "\x1B[1;33m", "\x1B[1;34m", "\x1B[1;35m", "\x1B[1;36m"]
 
     def get_podman_args(self, cmd):
@@ -1197,6 +1198,8 @@ class PodmanCompose:
                 content = rec_subs(content, self.environ)
                 rec_merge(compose, content)
         self.merged_yaml = yaml.safe_dump(compose)
+        merged_json_b = json.dumps(compose, separators=(',',':')).encode('utf-8')
+        self.yaml_hash = hashlib.sha256(merged_json_b).hexdigest()
         compose['_dirname'] = dirname
         # debug mode
         if len(files)>1:
@@ -1239,7 +1242,7 @@ class PodmanCompose:
         # volumes: [...]
         self.vols = compose.get('volumes', {})
         podman_compose_labels = [
-            "io.podman.compose.config-hash=123",
+            "io.podman.compose.config-hash="+ self.yaml_hash,
             "io.podman.compose.project=" + project_name,
             "io.podman.compose.version=0.0.1",
             "com.docker.compose.project=" + project_name,
