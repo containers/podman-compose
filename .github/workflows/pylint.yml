@@ -1,6 +1,8 @@
 name: Pylint
 
-on: [push]
+on:
+- push
+- pull_request
 
 jobs:
   build:
@@ -22,4 +24,6 @@ jobs:
     - name: Analysing the code with pylint
       run: |
         # pylint $(git ls-files '*.py')
+        python -m compileall podman_compose.py
         pylint podman_compose.py
+
