@@ -1084,9 +1084,20 @@ class PodmanCompose:
         self.declared_secrets = None
         self.container_names_by_service = None
         self.container_by_name = None
+        self.all_services = set()
         self._prefer_volume_over_mount = True
         self.yaml_hash = ''
         self.console_colors = ["\x1B[1;32m", "\x1B[1;33m", "\x1B[1;34m", "\x1B[1;35m", "\x1B[1;36m"]
+
+    def assert_services(self, services):
+        if is_str(services):
+            services = [services]
+        given = set(services or [])
+        missing = given - self.all_services
+        if missing:
+            missing_csv = ",".join(missing)
+            log(f"missing services [{missing_csv}]")
+            exit(1)
 
     def get_podman_args(self, cmd):
         xargs = []
@@ -1296,6 +1307,7 @@ class PodmanCompose:
                         vol_name = mnt_dict["source"]
                         raise RuntimeError(f"volume [{vol_name}] not defined in top level")
         self.container_names_by_service = container_names_by_service
+        self.all_services = set(container_names_by_service.keys())
         container_by_name = dict([(c["name"], c) for c in given_containers])
         #log("deps:", [(c["name"], c["_deps"]) for c in given_containers])
         given_containers = list(container_by_name.values())
@@ -1644,6 +1656,7 @@ def compose_ps(compose, args):
 @cmd_run(podman_compose, 'run', 'create a container similar to a service to run a one-off command')
 def compose_run(compose, args):
     create_pods(compose, args)
+    compose.assert_services(args.service)
     container_names=compose.container_names_by_service[args.service]
     container_name=container_names[0]
     cnt = dict(compose.container_by_name[container_name])
@@ -1691,6 +1704,7 @@ def compose_run(compose, args):
 
 @cmd_run(podman_compose, 'exec', 'execute a command in a running container')
 def compose_exec(compose, args):
+    compose.assert_services(args.service)
     container_names=compose.container_names_by_service[args.service]
     container_name=container_names[args.index - 1]
     cnt = compose.container_by_name[container_name]
@@ -1717,6 +1731,7 @@ def transfer_service_status(compose, args, action):
     container_names_by_service = compose.container_names_by_service
     if not args.services:
         args.services = container_names_by_service.keys()
+    compose.assert_services(args.services)
     targets = []
     for service in args.services:
         if service not in container_names_by_service:
@@ -1748,10 +1763,9 @@ def compose_logs(compose, args):
     container_names_by_service = compose.container_names_by_service
     if not args.services and not args.latest:
         args.services = container_names_by_service.keys()
+    compose.assert_services(args.services)
     targets = []
     for service in args.services:
-        if service not in container_names_by_service:
-            raise ValueError("unknown service: " + service)
         targets.extend(container_names_by_service[service])
     podman_args = []
     if args.follow:
