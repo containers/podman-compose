@@ -11,7 +11,6 @@ import sys
 import os
 import argparse
 import subprocess
-import textwrap
 import time
 import re
 import hashlib
@@ -585,9 +584,9 @@ def assert_cnt_nets(compose, cnt):
         default_net_name = net if is_ext else f"{proj_name}_{net}"
         net_name = ext_desc.get("name", None) or net_desc.get("name", None) or default_net_name
         try: compose.podman.output([], "network", ["exists", net_name])
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
             if is_ext:
-                raise RuntimeError(f"External network [{net_name}] does not exists")
+                raise RuntimeError(f"External network [{net_name}] does not exists") from e
             args = [
                 "create",
                 "--label", "io.podman.compose.project={}".format(proj_name),
@@ -640,7 +639,8 @@ def get_net_args(compose, cnt):
     # NOTE: A container will only have access to aliases on the first network that it joins. This is a limitation that will be removed in a later release.
     ip = None
     if cnt_nets and is_dict(cnt_nets):
-        for net_key, net_value in cnt_nets.items():
+        # cnt_nets is {net_key: net_value, ...}
+        for net_value in cnt_nets.values():
             aliases.extend(norm_as_list(net_value.get("aliases", None)))
             if ip: continue
             ip = net_value.get("ipv4_address", None)
@@ -719,10 +719,10 @@ def container_to_args(compose, cnt, detached=True):
     assert_cnt_nets(compose, cnt)
     podman_args.extend(get_net_args(compose, cnt))
 
-    log = cnt.get('logging')
-    if log is not None:
-        podman_args.append(f'--log-driver={log.get("driver", "k8s-file")}')
-        log_opts = log.get('options') or {}
+    logging = cnt.get('logging', None)
+    if logging is not None:
+        podman_args.append(f'--log-driver={logging.get("driver", "k8s-file")}')
+        log_opts = logging.get('options') or {}
         podman_args += [f'--log-opt={name}={value}' for name, value in log_opts.items()]
     for secret in cnt.get('secrets', []):
         podman_args.extend(get_secret_args(compose, cnt, secret))
@@ -973,7 +973,7 @@ def normalize(compose):
     convert compose dict of some keys from string or dicts into arrays
     """
     services = compose.get("services", None) or {}
-    for service_name, service in services.items():
+    for service in services.values():
         normalize_service(service)
     return compose
 
@@ -1069,7 +1069,9 @@ COMPOSE_DEFAULT_LS = [
 
 class PodmanCompose:
     def __init__(self):
+        self.podman = None
         self.podman_version = None
+        self.environ = {}
         self.exit_code = None
         self.commands = {}
         self.global_args = None
@@ -1083,8 +1085,10 @@ class PodmanCompose:
         self.declared_secrets = None
         self.container_names_by_service = None
         self.container_by_name = None
+        self.services = None
         self.all_services = set()
         self.prefer_volume_over_mount = True
+        self.merged_yaml = None
         self.yaml_hash = ''
         self.console_colors = ["\x1B[1;32m", "\x1B[1;33m", "\x1B[1;34m", "\x1B[1;35m", "\x1B[1;36m"]
 
@@ -1140,7 +1144,7 @@ class PodmanCompose:
 
     def _parse_compose_file(self):
         args = self.global_args
-        cmd = args.command
+        # cmd = args.command
         pathsep = os.environ.get("COMPOSE_PATH_SEPARATOR", None) or os.pathsep
         if not args.file:
             default_str = os.environ.get("COMPOSE_FILE", None)
@@ -1163,10 +1167,10 @@ class PodmanCompose:
         files = list(map(os.path.realpath, files))
         filename = files[0]
         project_name = args.project_name
-        no_ansi = args.no_ansi
-        no_cleanup = args.no_cleanup
-        dry_run = args.dry_run
-        host_env = None
+        # no_ansi = args.no_ansi
+        # no_cleanup = args.no_cleanup
+        # dry_run = args.dry_run
+        # host_env = None
         dirname = os.path.realpath(os.path.dirname(filename))
         dir_basename = os.path.basename(dirname)
         self.dirname = dirname
@@ -1214,7 +1218,7 @@ class PodmanCompose:
         # debug mode
         if len(files)>1:
             log(" ** merged:\n", json.dumps(compose, indent = 2))
-        ver = compose.get('version', None)
+        # ver = compose.get('version', None)
         services = compose.get('services', None)
         if services is None:
             services = {}
@@ -1325,8 +1329,8 @@ class PodmanCompose:
         subparsers = parser.add_subparsers(title='command', dest='command')
         subparser = subparsers.add_parser('help', help='show help')
         for cmd_name, cmd in self.commands.items():
-            subparser = subparsers.add_parser(cmd_name, help=cmd._cmd_desc)
-            for cmd_parser in cmd._parse_args:
+            subparser = subparsers.add_parser(cmd_name, help=cmd._cmd_desc) # pylint: disable=protected-access
+            for cmd_parser in cmd._parse_args:  # pylint: disable=protected-access
                 cmd_parser(subparser)
         self.global_args = parser.parse_args()
         if self.global_args.version:
@@ -1368,7 +1372,7 @@ podman_compose = PodmanCompose()
 # decorators to add commands and parse options
 ###################
 
-class cmd_run:
+class cmd_run: # pylint: disable=invalid-name
     def __init__(self, compose, cmd_name, cmd_desc):
         self.compose = compose
         self.cmd_name = cmd_name
@@ -1383,7 +1387,7 @@ class cmd_run:
         self.compose.commands[self.cmd_name] = wrapped
         return wrapped
 
-class cmd_parse:
+class cmd_parse: # pylint: disable=invalid-name
     def __init__(self, compose, cmd_names):
         self.compose = compose
         self.cmd_names = cmd_names if is_list(cmd_names) else [cmd_names]
@@ -1481,17 +1485,15 @@ def build_one(compose, args, cnt):
 def compose_build(compose, args):
     if args.services:
         container_names_by_service = compose.container_names_by_service
+        compose.assert_services(args.services)
         for service in args.services:
-            try:
-                cnt = compose.container_by_name[container_names_by_service[service][0]]
-            except:
-                raise ValueError("unknown service: " + service)
+            cnt = compose.container_by_name[container_names_by_service[service][0]]
             build_one(compose, args, cnt)
     else:
         for cnt in compose.containers:
             build_one(compose, args, cnt)
 
-def create_pods(compose, args):
+def create_pods(compose, args): # pylint: disable=unused-argument
     for pod in compose.pods:
         podman_args = [
             "create",
@@ -1507,16 +1509,6 @@ def create_pods(compose, args):
         for i in ports:
             podman_args.extend(['-p', str(i)])
         compose.podman.run([], "pod", podman_args)
-
-
-def up_specific(compose, args):
-    deps = []
-    if not args.no_deps:
-        for service in args.services:
-            deps.extend([])
-    # args.always_recreate_deps
-    log("services", args.services)
-    raise NotImplementedError("starting specific services is not yet implemented")
 
 def get_excluded(compose, args):
     excluded = set()
@@ -1576,7 +1568,7 @@ def compose_up(compose, args):
         color_idx = i % len(compose.console_colors)
         color = compose.console_colors[color_idx]
         space_suffix=' ' * (max_service_length - len(cnt["_service"]) + 1)
-        log_formatter = 's/^/{}[{}]{}|\x1B[0m\ /;'.format(color, cnt["_service"], space_suffix)
+        log_formatter = 's/^/{}[{}]{}|\x1B[0m\\ /;'.format(color, cnt["_service"], space_suffix)
         log_formatter = ["sed", "-e", log_formatter]
         if cnt["_service"] in excluded:
             log("** skipping: ", cnt['name'])
@@ -1614,7 +1606,6 @@ def get_volume_names(compose, cnt):
 
 @cmd_run(podman_compose, 'down', 'tear down entire stack')
 def compose_down(compose, args):
-    proj_name = compose.project_name
     excluded = get_excluded(compose, args)
     podman_args=[]
     timeout=getattr(args, 'timeout', None)
@@ -1788,7 +1779,7 @@ def compose_logs(compose, args):
     compose.podman.run([], 'logs', podman_args)
 
 @cmd_run(podman_compose, 'config', "displays the compose file")
-def compose_config(compose, args):
+def compose_config(compose, args): # pylint: disable=unused-argument
     print(compose.merged_yaml)
 
 ###################
