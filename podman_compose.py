@@ -65,7 +65,7 @@ def log(*msgs, sep=" ", end="\n"):
     sys.stderr.write(line)
     sys.stderr.flush()
 
-dir_re = re.compile("^[~/\.]")
+dir_re = re.compile(r"^[~/\.]")
 propagation_re = re.compile("^(?:z|Z|O|U|r?shared|r?slave|r?private|r?unbindable|r?bind|(?:no)?(?:exec|dev|suid))$")
 norm_re =  re.compile('[^-_a-z0-9]')
 num_split_re = re.compile(r'(\d+|\D+)')
@@ -298,7 +298,7 @@ def assert_volume(compose, mount_dict):
     log("podman volume inspect {vol_name} || podman volume create {vol_name}".format(vol_name=vol_name))
     # TODO: might move to using "volume list"
     # podman volume list --format '{{.Name}}\t{{.MountPoint}}' -f 'label=io.podman.compose.project=HERE'
-    try: out = compose.podman.output([], "volume", ["inspect", vol_name]).decode('utf-8')
+    try: _ = compose.podman.output([], "volume", ["inspect", vol_name]).decode('utf-8')
     except subprocess.CalledProcessError:
         labels = vol.get("labels", None) or []
         args = [
@@ -316,9 +316,9 @@ def assert_volume(compose, mount_dict):
             args.extend(["--opt", "{opt}={value}".format(opt=opt, value=value)])
         args.append(vol_name)
         compose.podman.output([], "volume", args)
-        out = compose.podman.output([], "volume", ["inspect", vol_name]).decode('utf-8')
+        _ = compose.podman.output([], "volume", ["inspect", vol_name]).decode('utf-8')
 
-def mount_desc_to_mount_args(compose, mount_desc, srv_name, cnt_name):
+def mount_desc_to_mount_args(compose, mount_desc, srv_name, cnt_name): # pylint: disable=unused-argument
     mount_type = mount_desc.get("type", None)
     vol = mount_desc.get("_vol", None) if mount_type=="volume" else None
     source = vol["name"] if vol else mount_desc.get("source", None)
@@ -371,7 +371,7 @@ def container_to_ulimit_args(cnt, podman_args):
             for i in ulimit:
                 podman_args.extend(['--ulimit', i])
 
-def mount_desc_to_volume_args(compose, mount_desc, srv_name, cnt_name):
+def mount_desc_to_volume_args(compose, mount_desc, srv_name, cnt_name): # pylint: disable=unused-argument
     mount_type = mount_desc["type"]
     if mount_type != 'bind' and mount_type != 'volume':
         raise ValueError("unknown mount type:"+mount_type)
@@ -413,11 +413,11 @@ def get_mnt_dict(compose, cnt, volume):
 
 def get_mount_args(compose, cnt, volume):
     volume = get_mnt_dict(compose, cnt, volume)
-    proj_name = compose.project_name
+    # proj_name = compose.project_name
     srv_name = cnt['_service']
     mount_type = volume["type"]
     assert_volume(compose, volume)
-    if compose._prefer_volume_over_mount:
+    if compose.prefer_volume_over_mount:
         if mount_type == 'tmpfs':
             # TODO: --tmpfs /tmp:rw,size=787448k,mode=1777
             args = volume['target']
@@ -429,9 +429,8 @@ def get_mount_args(compose, cnt, volume):
             if mode: opts.append('mode={}'.format(mode))
             if opts: args += ':' + ','.join(opts)
             return ['--tmpfs', args]
-        else:
-            args = mount_desc_to_volume_args(compose, volume, srv_name, cnt['name'])
-            return ['-v', args]
+        args = mount_desc_to_volume_args(compose, volume, srv_name, cnt['name'])
+        return ['-v', args]
     else:
         args = mount_desc_to_mount_args(compose, volume, srv_name, cnt['name'])
         return ['--mount', args]
@@ -1085,7 +1084,7 @@ class PodmanCompose:
         self.container_names_by_service = None
         self.container_by_name = None
         self.all_services = set()
-        self._prefer_volume_over_mount = True
+        self.prefer_volume_over_mount = True
         self.yaml_hash = ''
         self.console_colors = ["\x1B[1;32m", "\x1B[1;33m", "\x1B[1;34m", "\x1B[1;35m", "\x1B[1;36m"]
 
@@ -1878,7 +1877,7 @@ def compose_run_parse(parser):
         help='command and its arguments')
 
 @cmd_parse(podman_compose, 'exec')
-def compose_run_parse(parser):
+def compose_exec_parse(parser):
     parser.add_argument("-d", "--detach", action='store_true',
         help="Detached mode: Run container in the background, print new container name.")
     parser.add_argument("--privileged", action='store_true', default=False,
@@ -1944,7 +1943,7 @@ def compose_ps_parse(parser):
         help="Only display container IDs", action='store_true')
 
 @cmd_parse(podman_compose, ['build', 'up'])
-def compose_build_parse(parser):
+def compose_build_up_parse(parser):
     parser.add_argument("--pull",
         help="attempt to pull a newer version of the image", action='store_true')
     parser.add_argument("--pull-always",
