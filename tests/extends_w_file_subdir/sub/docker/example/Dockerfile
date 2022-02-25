@@ -1,1 +1,1 @@
-FROM buysbox as base
+FROM busybox as base
