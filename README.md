@@ -1,4 +1,5 @@
-# Podman Compose
+# Podman Compose [![Pylint Test: ](https://github.com/containers/podman-compose/actions/workflows/pylint.yml/badge.svg)](https://github.com/containers/podman-compose/actions/workflows/pylint.yml)
+
 
 An implementation of [Compose Spec](https://compose-spec.io/) with [Podman](https://podman.io/) backend.
 This project focus on:
