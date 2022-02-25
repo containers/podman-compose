@@ -1,7 +1,6 @@
 [MESSAGES CONTROL]
 # C0111 missing-docstring: missing-class-docstring, missing-function-docstring, missing-method-docstring, missing-module-docstrin
-# invalid-name
-disable=too-many-lines,too-many-branches,too-many-locals,too-many-statements,too-many-arguments,too-many-instance-attributes,fixme,multiple-statements,missing-docstring,line-too-long
+disable=too-many-lines,too-many-branches,too-many-locals,too-many-statements,too-many-arguments,too-many-instance-attributes,fixme,multiple-statements,missing-docstring,line-too-long,consider-using-f-string
 # allow _ for ignored variables
 # allow generic names like a,b,c and i,j,k,l,m,n and x,y,z
 # allow k,v for key/value
