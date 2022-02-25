@@ -1,17 +1,18 @@
 [MESSAGES CONTROL]
-# C0111 missing-docstring
-# missing-class-docstring, missing-function-docstring, missing-method-docstring, missing-module-docstrin
+# C0111 missing-docstring: missing-class-docstring, missing-function-docstring, missing-method-docstring, missing-module-docstrin
 # invalid-name
-disable=fixme,multiple-statements,missing-docstring,line-too-long
+disable=too-many-lines,too-many-branches,too-many-locals,too-many-statements,too-many-arguments,too-many-instance-attributes,fixme,multiple-statements,missing-docstring,line-too-long
 # allow _ for ignored variables
 # allow generic names like a,b,c and i,j,k,l,m,n and x,y,z
 # allow k,v for key/value
-# allow e for exceptions, it for iterator
-# ip for ip address
+# allow e for exceptions, it for iterator, ix for index
+# allow ip for ip address
 # allow w,h for width, height
 # allow op for operation/operator/opcode
 # allow t, t0, t1, t2, and t3 for time
 # allow dt for delta time
 # allow db for database
 # allow ls for list
-good-names=_,a,b,c,dt,db,e,f,fn,fd,i,j,k,v,kv,kw,l,m,n,ls,t,t0,t1,t2,t3,w,h,x,y,z,it,ip,op
+# allow p for pipe
+# allow ex for examples, exists ..etc
+good-names=_,a,b,c,dt,db,e,f,fn,fd,i,j,k,v,kv,kw,l,m,n,ls,t,t0,t1,t2,t3,w,h,x,y,z,it,ix,ip,op,p,ex
