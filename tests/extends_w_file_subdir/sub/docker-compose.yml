@@ -9,4 +9,20 @@ services:
       - "8000:8000"
     volumes:
       - "/data"
+  webapp1:
+    build: ./docker/example
+    image: localhost/subdir_test1:me
+    ports:
+      - "8080:8000"
+    volumes:
+      - "/data"
+  webapp2:
+    build:
+      context: ./docker/example
+      dockerfile: Dockerfile
+    image: localhost/subdir_test2:me
+    ports:
+      - "8090:8000"
+    volumes:
+      - "/data"
 

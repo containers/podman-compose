@@ -42,7 +42,9 @@ def test_podman_compose_extends_w_file_subdir():
         "rmi",
         "--force",
         "localhost/subdir_test:me",
-        "docker.io/library/bash"
+        "localhost/subdir_test1:me",
+        "localhost/subdir_test2:me",
+        "docker.io/library/busybox"
     ]
 
     out, err, returncode = capture(command_up)
@@ -50,7 +52,8 @@ def test_podman_compose_extends_w_file_subdir():
     # check container was created and exists
     out, err, returncode = capture(command_check_container)
     assert 0 == returncode
-    assert out == b'"localhost/subdir_test:me"\n'
+    print(out)
+    assert out == b'"localhost/subdir_test:me"\n"localhost/subdir_test1:me"\n"localhost/subdir_test2:me"\n'
     out, err, returncode = capture(command_down)
     # cleanup test image(tags)
     assert 0 == returncode

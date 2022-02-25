@@ -6,3 +6,15 @@ services:
       service: webapp
     environment:
       - DEBUG=1
+  web1:
+    extends:
+      file: sub/docker-compose.yml
+      service: webapp1
+    environment:
+      - DEBUG=1
+  web2:
+    extends:
+      file: sub/docker-compose.yml
+      service: webapp2
+    environment:
+      - DEBUG=0
