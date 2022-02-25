@@ -1,1 +1,1 @@
-FROM bash as base
+FROM buysbox as base
