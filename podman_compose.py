@@ -60,7 +60,7 @@ def try_float(i, fallback=None):
     return fallback
 
 def log(*msgs, sep=" ", end="\n"):
-    line = (sep.join(["{}".format(msg) for msg in msgs]))+end
+    line = (sep.join([str(msg) for msg in msgs]))+end
     sys.stderr.write(line)
     sys.stderr.flush()
 
@@ -203,7 +203,7 @@ def rec_subs(value, subs_dict):
             if value == "" and m.group('empty'):
                 value = None
             if value is not None:
-                return "%s" % value
+                return str(value)
             if m.group("err") is not None:
                 raise RuntimeError(m.group("err"))
             return m.group("default") or ""
@@ -220,7 +220,7 @@ def norm_as_list(src):
     if src is None:
         dst = []
     elif is_dict(src):
-        dst = [("{}={}".format(k, v) if v is not None else k) for k, v in src.items()]
+        dst = [(f"{k}={v}" if v is not None else k) for k, v in src.items()]
     elif is_list(src):
         dst = list(src)
     else:
@@ -254,7 +254,7 @@ def norm_ulimit(inner_value):
             raise ValueError("expected at least one soft or hard limit")
         soft = inner_value.get("soft", inner_value.get("hard", None))
         hard = inner_value.get("hard", inner_value.get("soft", None))
-        return "{}:{}".format(soft, hard)
+        return f"{soft}:{hard}"
     if is_list(inner_value): return norm_ulimit(norm_as_dict(inner_value))
     # if int or string return as is
     return inner_value
@@ -295,7 +295,7 @@ def assert_volume(compose, mount_dict):
     if mount_dict["type"] != "volume" or not vol or vol.get("external", None) or not vol.get("name", None): return
     proj_name = compose.project_name
     vol_name = vol["name"]
-    log("podman volume inspect {vol_name} || podman volume create {vol_name}".format(vol_name=vol_name))
+    log(f"podman volume inspect {vol_name} || podman volume create {vol_name}")
     # TODO: might move to using "volume list"
     # podman volume list --format '{{.Name}}\t{{.MountPoint}}' -f 'label=io.podman.compose.project=HERE'
     try: _ = compose.podman.output([], "volume", ["inspect", vol_name]).decode('utf-8')
@@ -303,8 +303,8 @@ def assert_volume(compose, mount_dict):
         labels = vol.get("labels", None) or []
         args = [
             "create",
-            "--label", "io.podman.compose.project={}".format(proj_name),
-            "--label", "com.docker.compose.project={}".format(proj_name),
+            "--label", f"io.podman.compose.project={proj_name}",
+            "--label", f"com.docker.compose.project={proj_name}",
         ]
         for item in norm_as_list(labels):
             args.extend(["--label", item])
@@ -313,7 +313,7 @@ def assert_volume(compose, mount_dict):
             args.extend(["--driver", driver])
         driver_opts = vol.get("driver_opts", None) or {}
         for opt, value in driver_opts.items():
-            args.extend(["--opt", "{opt}={value}".format(opt=opt, value=value)])
+            args.extend(["--opt", f"{opt}={value}"])
         args.append(vol_name)
         compose.podman.output([], "volume", args)
         _ = compose.podman.output([], "volume", ["inspect", vol_name]).decode('utf-8')
@@ -327,34 +327,23 @@ def mount_desc_to_mount_args(compose, mount_desc, srv_name, cnt_name): # pylint:
     if mount_desc.get(mount_type, None):
         # TODO: we might need to add mount_dict[mount_type]["propagation"] = "z"
         mount_prop = mount_desc.get(mount_type, {}).get("propagation", None)
-        if mount_prop: opts.append("{}-propagation={}".format(mount_type, mount_prop))
+        if mount_prop: opts.append(f"{mount_type}-propagation={mount_prop}")
     if mount_desc.get("read_only", False): opts.append("ro")
     if mount_type == 'tmpfs':
         tmpfs_opts = mount_desc.get("tmpfs", {})
         tmpfs_size = tmpfs_opts.get("size", None)
         if tmpfs_size:
-            opts.append("tmpfs-size={}".format(tmpfs_size))
+            opts.append(f"tmpfs-size={tmpfs_size}")
         tmpfs_mode = tmpfs_opts.get("mode", None)
         if tmpfs_mode:
-            opts.append("tmpfs-mode={}".format(tmpfs_mode))
+            opts.append(f"tmpfs-mode={tmpfs_mode}")
     opts = ",".join(opts)
     if mount_type == 'bind':
-        return "type=bind,source={source},destination={target},{opts}".format(
-            source=source,
-            target=target,
-            opts=opts
-        ).rstrip(",")
+        return f"type=bind,source={source},destination={target},{opts}".rstrip(",")
     if mount_type == 'volume':
-        return "type=volume,source={source},destination={target},{opts}".format(
-            source=source,
-            target=target,
-            opts=opts
-        ).rstrip(",")
+        return f"type=volume,source={source},destination={target},{opts}".rstrip(",")
     if mount_type == 'tmpfs':
-        return "type=tmpfs,destination={target},{opts}".format(
-            target=target,
-            opts=opts
-        ).rstrip(",")
+        return f"type=tmpfs,destination={target},{opts}".rstrip(",")
     raise ValueError("unknown mount type:"+mount_type)
 
 def container_to_ulimit_args(cnt, podman_args):
@@ -423,9 +412,9 @@ def get_mount_args(compose, cnt, volume):
             tmpfs_opts = volume.get("tmpfs", {})
             opts = []
             size = tmpfs_opts.get("size", None)
-            if size: opts.append('size={}'.format(size))
+            if size: opts.append(f'size={size}')
             mode = tmpfs_opts.get("mode", None)
-            if mode: opts.append('mode={}'.format(mode))
+            if mode: opts.append(f'mode={mode}')
             if opts: args += ':' + ','.join(opts)
             return ['--tmpfs', args]
         args = mount_desc_to_volume_args(compose, volume, srv_name, cnt['name'])
@@ -438,8 +427,7 @@ def get_secret_args(compose, cnt, secret):
     secret_name = secret if is_str(secret) else secret.get('source', None)
     if not secret_name or secret_name not in compose.declared_secrets.keys():
         raise ValueError(
-            'ERROR: undeclared secret: "{}", service: "{}"'
-            .format(secret, cnt['_service'])
+            f'ERROR: undeclared secret: "{secret}", service: {cnt["_service"]}'
         )
     declared_secret = compose.declared_secrets[secret_name]
 
@@ -454,18 +442,19 @@ def get_secret_args(compose, cnt, secret):
 
     if source_file:
         if not target:
-            dest_file = '/run/secrets/{}'.format(secret_name)
+            dest_file = f'/run/secrets/{secret_name}'
         elif not target.startswith("/"):
-            dest_file = '/run/secrets/{}'.format(target if target else secret_name)
+            sec = target if target else secret_name
+            dest_file = f's/run/secrets/{sec}'
         else:
             dest_file = target
         volume_ref = [
-            '--volume', '{}:{}:ro,rprivate,rbind'.format(source_file, dest_file)
+            '--volume', f'{source_file}:{dest_file}:ro,rprivate,rbind'
         ]
         if uid or gid or mode:
+            sec = target if target else secret_name
             log(
-                'WARNING: Service "{}" uses secret "{}" with uid, gid, or mode.'
-                    .format(cnt['_service'], target if target else secret_name)
+                f'WARNING: Service {cnt["_service"]} uses secret "{sec}" with uid, gid, or mode.'
                 + ' These fields are not supported by this implementation of the Compose file'
             )
         return volume_ref
@@ -477,9 +466,9 @@ def get_secret_args(compose, cnt, secret):
     # podman-create commands, albiet we can only support a 1:1 mapping
     # at the moment
     if declared_secret.get('external', False) or declared_secret.get('name', None):
-        secret_opts += ',uid={}'.format(uid) if uid else ''
-        secret_opts += ',gid={}'.format(gid) if gid else ''
-        secret_opts += ',mode={}'.format(mode) if mode else ''
+        secret_opts += f',uid={uid}' if uid else ''
+        secret_opts += f',gid={gid}' if gid else ''
+        secret_opts += f',mode={mode}' if mode else ''
         # The target option is only valid for type=env,
         # which in an ideal world would work
         # for type=mount as well.
@@ -588,8 +577,8 @@ def assert_cnt_nets(compose, cnt):
                 raise RuntimeError(f"External network [{net_name}] does not exists") from e
             args = [
                 "create",
-                "--label", "io.podman.compose.project={}".format(proj_name),
-                "--label", "com.docker.compose.project={}".format(proj_name),
+                "--label", f"io.podman.compose.project={proj_name}",
+                "--label", f"com.docker.compose.project={proj_name}",
             ]
             # TODO: add more options here, like driver, internal, ..etc
             labels = net_desc.get("labels", None) or []
@@ -664,20 +653,20 @@ def container_to_args(compose, cnt, detached=True):
     # TODO: double check -e , --add-host, -v, --read-only
     dirname = compose.dirname
     pod = cnt.get('pod', None) or ''
-    podman_args = [
-        '--name={}'.format(cnt.get('name', None)),
-    ]
+    name = cnt['name']
+    podman_args = [f'--name={name}']
 
     if detached:
         podman_args.append("-d")
 
     if pod:
-        podman_args.append('--pod={}'.format(pod))
+        podman_args.append(f'--pod={pod}')
     deps = []
     for dep_srv in (cnt.get("_deps", None) or []):
         deps.extend(compose.container_names_by_service.get(dep_srv, None) or [])
     if deps:
-        podman_args.append('--requires={}'.format(",".join(deps)))
+        deps_csv = ",".join(deps)
+        podman_args.append(f'--requires={deps_csv}')
     sec = norm_as_list(cnt.get("security_opt", None))
     for sec_item in sec:
         podman_args.extend(['--security-opt', sec_item])
@@ -749,7 +738,7 @@ def container_to_args(compose, cnt, detached=True):
     if cnt.get('hostname', None):
         podman_args.extend(['--hostname', cnt['hostname']])
     if cnt.get('shm_size', None):
-        podman_args.extend(['--shm-size', '{}'.format(cnt['shm_size'])])
+        podman_args.extend(['--shm-size', str(cnt['shm_size'])])
     if cnt.get('stdin_open', None):
         podman_args.append('-i')
     if cnt.get('stop_signal', None):
@@ -787,7 +776,7 @@ def container_to_args(compose, cnt, detached=True):
         # If it's a string, it's equivalent to specifying CMD-SHELL
         if is_str(healthcheck_test):
             # podman does not add shell to handle command with whitespace
-            podman_args.extend(['--healthcheck-command', '/bin/sh -c {}'.format(cmd_quote(healthcheck_test))])
+            podman_args.extend(['--healthcheck-command', '/bin/sh -c '+cmd_quote(healthcheck_test)])
         elif is_list(healthcheck_test):
             healthcheck_test = healthcheck_test.copy()
             # If it's a list, first item is either NONE, CMD or CMD-SHELL.
@@ -795,18 +784,17 @@ def container_to_args(compose, cnt, detached=True):
             if healthcheck_type == 'NONE':
                 podman_args.append("--no-healthcheck")
             elif healthcheck_type == 'CMD':
-                podman_args.extend(['--healthcheck-command', '/bin/sh -c {}'.format(
-                    "' '".join([cmd_quote(i) for i in healthcheck_test])
-                )])
+                cmd_q =  "' '".join([cmd_quote(i) for i in healthcheck_test])
+                podman_args.extend(['--healthcheck-command', '/bin/sh -c '+cmd_q])
             elif healthcheck_type == 'CMD-SHELL':
                 if len(healthcheck_test)!=1:
                     raise ValueError("'CMD_SHELL' takes a single string after it")
-                podman_args.extend(['--healthcheck-command', '/bin/sh -c {}'.format(cmd_quote(healthcheck_test[0]))])
+                cmd_q = cmd_quote(healthcheck_test[0])
+                podman_args.extend(['--healthcheck-command', '/bin/sh -c '+cmd_q])
             else:
                 raise ValueError(
-                    "unknown healthcheck test type [{}],\
+                    f"unknown healthcheck test type [{healthcheck_type}],\
                      expecting NONE, CMD or CMD-SHELL."
-                     .format(healthcheck_type)
                 )
         else:
             raise ValueError("'healthcheck.test' either a string or a list")
@@ -821,7 +809,7 @@ def container_to_args(compose, cnt, detached=True):
 
     # convert other parameters to string
     if 'retries' in healthcheck:
-        podman_args.extend(['--healthcheck-retries', '{}'.format(healthcheck['retries'])])
+        podman_args.extend(['--healthcheck-retries', str(healthcheck['retries'])])
 
     podman_args.append(cnt['image'])  # command, ..etc.
     command = cnt.get('command', None)
@@ -990,7 +978,9 @@ def rec_merge_one(target, source):
         if key not in source: continue
         value2 = source[key]
         if isinstance(value2, type(value)):
-            raise ValueError("can't merge value of {} of type {} and {}".format(key, type(value), type(value2)))
+            value_type = type(value)
+            value2_type = type(value2)
+            raise ValueError(f"can't merge value of {key} of type {value_type} and {value2_type}")
         if is_list(value2):
             if key == 'volumes':
                 # clean duplicate mount targets
@@ -1026,7 +1016,7 @@ def resolve_extends(services, service_names, environ):
         if filename:
             if filename.startswith('./'):
                 filename = filename[2:]
-            with open(filename, 'r') as f:
+            with open(filename, 'r', encoding="utf-8") as f:
                 content = yaml.safe_load(f) or {}
             if "services" in content:
                 content = content["services"]
@@ -1121,7 +1111,7 @@ class PodmanCompose:
             else:
                 # this also works if podman hasn't been installed now
                 if args.dry_run is False:
-                    sys.stderr.write("Binary {} has not been found.\n".format(podman_path))
+                    log(f"Binary {podman_path} has not been found.")
                     sys.exit(1)
         self.podman = Podman(self, podman_path, args.dry_run)
         if not args.dry_run:
@@ -1132,7 +1122,7 @@ class PodmanCompose:
             except subprocess.CalledProcessError:
                 self.podman_version = None
             if not self.podman_version:
-                sys.stderr.write("it seems that you do not have `podman` installed\n")
+                log("it seems that you do not have `podman` installed")
                 sys.exit(1)
             log("using podman version: "+self.podman_version)
         cmd_name = args.command
@@ -1181,7 +1171,7 @@ class PodmanCompose:
             project_name = os.environ.get("COMPOSE_PROJECT_NAME", None) or dir_basename.lower()
             project_name = norm_re.sub('', project_name)
             if not project_name:
-                raise RuntimeError("Project name [{}] normalized to empty".format(dir_basename))
+                raise RuntimeError(f"Project name [{dir_basename}] normalized to empty")
 
         self.project_name = project_name
 
@@ -1200,7 +1190,7 @@ class PodmanCompose:
         })
         compose = {}
         for filename in files:
-            with open(filename, 'r') as f:
+            with open(filename, 'r', encoding="utf-8") as f:
                 content = yaml.safe_load(f)
                 #log(filename, json.dumps(content, indent = 2))
                 if not isinstance(content, dict):
@@ -1273,11 +1263,7 @@ class PodmanCompose:
             replicas = try_int(service_desc.get('deploy', {}).get('replicas', '1'))
             container_names_by_service[service_name] = []
             for num in range(1, replicas+1):
-                name0 = "{project_name}_{service_name}_{num}".format(
-                    project_name=project_name,
-                    service_name=service_name,
-                    num=num,
-                )
+                name0 = f"{project_name}_{service_name}_{num}"
                 if num == 1:
                     name = service_desc.get("container_name", name0)
                 else:
@@ -1287,15 +1273,12 @@ class PodmanCompose:
                 cnt = dict(name=name, num=num,
                            service_name=service_name, **service_desc)
                 if 'image' not in cnt:
-                    cnt['image'] = "{project_name}_{service_name}".format(
-                        project_name=project_name,
-                        service_name=service_name,
-                    )
+                    cnt['image'] = f"{project_name}_{service_name}"
                 labels = norm_as_list(cnt.get('labels', None))
                 cnt["ports"] = norm_ports(cnt.get("ports", None))
                 labels.extend(podman_compose_labels)
                 labels.extend([
-                    "com.docker.compose.container-number={}".format(num),
+                    f"com.docker.compose.container-number={num}",
                     "com.docker.compose.service=" + service_name,
                 ])
                 cnt['labels'] = labels
@@ -1497,7 +1480,7 @@ def create_pods(compose, args): # pylint: disable=unused-argument
     for pod in compose.pods:
         podman_args = [
             "create",
-            "--name={}".format(pod["name"]),
+            "--name=" + pod['name'],
             "--infra=false",
             "--share=",
         ]
@@ -1611,7 +1594,7 @@ def compose_down(compose, args):
     timeout=getattr(args, 'timeout', None)
     if timeout is None:
         timeout = 1
-    podman_args.extend(['-t', "{}".format(timeout)])
+    podman_args.extend(['-t', str(timeout)])
     containers = list(reversed(compose.containers))
 
     for cnt in containers:
@@ -1732,7 +1715,7 @@ def transfer_service_status(compose, args, action):
     podman_args=[]
     timeout=getattr(args, 'timeout', None)
     if timeout is not None:
-        podman_args.extend(['-t', "{}".format(timeout)])
+        podman_args.extend(['-t', str(timeout)])
     for target in targets:
         compose.podman.run([], action, podman_args+[target], sleep=0)
 
