@@ -52,11 +52,12 @@ def test_podman_compose_extends_w_file_subdir():
     # check container was created and exists
     out, err, returncode = capture(command_check_container)
     assert 0 == returncode
-    print(out)
     assert out == b'"localhost/subdir_test:me"\n"localhost/subdir_test1:me"\n"localhost/subdir_test2:me"\n'
-    out, err, returncode = capture(command_down)
+    
     # cleanup test image(tags)
+    out, err, returncode = capture(command_down)
     assert 0 == returncode
+    
     # check container did not exists anymore
     out, err, returncode = capture(command_check_container)
     assert 0 == returncode

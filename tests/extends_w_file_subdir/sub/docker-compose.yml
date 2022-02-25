@@ -25,4 +25,3 @@ services:
       - "8090:8000"
     volumes:
       - "/data"
-
