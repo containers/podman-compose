@@ -1,4 +1,5 @@
-# Podman Compose [![Pylint Test: ](https://github.com/containers/podman-compose/actions/workflows/pylint.yml/badge.svg)](https://github.com/containers/podman-compose/actions/workflows/pylint.yml)
+# Podman Compose
+## [![Pylint Test: ](https://github.com/containers/podman-compose/actions/workflows/pylint.yml/badge.svg)](https://github.com/containers/podman-compose/actions/workflows/pylint.yml) [![Unit tests  PyTest](https://github.com/containers/podman-compose/actions/workflows/pytest.yml/badge.svg)](https://github.com/containers/podman-compose/actions/workflows/pytest.yml)
 
 
 An implementation of [Compose Spec](https://compose-spec.io/) with [Podman](https://podman.io/) backend.
@@ -113,8 +114,9 @@ There is also AWX 17.1.0
 Inside `tests/` directory we have many useless docker-compose stacks
 that are meant to test as much cases as we can to make sure we are compatible
 
-### pytest
+### Unit tests with pytest
 run a pytest with following command
-````shell
-pytest tests/test_podman_compose.py
-````
+
+```shell
+python -m pytest pytests
+```
