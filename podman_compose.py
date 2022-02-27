@@ -445,9 +445,11 @@ def get_secret_args(compose, cnt, secret):
             dest_file = f'/run/secrets/{secret_name}'
         elif not target.startswith("/"):
             sec = target if target else secret_name
-            dest_file = f's/run/secrets/{sec}'
+            dest_file = f'/run/secrets/{sec}'
         else:
             dest_file = target
+        basedir = compose.dirname
+        source_file = os.path.realpath(os.path.join(basedir, os.path.expanduser(source_file)))
         volume_ref = [
             '--volume', f'{source_file}:{dest_file}:ro,rprivate,rbind'
         ]
@@ -921,6 +923,8 @@ class Podman:
         return volumes
 
 def normalize_service(service, sub_dir=''):
+    # make `build.context` relative to sub_dir
+    # TODO: should we make volume and secret relative too?
     if sub_dir and 'build' in service:
         build = service['build']
         context = build if is_str(build) else build.get('context', None)
