@@ -2,6 +2,7 @@ import pytest
 
 from podman_compose import parse_short_mount
 
+
 @pytest.fixture
 def multi_propagation_mount_str():
     return "/foo/bar:/baz:U,Z"
