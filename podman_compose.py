@@ -1524,7 +1524,7 @@ class PodmanCompose:
         subparser = subparsers.add_parser("help", help="show help")
         for cmd_name, cmd in self.commands.items():
             subparser = subparsers.add_parser(
-                cmd_name, help=cmd._cmd_desc
+                cmd_name, help=cmd.desc
             )  # pylint: disable=protected-access
             for cmd_parser in cmd._parse_args:  # pylint: disable=protected-access
                 cmd_parser(subparser)
@@ -1610,8 +1610,7 @@ class cmd_run:  # pylint: disable=invalid-name,too-few-public-methods
             return func(*args, **kw)
 
         wrapped._compose = self.compose
-        wrapped._cmd_name = self.cmd_name
-        wrapped._cmd_desc = self.cmd_desc
+        wrapped.desc = self.cmd_desc
         wrapped._parse_args = []
         self.compose.commands[self.cmd_name] = wrapped
         return wrapped
