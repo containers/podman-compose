@@ -12,6 +12,7 @@ jobs:
         python-version: ["3.8", "3.9", "3.10"]
     steps:
     - uses: actions/checkout@v2
+    - uses: psf/black@stable
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
@@ -26,4 +27,3 @@ jobs:
         python -m compileall podman_compose.py
         pylint podman_compose.py
         # pylint $(git ls-files '*.py')
-

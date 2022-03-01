@@ -11,6 +11,7 @@ def capture(command):
     out, err = proc.communicate()
     return out, err, proc.returncode
 
+
 def test_podman_compose_extends_w_file_subdir():
     """
     Test that podman-compose can execute podman-compose -f <file> up with extended File which
@@ -25,7 +26,7 @@ def test_podman_compose_extends_w_file_subdir():
         "-f",
         str(main_path.joinpath("tests", "extends_w_file_subdir", "docker-compose.yml")),
         "up",
-        "-d"
+        "-d",
     ]
 
     command_check_container = [
@@ -34,7 +35,7 @@ def test_podman_compose_extends_w_file_subdir():
         "ps",
         "--all",
         "--format",
-        "\"{{.Image}}\""
+        '"{{.Image}}"',
     ]
 
     command_down = [
@@ -42,7 +43,7 @@ def test_podman_compose_extends_w_file_subdir():
         "rmi",
         "--force",
         "localhost/subdir_test:me",
-        "docker.io/library/bash"
+        "docker.io/library/bash",
     ]
 
     out, err, returncode = capture(command_up)
@@ -57,4 +58,4 @@ def test_podman_compose_extends_w_file_subdir():
     # check container did not exists anymore
     out, err, returncode = capture(command_check_container)
     assert 0 == returncode
-    assert out == b''
+    assert out == b""
