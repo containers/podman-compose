@@ -1140,7 +1140,7 @@ def rec_merge_one(target, source):
         if key not in source:
             continue
         value2 = source[key]
-        if isinstance(value2, type(value)):
+        if not isinstance(value2, type(value)):
             value_type = type(value)
             value2_type = type(value2)
             raise ValueError(
