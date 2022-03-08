@@ -1364,7 +1364,8 @@ class PodmanCompose:
 
         self.project_name = project_name
 
-        dotenv_path = os.path.join(dirname, ".env")
+        dotenv_path = os.path.join(dirname, args.env_file)
+        print(dotenv_path)
         self.environ = dict(os.environ)
         dotenv_dict = dotenv_to_dict(dotenv_path)
         self.environ.update(dotenv_dict)
@@ -1539,6 +1540,13 @@ class PodmanCompose:
     @staticmethod
     def _init_global_parser(parser):
         parser.add_argument("-v", "--version", help="show version", action="store_true")
+        parser.add_argument(
+            "--env-file",
+            help="Specify an alternate environment file",
+            metavar="env_file",
+            type=str,
+            default='.env',
+        )
         parser.add_argument(
             "-f",
             "--file",
