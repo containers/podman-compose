@@ -1545,7 +1545,7 @@ class PodmanCompose:
             help="Specify an alternate environment file",
             metavar="env_file",
             type=str,
-            default='.env',
+            default=".env",
         )
         parser.add_argument(
             "-f",
