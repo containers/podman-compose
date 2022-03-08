@@ -307,13 +307,18 @@ def norm_ulimit(inner_value):
 #    return [pod], containers
 
 
-def tr_identity(project_name, given_containers):
-    pod_name = f"pod_{project_name}"
-    pod = dict(name=pod_name)
+def transform(args, project_name, given_containers):
+    if args.no_pod:
+        pod_name = None
+        pods = []
+    else:
+        pod_name = f"pod_{project_name}"
+        pod = dict(name=pod_name)
+        pods = [pod]
     containers = []
     for cnt in given_containers:
         containers.append(dict(cnt, pod=pod_name))
-    return [pod], containers
+    return pods, containers
 
 
 def assert_volume(compose, mount_dict):
@@ -1513,7 +1518,7 @@ class PodmanCompose:
         given_containers = list(container_by_name.values())
         given_containers.sort(key=lambda c: len(c.get("_deps", None) or []))
         # log("sorted:", [c["name"] for c in given_containers])
-        pods, containers = tr_identity(project_name, given_containers)
+        pods, containers = transform(args, project_name, given_containers)
         self.pods = pods
         self.containers = containers
         self.container_by_name = {c["name"]: c for c in containers}
@@ -1540,6 +1545,19 @@ class PodmanCompose:
     @staticmethod
     def _init_global_parser(parser):
         parser.add_argument("-v", "--version", help="show version", action="store_true")
+        parser.add_argument(
+            "--no-pod",
+            help="disable pod creation",
+            action='store_true',
+            default=False,
+        )
+        parser.add_argument(
+            "--pod-args",
+            help="disable pod creation",
+            metavar="pod_args",
+            type=str,
+            default="--infra=false --share=",
+        )
         parser.add_argument(
             "--env-file",
             help="Specify an alternate environment file",
@@ -1764,9 +1782,9 @@ def create_pods(compose, args):  # pylint: disable=unused-argument
         podman_args = [
             "create",
             "--name=" + pod["name"],
-            "--infra=false",
-            "--share=",
         ]
+        if args.pod_args:
+            podman_args.extend(shlex.split(args.pod_args))
         # if compose.podman_version and not strverscmp_lt(compose.podman_version, "3.4.0"):
         #    podman_args.append("--infra-name={}_infra".format(pod["name"]))
         ports = pod.get("ports", None) or []
