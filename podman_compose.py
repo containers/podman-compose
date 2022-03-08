@@ -1548,7 +1548,7 @@ class PodmanCompose:
         parser.add_argument(
             "--no-pod",
             help="disable pod creation",
-            action='store_true',
+            action="store_true",
             default=False,
         )
         parser.add_argument(
