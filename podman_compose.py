@@ -1685,6 +1685,12 @@ def is_local(container: dict) -> bool:
         else container["image"].startswith("localhost/")
     )
 
+@cmd_run(podman_compose, "wait", "wait running containers to stop")
+def compose_wait(compose, args):
+    containers = [cnt["name"] for cnt in compose.containers]
+    cmd_args = ["--"]
+    cmd_args.extend(containers)
+    compose.podman.run([], "wait", cmd_args, sleep=0)
 
 @cmd_run(podman_compose, "pull", "pull stack images")
 def compose_pull(compose, args):
