@@ -1316,7 +1316,9 @@ class PodmanCompose:
                 sys.exit(1)
             log("using podman version: " + self.podman_version)
         cmd_name = args.command
-        compose_required = cmd_name != "version" and (cmd_name != "systemd" or args.action!="create-unit")
+        compose_required = cmd_name != "version" and (
+            cmd_name != "systemd" or args.action != "create-unit"
+        )
         if compose_required:
             self._parse_compose_file()
         cmd = self.commands[cmd_name]
@@ -1702,25 +1704,27 @@ def compose_wait(compose, args):
 def compose_systemd(compose, args):
     """
     create systemd unit file and register its compose stacks
-    
+
     When first installed type `sudo podman-compose -a create-unit`
     later you can add a compose stack by running `podman-compose -a register`
     then you can start/stop your stack with `systemctl --user start podman-compose@<PROJ>`
     """
     stacks_dir = ".config/containers/compose/projects"
-    if args.action=="register":
+    if args.action == "register":
         proj_name = compose.project_name
         fn = os.path.expanduser(f"~/{stacks_dir}/{proj_name}.env")
         os.makedirs(os.path.dirname(fn), exist_ok=True)
         print(f"writing [{fn}]: ...")
-        with open(fn, "w") as f: 
+        with open(fn, "w") as f:
             for k, v in compose.environ.items():
                 if k.startswith("COMPOSE_") or k.startswith("PODMAN_"):
                     f.write(f"{k}={v}\n")
         print(f"writing [{fn}]: done.")
-        print(f"""later you can use use enable, start, stop, status, cat
-like this `systemctl --user enable --now podman-compose@{proj_name}`""")
-    elif args.action=="create-unit":
+        print(
+            f"""later you can use use enable, start, stop, status, cat
+like this `systemctl --user enable --now podman-compose@{proj_name}`"""
+        )
+    elif args.action == "create-unit":
         script = os.path.realpath(sys.argv[0])
         fn = "/usr/lib/systemd/user/podman-compose@.service"
         out = f"""\
@@ -1742,12 +1746,14 @@ WantedBy=default.target
 """
         if os.access(os.path.dirname(fn), os.W_OK):
             print(f"writing [{fn}]: ...")
-            with open(fn, "w") as f: 
+            with open(fn, "w") as f:
                 f.write(out)
             print(f"writing [{fn}]: done.")
-            print("""
+            print(
+                """
 while in your project type `podman-compose systemd -a register`
-""")
+"""
+            )
         else:
             print(out)
             log(f"Could not write to [{fn}], use 'sudo'")
@@ -2498,6 +2504,7 @@ def compose_logs_parse(parser):
         "services", metavar="services", nargs="*", default=None, help="service names"
     )
 
+
 @cmd_parse(podman_compose, "systemd")
 def compose_systemd_parse(parser):
     parser.add_argument(
@@ -2507,6 +2514,7 @@ def compose_systemd_parse(parser):
         default="register",
         help="create systemd unit file or register compose stack to it",
     )
+
 
 @cmd_parse(podman_compose, "pull")
 def compose_pull_parse(parser):
