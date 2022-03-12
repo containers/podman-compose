@@ -1316,7 +1316,8 @@ class PodmanCompose:
                 sys.exit(1)
             log("using podman version: " + self.podman_version)
         cmd_name = args.command
-        if cmd_name != "version":
+        compose_required = cmd_name != "version" and (cmd_name != "systemd" or args.action!="create-unit")
+        if compose_required:
             self._parse_compose_file()
         cmd = self.commands[cmd_name]
         cmd(self, args)
@@ -1324,6 +1325,9 @@ class PodmanCompose:
     def _parse_compose_file(self):
         args = self.global_args
         # cmd = args.command
+        dirname = os.environ.get("COMPOSE_PROJECT_DIR", None)
+        if dirname and os.path.isdir(dirname):
+            os.chdir(dirname)
         pathsep = os.environ.get("COMPOSE_PATH_SEPARATOR", None) or os.pathsep
         if not args.file:
             default_str = os.environ.get("COMPOSE_FILE", None)
@@ -1370,10 +1374,7 @@ class PodmanCompose:
         self.project_name = project_name
 
         dotenv_path = os.path.join(dirname, args.env_file)
-        print(dotenv_path)
-        self.environ = dict(os.environ)
         dotenv_dict = dotenv_to_dict(dotenv_path)
-        self.environ.update(dotenv_dict)
         os.environ.update(
             {
                 key: value
@@ -1381,11 +1382,14 @@ class PodmanCompose:
                 if key.startswith("PODMAN_")
             }
         )
+        self.environ = dict(os.environ)
+        self.environ.update(dotenv_dict)
         # see: https://docs.docker.com/compose/reference/envvars/
         # see: https://docs.docker.com/compose/env-file/
         self.environ.update(
             {
-                "COMPOSE_FILE": os.path.basename(filename),
+                "COMPOSE_PROJECT_DIR": dirname,
+                "COMPOSE_FILE": pathsep.join(relative_files),
                 "COMPOSE_PROJECT_NAME": self.project_name,
                 "COMPOSE_PATH_SEPARATOR": pathsep,
             }
@@ -1458,7 +1462,7 @@ class PodmanCompose:
         podman_compose_labels = [
             "io.podman.compose.config-hash=" + self.yaml_hash,
             "io.podman.compose.project=" + project_name,
-            "io.podman.compose.version=0.0.1",
+            "io.podman.compose.version={__version__}",
             "com.docker.compose.project=" + project_name,
             "com.docker.compose.project.working_dir=" + dirname,
             "com.docker.compose.project.config_files=" + ",".join(relative_files),
@@ -1626,7 +1630,7 @@ podman_compose = PodmanCompose()
 
 
 class cmd_run:  # pylint: disable=invalid-name,too-few-public-methods
-    def __init__(self, compose, cmd_name, cmd_desc):
+    def __init__(self, compose, cmd_name, cmd_desc=None):
         self.compose = compose
         self.cmd_name = cmd_name
         self.cmd_desc = cmd_desc
@@ -1636,7 +1640,7 @@ class cmd_run:  # pylint: disable=invalid-name,too-few-public-methods
             return func(*args, **kw)
 
         wrapped._compose = self.compose
-        wrapped.desc = self.cmd_desc
+        wrapped.desc = self.cmd_desc or func.__doc__
         wrapped._parse_args = []
         self.compose.commands[self.cmd_name] = wrapped
         return wrapped
@@ -1685,12 +1689,69 @@ def is_local(container: dict) -> bool:
         else container["image"].startswith("localhost/")
     )
 
+
 @cmd_run(podman_compose, "wait", "wait running containers to stop")
 def compose_wait(compose, args):
     containers = [cnt["name"] for cnt in compose.containers]
     cmd_args = ["--"]
     cmd_args.extend(containers)
     compose.podman.run([], "wait", cmd_args, sleep=0)
+
+
+@cmd_run(podman_compose, "systemd")
+def compose_systemd(compose, args):
+    """
+    create systemd unit file and register its compose stacks
+    
+    When first installed type `sudo podman-compose -a create-unit`
+    later you can add a compose stack by running `podman-compose -a register`
+    then you can start/stop your stack with `systemctl --user start podman-compose@<PROJ>`
+    """
+    stacks_dir = ".config/containers/compose/projects"
+    if args.action=="register":
+        proj_name = compose.project_name
+        fn = os.path.expanduser(f"~/{stacks_dir}/{proj_name}.env")
+        os.makedirs(os.path.dirname(fn), exist_ok=True)
+        print(f"writing [{fn}]: ...")
+        with open(fn, "w") as f: 
+            for k, v in compose.environ.items():
+                if k.startswith("COMPOSE_") or k.startswith("PODMAN_"):
+                    f.write(f"{k}={v}\n")
+        print(f"writing [{fn}]: done.")
+        print(f"""later you can use use enable, start, stop, status, cat
+like this `systemctl --user enable --now podman-compose@{proj_name}`""")
+    elif args.action=="create-unit":
+        script = os.path.realpath(sys.argv[0])
+        fn = "/usr/lib/systemd/user/podman-compose@.service"
+        out = f"""\
+# {fn}
+
+[Unit]
+Description=%i rootless pod (podman-compose)
+
+[Service]
+Type=simple
+EnvironmentFile=%h/{stacks_dir}/%i.env
+ExecStartPre={script} up --no-start
+ExecStartPre=/usr/bin/podman pod start pod_%i
+ExecStart={script} wait
+ExecStop=/usr/bin/podman pod stop pod_%i
+
+[Install]
+WantedBy=default.target
+"""
+        if os.access(os.path.dirname(fn), os.W_OK):
+            print(f"writing [{fn}]: ...")
+            with open(fn, "w") as f: 
+                f.write(out)
+            print(f"writing [{fn}]: done.")
+            print("""
+while in your project type `podman-compose systemd -a register`
+""")
+        else:
+            print(out)
+            log(f"Could not write to [{fn}], use 'sudo'")
+
 
 @cmd_run(podman_compose, "pull", "pull stack images")
 def compose_pull(compose, args):
@@ -2437,6 +2498,15 @@ def compose_logs_parse(parser):
         "services", metavar="services", nargs="*", default=None, help="service names"
     )
 
+@cmd_parse(podman_compose, "systemd")
+def compose_systemd_parse(parser):
+    parser.add_argument(
+        "-a",
+        "--action",
+        choices=["register", "create-unit"],
+        default="register",
+        help="create systemd unit file or register compose stack to it",
+    )
 
 @cmd_parse(podman_compose, "pull")
 def compose_pull_parse(parser):
