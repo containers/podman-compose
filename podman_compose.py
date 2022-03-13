@@ -1701,7 +1701,7 @@ def compose_wait(compose, args):
 
 
 @cmd_run(podman_compose, "systemd")
-def compose_systemd(compose, args):
+def compose_systemd(compose, args): # pylint: disable=unused-argument
     """
     create systemd unit file and register its compose stacks
 
@@ -1715,7 +1715,7 @@ def compose_systemd(compose, args):
         fn = os.path.expanduser(f"~/{stacks_dir}/{proj_name}.env")
         os.makedirs(os.path.dirname(fn), exist_ok=True)
         print(f"writing [{fn}]: ...")
-        with open(fn, "w") as f:
+        with open(fn, "w", encoding="utf-8") as f:
             for k, v in compose.environ.items():
                 if k.startswith("COMPOSE_") or k.startswith("PODMAN_"):
                     f.write(f"{k}={v}\n")
@@ -1736,7 +1736,7 @@ Description=%i rootless pod (podman-compose)
 [Service]
 Type=simple
 EnvironmentFile=%h/{stacks_dir}/%i.env
-ExecStartPre={script} up --no-start
+ExecStartPre-={script} up --no-start
 ExecStartPre=/usr/bin/podman pod start pod_%i
 ExecStart={script} wait
 ExecStop=/usr/bin/podman pod stop pod_%i
@@ -1746,7 +1746,7 @@ WantedBy=default.target
 """
         if os.access(os.path.dirname(fn), os.W_OK):
             print(f"writing [{fn}]: ...")
-            with open(fn, "w") as f:
+            with open(fn, "w", encoding="utf-8") as f:
                 f.write(out)
             print(f"writing [{fn}]: done.")
             print(
