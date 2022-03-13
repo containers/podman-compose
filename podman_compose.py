@@ -1701,7 +1701,7 @@ def compose_wait(compose, args):
 
 
 @cmd_run(podman_compose, "systemd")
-def compose_systemd(compose, args): # pylint: disable=unused-argument
+def compose_systemd(compose, args):  # pylint: disable=unused-argument
     """
     create systemd unit file and register its compose stacks
 
