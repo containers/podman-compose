@@ -654,6 +654,8 @@ def norm_ports(ports_in):
     for port in ports_in:
         if isinstance(port, dict):
             port = port_dict_to_str(port)
+        elif isinstance(port, int):
+            port = str(port)
         elif not isinstance(port, str):
             raise TypeError("port should be either string or dict")
         ports_out.append(port)
