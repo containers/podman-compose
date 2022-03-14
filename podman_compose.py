@@ -1727,7 +1727,7 @@ def compose_systemd(compose, args):
             f"""later you can use use enable, start, stop, status, cat
 like this `systemctl --user enable --now podman-compose@{proj_name}`"""
         )
-    elif args.action == "list" or args.action == "ls":
+    elif args.action in ("list", "ls"):
         ls = glob.glob(os.path.expanduser(f"~/{stacks_dir}/*.env"))
         for i in ls:
             print(os.path.basename(i[:-4]))
