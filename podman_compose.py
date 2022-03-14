@@ -16,6 +16,7 @@ import re
 import hashlib
 import random
 import json
+import glob
 
 from threading import Thread
 
@@ -1726,6 +1727,10 @@ def compose_systemd(compose, args):
             f"""later you can use use enable, start, stop, status, cat
 like this `systemctl --user enable --now podman-compose@{proj_name}`"""
         )
+    elif args.action == "list" or args.action == "ls":
+        ls = glob.glob(os.path.expanduser(f"~/{stacks_dir}/*.env"))
+        for i in ls:
+            print(os.path.basename(i[:-4]))
     elif args.action == "create-unit":
         script = os.path.realpath(sys.argv[0])
         fn = "/usr/lib/systemd/user/podman-compose@.service"
@@ -2512,7 +2517,7 @@ def compose_systemd_parse(parser):
     parser.add_argument(
         "-a",
         "--action",
-        choices=["register", "create-unit"],
+        choices=["register", "create-unit", "list", "ls"],
         default="register",
         help="create systemd unit file or register compose stack to it",
     )
