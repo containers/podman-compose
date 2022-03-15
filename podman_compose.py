@@ -1729,7 +1729,8 @@ def compose_systemd(compose, args):
         process = subprocess.run([script, "up", "--no-start"])
         print("\nfinal exit code is ", process.returncode)
         username = getpass.getuser()
-        print(f"""
+        print(
+            f"""
 you can use systemd commands like enable, start, stop, status, cat
 all without `sudo` like this:
 
@@ -1747,7 +1748,8 @@ you can use podman commands like:
 \t\tpodman pod ps
 \t\tpodman pod stats 'pod_{proj_name}'
 \t\tpodman pod logs --tail=10 -f 'pod_{proj_name}'
-""")
+"""
+        )
     elif args.action in ("list", "ls"):
         ls = glob.glob(os.path.expanduser(f"~/{stacks_dir}/*.env"))
         for i in ls:
