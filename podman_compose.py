@@ -1726,7 +1726,7 @@ def compose_systemd(compose, args):
                     f.write(f"{k}={v}\n")
         print(f"writing [{fn}]: done.")
         print("\n\ncreating the pod without starting it: ...\n\n")
-        process = subprocess.run([script, "up", "--no-start"])
+        process = subprocess.run([script, "up", "--no-start"], check=False)
         print("\nfinal exit code is ", process.returncode)
         username = getpass.getuser()
         print(
