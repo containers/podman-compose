@@ -36,6 +36,8 @@ from dotenv import dotenv_values
 
 __version__ = "1.0.4"
 
+script = os.path.realpath(sys.argv[0])
+
 # helper functions
 is_str = lambda s: isinstance(s, str)
 is_dict = lambda d: isinstance(d, dict)
@@ -1468,7 +1470,7 @@ class PodmanCompose:
         podman_compose_labels = [
             "io.podman.compose.config-hash=" + self.yaml_hash,
             "io.podman.compose.project=" + project_name,
-            "io.podman.compose.version={__version__}",
+            "io.podman.compose.version=" + __version__,
             "com.docker.compose.project=" + project_name,
             "com.docker.compose.project.working_dir=" + dirname,
             "com.docker.compose.project.config_files=" + ",".join(relative_files),
@@ -1713,7 +1715,6 @@ def compose_systemd(compose, args):
     later you can add a compose stack by running `podman-compose -a register`
     then you can start/stop your stack with `systemctl --user start podman-compose@<PROJ>`
     """
-    script = os.path.realpath(sys.argv[0])
     stacks_dir = ".config/containers/compose/projects"
     if args.action == "register":
         proj_name = compose.project_name
@@ -1912,16 +1913,24 @@ def get_excluded(compose, args):
     podman_compose, "up", "Create and start the entire stack or some of its services"
 )
 def compose_up(compose, args):
+    proj_name = compose.project_name
     excluded = get_excluded(compose, args)
     if not args.no_build:
         # `podman build` does not cache, so don't always build
         build_args = argparse.Namespace(if_not_exists=(not args.build), **args.__dict__)
         compose.commands["build"](compose, build_args)
 
-    # TODO: implement check hash label for change
-    if args.force_recreate:
+    hashes = compose.podman.output([], "ps", [
+        "--filter",
+        f"label=io.podman.compose.project={proj_name}",
+        "-a", "--format", "{{ index .Labels \"io.podman.compose.config-hash\"}}"
+        ]).decode('utf-8').splitlines()
+    diff_hashes = [ i for i in hashes if i and i!=compose.yaml_hash ]
+    if args.force_recreate or len(diff_hashes):
+        log("recreating: ...")
         down_args = argparse.Namespace(**dict(args.__dict__, volumes=False))
         compose.commands["down"](compose, down_args)
+        log("recreating: done\n\n")
     # args.no_recreate disables check for changes (which is not implemented)
 
     podman_command = "run" if args.detach and not args.no_start else "create"
