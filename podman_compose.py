@@ -1920,12 +1920,22 @@ def compose_up(compose, args):
         build_args = argparse.Namespace(if_not_exists=(not args.build), **args.__dict__)
         compose.commands["build"](compose, build_args)
 
-    hashes = compose.podman.output([], "ps", [
-        "--filter",
-        f"label=io.podman.compose.project={proj_name}",
-        "-a", "--format", "{{ index .Labels \"io.podman.compose.config-hash\"}}"
-        ]).decode('utf-8').splitlines()
-    diff_hashes = [ i for i in hashes if i and i!=compose.yaml_hash ]
+    hashes = (
+        compose.podman.output(
+            [],
+            "ps",
+            [
+                "--filter",
+                f"label=io.podman.compose.project={proj_name}",
+                "-a",
+                "--format",
+                '{{ index .Labels "io.podman.compose.config-hash"}}',
+            ],
+        )
+        .decode("utf-8")
+        .splitlines()
+    )
+    diff_hashes = [i for i in hashes if i and i != compose.yaml_hash]
     if args.force_recreate or len(diff_hashes):
         log("recreating: ...")
         down_args = argparse.Namespace(**dict(args.__dict__, volumes=False))
