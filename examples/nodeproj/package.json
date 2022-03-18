@@ -9,7 +9,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "cli": "nodemon -w lib -w index.js --es-module-specifier-resolution=node ./index.mjs"
+    "cli": "nodemon -w lib -w index.js --es-module-specifier-resolution=node ./index.js"
   },
   "dependencies": {
     "express": "~4.16.4",

@@ -1167,6 +1167,9 @@ def rec_merge_one(target, source):
         if key not in source:
             continue
         value2 = source[key]
+        if key == "command":
+            target[key] = value2
+            continue
         if not isinstance(value2, type(value)):
             value_type = type(value)
             value2_type = type(value2)

@@ -8,9 +8,9 @@ async function loop() {
     try {
         task_desc = JSON.parse(task_desc_s);
     } catch (e) {
-        proj.logger.exception(e);
+        console.exception(e);
     }
-    proj.logger.info("got task "+task_desc.func);
+    console.info("got task "+task_desc.func);
     const func = task_desc.func;
     const args = task_desc.args;
     if (typeof(proj.tasks[func])!="function") {

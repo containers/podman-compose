@@ -7,7 +7,6 @@ import express from "express";
 
 export async function start() {
     const app = express();
-    app.use(proj.logger.express_logger);
     const server = http.createServer(app);
 
     // Routing
@@ -17,6 +16,6 @@ export async function start() {
     });
 
     server.listen(proj.config.LISTEN_PORT, proj.config.LISTEN_HOST, function() {
-        proj.logger.warn(`listening at port ${proj.config.LISTEN_PORT}`);
+        console.warn(`listening at port ${proj.config.LISTEN_PORT}`);
     });
 }

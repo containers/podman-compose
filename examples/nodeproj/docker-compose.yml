@@ -14,7 +14,8 @@ services:
     - /run
   init:
     read_only: true
-    userns_mode: keep-id
+    #userns_mode: keep-id
+    user: ${UID:-1000}
     build:
       context: ./containers/${NODE_IMG:-node16-runtime}
     image: ${NODE_IMG:-node16-runtime}
