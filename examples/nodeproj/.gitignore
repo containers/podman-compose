@@ -1,0 +1,7 @@
+charmander-local.rc
+.DS_Store
+*~
+*.seed
+*.log
+*.pid
+node_modules

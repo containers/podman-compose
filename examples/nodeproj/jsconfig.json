@@ -1,0 +1,14 @@
+{
+    "compilerOptions": {
+        "target": "es2020",
+        "module": "es2020",
+        "moduleResolution": "node",
+        "allowSyntheticDefaultImports": true
+    },
+    "files": [
+        "index.js"
+    ],
+    "include": [
+        "lib/**/*.js"
+    ]
+}

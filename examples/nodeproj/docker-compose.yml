@@ -1,0 +1,47 @@
+version: '3'
+volumes:
+  redis:
+services:
+  redis:
+    read_only: true
+    image: docker.io/redis:alpine
+    command: ["redis-server", "--appendonly", "yes", "--notify-keyspace-events", "Ex"]
+    volumes:
+    - redis:/data
+    tmpfs:
+    - /tmp
+    - /var/run
+    - /run
+  init:
+    read_only: true
+    userns_mode: keep-id
+    build:
+      context: ./containers/${NODE_IMG:-node16-runtime}
+    image: ${NODE_IMG:-node16-runtime}
+    env_file:
+    - local.env
+    volumes:
+    - .:/app/code
+    command: ["/bin/sh", "-c", "mkdir -p ~/; [ -d ./node_modules ] && echo '** node_modules exists' || npm install"]
+    tmpfs:
+    - /tmp
+    - /run
+  task:
+    extends:
+        service: init
+    command: ["npm", "run", "cli", "--", "task"]
+    links:
+    - redis
+    depends_on:
+    - redis
+  web:
+    extends:
+        service: init
+    command: ["npm", "run", "cli", "--", "web"]
+    ports:
+    - ${WEB_LISTEN_PORT:-3000}:3000
+    depends_on:
+    - redis
+    links:
+    - mongo
+

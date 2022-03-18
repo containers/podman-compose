@@ -1,0 +1,71 @@
+{
+  "env": {
+    "node": true,
+    "es6": true
+  },
+  "settings": {
+    "import/resolver": {
+      "node": {
+        "extensions": [".js", ".mjs", ".ts", ".cjs"]
+      }
+    }
+  },
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 2020,
+    "sourceType": "module",
+    "allowImportExportEverywhere": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:import/errors",
+    "plugin:import/warnings",
+    "plugin:import/typescript",
+    "plugin:promise/recommended",
+    "google",
+    "plugin:security/recommended"
+  ],
+  "plugins": ["promise", "security", "import"],
+  "overrides": [
+    {
+      "files": "public/**/*.min.js",
+      "env": {
+        "browser": true,
+        "node": false,
+        "es6": false
+      },
+      "parserOptions": {
+        "sourceType": "script"
+      },
+      "extends": ["plugin:compat/recommended"],
+      "plugins": [],
+      "rules": {
+        "no-var": ["off"]
+      }
+    }
+  ],
+  "rules": {
+    "security/detect-non-literal-fs-filename":["off"],
+    "security/detect-object-injection":["off"],
+    "camelcase": ["off"],
+    "no-console": ["off"],
+    "require-jsdoc": ["off"],
+    "one-var": ["off"],
+    "guard-for-in": ["off"],
+    "max-len": [
+      "warn",
+      {
+        "ignoreComments": true,
+        "ignoreTrailingComments": true,
+        "ignoreUrls": true,
+        "code": 200
+      }
+    ],
+    "indent": ["warn", 4],
+    "no-unused-vars": ["warn"],
+    "no-extra-semi": ["warn"],
+    "linebreak-style": ["error", "unix"],
+    "quotes": ["warn", "double"],
+    "semi": ["error", "always"]
+  }
+}

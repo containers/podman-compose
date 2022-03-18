@@ -863,6 +863,10 @@ def container_to_args(compose, cnt, detached=True):
             raise TypeError("port should be either string or dict")
         podman_args.extend(["-p", port])
 
+    userns_mode = cnt.get("userns_mode", None)
+    if userns_mode is not None:
+        podman_args.extend(["--userns", userns_mode])
+
     user = cnt.get("user", None)
     if user is not None:
         podman_args.extend(["-u", user])
