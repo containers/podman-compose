@@ -1,0 +1,8 @@
+---
+version: '3'
+services:
+  web:
+    image: k8s.gcr.io/echoserver:1.4
+    ports:
+        - "${HOST_PORT:-8080}:8080"
+
