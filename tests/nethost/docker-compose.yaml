@@ -1,0 +1,7 @@
+version: '3'
+services:
+  web:
+    image: busybox
+    command: httpd -f -p 8123 -h /etc/
+    network_mode: host
+
