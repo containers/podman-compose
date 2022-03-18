@@ -1024,6 +1024,18 @@ class Podman:
         log(cmd_ls)
         return subprocess.check_output(cmd_ls)
 
+    def exec(
+        self,
+        podman_args,
+        cmd="",
+        cmd_args=None,
+    ):
+        cmd_args = list(map(str, cmd_args or []))
+        xargs = self.compose.get_podman_args(cmd) if cmd else []
+        cmd_ls = [self.podman_path, *podman_args, cmd] + xargs + cmd_args
+        log(" ".join([str(i) for i in cmd_ls]))
+        os.execlp(self.podman_path, *cmd_ls)
+
     def run(
         self,
         podman_args,
@@ -1703,7 +1715,7 @@ def compose_wait(compose, args):  # pylint: disable=unused-argument
     containers = [cnt["name"] for cnt in compose.containers]
     cmd_args = ["--"]
     cmd_args.extend(containers)
-    compose.podman.run([], "wait", cmd_args, sleep=0)
+    compose.podman.exec([], "wait", cmd_args)
 
 
 @cmd_run(podman_compose, "systemd")
