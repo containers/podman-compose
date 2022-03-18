@@ -1,0 +1,67 @@
+---
+version: '3'
+volumes:
+  redis-node1-data:
+  redis-node2-data:
+  redis-node3-data:
+  redis-node4-data:
+  redis-node5-data:
+  redis-data:
+services:
+  web:
+    image: gcr.io/google-samples/hello-app-redis:1.0
+    depends_on:
+      - redis-cluster
+    ports:
+        - "${HOST_PORT:-8080}:8080"
+  redis-node1:
+    image: docker.io/bitnami/redis-cluster:6.2
+    volumes:
+      - redis-node1-data:/bitnami/redis/data
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+      - REDIS_NODES=redis-node1 redis-node2 redis-node3 redis-node4 redis-node5 redis-cluster
+  redis-node2:
+    image: docker.io/bitnami/redis-cluster:6.2
+    volumes:
+      - redis-node2-data:/bitnami/redis/data
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+      - REDIS_NODES=redis-node1 redis-node2 redis-node3 redis-node4 redis-node5 redis-cluster
+  redis-node3:
+    image: docker.io/bitnami/redis-cluster:6.2
+    volumes:
+      - redis-node3-data:/bitnami/redis/data
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+      - REDIS_NODES=redis-node1 redis-node2 redis-node3 redis-node4 redis-node5 redis-cluster
+  redis-node4:
+    image: docker.io/bitnami/redis-cluster:6.2
+    volumes:
+      - redis-node4-data:/bitnami/redis/data
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+      - REDIS_NODES=redis-node1 redis-node2 redis-node3 redis-node4 redis-node5 redis-cluster
+  redis-node5:
+    image: docker.io/bitnami/redis-cluster:6.2
+    volumes:
+      - redis-node5-data:/bitnami/redis/data
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+      - REDIS_NODES=redis-node1 redis-node2 redis-node3 redis-node4 redis-node5 redis-cluster
+
+  redis-cluster:
+    image: docker.io/bitnami/redis-cluster:6.2
+    volumes:
+      - redis-data:/bitnami/redis/data
+    depends_on:
+      - redis-node1
+      - redis-node2
+      - redis-node3
+      - redis-node4
+      - redis-node5
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+      - REDIS_NODES=redis-node1 redis-node2 redis-node3 redis-node4 redis-node5 redis-cluster
+      - REDIS_CLUSTER_CREATOR=yes
+
