@@ -1,7 +1,5 @@
-charmander-local.rc
-.DS_Store
-*~
-*.seed
-*.log
+local.env
+.env
 *.pid
 node_modules
+
