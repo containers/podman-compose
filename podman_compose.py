@@ -102,6 +102,27 @@ def strverscmp_lt(a, b):
     return a_ls < b_ls
 
 
+class DependsCondition:  # pylint: disable=too-few-public-methods
+    # enum for possible types of depends_on conditions
+    # see https://github.com/compose-spec/compose-spec/blob/master/spec.md#long-syntax-1
+    STARTED = 0
+    HEALTHY = 1
+    COMPLETED = 2
+
+    @classmethod
+    def to_enum(cls, condition):
+        """
+        Converts and returns a condition value into a valid enum value.
+        """
+        if condition == "service_healthy":
+            return cls.HEALTHY
+        if condition == "service_completed_successfully":
+            return cls.COMPLETED
+        # use cls.STARTED as a catch-all value even
+        # if the condition value is not within spec
+        return cls.STARTED
+
+
 def parse_short_mount(mount_str, basedir):
     mount_a = mount_str.split(":")
     mount_opt_dict = {}
@@ -987,25 +1008,46 @@ def flat_deps(services, with_extends=False):
     create dependencies "_deps" or update it recursively for all services
     """
     for name, srv in services.items():
-        deps = set()
-        srv["_deps"] = deps
+        deps = {}
         if with_extends:
             ext = srv.get("extends", {}).get("service", None)
             if ext:
                 if ext != name:
-                    deps.add(ext)
+                    deps[ext] = DependsCondition.STARTED
                 continue
+        # NOTE: important that the get call is kept as-is, since depends_on
+        # can be an empty string and in that case we want to have an empty list
         deps_ls = srv.get("depends_on", None) or []
         if is_str(deps_ls):
-            deps_ls = [deps_ls]
+            # depends_on: "foo"
+            # treat as condition: service_started
+            deps_ls = {deps_ls: DependsCondition.STARTED}
         elif is_dict(deps_ls):
-            deps_ls = list(deps_ls.keys())
-        deps.update(deps_ls)
+            # depends_on:
+            #   foo:
+            #       condition: service_xxx
+            tmp = {}
+            for service, condition in deps_ls.items():
+                condition = DependsCondition.to_enum(condition.get("condition"))
+                tmp[service] = condition
+            deps_ls = tmp
+        else:
+            # depends_on:
+            # - foo
+            # treat as condition: service_started
+            deps_ls = {dep: DependsCondition.STARTED for dep in deps_ls}
+        deps = {**deps, **deps_ls}
         # parse link to get service name and remove alias
+        # NOTE: important that the get call is kept as-is, since links can
+        # be an empty string and in that case we want to have an empty list
         links_ls = srv.get("links", None) or []
         if not is_list(links_ls):
             links_ls = [links_ls]
-        deps.update([(c.split(":")[0] if ":" in c else c) for c in links_ls])
+        deps = {
+            **deps,
+            **{c.split(":")[0]: DependsCondition.STARTED for c in links_ls},
+        }
+        srv["_deps"] = deps
     for name, srv in services.items():
         rec_deps(services, name)
 
@@ -1922,7 +1964,7 @@ def get_excluded(compose, args):
     if args.services:
         excluded = set(compose.services)
         for service in args.services:
-            excluded -= compose.services[service]["_deps"]
+            excluded -= set(compose.services[service]["_deps"].keys())
             excluded.discard(service)
     log("** excluding: ", excluded)
     return excluded

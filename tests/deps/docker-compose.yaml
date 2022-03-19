@@ -21,4 +21,26 @@ services:
       tmpfs:
         - /run
         - /tmp
-
+    hello_world:
+      image: busybox
+      command: ["/bin/busybox", "sh", "-c", "echo 'hello world'"]
+      depends_on:
+        sleep:
+          condition: service_started
+      tmpfs:
+        - /run
+        - /tmp
+      healthcheck:
+        test: echo "hello world"
+        interval: 10s
+        timeout: 5s
+        retries: 5
+    hello_world_2:
+      image: busybox
+      command: ["/bin/busybox", "sh", "-c", "echo 'hello world'"]
+      depends_on:
+        sleep:
+          condition: service_healthy
+      tmpfs:
+        - /run
+        - /tmp
