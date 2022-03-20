@@ -1480,7 +1480,11 @@ class PodmanCompose:
             )
             allnets.update(srv_nets)
         given_nets = set(nets.keys())
-        missing_nets = given_nets - allnets
+        missing_nets = allnets - given_nets
+        unused_nets = given_nets - allnets - set(["default"])
+        if len(unused_nets):
+            unused_nets_str = ",".join(unused_nets)
+            log(f"WARNING: unused networks: {unused_nets_str}")
         if len(missing_nets):
             missing_nets_str = ",".join(missing_nets)
             raise RuntimeError(f"missing networks: {missing_nets_str}")
