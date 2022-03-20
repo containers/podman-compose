@@ -123,6 +123,14 @@ class DependsCondition:  # pylint: disable=too-few-public-methods
         return cls.STARTED
 
 
+def wait(func):
+    def wrapper(*args, **kwargs):
+        while not func(*args, **kwargs):
+            time.sleep(0.5)
+
+    return wrapper
+
+
 def parse_short_mount(mount_str, basedir):
     mount_a = mount_str.split(":")
     mount_opt_dict = {}
@@ -1087,7 +1095,7 @@ class Podman:
         podman_args,
         cmd="",
         cmd_args=None,
-        wait=True,
+        _wait=True,
         sleep=1,
         obj=None,
         log_formatter=None,
@@ -1113,7 +1121,7 @@ class Podman:
         else:
             p = subprocess.Popen(cmd_ls)  # pylint: disable=consider-using-with
 
-        if wait:
+        if _wait:
             exit_code = p.wait()
             log("exit code:", exit_code)
             if obj is not None:
@@ -1970,6 +1978,49 @@ def get_excluded(compose, args):
     return excluded
 
 
+@wait
+def wait_healthy(compose, container_name):
+    info = json.loads(compose.podman.output([], "inspect", [container_name]))[0]
+
+    if not info["Config"].get("Healthcheck"):
+        raise ValueError("Container %s does not define a health check" % container_name)
+
+    health = info["State"]["Healthcheck"]["Status"]
+    if health == "unhealthy":
+        raise RuntimeError(
+            "Container %s is in unhealthy state, aborting" % container_name
+        )
+    return health == "healthy"
+
+
+@wait
+def wait_completed(compose, container_name):
+    info = json.loads(compose.podman.output([], "inspect", [container_name]))[0]
+
+    if info["State"]["Status"] == "exited":
+        exit_code = info["State"]["ExitCode"]
+        if exit_code != 0:
+            raise RuntimeError(
+                "Container %s didn't complete successfully, exit code: %d"
+                % (container_name, exit_code)
+            )
+        return True
+    return False
+
+
+def wait_for_dependencies(compose, container):
+    for dep, condition in container["_deps"].items():
+        dep_container_name = compose.container_names_by_service[dep][0]
+        if condition == DependsCondition.STARTED:
+            # ignore -- will be handled by container order
+            continue
+        if condition == DependsCondition.HEALTHY:
+            wait_healthy(compose, dep_container_name)
+        else:
+            # implies DependsCondition.COMPLETED
+            wait_completed(compose, dep_container_name)
+
+
 @cmd_run(
     podman_compose, "up", "Create and start the entire stack or some of its services"
 )
@@ -2012,6 +2063,8 @@ def compose_up(compose, args):
             log("** skipping: ", cnt["name"])
             continue
         podman_args = container_to_args(compose, cnt, detached=args.detach)
+        if podman_command == "run":
+            wait_for_dependencies(compose, cnt)
         subproc = compose.podman.run([], podman_command, podman_args)
         if podman_command == "run" and subproc and subproc.returncode:
             compose.podman.run([], "start", [cnt["name"]])
@@ -2047,6 +2100,7 @@ def compose_up(compose, args):
             continue
         # TODO: remove sleep from podman.run
         obj = compose if exit_code_from == cnt["_service"] else None
+        wait_for_dependencies(compose, cnt)
         thread = Thread(
             target=compose.podman.run,
             args=[[], "start", ["-a", cnt["name"]]],
