@@ -1061,12 +1061,8 @@ class Podman:
         # subprocess.Popen(args, bufsize = 0, executable = None, stdin = None, stdout = None, stderr = None, preexec_fn = None, close_fds = False, shell = False, cwd = None, env = None, universal_newlines = False, startupinfo = None, creationflags = 0)
         if log_formatter is not None:
             # Pipe podman process output through log_formatter (which can add colored prefix)
-            p = subprocess.Popen(
-                cmd_ls, stdout=subprocess.PIPE
-            )  # pylint: disable=consider-using-with
-            _ = subprocess.Popen(
-                log_formatter, stdin=p.stdout
-            )  # pylint: disable=consider-using-with
+            p = subprocess.Popen(cmd_ls, stdout=subprocess.PIPE)  # pylint: disable=consider-using-with
+            _ = subprocess.Popen(log_formatter, stdin=p.stdout)  # pylint: disable=consider-using-with
             p.stdout.close()  # Allow p_process to receive a SIGPIPE if logging process exits.
         else:
             p = subprocess.Popen(cmd_ls)  # pylint: disable=consider-using-with
@@ -2025,16 +2021,19 @@ def compose_up(compose, args):
         time.sleep(1)
 
     while threads:
+        to_remove = []
         for thread in threads:
             thread.join(timeout=1.0)
             if not thread.is_alive():
-                threads.remove(thread)
+                to_remove.append(thread)
                 if args.abort_on_container_exit:
                     time.sleep(1)
                     exit_code = (
                         compose.exit_code if compose.exit_code is not None else -1
                     )
                     sys.exit(exit_code)
+        for thread in to_remove:
+            threads.remove(thread)
 
 
 def get_volume_names(compose, cnt):
