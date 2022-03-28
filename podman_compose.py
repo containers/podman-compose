@@ -1061,8 +1061,12 @@ class Podman:
         # subprocess.Popen(args, bufsize = 0, executable = None, stdin = None, stdout = None, stderr = None, preexec_fn = None, close_fds = False, shell = False, cwd = None, env = None, universal_newlines = False, startupinfo = None, creationflags = 0)
         if log_formatter is not None:
             # Pipe podman process output through log_formatter (which can add colored prefix)
-            p = subprocess.Popen(cmd_ls, stdout=subprocess.PIPE)  # pylint: disable=consider-using-with
-            _ = subprocess.Popen(log_formatter, stdin=p.stdout)  # pylint: disable=consider-using-with
+            p = subprocess.Popen(
+                cmd_ls, stdout=subprocess.PIPE
+            )  # pylint: disable=consider-using-with
+            _ = subprocess.Popen(
+                log_formatter, stdin=p.stdout
+            )  # pylint: disable=consider-using-with
             p.stdout.close()  # Allow p_process to receive a SIGPIPE if logging process exits.
         else:
             p = subprocess.Popen(cmd_ls)  # pylint: disable=consider-using-with
