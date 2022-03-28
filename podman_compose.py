@@ -1150,6 +1150,8 @@ def normalize(compose):
         normalize_service(service)
     return compose
 
+def clone(value):
+    return value.copy() if is_list(value) or is_dict(value) else value
 
 def rec_merge_one(target, source):
     """
@@ -1159,7 +1161,7 @@ def rec_merge_one(target, source):
     for key, value in source.items():
         if key in target:
             continue
-        target[key] = value
+        target[key] = clone(value)
         done.add(key)
     for key, value in target.items():
         if key in done:
@@ -1168,7 +1170,7 @@ def rec_merge_one(target, source):
             continue
         value2 = source[key]
         if key == "command":
-            target[key] = value2
+            target[key] = clone(value2)
             continue
         if not isinstance(value2, type(value)):
             value_type = type(value)
