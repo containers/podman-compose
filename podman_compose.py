@@ -1150,8 +1150,10 @@ def normalize(compose):
         normalize_service(service)
     return compose
 
+
 def clone(value):
     return value.copy() if is_list(value) or is_dict(value) else value
+
 
 def rec_merge_one(target, source):
     """
