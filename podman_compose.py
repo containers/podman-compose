@@ -2127,7 +2127,7 @@ def compose_run(compose, args):
     container_name = container_names[0]
     cnt = dict(compose.container_by_name[container_name])
     deps = cnt["_deps"]
-    if not args.no_deps:
+    if deps and not args.no_deps:
         up_args = argparse.Namespace(
             **dict(
                 args.__dict__,
@@ -2167,7 +2167,9 @@ def compose_run(compose, args):
                 pass
     if args.volume:
         # TODO: handle volumes
-        pass
+        volumes = clone(cnt.get("volumes", None) or [])
+        volumes.extend(args.volume)
+        cnt["volumes"] = volumes
     cnt["tty"] = not args.T
     if args.cnt_command is not None and len(args.cnt_command) > 0:
         cnt["command"] = args.cnt_command
