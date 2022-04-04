@@ -2287,7 +2287,8 @@ def compose_logs(compose, args):
 @cmd_run(podman_compose, "config", "displays the compose file")
 def compose_config(compose, args):
     if args.services:
-        for service in compose.services: print(service)
+        for service in compose.services:
+            print(service)
         return
     print(compose.merged_yaml)
 
@@ -2672,9 +2673,7 @@ def compose_build_parse(parser):
 @cmd_parse(podman_compose, "config")
 def compose_config_parse(parser):
     parser.add_argument(
-        "--services",
-        help="Print the service names, one per line.",
-        action="store_true"
+        "--services", help="Print the service names, one per line.", action="store_true"
     )
 
 
