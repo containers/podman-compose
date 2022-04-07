@@ -12,6 +12,7 @@ import sys
 import os
 import getpass
 import argparse
+import itertools
 import subprocess
 import time
 import re
@@ -904,9 +905,6 @@ def container_to_args(compose, cnt, detached=True):
         if is_str(entrypoint):
             entrypoint = shlex.split(entrypoint)
         podman_args.extend(["--entrypoint", json.dumps(entrypoint)])
-    platform = cnt.get("platform", None)
-    if platform is not None:
-        podman_args.extend(["--platform", platform])
 
     # WIP: healthchecks are still work in progress
     healthcheck = cnt.get("healthcheck", None) or {}
@@ -2287,10 +2285,36 @@ def compose_logs(compose, args):
 @cmd_run(podman_compose, "config", "displays the compose file")
 def compose_config(compose, args):
     if args.services:
-        for service in compose.services:
-            print(service)
+        for service in compose.services: print(service)
         return
     print(compose.merged_yaml)
+
+@cmd_run(
+    podman_compose, "port", "Prints the public port for a port binding."
+)
+def compose_port(compose, args):
+    #TODO - deal with pod index
+    compose.assert_services(args.service)
+    containers = compose.container_names_by_service[args.service]
+    container_ports = list(itertools.chain(*(compose.container_by_name[c]["ports"] for c in containers)))
+
+    def _published_target(port_string):
+        published, target = port_string.split(':')[-2:]
+        return int(published), int(target)
+
+    select_udp = (args.protocol == "udp")
+    published, target = None, None
+    for p in container_ports:
+        is_udp = (p[-4:] == "/udp")
+        
+        if select_udp and is_udp:
+            published, target = _published_target(p[-4:])
+        if not select_udp and not is_udp:
+            published, target = _published_target(p)
+
+        if target == args.private_port:
+            print(published)
+            return
 
 
 ###################
@@ -2673,9 +2697,27 @@ def compose_build_parse(parser):
 @cmd_parse(podman_compose, "config")
 def compose_config_parse(parser):
     parser.add_argument(
-        "--services", help="Print the service names, one per line.", action="store_true"
+        "--services",
+        help="Print the service names, one per line.",
+        action="store_true"
     )
 
+@cmd_parse(podman_compose, "port")
+def compose_port_parse(parser):
+    parser.add_argument(
+        "--index",
+        type=int,
+        default=1,
+        help="index of the container if there are multiple instances of a service",
+    )
+    parser.add_argument(
+        "--protocol",
+        choices=["tcp", "udp"],
+        default="tcp",
+        help="tcp or udp",
+    )
+    parser.add_argument("service", metavar="service", nargs=None, help="service name")
+    parser.add_argument("private_port", metavar="private_port", nargs=None, type=int, help="private port")
 
 def main():
     podman_compose.run()
