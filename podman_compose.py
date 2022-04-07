@@ -1,4 +1,4 @@
-#! /usr/bin/python3
+#! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # https://docs.docker.com/compose/compose-file/#service-configuration-reference
