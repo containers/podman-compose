@@ -914,7 +914,9 @@ def container_to_args(compose, cnt, detached=True):
         if is_str(entrypoint):
             entrypoint = shlex.split(entrypoint)
         podman_args.extend(["--entrypoint", json.dumps(entrypoint)])
-
+    platform = cnt.get("platform", None)
+    if platform is not None:
+        podman_args.extend(["--platform", platform])
     # WIP: healthchecks are still work in progress
     healthcheck = cnt.get("healthcheck", None) or {}
     if not is_dict(healthcheck):
