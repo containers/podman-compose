@@ -1596,7 +1596,7 @@ class PodmanCompose:
         )
         parser.add_argument(
             "--pod-args",
-            help="disable pod creation",
+            help="custom arguments to be passed to `podman pod`",
             metavar="pod_args",
             type=str,
             default="--infra=false --share=",
