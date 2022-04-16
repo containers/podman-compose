@@ -1746,10 +1746,12 @@ def compose_systemd(compose, args):
     later you can add a compose stack by running `podman-compose -a register`
     then you can start/stop your stack with `systemctl --user start podman-compose@<PROJ>`
     """
-    stacks_dir = ".config/containers/compose/projects"
+    config_home = os.environ.get("XDG_CONFIG_HOME", "~/.config")
+    config_home = os.path.expanduser(config_home)
+    stacks_dir = "containers/compose/projects"
     if args.action == "register":
         proj_name = compose.project_name
-        fn = os.path.expanduser(f"~/{stacks_dir}/{proj_name}.env")
+        fn = f"{config_home}/{stacks_dir}/{proj_name}.env"
         os.makedirs(os.path.dirname(fn), exist_ok=True)
         print(f"writing [{fn}]: ...")
         with open(fn, "w", encoding="utf-8") as f:
@@ -1783,7 +1785,7 @@ you can use podman commands like:
 """
         )
     elif args.action in ("list", "ls"):
-        ls = glob.glob(os.path.expanduser(f"~/{stacks_dir}/*.env"))
+        ls = glob.glob(f"{config_home}/{stacks_dir}/*.env")
         for i in ls:
             print(os.path.basename(i[:-4]))
     elif args.action == "create-unit":
@@ -1796,7 +1798,7 @@ Description=%i rootless pod (podman-compose)
 
 [Service]
 Type=simple
-EnvironmentFile=%h/{stacks_dir}/%i.env
+EnvironmentFile=%E/{stacks_dir}/%i.env
 ExecStartPre=-{script} up --no-start
 ExecStartPre=/usr/bin/podman pod start pod_%i
 ExecStart={script} wait
