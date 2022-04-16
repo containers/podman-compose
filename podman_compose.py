@@ -1742,7 +1742,7 @@ def compose_systemd(compose, args):
     """
     create systemd unit file and register its compose stacks
 
-    When first installed type `sudo podman-compose -a create-unit`
+    When first installed type `podman-compose -a create-unit`
     later you can add a compose stack by running `podman-compose -a register`
     then you can start/stop your stack with `systemctl --user start podman-compose@<PROJ>`
     """
@@ -1789,7 +1789,7 @@ you can use podman commands like:
         for i in ls:
             print(os.path.basename(i[:-4]))
     elif args.action == "create-unit":
-        fn = "/usr/lib/systemd/user/podman-compose@.service"
+        fn = f"{config_home}/systemd/user/podman-compose@.service"
         out = f"""\
 # {fn}
 
@@ -1819,7 +1819,7 @@ while in your project type `podman-compose systemd -a register`
             )
         else:
             print(out)
-            log(f"Could not write to [{fn}], use 'sudo'")
+            log(f"Could not write to [{fn}]")
 
 
 @cmd_run(podman_compose, "pull", "pull stack images")
