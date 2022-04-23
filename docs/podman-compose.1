@@ -1,0 +1,100 @@
+.TH PODMAN-COMPOSE "1" "User Commands"
+.SH NAME
+podman-compose \- Define and run multi-container applications with Podman.
+.SH DESCRIPTION
+podman-compose [\-h] [\-v] [\-f file] [\-p PROJECT_NAME]
+[\-\-podman\-path PODMAN_PATH] [\-\-podman\-args args]
+[\-\-podman\-pull\-args args] [\-\-podman\-push\-args args]
+[\-\-podman\-build\-args args]
+[\-\-podman\-inspect\-args args] [\-\-podman\-run\-args args]
+[\-\-podman\-start\-args args] [\-\-podman\-stop\-args args]
+[\-\-podman\-rm\-args args] [\-\-podman\-volume\-args args]
+[\-\-no\-ansi] [\-\-no\-cleanup] [\-\-dry\-run]
+{help,version,pull,push,build,up,down,ps,run,exec,start,stop,restart,logs}
+\&...
+.SH OPTIONS
+\fB\-h\fR, \fB\-\-help\fR
+show this help message and exit
+.TP
+\fB\-v\fR, \fB\-\-version\fR
+show version
+.TP
+\fB\-f\fR file, \fB\-\-file\fR file
+Specify an alternate compose file (default: docker\-compose.yml)
+.TP
+\fB\-p\fR PROJECT_NAME, \fB\-\-project\-name\fR PROJECT_NAME
+Specify an alternate project name (default: directory name)
+.TP
+\fB\-\-podman\-path\fR PODMAN_PATH
+Specify an alternate path to podman (default: use location in $PATH variable)
+.TP
+\fB\-\-podman\-args\fR args
+custom global arguments to be passed to `podman`
+.TP
+\fB\-\-podman\-pull\-args\fR args
+custom arguments to be passed to `podman pull`
+.TP
+\fB\-\-podman\-push\-args\fR args
+custom arguments to be passed to `podman push`
+.TP
+\fB\-\-podman\-build\-args\fR args
+custom arguments to be passed to `podman build`
+.TP
+\fB\-\-podman\-inspect\-args\fR args
+custom arguments to be passed to `podman inspect`
+.TP
+\fB\-\-podman\-run\-args\fR args
+custom arguments to be passed to `podman run`
+.TP
+\fB\-\-podman\-start\-args\fR args
+custom arguments to be passed to `podman start`
+.TP
+\fB\-\-podman\-stop\-args\fR args
+custom arguments to be passed to `podman stop`
+.TP
+\fB\-\-podman\-rm\-args\fR args
+custom arguments to be passed to `podman rm`
+.TP
+\fB\-\-podman\-volume\-args\fR args
+custom arguments to be passed to `podman volume`
+.TP
+\fB\-\-no\-ansi\fR
+Do not print ANSI control characters
+.TP
+\fB\-\-no\-cleanup\fR
+Do not stop and remove existing pod & containers
+.TP
+\fB\-\-dry\-run\fR
+No action; perform a simulation of commands
+.SH COMMANDS
+{help,version,pull,push,build,up,down,ps,run,exec,start,stop,restart,logs}
+.SS help
+show help
+.SS version
+show version
+.SS pull
+pull stack images
+.SS push
+push stack images
+.SS build
+build stack images
+.SS up
+Create and start the entire stack or some of its services
+.SS down
+tear down entire stack
+.SS ps
+show status of containers
+.SS run
+create a container similar to a service to run a one\-off command
+.SS exec
+execute a command in a running container
+.SS start
+start specific services
+.SS stop
+stop specific services
+.SS restart
+restart specific services
+.SS logs
+show logs from services
+.SH AUTHOR
+This manual page was written by Athos Ribeiro <athoscribeiro@gmail.com> based on the help2man output.
