@@ -313,6 +313,16 @@ def norm_ulimit(inner_value):
 
 
 def transform(args, project_name, given_containers):
+    if args.multiple_pods:
+        pods = []
+        containers = []
+        for cnt in given_containers:
+            pod_name = f"pod_{project_name}_{cnt['name']}"
+            pod = dict(name=pod_name)
+            pods.append(pod)
+            containers.append(dict(cnt, pod=pod_name))
+        return pods, containers
+    
     if args.no_pod:
         pod_name = None
         pods = []
@@ -1591,6 +1601,12 @@ class PodmanCompose:
         parser.add_argument(
             "--no-pod",
             help="disable pod creation",
+            action="store_true",
+            default=False,
+        )        
+        parser.add_argument(
+            "--multiple-pods",
+            help="create a pod for each container",
             action="store_true",
             default=False,
         )
