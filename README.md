@@ -3,20 +3,20 @@
 
 
 An implementation of [Compose Spec](https://compose-spec.io/) with [Podman](https://podman.io/) backend.
-This project focus on:
+This project focuses on:
 
 * rootless
 * daemon-less process model, we directly execute podman, no running daemon.
 
-This project only depend on:
+This project only depends on:
 
 * `podman`
-* [podman dnsname plugin](https://github.com/containers/dnsname): It is usually found in the `podman-plugins` or `podman-dnsname` distro packages, those packages are not pulled by default and you need to install them. This allow containers be able to resolve each other if they are on the same CNI network.
+* [podman dnsname plugin](https://github.com/containers/dnsname): It is usually found in the `podman-plugins` or `podman-dnsname` distro packages, those packages are not pulled by default and you need to install them. This allows containers to be able to resolve each other if they are on the same CNI network.
 * Python3
 * [PyYAML](https://pyyaml.org/)
 * [python-dotenv](https://pypi.org/project/python-dotenv/)
 
-And it's formed as a single python file script that you can drop into your PATH and run.
+And it's formed as a single Python file script that you can drop into your PATH and run.
 
 ## References:
 
@@ -41,15 +41,15 @@ OpenShift/Kubernetes distribution like [OKD](https://www.okd.io/).
 If you have legacy version of `podman` (before 3.1.0) you might need to stick with legacy `podman-compose` `0.1.x` branch.
 The legacy branch 0.1.x uses mappings and workarounds to compensate for rootless limitations.
 
-Modern podman versions (>=3.4) do not have those limitations and thus you can use latest and stable 1.x branch.
+Modern podman versions (>=3.4) do not have those limitations, and thus you can use latest and stable 1.x branch.
 
 If you are upgrading from `podman-compose` version `0.1.x` then we no longer have global option `-t` to set mapping type
-like `hostnet`. If you desire that behavior pass it the standard way like `network_mode: host` in the YAML.
+like `hostnet`. If you desire that behavior, pass it the standard way like `network_mode: host` in the YAML.
 
 
 ## Installation
 
-Install latest stable version from PyPI:
+Install the latest stable version from PyPI:
 
 ```
 pip3 install podman-compose
@@ -106,13 +106,13 @@ which have
 - a django tasks
 
 
-When testing the `AWX3` example, if you got errors just wait for db migrations to end.
+When testing the `AWX3` example, if you got errors, just wait for db migrations to end.
 There is also AWX 17.1.0
 
 ## Tests
 
 Inside `tests/` directory we have many useless docker-compose stacks
-that are meant to test as much cases as we can to make sure we are compatible
+that are meant to test as many cases as we can to make sure we are compatible
 
 ### Unit tests with pytest
 run a pytest with following command
