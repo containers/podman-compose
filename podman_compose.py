@@ -347,18 +347,22 @@ def assert_volume(compose, mount_dict):
     if (
         mount_dict["type"] != "volume"
         or not vol
-        or vol.get("external", None)
         or not vol.get("name", None)
     ):
         return
     proj_name = compose.project_name
     vol_name = vol["name"]
+    is_ext = vol.get("external", None)
     log(f"podman volume inspect {vol_name} || podman volume create {vol_name}")
     # TODO: might move to using "volume list"
     # podman volume list --format '{{.Name}}\t{{.MountPoint}}' -f 'label=io.podman.compose.project=HERE'
     try:
         _ = compose.podman.output([], "volume", ["inspect", vol_name]).decode("utf-8")
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as e:
+        if is_ext:
+            raise RuntimeError(
+                    f"External volume [{vol_name}] does not exists"
+                ) from e
         labels = vol.get("labels", None) or []
         args = [
             "create",
