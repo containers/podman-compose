@@ -190,7 +190,7 @@ def fix_mount_dict(compose, mount_dict, proj_name, srv_name):
         elif not name:
             external = vol.get("external", None)
             if isinstance(external, dict):
-                ext_name = external.get("name", None)
+                ext_name = external.get("name", f"{source}")
             elif external:
                 ext_name = f"{source}"
             else:
