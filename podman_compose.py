@@ -189,10 +189,12 @@ def fix_mount_dict(compose, mount_dict, proj_name, srv_name):
             )
         elif not name:
             external = vol.get("external", None)
-            ext_name = (
-                external.get("name", None) if isinstance(external, dict) else None
-            )
-            vol["name"] = ext_name if ext_name else f"{proj_name}_{source}"
+            if isinstance(external, dict):
+                vol["name"] = external.get("name", f"{source}")
+            elif external:
+                vol["name"] = f"{source}"
+            else:
+                vol["name"] = f"{proj_name}_{source}"
     return mount_dict
 
 
@@ -347,18 +349,22 @@ def assert_volume(compose, mount_dict):
     if (
         mount_dict["type"] != "volume"
         or not vol
-        or vol.get("external", None)
         or not vol.get("name", None)
     ):
         return
     proj_name = compose.project_name
     vol_name = vol["name"]
+    is_ext = vol.get("external", None)
     log(f"podman volume inspect {vol_name} || podman volume create {vol_name}")
     # TODO: might move to using "volume list"
     # podman volume list --format '{{.Name}}\t{{.MountPoint}}' -f 'label=io.podman.compose.project=HERE'
     try:
         _ = compose.podman.output([], "volume", ["inspect", vol_name]).decode("utf-8")
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as e:
+        if is_ext:
+            raise RuntimeError(
+                    f"External volume [{vol_name}] does not exists"
+                ) from e
         labels = vol.get("labels", None) or []
         args = [
             "create",
