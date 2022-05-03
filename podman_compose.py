@@ -719,8 +719,8 @@ def assert_cnt_nets(compose, cnt):
             if driver:
                 args.extend(("--driver", driver))
             driver_opts = net_desc.get("driver_opts", None) or {}
-            for key,value in driver_opts.items():
-                args.extend(("--opt",f"{key}={value}"))
+            for key, value in driver_opts.items():
+                args.extend(("--opt", f"{key}={value}"))
             ipam_config_ls = (net_desc.get("ipam", None) or {}).get(
                 "config", None
             ) or []
