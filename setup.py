@@ -32,6 +32,7 @@ setup(
     include_package_data=True,
     license="GPL-2.0-only",
     install_requires=[
+        "importlib-metadata",
         "pyyaml",
         "python-dotenv",
     ],

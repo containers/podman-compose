@@ -7,6 +7,12 @@
 # https://docs.docker.com/compose/django/
 # https://docs.docker.com/compose/wordpress/
 
+try:
+    import importlib.metadata as importlib_metadata
+except ImportError:
+    import importlib_metadata
+
+__version__ = importlib_metadata.version("podman-compose")
 
 import sys
 import os
@@ -34,8 +40,6 @@ except ImportError:
 
 import yaml
 from dotenv import dotenv_values
-
-__version__ = "1.0.4"
 
 script = os.path.realpath(sys.argv[0])
 
