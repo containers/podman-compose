@@ -1,0 +1,21 @@
+---
+version: '3'
+volumes:
+  redis:
+services:
+  redis:
+    read_only: true
+    image: docker.io/redis:alpine
+    command: ["redis-server", "--appendonly", "yes", "--notify-keyspace-events", "Ex"]
+    volumes:
+    - redis:/data
+  web:
+    read_only: true
+    build:
+      context: .
+    image: hello-py-aioweb
+    ports:
+    - 8080:8080
+    environment:
+      REDIS_HOST: redis
+
