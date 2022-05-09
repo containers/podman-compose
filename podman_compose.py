@@ -347,11 +347,7 @@ def assert_volume(compose, mount_dict):
             except OSError:
                 pass
         return
-    if (
-        mount_dict["type"] != "volume"
-        or not vol
-        or not vol.get("name", None)
-    ):
+    if mount_dict["type"] != "volume" or not vol or not vol.get("name", None):
         return
     proj_name = compose.project_name
     vol_name = vol["name"]
@@ -363,9 +359,7 @@ def assert_volume(compose, mount_dict):
         _ = compose.podman.output([], "volume", ["inspect", vol_name]).decode("utf-8")
     except subprocess.CalledProcessError as e:
         if is_ext:
-            raise RuntimeError(
-                    f"External volume [{vol_name}] does not exists"
-                ) from e
+            raise RuntimeError(f"External volume [{vol_name}] does not exists") from e
         labels = vol.get("labels", None) or []
         args = [
             "create",
@@ -2296,28 +2290,30 @@ def compose_logs(compose, args):
 @cmd_run(podman_compose, "config", "displays the compose file")
 def compose_config(compose, args):
     if args.services:
-        for service in compose.services: print(service)
+        for service in compose.services:
+            print(service)
         return
     print(compose.merged_yaml)
 
-@cmd_run(
-    podman_compose, "port", "Prints the public port for a port binding."
-)
+
+@cmd_run(podman_compose, "port", "Prints the public port for a port binding.")
 def compose_port(compose, args):
-    #TODO - deal with pod index
+    # TODO - deal with pod index
     compose.assert_services(args.service)
     containers = compose.container_names_by_service[args.service]
-    container_ports = list(itertools.chain(*(compose.container_by_name[c]["ports"] for c in containers)))
+    container_ports = list(
+        itertools.chain(*(compose.container_by_name[c]["ports"] for c in containers))
+    )
 
     def _published_target(port_string):
-        published, target = port_string.split(':')[-2:]
+        published, target = port_string.split(":")[-2:]
         return int(published), int(target)
 
-    select_udp = (args.protocol == "udp")
+    select_udp = args.protocol == "udp"
     published, target = None, None
     for p in container_ports:
-        is_udp = (p[-4:] == "/udp")
-        
+        is_udp = p[-4:] == "/udp"
+
         if select_udp and is_udp:
             published, target = _published_target(p[-4:])
         if not select_udp and not is_udp:
@@ -2708,10 +2704,9 @@ def compose_build_parse(parser):
 @cmd_parse(podman_compose, "config")
 def compose_config_parse(parser):
     parser.add_argument(
-        "--services",
-        help="Print the service names, one per line.",
-        action="store_true"
+        "--services", help="Print the service names, one per line.", action="store_true"
     )
+
 
 @cmd_parse(podman_compose, "port")
 def compose_port_parse(parser):
@@ -2728,7 +2723,14 @@ def compose_port_parse(parser):
         help="tcp or udp",
     )
     parser.add_argument("service", metavar="service", nargs=None, help="service name")
-    parser.add_argument("private_port", metavar="private_port", nargs=None, type=int, help="private port")
+    parser.add_argument(
+        "private_port",
+        metavar="private_port",
+        nargs=None,
+        type=int,
+        help="private port",
+    )
+
 
 def main():
     podman_compose.run()
