@@ -1796,7 +1796,7 @@ you can use podman commands like:
         for i in ls:
             print(os.path.basename(i[:-4]))
     elif args.action == "create-unit":
-        fn = "/usr/lib/systemd/user/podman-compose@.service"
+        fn = "/etc/systemd/user/podman-compose@.service"
         out = f"""\
 # {fn}
 
