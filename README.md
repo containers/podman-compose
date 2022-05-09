@@ -86,6 +86,8 @@ sudo dnf install podman-compose
 ## Basic Usage
 
 We have included fully functional sample stacks inside `examples/` directory.
+You can get more examples from [awesome-compose](https://github.com/docker/awesome-compose).
+
 
 A quick example would be
 
