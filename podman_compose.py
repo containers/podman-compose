@@ -1682,7 +1682,8 @@ class cmd_run:  # pylint: disable=invalid-name,too-few-public-methods
             return func(*args, **kw)
 
         wrapped._compose = self.compose
-        wrapped.desc = self.cmd_desc or func.__doc__
+        # Trim extra indentation at start of multiline docstrings.
+        wrapped.desc = self.cmd_desc or re.sub(r'^\s+', '', func.__doc__)
         wrapped._parse_args = []
         self.compose.commands[self.cmd_name] = wrapped
         return wrapped
@@ -1745,8 +1746,8 @@ def compose_systemd(compose, args):
     """
     create systemd unit file and register its compose stacks
 
-    When first installed type `sudo podman-compose -a create-unit`
-    later you can add a compose stack by running `podman-compose -a register`
+    When first installed type `sudo podman-compose systemd -a create-unit`
+    later you can add a compose stack by running `podman-compose systemd -a register`
     then you can start/stop your stack with `systemctl --user start podman-compose@<PROJ>`
     """
     stacks_dir = ".config/containers/compose/projects"
