@@ -1,0 +1,15 @@
+version: "3.7"
+services:
+  touch:
+    image: busybox
+    command: 'touch /mnt/test'
+    volumes:
+      - ./:/mnt
+    user: 999:999
+    x-podman:
+      uidmaps:
+        - "0:1:1"
+        - "999:0:1"
+      gidmaps:
+        - "0:1:1"
+        - "999:0:1"
