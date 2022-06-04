@@ -1070,6 +1070,14 @@ def container_to_args(compose, cnt, detached=True):
     if "retries" in healthcheck:
         podman_args.extend(["--healthcheck-retries", str(healthcheck["retries"])])
 
+    # handle podman extension
+    x_podman = cnt.get("x-podman", None)
+    if x_podman is not None:
+        for uidmap in x_podman.get("uidmaps", []):
+            podman_args.extend(["--uidmap", uidmap])
+        for gidmap in x_podman.get("gidmaps", []):
+            podman_args.extend(["--gidmap", gidmap])
+
     podman_args.append(cnt["image"])  # command, ..etc.
     command = cnt.get("command", None)
     if command is not None:
