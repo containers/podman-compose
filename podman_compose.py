@@ -1315,11 +1315,11 @@ def rec_merge_one(target, source):
         if is_list(value2):
             if key == "volumes":
                 # clean duplicate mount targets
-                pts = {v.split(":", 1)[1] for v in value2 if ":" in v}
+                pts = {v.split(":", 2)[1] for v in value2 if ":" in v}
                 del_ls = [
                     ix
                     for (ix, v) in enumerate(value)
-                    if ":" in v and v.split(":", 1)[1] in pts
+                    if ":" in v and v.split(":", 2)[1] in pts
                 ]
                 for ix in reversed(del_ls):
                     del value[ix]
