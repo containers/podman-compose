@@ -1,0 +1,11 @@
+version: "3"
+services:
+  web:
+    image: busybox
+    command: ["/bin/busybox", "httpd", "-f", "-h", "/var/www/html", "-p", "8080"]
+    ports:
+      - 8080:8080
+    volumes:
+      - ./index.txt:/var/www/html/index.html:ro,z
+      - ./index.txt:/var/www/html/index2.html
+      - ./index.txt:/var/www/html/index3.html:ro
