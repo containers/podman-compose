@@ -1683,7 +1683,7 @@ class cmd_run:  # pylint: disable=invalid-name,too-few-public-methods
 
         wrapped._compose = self.compose
         # Trim extra indentation at start of multiline docstrings.
-        wrapped.desc = self.cmd_desc or re.sub(r'^\s+', '', func.__doc__)
+        wrapped.desc = self.cmd_desc or re.sub(r"^\s+", "", func.__doc__)
         wrapped._parse_args = []
         self.compose.commands[self.cmd_name] = wrapped
         return wrapped
