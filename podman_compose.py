@@ -738,19 +738,26 @@ def assert_cnt_nets(compose, cnt):
 
 def get_net_args(compose, cnt):
     service_name = cnt["service_name"]
+    net_args = []
+    mac_address = cnt.get("mac_address", None)
+    if mac_address:
+        net_args.extend(["--mac_address", mac_address])
     net = cnt.get("network_mode", None)
     if net:
         if net == "host":
-            return ["--network", net]
-        if net.startswith("slirp4netns:"):
-            return ["--network", net]
-        if net.startswith("service:"):
+            net_args.extend(["--network", net])
+        elif net.startswith("slirp4netns:"):
+            net_args.extend(["--network", net])
+        elif net.startswith("service:"):
             other_srv = net.split(":", 1)[1].strip()
             other_cnt = compose.container_names_by_service[other_srv][0]
-            return ["--network", f"container:{other_cnt}"]
-        if net.startswith("container:"):
+            net_args.extend(["--network", f"container:{other_cnt}"])
+        elif net.startswith("container:"):
             other_cnt = net.split(":", 1)[1].strip()
-            return ["--network", f"container:{other_cnt}"]
+            net_args.extend(["--network", f"container:{other_cnt}"])
+        else:
+            print(f"unknown network_mode [{net}]")
+            exit(1)
     proj_name = compose.project_name
     default_net = compose.default_net
     nets = compose.networks
@@ -779,7 +786,7 @@ def get_net_args(compose, cnt):
         )
         net_names.add(net_name)
     net_names_str = ",".join(net_names)
-    net_args = ["--net", net_names_str, "--network-alias", ",".join(aliases)]
+    net_args.extend(["--net", net_names_str, "--network-alias", ",".join(aliases)])
     if ip:
         net_args.append(f"--ip={ip}")
     return net_args

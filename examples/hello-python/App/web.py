@@ -30,7 +30,7 @@ app.add_routes(routes)
 
 
 def main():
-    web.run_app(app)
+    web.run_app(app, port=8080)
 
 
 if __name__ == "__main__":
