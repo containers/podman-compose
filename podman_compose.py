@@ -757,7 +757,7 @@ def get_net_args(compose, cnt):
             net_args.extend(["--network", f"container:{other_cnt}"])
         else:
             print(f"unknown network_mode [{net}]")
-            exit(1)
+            sys.exit(1)
     proj_name = compose.project_name
     default_net = compose.default_net
     nets = compose.networks
