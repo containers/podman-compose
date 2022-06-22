@@ -741,7 +741,7 @@ def get_net_args(compose, cnt):
     net_args = []
     mac_address = cnt.get("mac_address", None)
     if mac_address:
-        net_args.extend(["--mac_address", mac_address])
+        net_args.extend(["--mac-address", mac_address])
     net = cnt.get("network_mode", None)
     if net:
         if net == "host":
