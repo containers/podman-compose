@@ -766,13 +766,15 @@ def get_net_args(compose, cnt):
     # NOTE: from podman manpage:
     # NOTE: A container will only have access to aliases on the first network that it joins. This is a limitation that will be removed in a later release.
     ip = None
+    ip6 = None
     if cnt_nets and is_dict(cnt_nets):
         # cnt_nets is {net_key: net_value, ...}
         for net_value in cnt_nets.values():
             aliases.extend(norm_as_list(net_value.get("aliases", None)))
-            if ip:
-                continue
-            ip = net_value.get("ipv4_address", None)
+            if not ip:
+                ip = net_value.get("ipv4_address", None)
+            if not ip6:
+                ip6 = net_value.get("ipv6_address", None)
         cnt_nets = list(cnt_nets.keys())
     cnt_nets = norm_as_list(cnt_nets or default_net)
     net_names = set()
@@ -789,6 +791,8 @@ def get_net_args(compose, cnt):
     net_args.extend(["--net", net_names_str, "--network-alias", ",".join(aliases)])
     if ip:
         net_args.append(f"--ip={ip}")
+    if ip6:
+        net_args.append(f"--ip6={ip}")
     return net_args
 
 
