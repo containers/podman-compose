@@ -757,12 +757,12 @@ def get_net_args(compose, cnt):
             other_cnt = net.split(":", 1)[1].strip()
             net_args.extend(["--network", f"container:{other_cnt}"])
         elif net.startswith("bridge"):
-            is_bridge=True
+            is_bridge = True
         else:
             print(f"unknown network_mode [{net}]")
             sys.exit(1)
     else:
-        is_bridge=True
+        is_bridge = True
     proj_name = compose.project_name
     default_net = compose.default_net
     nets = compose.networks
