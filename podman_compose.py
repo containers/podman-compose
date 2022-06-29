@@ -742,6 +742,7 @@ def get_net_args(compose, cnt):
     mac_address = cnt.get("mac_address", None)
     if mac_address:
         net_args.extend(["--mac-address", mac_address])
+    is_bridge = False
     net = cnt.get("network_mode", None)
     if net:
         if net == "host":
@@ -755,9 +756,13 @@ def get_net_args(compose, cnt):
         elif net.startswith("container:"):
             other_cnt = net.split(":", 1)[1].strip()
             net_args.extend(["--network", f"container:{other_cnt}"])
+        elif net.startswith("bridge"):
+            is_bridge=True
         else:
             print(f"unknown network_mode [{net}]")
             sys.exit(1)
+    else:
+        is_bridge=True
     proj_name = compose.project_name
     default_net = compose.default_net
     nets = compose.networks
@@ -788,7 +793,8 @@ def get_net_args(compose, cnt):
         )
         net_names.add(net_name)
     net_names_str = ",".join(net_names)
-    net_args.extend(["--net", net_names_str, "--network-alias", ",".join(aliases)])
+    if is_bridge:
+        net_args.extend(["--net", net_names_str, "--network-alias", ",".join(aliases)])
     if ip:
         net_args.append(f"--ip={ip}")
     if ip6:
