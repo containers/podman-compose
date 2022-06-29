@@ -798,7 +798,7 @@ def get_net_args(compose, cnt):
     if ip:
         net_args.append(f"--ip={ip}")
     if ip6:
-        net_args.append(f"--ip6={ip}")
+        net_args.append(f"--ip6={ip6}")
     return net_args
 
 
