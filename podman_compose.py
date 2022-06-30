@@ -2341,6 +2341,18 @@ def compose_port(compose, args):
             print(published)
             return
 
+@cmd_run(podman_compose, 'pause', 'Pause all running containers')
+def compose_pause(compose, args):
+    containers = list(reversed(compose.containers))
+    for container in containers:
+        compose.podman.run(['pause'], container['name'])
+
+@cmd_run(podman_compose, 'unpause', 'Unpause all running containers')
+def compose_pause(compose, args):
+    containers = list(reversed(compose.containers))
+    for container in containers:
+        compose.podman.run(['unpause'], container['name'])
+
 
 ###################
 # command arguments parsing

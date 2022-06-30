@@ -62,12 +62,10 @@ def compose_up(compose, args):
   images             List images
   kill               Kill containers
   logs               View output from containers
-  pause              Pause services
   port               Print the public port for a port binding
   ps                 List containers
   rm                 Remove stopped containers
   run                Run a one-off command
   scale              Set number of containers for a service
   top                Display the running processes
-  unpause            Unpause services
 ```
