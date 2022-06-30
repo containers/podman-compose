@@ -1734,7 +1734,7 @@ def compose_version(compose, args):
         res = {"version": __version__}
         print(json.dumps(res))
         return
-    print("podman-composer version", __version__)
+    print("podman-compose version", __version__)
     compose.podman.run(["--version"], "", [], sleep=0)
 
 

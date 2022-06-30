@@ -35,7 +35,7 @@ What is the behavior you actually got and that should not happen.
 ```
 $ podman-compose version
 using podman version: 3.4.0
-podman-composer version  0.1.7dev
+podman-compose version  0.1.7dev
 podman --version 
 podman version 3.4.0
 
