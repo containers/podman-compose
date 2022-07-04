@@ -7,6 +7,8 @@
 # https://docs.docker.com/compose/django/
 # https://docs.docker.com/compose/wordpress/
 
+# TODO: podman pod logs --color -n -f pod_testlogs
+
 
 import sys
 import os
@@ -775,6 +777,7 @@ def get_net_args(compose, cnt):
     if cnt_nets and is_dict(cnt_nets):
         # cnt_nets is {net_key: net_value, ...}
         for net_value in cnt_nets.values():
+            net_value = net_value or {}
             aliases.extend(norm_as_list(net_value.get("aliases", None)))
             if not ip:
                 ip = net_value.get("ipv4_address", None)
