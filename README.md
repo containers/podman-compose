@@ -83,6 +83,12 @@ or install from Fedora (starting from f31) repositories:
 sudo dnf install podman-compose
 ```
 
+or install using Homebrew:
+
+```
+brew install podman-compose
+```
+
 ## Basic Usage
 
 We have included fully functional sample stacks inside `examples/` directory.
