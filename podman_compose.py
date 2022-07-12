@@ -1900,7 +1900,11 @@ def build_one(compose, args, cnt):
                 break
     if not os.path.exists(dockerfile):
         raise OSError("Dockerfile not found in " + ctx)
-    build_args = ["-t", cnt["image"], "-f", dockerfile]
+    build_args = []
+    if 1 < len(args.platform):
+        build_args.extend(["--manifest", cnt["image"], "-f", dockerfile])
+    else:
+        build_args.extend(["-t", cnt["image"], "-f", dockerfile])
     if "target" in build_desc:
         build_args.extend(["--target", build_desc["target"]])
     container_to_ulimit_args(cnt, build_args)
@@ -1918,6 +1922,8 @@ def build_one(compose, args, cnt):
                 build_arg,
             )
         )
+    for platform in args.platform:
+        build_args.extend(["--platform", platform])
     build_args.append(ctx)
     compose.podman.run([], "build", build_args, sleep=0)
 
@@ -2719,6 +2725,13 @@ def compose_build_parse(parser):
         nargs="*",
         default=None,
         help="affected services",
+    )
+    parser.add_argument(
+        "--platform",
+        metavar="val",
+        action="append",
+        default=[],
+        help="Set the OS/ARCH of the built image. When more than one platform is specified, the --manifest option will be passed to podman build.",
     )
 
 
