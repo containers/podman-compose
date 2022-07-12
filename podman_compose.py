@@ -2351,7 +2351,7 @@ def compose_pause(compose, args):
         compose.podman.run(['pause'], container['name'])
 
 @cmd_run(podman_compose, 'unpause', 'Unpause all running containers')
-def compose_pause(compose, args):
+def compose_unpause(compose, args):
     containers = list(reversed(compose.containers))
     for container in containers:
         compose.podman.run(['unpause'], container['name'])
