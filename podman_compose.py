@@ -2366,6 +2366,35 @@ def compose_unpause(compose, args):
         targets.extend(container_names_by_service[service])
     compose.podman.run([], "unpause", targets)
 
+@cmd_run(podman_compose, "kill", "Kill one or more running containers with a specific signal")
+def compose_kill(compose, args):
+    # to ensure that the user did not execute the command by mistake 
+    if not args.services and not args.all:
+        print("Error: you must provide at least one service name or use (--all) to kill all services")
+        sys.exit()
+    
+    container_names_by_service = compose.container_names_by_service
+    podman_args = []
+
+    if args.signal:
+        podman_args.extend(["--signal", args.signal])
+
+    if args.all is True:        
+        services = container_names_by_service.keys()
+        targets = []
+        for service in services:
+            targets.extend(container_names_by_service[service])
+        for target in targets:
+            podman_args.append(target)
+        compose.podman.run([], "kill", podman_args)
+    
+    if args.services:
+        targets = []
+        for service in args.services:
+            targets.extend(container_names_by_service[service])
+        for target in targets:
+            podman_args.append(target)
+        compose.podman.run([], "kill", podman_args)
 
 ###################
 # command arguments parsing
@@ -2781,6 +2810,23 @@ def compose_pause_unpause_parse(parser):
         "services", metavar="services", nargs="*", default=None, help="service names"
     )
 
+@cmd_parse(podman_compose, ["kill"])
+def compose_kill_parse(parser):
+    parser.add_argument(
+        "services", metavar="services", nargs="*", default=None, help="service names"
+    )
+    parser.add_argument(
+        "-s",
+        "--signal",
+        type=str,
+        help="Signal to send to the container (default 'KILL')",
+    )
+    parser.add_argument(
+        "-a",
+        "--all",
+        help="Signal all running containers",
+        action="store_true",
+    )
 
 def main():
     podman_compose.run()

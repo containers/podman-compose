@@ -60,7 +60,6 @@ def compose_up(compose, args):
   create             Create services
   events             Receive real time events from containers
   images             List images
-  kill               Kill containers
   logs               View output from containers
   port               Print the public port for a port binding
   ps                 List containers
