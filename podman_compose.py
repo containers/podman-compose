@@ -2344,17 +2344,25 @@ def compose_port(compose, args):
             print(published)
             return
 
-@cmd_run(podman_compose, 'pause', 'Pause all running containers')
+@cmd_run(podman_compose, "pause", "Pause all running containers")
 def compose_pause(compose, args):
-    containers = list(reversed(compose.containers))
-    for container in containers:
-        compose.podman.run(['pause'], container['name'])
+    container_names_by_service = compose.container_names_by_service
+    if not args.services:
+        args.services = container_names_by_service.keys()
+    targets = []
+    for service in args.services:
+        targets.extend(container_names_by_service[service])
+    compose.podman.run([], "pause", targets)
 
-@cmd_run(podman_compose, 'unpause', 'Unpause all running containers')
+@cmd_run(podman_compose, "unpause", "Unpause all running containers")
 def compose_unpause(compose, args):
-    containers = list(reversed(compose.containers))
-    for container in containers:
-        compose.podman.run(['unpause'], container['name'])
+    container_names_by_service = compose.container_names_by_service
+    if not args.services:
+        args.services = container_names_by_service.keys()
+    targets = []
+    for service in args.services:
+        targets.extend(container_names_by_service[service])
+    compose.podman.run([], "unpause", targets)
 
 
 ###################
@@ -2764,6 +2772,11 @@ def compose_port_parse(parser):
         help="private port",
     )
 
+@cmd_parse(podman_compose, ["pause", "unpause"])
+def compose_pause_unpause_parse(parser):
+    parser.add_argument(
+        "services", metavar="services", nargs="*", default=None, help="service names"
+    )
 
 def main():
     podman_compose.run()
