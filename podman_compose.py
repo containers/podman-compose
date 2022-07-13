@@ -1863,7 +1863,10 @@ def compose_push(compose, args):
             continue
         if services and cnt["_service"] not in services:
             continue
-        compose.podman.run([], "push", [cnt["image"]], sleep=0)
+        if getattr(args, "all_platforms", None):
+            compose.podman.run([], "manifest", ["push", "--all", cnt["image"], "docker://" + cnt["image"]], sleep=0)
+        else:
+            compose.podman.run([], "push", [cnt["image"]], sleep=0)
 
 
 def build_one(compose, args, cnt):
@@ -1902,6 +1905,8 @@ def build_one(compose, args, cnt):
         raise OSError("Dockerfile not found in " + ctx)
     build_args = []
     if 1 < len(args.platform):
+        if 0 == compose.podman.run([], "manifest", ["exists", cnt["image"]], sleep=0).wait():
+            compose.podman.run([], "manifest", ["rm", cnt["image"]], sleep=0)
         build_args.extend(["--manifest", cnt["image"], "-f", dockerfile])
     else:
         build_args.extend(["-t", cnt["image"], "-f", dockerfile])
@@ -2674,6 +2679,11 @@ def compose_pull_parse(parser):
 
 @cmd_parse(podman_compose, "push")
 def compose_push_parse(parser):
+    parser.add_argument(
+        "--all-platforms",
+        action="store_true",
+        help="Push manifest and all images of a multi-platform build.",
+    )
     parser.add_argument(
         "--ignore-push-failures",
         action="store_true",
