@@ -931,11 +931,15 @@ def container_to_args(compose, cnt, detached=True):
     platform = cnt.get("platform", None)
     if platform is not None:
         podman_args.extend(["--platform", platform])
+
     # WIP: healthchecks are still work in progress
     healthcheck = cnt.get("healthcheck", None) or {}
     if not is_dict(healthcheck):
         raise ValueError("'healthcheck' must be an key-value mapping")
+    healthcheck_disable = healthcheck.get("disable", False)
     healthcheck_test = healthcheck.get("test", None)
+    if healthcheck_disable:
+        healthcheck_test = ["NONE"]
     if healthcheck_test:
         # If it's a string, it's equivalent to specifying CMD-SHELL
         if is_str(healthcheck_test):
