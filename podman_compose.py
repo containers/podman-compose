@@ -2691,6 +2691,35 @@ def compose_kill(compose, args):
         compose.podman.run([], "kill", podman_args)
 
 
+@cmd_run(
+    podman_compose, "stats", "Display percentage of CPU, memory, network I/O, block I/O and PIDs for services."
+)
+def compose_stats(compose, args):
+    container_names_by_service = compose.container_names_by_service
+    if not args.services:
+        args.services = container_names_by_service.keys()
+    targets = []
+    podman_args = []
+    if args.interval:
+        podman_args.extend(["--interval", args.interval])
+    if args.format:
+        podman_args.extend(["--format", args.format])
+    if args.no_reset:
+        podman_args.append("--no-reset")
+    if args.no_stream:
+        podman_args.append("--no-stream")
+
+    for service in args.services:
+        targets.extend(container_names_by_service[service])
+    for target in targets:
+        podman_args.append(target)
+
+    try:
+        compose.podman.run([], "stats", podman_args)
+    except KeyboardInterrupt:
+        pass
+
+
 ###################
 # command arguments parsing
 ###################
@@ -3137,6 +3166,35 @@ def compose_kill_parse(parser):
         "-a",
         "--all",
         help="Signal all running containers",
+        action="store_true",
+    )
+
+
+@cmd_parse(podman_compose, ["stats"])
+def compose_stats_parse(parser):
+    parser.add_argument(
+        "services", metavar="services", nargs="*", default=None, help="service names"
+    )
+    parser.add_argument(
+        "-i",
+        "--interval",
+        type=int,
+        help="Time in seconds between stats reports (default 5)",
+    )
+    parser.add_argument(
+        "-f",
+        "--format",
+        type=str,
+        help="Pretty-print container statistics to JSON or using a Go template",
+    )
+    parser.add_argument(
+        "--no-reset",
+        help="Disable resetting the screen between intervals",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--no-stream",
+        help="Disable streaming stats and only pull the first result",
         action="store_true",
     )
 
