@@ -1904,7 +1904,9 @@ def build_one(compose, args, cnt):
                 break
     if not os.path.exists(dockerfile):
         raise OSError("Dockerfile not found in " + ctx)
-    build_args = ["-t", cnt["image"], "-f", dockerfile]
+    build_args = ["-f", dockerfile, "-t", cnt["image"]]
+    for tag in build_desc.get("tags", []):
+        build_args.extend(["-t", tag])
     if "target" in build_desc:
         build_args.extend(["--target", build_desc["target"]])
     container_to_ulimit_args(cnt, build_args)
