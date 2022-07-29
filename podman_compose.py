@@ -1529,6 +1529,7 @@ class PodmanCompose:
             "io.podman.compose.config-hash=" + self.yaml_hash,
             "io.podman.compose.project=" + project_name,
             "io.podman.compose.version=" + __version__,
+            f"PODMAN_SYSTEMD_UNIT=podman-compose@{project_name}",
             "com.docker.compose.project=" + project_name,
             "com.docker.compose.project.working_dir=" + dirname,
             "com.docker.compose.project.config_files=" + ",".join(relative_files),
