@@ -1424,17 +1424,6 @@ class PodmanCompose:
         # TODO: remove next line
         os.chdir(dirname)
 
-        if not project_name:
-            # More strict then actually needed for simplicity: podman requires [a-zA-Z0-9][a-zA-Z0-9_.-]*
-            project_name = (
-                os.environ.get("COMPOSE_PROJECT_NAME", None) or dir_basename.lower()
-            )
-            project_name = norm_re.sub("", project_name)
-            if not project_name:
-                raise RuntimeError(f"Project name [{dir_basename}] normalized to empty")
-
-        self.project_name = project_name
-
         dotenv_path = os.path.join(dirname, args.env_file)
         dotenv_dict = dotenv_to_dict(dotenv_path)
         os.environ.update(
@@ -1452,7 +1441,6 @@ class PodmanCompose:
             {
                 "COMPOSE_PROJECT_DIR": dirname,
                 "COMPOSE_FILE": pathsep.join(relative_files),
-                "COMPOSE_PROJECT_NAME": self.project_name,
                 "COMPOSE_PATH_SEPARATOR": pathsep,
             }
         )
@@ -1479,6 +1467,23 @@ class PodmanCompose:
         if len(files) > 1:
             log(" ** merged:\n", json.dumps(compose, indent=2))
         # ver = compose.get('version', None)
+
+        if not project_name:
+            project_name = compose.get("name", None)
+            if project_name is None:
+                # More strict then actually needed for simplicity: podman requires [a-zA-Z0-9][a-zA-Z0-9_.-]*
+                project_name = (
+                    os.environ.get("COMPOSE_PROJECT_NAME", None) or dir_basename.lower()
+                )
+                project_name = norm_re.sub("", project_name)
+                if not project_name:
+                    raise RuntimeError(
+                        f"Project name [{dir_basename}] normalized to empty"
+                    )
+
+        self.project_name = project_name
+        self.environ.update({"COMPOSE_PROJECT_NAME": self.project_name})
+
         services = compose.get("services", None)
         if services is None:
             services = {}
