@@ -1857,6 +1857,9 @@ while in your project type `podman-compose systemd -a register`
 @cmd_run(podman_compose, "pull", "pull stack images")
 def compose_pull(compose, args):
     img_containers = [cnt for cnt in compose.containers if "image" in cnt]
+    if args.services:
+        services = set(args.services)
+        img_containers = [cnt for cnt in img_containers if cnt["_service"] in services]
     images = {cnt["image"] for cnt in img_containers}
     if not args.force_local:
         local_images = {cnt["image"] for cnt in img_containers if is_local(cnt)}
@@ -2732,6 +2735,9 @@ def compose_pull_parse(parser):
         action="store_true",
         default=False,
         help="Also pull unprefixed images for services which have a build section",
+    )
+    parser.add_argument(
+        "services", metavar="services", nargs="*", help="services to pull"
     )
 
 
