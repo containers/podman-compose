@@ -935,7 +935,7 @@ def container_to_args(compose, cnt, detached=True):
     # WIP: healthchecks are still work in progress
     healthcheck = cnt.get("healthcheck", None) or {}
     if not is_dict(healthcheck):
-        raise ValueError("'healthcheck' must be an key-value mapping")
+        raise ValueError("'healthcheck' must be a key-value mapping")
     healthcheck_disable = healthcheck.get("disable", False)
     healthcheck_test = healthcheck.get("test", None)
     if healthcheck_disable:
