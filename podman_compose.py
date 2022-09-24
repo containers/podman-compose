@@ -180,7 +180,7 @@ def fix_mount_dict(compose, mount_dict, proj_name, srv_name):
         vol = (vols.get(source, None) or {}) if source else {}
         name = vol.get("name", None)
         mount_dict["_vol"] = vol
-        # handle anonymouse or implied volume
+        # handle anonymous or implied volume
         if not source:
             # missing source
             vol["name"] = "_".join(
@@ -551,7 +551,7 @@ def get_secret_args(compose, cnt, secret):
     # docker-compose does not support external secrets outside of swarm mode.
     # However accessing these via podman is trivial
     # since these commands are directly translated to
-    # podman-create commands, albiet we can only support a 1:1 mapping
+    # podman-create commands, albeit we can only support a 1:1 mapping
     # at the moment
     if declared_secret.get("external", False) or declared_secret.get("name", None):
         secret_opts += f",uid={uid}" if uid else ""
@@ -578,7 +578,7 @@ def get_secret_args(compose, cnt, secret):
         return ["--secret", "{}{}".format(secret_name, secret_opts)]
 
     raise ValueError(
-        'ERROR: unparseable secret: "{}", service: "{}"'.format(
+        'ERROR: unparsable secret: "{}", service: "{}"'.format(
             secret_name, cnt["_service"]
         )
     )
