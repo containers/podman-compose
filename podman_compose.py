@@ -2058,7 +2058,7 @@ def compose_up(compose, args):
         obj = compose if exit_code_from == cnt["_service"] else None
         thread = Thread(
             target=compose.podman.run,
-            args=[[], "start", ["-a", cnt["name"]]],
+            args=[[], "start", [cnt["name"]]],
             kwargs={"obj": obj, "log_formatter": log_formatter},
             daemon=True,
             name=cnt["name"],
