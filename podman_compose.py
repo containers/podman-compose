@@ -1985,7 +1985,7 @@ def wait_healthy(compose, container_name):
     if not info["Config"].get("Healthcheck"):
         raise ValueError("Container %s does not define a health check" % container_name)
 
-    health = info["State"]["Healthcheck"]["Status"]
+    health = info["State"]["Health"]["Status"]
     if health == "unhealthy":
         raise RuntimeError(
             "Container %s is in unhealthy state, aborting" % container_name
