@@ -774,11 +774,17 @@ def get_net_args(compose, cnt):
     # NOTE: A container will only have access to aliases on the first network that it joins. This is a limitation that will be removed in a later release.
     ip = None
     ip6 = None
+    ip_assignments = 0
     if cnt_nets and is_dict(cnt_nets):
         # cnt_nets is {net_key: net_value, ...}
         for net_value in cnt_nets.values():
             net_value = net_value or {}
             aliases.extend(norm_as_list(net_value.get("aliases", None)))
+            if net_value.get("ipv4_address", None) != None:
+              ip_assignments = ip_assignments + 1
+            if net_value.get("ipv6_address", None) != None:
+              ip_assignments = ip_assignments + 1
+
             if not ip:
                 ip = net_value.get("ipv4_address", None)
             if not ip6:
@@ -796,12 +802,35 @@ def get_net_args(compose, cnt):
         )
         net_names.add(net_name)
     net_names_str = ",".join(net_names)
-    if is_bridge:
-        net_args.extend(["--net", net_names_str, "--network-alias", ",".join(aliases)])
-    if ip:
-        net_args.append(f"--ip={ip}")
-    if ip6:
-        net_args.append(f"--ip6={ip6}")
+
+    if ip_assignments > 1:
+      multipleNets = cnt.get("networks", None)
+      multipleNetNames = multipleNets.keys()
+
+      for net_ in multipleNetNames:
+        net_desc = nets[net_] or {}
+        is_ext = net_desc.get("external", None)
+        ext_desc = is_ext if is_dict(is_ext) else {}
+        default_net_name = net_ if is_ext else f"{proj_name}_{net_}"
+        net_name = (
+            ext_desc.get("name", None) or net_desc.get("name", None) or default_net_name
+        )
+
+        ipv4 = multipleNets[net_].get("ipv4_address",None)
+        ipv6 = multipleNets[net_].get("ipv6_address",None)
+        if ipv4 is not None and ipv6 is not None:
+          net_args.extend(["--network", f"{net_name}:ip={ipv4},ip={ipv6}"])
+        elif ipv4 is None and ipv6 is not None:
+          net_args.extend(["--network", f"{net_name}:ip={ipv6}"]) 
+        elif ipv6 is None and ipv4 is not None:
+          net_args.extend(["--network", f"{net_name}:ip={ipv4}"])
+    else:
+      if is_bridge:
+          net_args.extend(["--net", net_names_str, "--network-alias", ",".join(aliases)])
+      if ip:
+          net_args.append(f"--ip={ip}")
+      if ip6:
+          net_args.append(f"--ip6={ip6}")
     return net_args
 
 
