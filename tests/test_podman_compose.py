@@ -43,7 +43,7 @@ def test_podman_compose_extends_w_file_subdir():
         "rmi",
         "--force",
         "localhost/subdir_test:me",
-        "docker.io/library/bash",
+        "docker.io/library/busybox",
     ]
 
     out, err, returncode = capture(command_up)
