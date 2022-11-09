@@ -1523,6 +1523,8 @@ class PodmanCompose:
                 # log(filename, json.dumps(content, indent = 2))
                 content = rec_subs(content, self.environ)
                 rec_merge(compose, content)
+        resolved_services = self._resolve_profiles(compose.get("services", {}), set(args.profile))
+        compose["services"] = resolved_services
         self.merged_yaml = yaml.safe_dump(compose)
         merged_json_b = json.dumps(compose, separators=(",", ":")).encode("utf-8")
         self.yaml_hash = hashlib.sha256(merged_json_b).hexdigest()
@@ -1552,6 +1554,8 @@ class PodmanCompose:
         if services is None:
             services = {}
             log("WARNING: No services defined")
+        # include services with no profile defined or the selected profiles
+        services = self._resolve_profiles(services, set(args.profile))
 
         # NOTE: maybe add "extends.service" to _deps at this stage
         flat_deps(services, with_extends=True)
@@ -1666,6 +1670,28 @@ class PodmanCompose:
         self.containers = containers
         self.container_by_name = {c["name"]: c for c in containers}
 
+    def _resolve_profiles(self, defined_services, requested_profiles=None):
+        """
+        Returns a service dictionary (key = service name, value = service config) compatible with the requested_profiles
+        list.
+
+        The returned service dictionary contains all services which do not include/reference a profile in addition to
+        services that match the requested_profiles.
+
+        :param defined_services: The service dictionary
+        :param requested_profiles: The profiles requested using the --profile arg.
+        """
+        if requested_profiles is None:
+            requested_profiles = set()
+
+        services = {}
+
+        for name, config in defined_services.items():
+            service_profiles = set(config.get("profiles", []))
+            if not service_profiles or requested_profiles.intersection(service_profiles):
+                services[name] = config
+        return services
+
     def _parse_args(self):
         parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
         self._init_global_parser(parser)
@@ -1716,6 +1742,13 @@ class PodmanCompose:
             metavar="file",
             action="append",
             default=[],
+        )
+        parser.add_argument(
+            "--profile",
+            help="Specify a profile to enable",
+            metavar="profile",
+            action="append",
+            default=[]
         )
         parser.add_argument(
             "-p",
