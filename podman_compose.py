@@ -2002,7 +2002,8 @@ def build_one(compose, args, cnt):
             )
         )
     build_args.append(ctx)
-    compose.podman.run([], "build", build_args, sleep=0)
+    status = compose.podman.run([], "build", build_args, sleep=0)
+    return status
 
 
 @cmd_run(podman_compose, "build", "build stack images")
@@ -2012,10 +2013,12 @@ def compose_build(compose, args):
         compose.assert_services(args.services)
         for service in args.services:
             cnt = compose.container_by_name[container_names_by_service[service][0]]
-            build_one(compose, args, cnt)
+            p = build_one(compose, args, cnt)
+            exit(p.returncode)
     else:
         for cnt in compose.containers:
-            build_one(compose, args, cnt)
+            p = build_one(compose, args, cnt)
+            exit(p.returncode)
 
 
 def create_pods(compose, args):  # pylint: disable=unused-argument
