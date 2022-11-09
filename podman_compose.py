@@ -1523,7 +1523,9 @@ class PodmanCompose:
                 # log(filename, json.dumps(content, indent = 2))
                 content = rec_subs(content, self.environ)
                 rec_merge(compose, content)
-        resolved_services = self._resolve_profiles(compose.get("services", {}), set(args.profile))
+        resolved_services = self._resolve_profiles(
+            compose.get("services", {}), set(args.profile)
+        )
         compose["services"] = resolved_services
         self.merged_yaml = yaml.safe_dump(compose)
         merged_json_b = json.dumps(compose, separators=(",", ":")).encode("utf-8")
@@ -1688,7 +1690,9 @@ class PodmanCompose:
 
         for name, config in defined_services.items():
             service_profiles = set(config.get("profiles", []))
-            if not service_profiles or requested_profiles.intersection(service_profiles):
+            if not service_profiles or requested_profiles.intersection(
+                service_profiles
+            ):
                 services[name] = config
         return services
 
