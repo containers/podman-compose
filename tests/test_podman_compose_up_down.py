@@ -10,7 +10,7 @@ from test_podman_compose import capture
 
 @pytest.fixture
 def profile_compose_file(test_path):
-    """"Returns the path to the `profile` compose file used for this test module"""
+    """ "Returns the path to the `profile` compose file used for this test module"""
     return os.path.join(test_path, "profile", "docker-compose.yml")
 
 
@@ -34,20 +34,28 @@ def teardown(podman_compose_path, profile_compose_file):
         "profile-2",
         "-f",
         profile_compose_file,
-        "down"
+        "down",
     ]
     capture(down_cmd)
 
 
-@pytest.mark.parametrize("profiles, expected_services",
-                         [
-                             (["--profile", "profile-1", "up", "-d"],
-                              {"default-service": True, "service-1": True, "service-2": False}),
-                             (["--profile", "profile-2", "up", "-d"],
-                              {"default-service": True, "service-1": False, "service-2": True}),
-                             (["--profile", "profile-1", "--profile", "profile-2", "up", "-d"],
-                              {"default-service": True, "service-1": True, "service-2": True})
-                         ])
+@pytest.mark.parametrize(
+    "profiles, expected_services",
+    [
+        (
+            ["--profile", "profile-1", "up", "-d"],
+            {"default-service": True, "service-1": True, "service-2": False},
+        ),
+        (
+            ["--profile", "profile-2", "up", "-d"],
+            {"default-service": True, "service-1": False, "service-2": True},
+        ),
+        (
+            ["--profile", "profile-1", "--profile", "profile-2", "up", "-d"],
+            {"default-service": True, "service-1": True, "service-2": True},
+        ),
+    ],
+)
 def test_up(podman_compose_path, profile_compose_file, profiles, expected_services):
     up_cmd = [
         "python3",

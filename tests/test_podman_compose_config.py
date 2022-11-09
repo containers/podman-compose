@@ -10,7 +10,7 @@ from test_podman_compose import capture
 
 @pytest.fixture
 def profile_compose_file(test_path):
-    """"Returns the path to the `profile` compose file used for this test module"""
+    """ "Returns the path to the `profile` compose file used for this test module"""
     return os.path.join(test_path, "profile", "docker-compose.yml")
 
 
@@ -21,13 +21,7 @@ def test_config_no_profiles(podman_compose_path, profile_compose_file):
     :param podman_compose_path: The fixture used to specify the path to the podman compose file.
     :param profile_compose_file: The fixtued used to specify the path to the "profile" compose used in the test.
     """
-    config_cmd = [
-        "python3",
-        podman_compose_path,
-        "-f",
-        profile_compose_file,
-        "config"
-    ]
+    config_cmd = ["python3", podman_compose_path, "-f", profile_compose_file, "config"]
 
     out, err, return_code = capture(config_cmd)
     assert return_code == 0
@@ -38,16 +32,26 @@ def test_config_no_profiles(podman_compose_path, profile_compose_file):
     assert "service-2" not in string_output
 
 
-@pytest.mark.parametrize("profiles, expected_services",
-                         [
-                             (["--profile", "profile-1", "config"],
-                              {"default-service": True, "service-1": True, "service-2": False}),
-                             (["--profile", "profile-2", "config"],
-                              {"default-service": True, "service-1": False, "service-2": True}),
-                             (["--profile", "profile-1", "--profile", "profile-2", "config"],
-                              {"default-service": True, "service-1": True, "service-2": True})
-                         ])
-def test_config_profiles(podman_compose_path, profile_compose_file, profiles, expected_services):
+@pytest.mark.parametrize(
+    "profiles, expected_services",
+    [
+        (
+            ["--profile", "profile-1", "config"],
+            {"default-service": True, "service-1": True, "service-2": False},
+        ),
+        (
+            ["--profile", "profile-2", "config"],
+            {"default-service": True, "service-1": False, "service-2": True},
+        ),
+        (
+            ["--profile", "profile-1", "--profile", "profile-2", "config"],
+            {"default-service": True, "service-1": True, "service-2": True},
+        ),
+    ],
+)
+def test_config_profiles(
+    podman_compose_path, profile_compose_file, profiles, expected_services
+):
     """
     Tests podman-compose
     :param podman_compose_path: The fixture used to specify the path to the podman compose file.
@@ -56,12 +60,7 @@ def test_config_profiles(podman_compose_path, profile_compose_file, profiles, ex
     :param expected_services: Dictionary used to model the expected "enabled" services in the profile.
         Key = service name, Value = True if the service is enabled, otherwise False.
     """
-    config_cmd = [
-        "python3",
-        podman_compose_path,
-        "-f",
-        profile_compose_file
-    ]
+    config_cmd = ["python3", podman_compose_path, "-f", profile_compose_file]
     config_cmd.extend(profiles)
 
     out, err, return_code = capture(config_cmd)
