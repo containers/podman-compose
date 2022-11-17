@@ -1,0 +1,14 @@
+version: '3.5'
+services:
+  sh1:
+    extends:
+      file: sub-compose/docker-compose-general.yml
+      service: sh4
+  sh2:
+    extends:
+      file: sub-compose/docker-compose-general.yml
+      service: sh5
+  sh3:
+    extends:
+      file: sub-compose/docker-compose-general.yml
+      service: sh6

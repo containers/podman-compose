@@ -1,0 +1,23 @@
+services:
+
+  sh4:
+    extends:
+      file: ../docker-compose.yml
+      service: sh2
+    volumes:
+      - /host/4:/cnt/4:rw
+  sh5:
+    extends:
+      file: ../docker-compose.yml
+      service: sh3
+  sh6:
+    extends:
+      service: sh7
+
+  sh7:
+    command: [/bin/sh]
+    image: busybox
+    volumes:
+    - /host/7:/cnt/7:rw
+
+

@@ -1,0 +1,20 @@
+services:
+
+  sh4:
+    extends:
+      file: ../docker-compose.yml
+      service: sh2
+  sh5:
+    extends:
+      file: ../docker-compose.yml
+      service: sh3
+  sh6:
+    extends:
+      service: sh7
+
+  sh7:
+    extends:
+      file: ../docker-compose.yml
+      service: sh1
+
+

@@ -1,0 +1,26 @@
+version: '3.5'
+services:
+  sh:
+    command: [/bin/sh]
+    image: busybox
+    volumes:
+      - /tmp/service_sh:/tmp/service_sh:rw
+
+  ci-dev-sh:
+    extends:
+      service: sh
+    volumes:
+      - /tmp/service_ci-dev-sh:/tmp/service_ci-dev-sh:rw
+
+  ci-dev-sh2:
+    extends:
+      service: ci-dev-sh
+    volumes:
+      - /tmp/service_ci-dev-sh2:/tmp/service_ci-dev-sh2:rw
+
+  other-sh:
+    extends:
+      service: sh
+    volumes:
+      - /tmp/service_other-sh:/tmp/service_other-sh:rw
+
