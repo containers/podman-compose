@@ -693,7 +693,7 @@ def assert_cnt_nets(compose, cnt):
             ext_desc.get("name", None) or net_desc.get("name", None) or default_net_name
         )
         try:
-            compose.podman.output([], "network", ["exists", net_name])
+            compose.podman.output([], "network", ["inspect", net_name])
         except subprocess.CalledProcessError as e:
             if is_ext:
                 raise RuntimeError(
@@ -735,7 +735,7 @@ def assert_cnt_nets(compose, cnt):
                     args.extend(("--gateway", gateway))
             args.append(net_name)
             compose.podman.output([], "network", args)
-            compose.podman.output([], "network", ["exists", net_name])
+            compose.podman.output([], "network", ["inspect", net_name])
 
 
 def get_net_args(compose, cnt):
