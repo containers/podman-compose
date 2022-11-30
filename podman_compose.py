@@ -26,6 +26,7 @@ import glob
 from threading import Thread
 
 import shlex
+import semantic_version as sv
 
 try:
     from shlex import quote as cmd_quote
@@ -669,6 +670,22 @@ def norm_ports(ports_in):
         ports_out.append(port)
     return ports_out
 
+def assert_network_exists(compose, net_name):
+    podman_version = sv.Version(compose.podman_version)
+    if sv.SimpleSpec('<3.1.0').match(podman_version):
+          output = compose.podman.output([], "network", ["ls"])
+          offset = None
+          for raw_line in output.splitlines():
+              line = raw_line.decode("utf-8")
+              if not offset:
+                  offset = line.find("VERSION")
+              else:
+                  this_net_name = line[:offset].rstrip()
+                  if (this_net_name == net_name):
+                      return ''
+          raise subprocess.CalledProcessError(1, "docker network exists " +  net_name)
+    else:
+          return compose.podman.output([], "network", ["exists", net_name])
 
 def assert_cnt_nets(compose, cnt):
     """
@@ -693,7 +710,7 @@ def assert_cnt_nets(compose, cnt):
             ext_desc.get("name", None) or net_desc.get("name", None) or default_net_name
         )
         try:
-            compose.podman.output([], "network", ["exists", net_name])
+            assert_network_exists(compose, net_name)
         except subprocess.CalledProcessError as e:
             if is_ext:
                 raise RuntimeError(
@@ -735,7 +752,7 @@ def assert_cnt_nets(compose, cnt):
                     args.extend(("--gateway", gateway))
             args.append(net_name)
             compose.podman.output([], "network", args)
-            compose.podman.output([], "network", ["exists", net_name])
+            assert_network_exists(compose, net_name)
 
 
 def get_net_args(compose, cnt):
