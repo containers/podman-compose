@@ -1541,7 +1541,7 @@ class PodmanCompose:
             if project_name is None:
                 # More strict then actually needed for simplicity: podman requires [a-zA-Z0-9][a-zA-Z0-9_.-]*
                 project_name = (
-                    os.environ.get("COMPOSE_PROJECT_NAME", None) or dir_basename.lower()
+                    self.environ.get("COMPOSE_PROJECT_NAME", None) or dir_basename.lower()
                 )
                 project_name = norm_re.sub("", project_name)
                 if not project_name:
