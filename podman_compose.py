@@ -538,7 +538,7 @@ def get_secret_args(compose, cnt, secret):
         source_file = os.path.realpath(
             os.path.join(basedir, os.path.expanduser(source_file))
         )
-        volume_ref = ["--volume", f"{source_file}:{dest_file}:Z,ro,rprivate,rbind"]
+        volume_ref = ["--volume", f"{source_file}:{dest_file}:z,ro,rprivate,rbind"]
         if uid or gid or mode:
             sec = target if target else secret_name
             log(
