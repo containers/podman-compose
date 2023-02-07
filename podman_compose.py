@@ -706,7 +706,7 @@ def assert_cnt_nets(compose, cnt):
                 "--label",
                 f"com.docker.compose.project={proj_name}",
             ]
-            # TODO: add more options here, like driver, internal, ..etc
+            # TODO: add more options here, like dns, ipv6, etc.
             labels = net_desc.get("labels", None) or []
             for item in norm_as_list(labels):
                 args.extend(["--label", item])
@@ -718,15 +718,17 @@ def assert_cnt_nets(compose, cnt):
             driver_opts = net_desc.get("driver_opts", None) or {}
             for key, value in driver_opts.items():
                 args.extend(("--opt", f"{key}={value}"))
-            ipam_config_ls = (net_desc.get("ipam", None) or {}).get(
-                "config", None
-            ) or []
+            ipam = (net_desc.get("ipam", None) or {})
+            ipam_driver = ipam.get("driver", None)
+            if ipam_driver:
+                args.extend(("--ipam-driver", ipam_driver))
+            ipam_config_ls = ipam.get("config", None) or []
             if is_dict(ipam_config_ls):
                 ipam_config_ls = [ipam_config_ls]
-            for ipam in ipam_config_ls:
-                subnet = ipam.get("subnet", None)
-                ip_range = ipam.get("ip_range", None)
-                gateway = ipam.get("gateway", None)
+            for ipam_config in ipam_config_ls:
+                subnet = ipam_config.get("subnet", None)
+                ip_range = ipam_config.get("ip_range", None)
+                gateway = ipam_config.get("gateway", None)
                 if subnet:
                     args.extend(("--subnet", subnet))
                 if ip_range:
