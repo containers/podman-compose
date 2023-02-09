@@ -775,17 +775,28 @@ def get_net_args(compose, cnt):
     ip = None
     ip6 = None
     if cnt_nets and is_dict(cnt_nets):
+        cnt_nets_prioritized = dict()
         # cnt_nets is {net_key: net_value, ...}
-        for net_value in cnt_nets.values():
+        for net_key, net_value in cnt_nets.items():
             net_value = net_value or {}
             aliases.extend(norm_as_list(net_value.get("aliases", None)))
             if not ip:
                 ip = net_value.get("ipv4_address", None)
             if not ip6:
                 ip6 = net_value.get("ipv6_address", None)
-        cnt_nets = list(cnt_nets.keys())
+            net_priority = net_value.get("priority", 0)
+            if not net_priority in cnt_nets_prioritized:
+                cnt_nets_prioritized[net_priority] = list()
+            cnt_nets_prioritized[net_priority].append(net_key)
+            # sort each priority list alphabetically
+            for prio in cnt_nets_prioritized:
+                cnt_nets_prioritized[prio].sort()
+        # sort dict by priority
+        cnt_nets_prioritized = dict(sorted(cnt_nets_prioritized.items(), reverse=True))
+        # flatten the priority dict to a list
+        cnt_nets = [name for prios in cnt_nets_prioritized.values() for name in prios]
     cnt_nets = norm_as_list(cnt_nets or default_net)
-    net_names = set()
+    net_names = list()
     for net in cnt_nets:
         net_desc = nets[net] or {}
         is_ext = net_desc.get("external", None)
@@ -794,7 +805,7 @@ def get_net_args(compose, cnt):
         net_name = (
             ext_desc.get("name", None) or net_desc.get("name", None) or default_net_name
         )
-        net_names.add(net_name)
+        net_names.append(net_name)
     net_names_str = ",".join(net_names)
     if is_bridge:
         net_args.extend(["--net", net_names_str, "--network-alias", ",".join(aliases)])
