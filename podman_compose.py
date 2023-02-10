@@ -747,7 +747,9 @@ def get_net_args(compose, cnt):
     is_bridge = False
     net = cnt.get("network_mode", None)
     if net:
-        if net == "host":
+        if net == "none":
+            is_bridge = False
+        elif net == "host":
             net_args.extend(["--network", net])
         elif net.startswith("slirp4netns:"):
             net_args.extend(["--network", net])
