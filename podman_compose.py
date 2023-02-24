@@ -2118,6 +2118,26 @@ def compose_down(compose, args):
         if cnt["_service"] in excluded:
             continue
         compose.podman.run([], "rm", [cnt["name"]], sleep=0)
+    if args.remove_orphans:
+        names = (
+            compose.podman.output(
+                [],
+                "ps",
+                [
+                    "--filter",
+                    f"label=io.podman.compose.project={compose.project_name}",
+                    "-a",
+                    "--format",
+                    "{{ .Names }}",
+                ],
+            )
+            .decode("utf-8")
+            .splitlines()
+        )
+        for name in names:
+            compose.podman.run([], "stop", [*podman_args, name], sleep=0)
+        for name in names:
+            compose.podman.run([], "rm", [name], sleep=0)
     if args.volumes:
         vol_names_to_keep = set()
         for cnt in containers:
@@ -2532,6 +2552,11 @@ def compose_down_parse(parser):
         default=False,
         help="Remove named volumes declared in the `volumes` section of the Compose file and "
         "anonymous volumes attached to containers.",
+    )
+    parser.add_argument(
+        "--remove-orphans",
+        action="store_true",
+        help="Remove containers for services not defined in the Compose file.",
     )
 
 
