@@ -2269,10 +2269,12 @@ def compose_exec(compose, args):
         podman_args += ["--tty"]
     env = dict(cnt.get("environment", {}))
     if args.env:
-        additional_env_vars = dict(map(lambda each: each.split("="), args.env))
+        additional_env_vars = dict(
+            map(lambda each: each.split("=") if "=" in each else (each, None), args.env)
+        )
         env.update(additional_env_vars)
     for name, value in env.items():
-        podman_args += ["--env", "%s=%s" % (name, value)]
+        podman_args += ["--env", f"{name}" if value is None else f"{name}={value}"]
     podman_args += [container_name]
     if args.cnt_command is not None and len(args.cnt_command) > 0:
         podman_args += args.cnt_command
