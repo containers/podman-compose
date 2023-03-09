@@ -2467,7 +2467,7 @@ class PodmanCompose:
         parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
         self._init_global_parser(parser)
         subparsers = parser.add_subparsers(title="command", dest="command")
-        subparser = subparsers.add_parser("help", help="show help")
+        _ = subparsers.add_parser("help", help="show help")
         for cmd_name, cmd in self.commands.items():
             subparser = subparsers.add_parser(cmd_name, help=cmd.desc)  # pylint: disable=protected-access
             for cmd_parser in cmd._parse_args:  # pylint: disable=protected-access
