@@ -1671,7 +1671,7 @@ class PodmanCompose:
         _ = subparsers.add_parser("help", help="show help")
         for cmd_name, cmd in self.commands.items():
             subparser = subparsers.add_parser(
-                cmd_name, help=cmd.desc
+                cmd_name, help=cmd.help, description=cmd.desc
             )  # pylint: disable=protected-access
             for cmd_parser in cmd._parse_args:  # pylint: disable=protected-access
                 cmd_parser(subparser)
@@ -1779,7 +1779,13 @@ class cmd_run:  # pylint: disable=invalid-name,too-few-public-methods
 
         wrapped._compose = self.compose
         # Trim extra indentation at start of multiline docstrings.
-        wrapped.desc = self.cmd_desc or re.sub(r"^\s+", "", func.__doc__)
+        help_desc = self.cmd_desc or re.sub(r"^\s+", "", func.__doc__)
+        if "\n" in help_desc:
+            wrapped.help, wrapped.desc = help_desc.split("\n", 1)
+        else:
+            wrapped.help = help_desc
+            wrapped.desc = None
+
         wrapped._parse_args = []
         self.compose.commands[self.cmd_name] = wrapped
         return wrapped
