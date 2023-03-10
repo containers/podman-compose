@@ -154,8 +154,13 @@ def parse_short_mount(mount_str, basedir):
         else:
             # TODO: ignore
             raise ValueError("unknown mount option " + opt)
-    mount_opt_dict["bind"] = dict(propagation=",".join(propagation_opts))
-    return dict(type=mount_type, source=mount_src, target=mount_dst, **mount_opt_dict)
+    mount_opt_dict["bind"] = {"propagation": ",".join(propagation_opts)}
+    return {
+        "type": mount_type,
+        "source": mount_src,
+        "target": mount_dst,
+        **mount_opt_dict,
+    }
 
 
 # NOTE: if a named volume is used but not defined it
@@ -323,7 +328,7 @@ def transform(args, project_name, given_containers):
         pods = []
     else:
         pod_name = f"pod_{project_name}"
-        pod = dict(name=pod_name)
+        pod = {"name": pod_name}
         pods = [pod]
     containers = []
     for cnt in given_containers:
@@ -1557,9 +1562,12 @@ class PodmanCompose:
                     name = name0
                 container_names_by_service[service_name].append(name)
                 # log(service_name,service_desc)
-                cnt = dict(
-                    name=name, num=num, service_name=service_name, **service_desc
-                )
+                cnt = {
+                    "name": name,
+                    "num": num,
+                    "service_name": service_name,
+                    **service_desc,
+                }
                 if "image" not in cnt:
                     cnt["image"] = f"{project_name}_{service_name}"
                 labels = norm_as_list(cnt.get("labels", None))
@@ -1893,7 +1901,7 @@ def build_one(compose, args, cnt):
             return
     build_desc = cnt["build"]
     if not hasattr(build_desc, "items"):
-        build_desc = dict(context=build_desc)
+        build_desc = {"context": build_desc}
     ctx = build_desc.get("context", ".")
     dockerfile = build_desc.get("dockerfile", None)
     if dockerfile:
