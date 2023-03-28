@@ -96,6 +96,7 @@ PODMAN_CMDS = (
 )
 
 t_re=re.compile('^(?:(\d+)[m:])?(?:(\d+(?:\.\d+)?)s?)?$')
+STOP_GRACE_PERIOD = "10"
 
 def str_to_seconds(txt):
      if not txt: return None
@@ -2126,7 +2127,7 @@ def compose_down(compose, args):
             continue
         podman_stop_args = [*podman_args]
         if timeout is None:
-            timeout_str = cnt.get("stop_grace_period", None) or "10"
+            timeout_str = cnt.get("stop_grace_period", None) or STOP_GRACE_PERIOD
             timeout = str_to_seconds(timeout_str)
         if timeout is not None:
             podman_stop_args.extend(["-t", str(timeout)])
@@ -2290,11 +2291,12 @@ def transfer_service_status(compose, args, action):
     podman_args = []
     timeout = getattr(args, "timeout", None)
     for target in targets:
-        if timeout is None:
-            timeout_str = compose.container_by_name[target].get("stop_grace_period", None) or "10"
-            timeout = str_to_seconds(timeout_str)
-        if timeout is not None:
-            podman_args.extend(["-t", str(timeout)])
+        if action != "start":
+            if timeout is None:
+                timeout_str = compose.container_by_name[target].get("stop_grace_period", None) or STOP_GRACE_PERIOD
+                timeout = str_to_seconds(timeout_str)
+            if timeout is not None:
+                podman_args.extend(["-t", str(timeout)])
         compose.podman.run([], action, podman_args + [target], sleep=0)
 
 
@@ -2515,7 +2517,7 @@ def compose_up_parse(parser):
         "-t",
         "--timeout",
         type=int,
-        default=10,
+        default=None,
         help="Use this timeout in seconds for container shutdown when attached or when containers are already running. (default: 10)",
     )
     parser.add_argument(
@@ -2694,7 +2696,7 @@ def compose_parse_timeout(parser):
         "--timeout",
         help="Specify a shutdown timeout in seconds. ",
         type=int,
-        default=10,
+        default=None,
     )
 
 
