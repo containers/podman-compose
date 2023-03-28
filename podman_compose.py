@@ -95,6 +95,20 @@ PODMAN_CMDS = (
     "volume",
 )
 
+t_re=re.compile('^(?:(\d+)[m:])?(?:(\d+(?:\.\d+)?)s?)?$')
+
+def str_to_seconds(txt):
+     if not txt: return None
+     if isinstance(txt, int) or isinstance(txt, float):
+         return txt
+     ma = t_re.match(txt.strip())
+     if not ma: return None
+     m, s = ma[1], ma[2]
+     m = int(m) if m else 0
+     s = float(s) if s else 0
+     # "podman stop" takes only int
+     # Error: invalid argument "3.0" for "-t, --time" flag: strconv.ParseUint: parsing "3.0": invalid syntax
+     return int(m*60.0 + s)
 
 def ver_as_list(a):
     return [try_int(i, i) for i in num_split_re.findall(a)]
@@ -2105,15 +2119,18 @@ def compose_down(compose, args):
     excluded = get_excluded(compose, args)
     podman_args = []
     timeout = getattr(args, "timeout", None)
-    if timeout is None:
-        timeout = 1
-    podman_args.extend(["-t", str(timeout)])
     containers = list(reversed(compose.containers))
 
     for cnt in containers:
         if cnt["_service"] in excluded:
             continue
-        compose.podman.run([], "stop", [*podman_args, cnt["name"]], sleep=0)
+        podman_stop_args = [*podman_args]
+        if timeout is None:
+            timeout_str = cnt.get("stop_grace_period", None) or "10"
+            timeout = str_to_seconds(timeout_str)
+        if timeout is not None:
+            podman_stop_args.extend(["-t", str(timeout)])
+        compose.podman.run([], "stop", [*podman_stop_args, cnt["name"]], sleep=0)
     for cnt in containers:
         if cnt["_service"] in excluded:
             continue
@@ -2134,6 +2151,7 @@ def compose_down(compose, args):
         return
     for pod in compose.pods:
         compose.podman.run([], "pod", ["rm", pod["name"]], sleep=0)
+
 
 
 @cmd_run(podman_compose, "ps", "show status of containers")
@@ -2271,9 +2289,12 @@ def transfer_service_status(compose, args, action):
         targets = list(reversed(targets))
     podman_args = []
     timeout = getattr(args, "timeout", None)
-    if timeout is not None:
-        podman_args.extend(["-t", str(timeout)])
     for target in targets:
+        if timeout is None:
+            timeout_str = compose.container_by_name[target].get("stop_grace_period", None) or "10"
+            timeout = str_to_seconds(timeout_str)
+        if timeout is not None:
+            podman_args.extend(["-t", str(timeout)])
         compose.podman.run([], action, podman_args + [target], sleep=0)
 
 
