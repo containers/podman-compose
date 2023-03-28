@@ -851,6 +851,8 @@ def container_to_args(compose, cnt, detached=True):
         podman_args.extend(["--cap-add", c])
     for c in cnt.get("cap_drop", []):
         podman_args.extend(["--cap-drop", c])
+    for item in cnt.get("group_add", []):
+        podman_args.extend(["--group-add", item])
     for item in cnt.get("devices", []):
         podman_args.extend(["--device", item])
     for item in norm_as_list(cnt.get("dns", None)):
