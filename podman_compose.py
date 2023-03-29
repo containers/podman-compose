@@ -2119,13 +2119,14 @@ def get_volume_names(compose, cnt):
 def compose_down(compose, args):
     excluded = get_excluded(compose, args)
     podman_args = []
-    timeout = getattr(args, "timeout", None)
+    timeout_global = getattr(args, "timeout", None)
     containers = list(reversed(compose.containers))
 
     for cnt in containers:
         if cnt["_service"] in excluded:
             continue
         podman_stop_args = [*podman_args]
+        timeout = timeout_global
         if timeout is None:
             timeout_str = cnt.get("stop_grace_period", None) or STOP_GRACE_PERIOD
             timeout = str_to_seconds(timeout_str)
@@ -2289,9 +2290,10 @@ def transfer_service_status(compose, args, action):
     if action in ["stop", "restart"]:
         targets = list(reversed(targets))
     podman_args = []
-    timeout = getattr(args, "timeout", None)
+    timeout_global = getattr(args, "timeout", None)
     for target in targets:
         if action != "start":
+            timeout = timeout_global
             if timeout is None:
                 timeout_str = compose.container_by_name[target].get("stop_grace_period", None) or STOP_GRACE_PERIOD
                 timeout = str_to_seconds(timeout_str)
