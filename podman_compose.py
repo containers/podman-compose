@@ -1526,11 +1526,13 @@ class PodmanCompose:
         dirname = os.path.realpath(os.path.dirname(filename))
         dir_basename = os.path.basename(dirname)
         self.dirname = dirname
-        # TODO: remove next line
-        os.chdir(dirname)
 
-        dotenv_path = os.path.join(dirname, args.env_file)
-        dotenv_dict = dotenv_to_dict(dotenv_path)
+        # env-file is relative to the CWD
+        dotenv_dict = {}
+        if args.env_file:
+            dotenv_path = os.path.realpath(args.env_file)
+            dotenv_dict = dotenv_to_dict(dotenv_path)
+
         os.environ.update(
             {
                 key: value
