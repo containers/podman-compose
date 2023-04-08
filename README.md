@@ -122,3 +122,7 @@ run a pytest with following command
 ```shell
 python -m pytest pytests
 ```
+
+# Contributing guide
+
+If you are a user or a developer and want to contribute please check the [CONTRIBUTING](CONTRIBUTING.md) section

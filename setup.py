@@ -17,6 +17,9 @@ setup(
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Intended Audience :: Developers",
         "Operating System :: OS Independent",
         "Development Status :: 3 - Alpha",
@@ -35,6 +38,14 @@ setup(
         "pyyaml",
         "python-dotenv",
     ],
+    extras_require={
+        "devel": [
+            "flake8",
+            "black",
+            "pylint",
+            "pre-commit",
+        ]
+    }
     # test_suite='tests',
     # tests_require=[
     #     'coverage',
