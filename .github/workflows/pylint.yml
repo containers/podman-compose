@@ -5,14 +5,26 @@ on:
 - pull_request
 
 jobs:
-  build:
+  lint-black:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install psf/black requirements
+      run: |
+        apt-get update
+        apt-get install -y python3 python3-venv
+    - uses: psf/black@stable
+      with:
+        options: "--check --verbose"
+        version: "~= 23.3"
+
+  lint-pylint:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.8", "3.9", "3.10"]
     steps:
     - uses: actions/checkout@v3
-    - uses: psf/black@stable
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
