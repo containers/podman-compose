@@ -792,7 +792,7 @@ def get_net_args(compose, cnt):
     ip = None
     ip6 = None
     if cnt_nets and is_dict(cnt_nets):
-        cnt_nets_prioritized = dict()
+        prioritized_cnt_nets = []
         # cnt_nets is {net_key: net_value, ...}
         for net_key, net_value in cnt_nets.items():
             net_value = net_value or {}
@@ -802,16 +802,10 @@ def get_net_args(compose, cnt):
             if not ip6:
                 ip6 = net_value.get("ipv6_address", None)
             net_priority = net_value.get("priority", 0)
-            if not net_priority in cnt_nets_prioritized:
-                cnt_nets_prioritized[net_priority] = list()
-            cnt_nets_prioritized[net_priority].append(net_key)
-            # sort each priority list alphabetically
-            for prio in cnt_nets_prioritized:
-                cnt_nets_prioritized[prio].sort()
+            prioritized_cnt_nets.append((net_priority, net_key,))
         # sort dict by priority
-        cnt_nets_prioritized = dict(sorted(cnt_nets_prioritized.items(), reverse=True))
-        # flatten the priority dict to a list
-        cnt_nets = [name for prios in cnt_nets_prioritized.values() for name in prios]
+        prioritized_cnt_nets.sort(reverse=True)
+        cnt_nets = [ net_key for _, net_key in prioritized_cnt_nets ]
     cnt_nets = norm_as_list(cnt_nets or default_net)
     net_names = list()
     for net in cnt_nets:
