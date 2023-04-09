@@ -46,16 +46,16 @@ def test_podman_compose_extends_w_file_subdir():
         "docker.io/library/busybox",
     ]
 
-    out, err, returncode = capture(command_up)
+    out, _, returncode = capture(command_up)
     assert 0 == returncode
     # check container was created and exists
-    out, err, returncode = capture(command_check_container)
+    out, _, returncode = capture(command_check_container)
     assert 0 == returncode
     assert out == b'"localhost/subdir_test:me"\n'
-    out, err, returncode = capture(command_down)
+    out, _, returncode = capture(command_down)
     # cleanup test image(tags)
     assert 0 == returncode
     # check container did not exists anymore
-    out, err, returncode = capture(command_check_container)
+    out, _, returncode = capture(command_check_container)
     assert 0 == returncode
     assert out == b""
