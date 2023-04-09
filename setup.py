@@ -2,14 +2,16 @@ import os
 from setuptools import setup
 
 try:
-    readme = open(os.path.join(os.path.dirname(__file__), "README.md")).read()
-except:  # noqa: E722
-    readme = ""
+    README = open(
+        os.path.join(os.path.dirname(__file__), "README.md"), encoding="utf-8"
+    ).read()
+except:  # noqa: E722 # pylint: disable=bare-except
+    README = ""
 
 setup(
     name="podman-compose",
     description="A script to run docker-compose.yml using podman",
-    long_description=readme,
+    long_description=README,
     long_description_content_type="text/markdown",
     classifiers=[
         "Programming Language :: Python",

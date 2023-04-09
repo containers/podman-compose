@@ -30,7 +30,7 @@ import shlex
 try:
     from shlex import quote as cmd_quote
 except ImportError:
-    from pipes import quote as cmd_quote
+    from pipes import quote as cmd_quote  # pylint: disable=deprecated-module
 
 # import fnmatch
 # fnmatch.fnmatchcase(env, "*_HOST")
@@ -54,7 +54,11 @@ def is_dict(dict_object):
 
 
 def is_list(list_object):
-    return not is_str(list_object) and not is_dict(list_object) and hasattr(list_object, "__iter__")
+    return (
+        not is_str(list_object)
+        and not is_dict(list_object)
+        and hasattr(list_object, "__iter__")
+    )
 
 
 # identity filter
