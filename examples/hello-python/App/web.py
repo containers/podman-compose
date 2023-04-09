@@ -1,5 +1,5 @@
 import os
-import asyncio
+import asyncio  # noqa: F401
 
 import aioredis
 from aiohttp import web
