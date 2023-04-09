@@ -43,11 +43,23 @@ __version__ = "1.0.7"
 script = os.path.realpath(sys.argv[0])
 
 # helper functions
-is_str = lambda s: isinstance(s, str)
-is_dict = lambda d: isinstance(d, dict)
-is_list = lambda l: not is_str(l) and not is_dict(l) and hasattr(l, "__iter__")
+
+
+def is_str(string_object):
+    return isinstance(string_object, str)
+
+
+def is_dict(dict_object):
+    return isinstance(dict_object, dict)
+
+
+def is_list(list_object):
+    return not is_str(list_object) and not is_dict(list_object) and hasattr(list_object, "__iter__")
+
+
 # identity filter
-filteri = lambda a: filter(lambda i: i, a)
+def filteri(a):
+    return filter(lambda i: i, a)
 
 
 def try_int(i, fallback=None):
@@ -797,7 +809,9 @@ def get_net_args(compose, cnt):
     cnt_nets = cnt.get("networks", None)
     aliases = [service_name]
     # NOTE: from podman manpage:
-    # NOTE: A container will only have access to aliases on the first network that it joins. This is a limitation that will be removed in a later release.
+    # NOTE: A container will only have access to aliases on the first network
+    #       that it joins. This is a limitation that will be removed in a later
+    #       release.
     ip = None
     ip6 = None
     if cnt_nets and is_dict(cnt_nets):
@@ -1127,7 +1141,11 @@ class Podman:
         log(" ".join([str(i) for i in cmd_ls]))
         if self.dry_run:
             return None
-        # subprocess.Popen(args, bufsize = 0, executable = None, stdin = None, stdout = None, stderr = None, preexec_fn = None, close_fds = False, shell = False, cwd = None, env = None, universal_newlines = False, startupinfo = None, creationflags = 0)
+        # subprocess.Popen(
+        #   args, bufsize = 0, executable = None, stdin = None, stdout = None, stderr = None, preexec_fn = None,
+        #   close_fds = False, shell = False, cwd = None, env = None, universal_newlines = False, startupinfo = None,
+        #   creationflags = 0
+        # )
         if log_formatter is not None:
             # Pipe podman process output through log_formatter (which can add colored prefix)
             p = subprocess.Popen(
@@ -1799,7 +1817,7 @@ def is_local(container: dict) -> bool:
     * has a build section and is not prefixed
     """
     return (
-        not "/" in container["image"]
+        "/" not in container["image"]
         if "build" in container
         else container["image"].startswith("localhost/")
     )
@@ -2522,7 +2540,8 @@ def compose_up_parse(parser):
         "-d",
         "--detach",
         action="store_true",
-        help="Detached mode: Run container in the background, print new container name. Incompatible with --abort-on-container-exit.",
+        help="Detached mode: Run container in the background, print new container name. \
+            Incompatible with --abort-on-container-exit.",
     )
     parser.add_argument(
         "--no-color", action="store_true", help="Produce monochrome output."
@@ -2573,7 +2592,8 @@ def compose_up_parse(parser):
         "--timeout",
         type=int,
         default=None,
-        help="Use this timeout in seconds for container shutdown when attached or when containers are already running. (default: 10)",
+        help="Use this timeout in seconds for container shutdown when attached or when containers are already running. \
+            (default: 10)",
     )
     parser.add_argument(
         "-V",

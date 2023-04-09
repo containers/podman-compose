@@ -3,7 +3,7 @@ from setuptools import setup
 
 try:
     readme = open(os.path.join(os.path.dirname(__file__), "README.md")).read()
-except:
+except:  # noqa: E722
     readme = ""
 
 setup(
