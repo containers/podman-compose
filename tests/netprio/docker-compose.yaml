@@ -1,0 +1,16 @@
+---
+# https://github.com/compose-spec/compose-spec/blob/master/spec.md#priority
+services:
+  app:
+    image: busybox
+    command: top
+    networks:
+      app_net_1:
+      app_net_2:
+        priority: 1000
+      app_net_3:
+        priority: 100
+networks:
+  app_net_1:
+  app_net_2:
+  app_net_3:
