@@ -38,7 +38,7 @@ except ImportError:
 import yaml
 from dotenv import dotenv_values
 
-__version__ = "1.0.4"
+__version__ = "1.0.6"
 
 script = os.path.realpath(sys.argv[0])
 
@@ -342,7 +342,7 @@ def norm_ulimit(inner_value):
 
 
 def transform(args, project_name, given_containers):
-    if args.no_pod:
+    if not args.in_pod:
         pod_name = None
         pods = []
     else:
@@ -1663,9 +1663,10 @@ class PodmanCompose:
     def _init_global_parser(parser):
         parser.add_argument("-v", "--version", help="show version", action="store_true")
         parser.add_argument(
-            "--no-pod",
-            help="disable pod creation",
-            action="store_true",
+            "--in-pod",
+            help="pod creation",
+            metavar="in_pod",
+            type=bool,
             default=False,
         )
         parser.add_argument(
