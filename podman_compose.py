@@ -95,21 +95,25 @@ PODMAN_CMDS = (
     "volume",
 )
 
-t_re=re.compile('^(?:(\d+)[m:])?(?:(\d+(?:\.\d+)?)s?)?$')
+t_re = re.compile(r"^(?:(\d+)[m:])?(?:(\d+(?:\.\d+)?)s?)?$")
 STOP_GRACE_PERIOD = "10"
 
+
 def str_to_seconds(txt):
-     if not txt: return None
-     if isinstance(txt, int) or isinstance(txt, float):
-         return txt
-     ma = t_re.match(txt.strip())
-     if not ma: return None
-     m, s = ma[1], ma[2]
-     m = int(m) if m else 0
-     s = float(s) if s else 0
-     # "podman stop" takes only int
-     # Error: invalid argument "3.0" for "-t, --time" flag: strconv.ParseUint: parsing "3.0": invalid syntax
-     return int(m*60.0 + s)
+    if not txt:
+        return None
+    if isinstance(txt, (int, float)):
+        return txt
+    match = t_re.match(txt.strip())
+    if not match:
+        return None
+    mins, sec = match[1], match[2]
+    mins = int(mins) if mins else 0
+    sec = float(sec) if sec else 0
+    # "podman stop" takes only int
+    # Error: invalid argument "3.0" for "-t, --time" flag: strconv.ParseUint: parsing "3.0": invalid syntax
+    return int(mins * 60.0 + sec)
+
 
 def ver_as_list(a):
     return [try_int(i, i) for i in num_split_re.findall(a)]
@@ -802,12 +806,17 @@ def get_net_args(compose, cnt):
             if not ip6:
                 ip6 = net_value.get("ipv6_address", None)
             net_priority = net_value.get("priority", 0)
-            prioritized_cnt_nets.append((net_priority, net_key,))
+            prioritized_cnt_nets.append(
+                (
+                    net_priority,
+                    net_key,
+                )
+            )
         # sort dict by priority
         prioritized_cnt_nets.sort(reverse=True)
-        cnt_nets = [ net_key for _, net_key in prioritized_cnt_nets ]
+        cnt_nets = [net_key for _, net_key in prioritized_cnt_nets]
     cnt_nets = norm_as_list(cnt_nets or default_net)
-    net_names = list()
+    net_names = []
     for net in cnt_nets:
         net_desc = nets[net] or {}
         is_ext = net_desc.get("external", None)
@@ -2067,7 +2076,7 @@ def compose_up(compose, args):
         max_service_length = (
             curr_length if curr_length > max_service_length else max_service_length
         )
-    has_sed = os.path.isfile('/bin/sed')
+    has_sed = os.path.isfile("/bin/sed")
     for i, cnt in enumerate(compose.containers):
         # Add colored service prefix to output by piping output through sed
         color_idx = i % len(compose.console_colors)
@@ -2184,7 +2193,6 @@ def compose_down(compose, args):
         return
     for pod in compose.pods:
         compose.podman.run([], "pod", ["rm", pod["name"]], sleep=0)
-
 
 
 @cmd_run(podman_compose, "ps", "show status of containers")
@@ -2328,7 +2336,10 @@ def transfer_service_status(compose, args, action):
         if action != "start":
             timeout = timeout_global
             if timeout is None:
-                timeout_str = compose.container_by_name[target].get("stop_grace_period", None) or STOP_GRACE_PERIOD
+                timeout_str = (
+                    compose.container_by_name[target].get("stop_grace_period", None)
+                    or STOP_GRACE_PERIOD
+                )
                 timeout = str_to_seconds(timeout_str)
             if timeout is not None:
                 podman_args.extend(["-t", str(timeout)])
