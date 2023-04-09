@@ -38,7 +38,7 @@ except ImportError:
 import yaml
 from dotenv import dotenv_values
 
-__version__ = "1.0.6"
+__version__ = "1.0.7"
 
 script = os.path.realpath(sys.argv[0])
 
@@ -1667,7 +1667,7 @@ class PodmanCompose:
             help="pod creation",
             metavar="in_pod",
             type=bool,
-            default=False,
+            default=True,
         )
         parser.add_argument(
             "--pod-args",
