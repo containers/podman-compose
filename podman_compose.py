@@ -2067,7 +2067,7 @@ def compose_up(compose, args):
         max_service_length = (
             curr_length if curr_length > max_service_length else max_service_length
         )
-
+    has_sed = os.path.isfile('/bin/sed')
     for i, cnt in enumerate(compose.containers):
         # Add colored service prefix to output by piping output through sed
         color_idx = i % len(compose.console_colors)
@@ -2076,7 +2076,7 @@ def compose_up(compose, args):
         log_formatter = "s/^/{}[{}]{}|\x1B[0m\\ /;".format(
             color, cnt["_service"], space_suffix
         )
-        log_formatter = ["sed", "-e", log_formatter]
+        log_formatter = ["sed", "-e", log_formatter] if has_sed else None
         if cnt["_service"] in excluded:
             log("** skipping: ", cnt["name"])
             continue
