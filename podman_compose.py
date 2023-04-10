@@ -758,7 +758,7 @@ def assert_cnt_nets(compose, cnt):
             driver_opts = net_desc.get("driver_opts", None) or {}
             for key, value in driver_opts.items():
                 args.extend(("--opt", f"{key}={value}"))
-            ipam = (net_desc.get("ipam", None) or {})
+            ipam = net_desc.get("ipam", None) or {}
             ipam_driver = ipam.get("driver", None)
             if ipam_driver:
                 args.extend(("--ipam-driver", ipam_driver))
@@ -829,10 +829,10 @@ def get_net_args(compose, cnt):
         for net_key, net_value in cnt_nets.items():
             net_value = net_value or {}
             aliases.extend(norm_as_list(net_value.get("aliases", None)))
-            if net_value.get("ipv4_address", None) != None:
-              ip_assignments = ip_assignments + 1
-            if net_value.get("ipv6_address", None) != None:
-              ip_assignments = ip_assignments + 1
+            if net_value.get("ipv4_address", None) is not None:
+                ip_assignments = ip_assignments + 1
+            if net_value.get("ipv6_address", None) is not None:
+                ip_assignments = ip_assignments + 1
 
             if not ip:
                 ip = net_value.get("ipv4_address", None)
@@ -862,33 +862,37 @@ def get_net_args(compose, cnt):
     net_names_str = ",".join(net_names)
 
     if ip_assignments > 1:
-      multipleNets = cnt.get("networks", None)
-      multipleNetNames = multipleNets.keys()
+        multiple_nets = cnt.get("networks", None)
+        multiple_net_names = multiple_nets.keys()
 
-      for net_ in multipleNetNames:
-        net_desc = nets[net_] or {}
-        is_ext = net_desc.get("external", None)
-        ext_desc = is_ext if is_dict(is_ext) else {}
-        default_net_name = net_ if is_ext else f"{proj_name}_{net_}"
-        net_name = (
-            ext_desc.get("name", None) or net_desc.get("name", None) or default_net_name
-        )
+        for net_ in multiple_net_names:
+            net_desc = nets[net_] or {}
+            is_ext = net_desc.get("external", None)
+            ext_desc = is_ext if is_dict(is_ext) else {}
+            default_net_name = net_ if is_ext else f"{proj_name}_{net_}"
+            net_name = (
+                ext_desc.get("name", None)
+                or net_desc.get("name", None)
+                or default_net_name
+            )
 
-        ipv4 = multipleNets[net_].get("ipv4_address",None)
-        ipv6 = multipleNets[net_].get("ipv6_address",None)
-        if ipv4 is not None and ipv6 is not None:
-          net_args.extend(["--network", f"{net_name}:ip={ipv4},ip={ipv6}"])
-        elif ipv4 is None and ipv6 is not None:
-          net_args.extend(["--network", f"{net_name}:ip={ipv6}"]) 
-        elif ipv6 is None and ipv4 is not None:
-          net_args.extend(["--network", f"{net_name}:ip={ipv4}"])
+            ipv4 = multiple_nets[net_].get("ipv4_address", None)
+            ipv6 = multiple_nets[net_].get("ipv6_address", None)
+            if ipv4 is not None and ipv6 is not None:
+                net_args.extend(["--network", f"{net_name}:ip={ipv4},ip={ipv6}"])
+            elif ipv4 is None and ipv6 is not None:
+                net_args.extend(["--network", f"{net_name}:ip={ipv6}"])
+            elif ipv6 is None and ipv4 is not None:
+                net_args.extend(["--network", f"{net_name}:ip={ipv4}"])
     else:
-      if is_bridge:
-          net_args.extend(["--net", net_names_str, "--network-alias", ",".join(aliases)])
-      if ip:
-          net_args.append(f"--ip={ip}")
-      if ip6:
-          net_args.append(f"--ip6={ip6}")
+        if is_bridge:
+            net_args.extend(
+                ["--net", net_names_str, "--network-alias", ",".join(aliases)]
+            )
+        if ip:
+            net_args.append(f"--ip={ip}")
+        if ip6:
+            net_args.append(f"--ip6={ip6}")
     return net_args
 
 
@@ -1578,7 +1582,8 @@ class PodmanCompose:
             if project_name is None:
                 # More strict then actually needed for simplicity: podman requires [a-zA-Z0-9][a-zA-Z0-9_.-]*
                 project_name = (
-                    self.environ.get("COMPOSE_PROJECT_NAME", None) or dir_basename.lower()
+                    self.environ.get("COMPOSE_PROJECT_NAME", None)
+                    or dir_basename.lower()
                 )
                 project_name = norm_re.sub("", project_name)
                 if not project_name:
@@ -2023,7 +2028,7 @@ def compose_push(compose, args):
 
 def build_one(compose, args, cnt):
     if "build" not in cnt:
-        return
+        return None
     if getattr(args, "if_not_exists", None):
         try:
             img_id = compose.podman.output(
@@ -2032,7 +2037,7 @@ def build_one(compose, args, cnt):
         except subprocess.CalledProcessError:
             img_id = None
         if img_id:
-            return
+            return None
     build_desc = cnt["build"]
     if not hasattr(build_desc, "items"):
         build_desc = {"context": build_desc}
@@ -2090,11 +2095,11 @@ def compose_build(compose, args):
         for service in args.services:
             cnt = compose.container_by_name[container_names_by_service[service][0]]
             p = build_one(compose, args, cnt)
-            exit(p.returncode)
+            sys.exit(p.returncode)
     else:
         for cnt in compose.containers:
             p = build_one(compose, args, cnt)
-            exit(p.returncode)
+            sys.exit(p.returncode)
 
 
 def create_pods(compose, args):  # pylint: disable=unused-argument
