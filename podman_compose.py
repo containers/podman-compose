@@ -2094,7 +2094,6 @@ def build_one(compose, args, cnt):
 
 @cmd_run(podman_compose, "build", "build stack images")
 def compose_build(compose, args):
-
     # keeps the status of the last service/container built
     status = 0
 
@@ -2116,7 +2115,7 @@ def compose_build(compose, args):
             status = parse_return_code(p, status)
 
     # When calling the "build" command, exit with the last non-Ok exit code found
-    if args.command == "build" or status !=0:
+    if args.command == "build" or status != 0:
         sys.exit(status)
 
 
