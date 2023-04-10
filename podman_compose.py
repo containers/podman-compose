@@ -1071,19 +1071,13 @@ def rec_deps(services, service_name, start_point=None):
     return deps
 
 
-def flat_deps(services, with_extends=False):
+def flat_deps(services):
     """
     create dependencies "_deps" or update it recursively for all services
     """
     for name, srv in services.items():
         deps = set()
         srv["_deps"] = deps
-        if with_extends:
-            ext = srv.get("extends", {}).get("service", None)
-            if ext:
-                if ext != name:
-                    deps.add(ext)
-                continue
         deps_ls = srv.get("depends_on", None) or []
         if is_str(deps_ls):
             deps_ls = [deps_ls]
@@ -1273,7 +1267,9 @@ def rec_merge_one(target, source):
             raise ValueError(
                 f"can't merge value of {key} of type {value_type} and {value2_type}"
             )
-        if is_list(value2):
+        if type(value) == set:
+            value = value.update(value2)
+        elif is_list(value2):
             if key == "volumes":
                 # clean duplicate mount targets
                 pts = {v.split(":", 1)[1] for v in value2 if ":" in v}
@@ -1303,36 +1299,179 @@ def rec_merge(target, *sources):
     return ret
 
 
-def resolve_extends(services, service_names, environ):
-    for name in service_names:
-        service = services[name]
-        ext = service.get("extends", {})
-        if is_str(ext):
-            ext = {"service": ext}
-        from_service_name = ext.get("service", None)
-        if not from_service_name:
-            continue
-        filename = ext.get("file", None)
-        if filename:
-            if filename.startswith("./"):
-                filename = filename[2:]
+class ComposeFileParsingException(Exception):
+    pass
+
+class ComposeFileParsingCircularDependencyException(ComposeFileParsingException):
+    pass
+
+def pretty_print_tuple(tup, data):
+    file, service = tup
+    if file is None:
+        return ",".join(data), service
+    return file, service
+
+class OrderedSet():
+    def __init__(self):
+        self.as_list = list()
+        self.as_set = set()
+
+    def pop(self):
+        r = self.as_list.pop()
+        self.as_set.remove(r)
+
+    def add(self, element):
+        self.as_list.append(element)
+        self.as_set.add(element)
+
+    def __contains__(self, element):
+        return element in self.as_set
+
+    def __str__(self):
+        return str(self.as_list)
+
+    def pretty_print(self, data):
+        new_list = []
+        for tup in self.as_list:
+            new_list.append(pretty_print_tuple(tup,data))
+        return new_list
+
+class CachedComposeFileParser():
+    """
+    This class handles preprocessed merged_yaml, and then recursively updates services
+    in order to remove extends field
+    # TODO: make all parsing recursive and move it to this class
+    """
+    def __init__(self, environ, files):
+        self.environ = environ
+        self.merged_yaml = {}
+        self.merged_files = [os.path.realpath(file) for file in files]
+        self.cache = dict()
+
+    def generate_compose(self):
+        for filename in self.merged_files:
             with open(filename, "r", encoding="utf-8") as f:
-                content = yaml.safe_load(f) or {}
+                content = yaml.safe_load(f)
+                # log(filename, json.dumps(content, indent = 2))
+                if not isinstance(content, dict):
+                    raise ComposeFileParsingException(
+                        "Compose file does not contain a top level object: %s\n"
+                        % filename
+                    )
+                content = normalize(content)
+                # log(filename, json.dumps(content, indent = 2))
+                content = rec_subs(content, self.environ)
+                rec_merge(self.merged_yaml, content)
+        return self.merged_yaml
+
+    def read_file_and_cache_it(self, filename):
+        real_file = os.path.realpath(filename)
+        if real_file in self.merged_files:
+            return self.merged_yaml
+        if real_file not in self.cache:
+            with open(filename, "r", encoding="utf-8") as f:
+                content = yaml.safe_load(f) or dict()
             if "services" in content:
-                content = content["services"]
-            subdirectory = os.path.dirname(filename)
-            content = rec_subs(content, environ)
-            from_service = content.get(from_service_name, {})
-            normalize_service(from_service, subdirectory)
-        else:
-            from_service = services.get(from_service_name, {}).copy()
-            del from_service["_deps"]
-            try:
-                del from_service["extends"]
-            except KeyError:
-                pass
-        new_service = rec_merge({}, from_service, service)
-        services[name] = new_service
+                services = content["services"]
+            services = rec_subs(services, self.environ)
+            content['services'] = services
+            self.cache[real_file] = content
+        return self.cache[real_file]
+
+    def _pretty_file(self, name):
+        if name is None:
+            # merged docker-compose files passed to script
+            # are treated as a single file
+            return ",".join(self.merged_files)
+        return name
+
+    def _service_not_found(self, service_name, parent_service_name, parent_filename):
+        pretty_file = self._pretty_file(parent_filename)
+        msg = f"Service {service_name} has dependency of '{parent_service_name}" \
+                          f"which does not exist in {pretty_file}"
+        raise ComposeFileParsingException(msg)
+
+    def resolve_extend(self, services, service, service_name, current_filename,
+                       circular_dep_detector):
+        def patch_parent_filename_if_default(parent_filename):
+            if os.path.isabs(parent_filename):
+                return parent_filename
+            temp_name = current_filename
+            if temp_name is None:
+                temp_name = self.merged_files[0]
+            parent_filename = os.path.join(os.path.dirname(temp_name), parent_filename)
+            return parent_filename
+        if current_filename is not None:
+            current_filename = os.path.realpath(current_filename)
+        if current_filename in self.merged_files:
+            current_filename = None
+        service_unique_identifier = (current_filename, service_name,)
+        if service_unique_identifier in circular_dep_detector:
+            msg = f"Circular dependency to {pretty_print_tuple(service_unique_identifier, self.merged_files)} " \
+                  f"detected: {circular_dep_detector.pretty_print(self.merged_files)}"
+            raise ComposeFileParsingCircularDependencyException(msg)
+        circular_dep_detector.add(service_unique_identifier)
+        try:
+            extends_section = service.get("extends")
+            if extends_section is None:
+                return service
+
+            if is_str(extends_section):
+                parent_service_name = extends_section
+            else:
+                parent_service_name = extends_section.get("service")
+
+            if parent_service_name is None:
+                pretty_name = self._pretty_file(current_filename)
+                raise ComposeFileParsingException(f"Service {service_name} in {pretty_name} has" \
+                                                  f"extends field and no service name")
+            parent_filename = extends_section.get("file")
+            if parent_filename:
+                if parent_filename.startswith("./"):
+                    parent_filename = parent_filename[2:]
+                subdirectory = os.path.dirname(parent_filename)
+                parent_filename = patch_parent_filename_if_default(parent_filename)
+                content = self.read_file_and_cache_it(parent_filename)
+                # ADDED: normalize each service later
+                from_service_ref = content['services'].get(parent_service_name)
+                if from_service_ref is None:
+                    self._service_not_found(service_name, parent_service_name, parent_filename)
+                from_service_ref = self.resolve_extend(content['services'],from_service_ref, parent_service_name,
+                                    parent_filename, circular_dep_detector)
+                from_service_ref = normalize_service(from_service_ref, subdirectory)
+                content[parent_service_name] = from_service_ref
+                from_service = from_service_ref.copy()
+            else:
+                mutable_parent_service = services.get(parent_service_name)
+                if mutable_parent_service is None:
+                    self._service_not_found(service_name, parent_service_name, current_filename)
+                from_service_ref = self.resolve_extend(services, mutable_parent_service,
+                                    parent_service_name, current_filename, circular_dep_detector)
+                from_service = from_service_ref.copy()
+            assert 'extends' in service  # ensure, same service is not processed twice
+            del service['extends']
+            normalize_service(service)
+            services[service_name] = rec_merge(dict(), from_service, service)
+            assert services[service_name] is not None
+        finally:
+            circular_dep_detector.pop()
+        return services[service_name]
+
+    def parse_services(self):
+        # if current_filename is None it means
+        # we are handling merged compose file
+        current_filename = ",".join(self.merged_files)
+        services = self.merged_yaml.get("services", None)
+        if services is None:
+            services = {}
+            log(f"WARNING: No services defined in {current_filename}")
+        for service_name in services.keys():
+            services[service_name] = self.resolve_extend(services, services[service_name],
+                                                         service_name, current_filename,
+                                                         OrderedSet())
+            assert services[service_name] is not None
+        flat_deps(services)
+        return services
 
 
 def dotenv_to_dict(dotenv_path):
@@ -1506,21 +1645,10 @@ class PodmanCompose:
                 "COMPOSE_PATH_SEPARATOR": pathsep,
             }
         )
-        compose = {}
-        for filename in files:
-            with open(filename, "r", encoding="utf-8") as f:
-                content = yaml.safe_load(f)
-                # log(filename, json.dumps(content, indent = 2))
-                if not isinstance(content, dict):
-                    sys.stderr.write(
-                        "Compose file does not contain a top level object: %s\n"
-                        % filename
-                    )
-                    sys.exit(1)
-                content = normalize(content)
-                # log(filename, json.dumps(content, indent = 2))
-                content = rec_subs(content, self.environ)
-                rec_merge(compose, content)
+
+        parser = CachedComposeFileParser(self.environ, files)
+        compose = parser.generate_compose()
+
         self.merged_yaml = yaml.safe_dump(compose)
         merged_json_b = json.dumps(compose, separators=(",", ":")).encode("utf-8")
         self.yaml_hash = hashlib.sha256(merged_json_b).hexdigest()
@@ -1546,19 +1674,8 @@ class PodmanCompose:
         self.project_name = project_name
         self.environ.update({"COMPOSE_PROJECT_NAME": self.project_name})
 
-        services = compose.get("services", None)
-        if services is None:
-            services = {}
-            log("WARNING: No services defined")
+        services = parser.parse_services()
 
-        # NOTE: maybe add "extends.service" to _deps at this stage
-        flat_deps(services, with_extends=True)
-        service_names = sorted(
-            [(len(srv["_deps"]), name) for name, srv in services.items()]
-        )
-        service_names = [name for _, name in service_names]
-        resolve_extends(services, service_names, self.environ)
-        flat_deps(services)
         service_names = sorted(
             [(len(srv["_deps"]), name) for name, srv in services.items()]
         )
@@ -1681,6 +1798,7 @@ class PodmanCompose:
         if not self.global_args.command or self.global_args.command == "help":
             parser.print_help()
             sys.exit(-1)
+        print(self.global_args)
         return self.global_args
 
     @staticmethod

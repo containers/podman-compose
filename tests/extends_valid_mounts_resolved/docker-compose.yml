@@ -1,0 +1,36 @@
+version: '3.5'
+services:
+  bash:
+    cap_add:
+      - NET_ADMIN
+      - SYSLOG
+    command: [/bin/bash]
+    domainname: ${HOSTNAME}
+    environment:
+      - USER_HOME=${HOME}
+      - USER_NAME=${USER}
+    hostname: myhostname
+    image: ubuntu:latest
+    network_mode: host
+    security_opt:
+      - seccomp:unconfined
+    volumes:
+      - /tmp/service_bash:/tmp/service_bash:rw
+
+  ci-dev-bash:
+    extends:
+      service: bash
+    volumes:
+      - /tmp/service_ci-dev-bash:/tmp/service_ci-dev-bash:rw
+
+  ci-dev-bash2:
+    extends:
+      service: ci-dev-bash
+    volumes:
+      - /tmp/service_ci-dev-bash2:/tmp/service_ci-dev-bash2:rw
+
+  other-bash:
+    extends:
+      service: bash
+    volumes:
+      - /tmp/service_other-bash:/tmp/service_other-bash:rw

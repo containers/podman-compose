@@ -1,0 +1,7 @@
+version: '3.5'
+services:
+  sh:
+    command: [/bin/sh]
+    image: busybox
+    volumes:
+      - /tmp/service_sh:/tmp/service_sh:rw
