@@ -63,19 +63,6 @@ Or latest development version from GitHub:
 pip3 install https://github.com/containers/podman-compose/archive/devel.tar.gz
 ```
 
-or
-
-```
-curl -o /usr/local/bin/podman-compose https://raw.githubusercontent.com/containers/podman-compose/devel/podman_compose.py
-chmod +x /usr/local/bin/podman-compose
-```
-
-or inside your home
-
-```
-curl -o ~/.local/bin/podman-compose https://raw.githubusercontent.com/containers/podman-compose/devel/podman_compose.py
-chmod +x ~/.local/bin/podman-compose
-```
 
 or install from Fedora (starting from f31) repositories:
 
@@ -122,3 +109,7 @@ run a pytest with following command
 ```shell
 python -m pytest pytests
 ```
+
+# Contributing guide
+
+If you are a user or a developer and want to contribute please check the [CONTRIBUTING](CONTRIBUTING.md) section

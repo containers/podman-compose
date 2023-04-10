@@ -98,7 +98,7 @@ _completeExecArgs() {
 
 # complete the arguments for `podman-compose down` and return 0
 _completeDownArgs() {
-    down_opts="${help_opts} -v --volumes -t --timeout"
+    down_opts="${help_opts} -v --volumes -t --timeout --remove-orphans"
     if [[ ${prev} == "-t" || ${prev} == "--timeout" ]]; then
         return 0
     elif [[ ${cur} == -* ]]; then

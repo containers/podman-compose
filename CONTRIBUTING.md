@@ -1,5 +1,49 @@
 # Contributing to podman-compose
 
+## Who can contribute? 
+
+- Users that found a bug
+- Users that wants to propose new functionalities or enhancements
+- Users that want to help other users to troubleshoot their environments
+- Developers that want to fix bugs
+- Developers that want to implement new functionalities or enhancements
+
+## Branches
+
+Please request your PR to be merged into the `devel` branch. 
+Changes to the `stable` branch are managed by the repository maintainers.
+
+## Development environment setup
+
+Note: Some steps are OPTIONAL but all are RECOMMENDED.
+
+1. Fork the project repo and clone it
+```shell
+$ git clone https://github.com/USERNAME/podman-compose.git
+$ cd podman-compose
+```
+1. (OPTIONAL) Create a python virtual environment. Example using [virtualenv wrapper](https://virtualenvwrapper.readthedocs.io/en/latest/): 
+```shell
+mkvirtualenv podman-compose
+```
+2. Install the project runtime and development requirements   
+```shell
+$ pip install '.[devel]'
+```
+3. (OPTIONAL) Install `pre-commit` git hook scripts (https://pre-commit.com/#3-install-the-git-hook-scripts)
+```shell
+$ pre-commit install
+```
+4. Create a new branch, develop and add tests when possible
+5. Run linting & testing before commiting code. Ensure all the hooks are passing.
+```shell
+$ pre-commit run --all-files
+```
+6. Commit your code to your fork's branch. 
+   - Make sure you include a `Signed-off-by` message in your commits. Read [this guide](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits) to learn how to sign your commits 
+   - In the commit message reference the Issue ID that your code fixes and a brief description of the changes. Example: `Fixes #516: allow empty network`
+7. Open a PR to `containers/podman-compose:devel` and wait for a maintainer to review your work.
+
 ## Adding new commands
 
 To add a command you need to add a function that is decorated
