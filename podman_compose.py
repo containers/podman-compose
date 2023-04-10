@@ -2094,17 +2094,30 @@ def build_one(compose, args, cnt):
 
 @cmd_run(podman_compose, "build", "build stack images")
 def compose_build(compose, args):
+
+    # keeps the status of the last service/container built
+    status = 0
+
+    def parse_return_code(obj, current_status):
+        if obj and obj.returncode != 0:
+            return obj.returncode
+        return current_status
+
     if args.services:
         container_names_by_service = compose.container_names_by_service
         compose.assert_services(args.services)
         for service in args.services:
             cnt = compose.container_by_name[container_names_by_service[service][0]]
             p = build_one(compose, args, cnt)
-            sys.exit(p.returncode)
+            status = parse_return_code(p, status)
     else:
         for cnt in compose.containers:
             p = build_one(compose, args, cnt)
-            sys.exit(p.returncode)
+            status = parse_return_code(p, status)
+
+    # When calling the "build" command, exit with the last non-Ok exit code found
+    if args.command == "build" or status !=0:
+        sys.exit(status)
 
 
 def create_pods(compose, args):  # pylint: disable=unused-argument
