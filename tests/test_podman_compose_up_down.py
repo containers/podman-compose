@@ -3,9 +3,10 @@ test_podman_compose_up_down.py
 
 Tests the podman compose up and down commands used to create and remove services.
 """
-import pytest
+# pylint: disable=redefined-outer-name
 import os
 from test_podman_compose import capture
+import pytest
 
 
 @pytest.fixture
@@ -65,7 +66,7 @@ def test_up(podman_compose_path, profile_compose_file, profiles, expected_servic
     ]
     up_cmd.extend(profiles)
 
-    out, err, return_code = capture(up_cmd)
+    out, _, return_code = capture(up_cmd)
     assert return_code == 0
 
     check_cmd = [
@@ -75,14 +76,14 @@ def test_up(podman_compose_path, profile_compose_file, profiles, expected_servic
         "--format",
         '"{{.Names}}"',
     ]
-    out, err, return_code = capture(check_cmd)
+    out, _, return_code = capture(check_cmd)
     assert return_code == 0
 
     assert len(expected_services) == 3
     actual_output = out.decode("utf-8")
 
     actual_services = {}
-    for service, expected_check in expected_services.items():
+    for service, _ in expected_services.items():
         actual_services[service] = service in actual_output
 
     assert expected_services == actual_services
