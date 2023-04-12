@@ -1487,7 +1487,9 @@ class PodmanCompose:
         if compose_required:
             self._parse_compose_file()
         cmd = self.commands[cmd_name]
-        cmd(self, args)
+        retcode = cmd(self, args)
+        if isinstance(retcode, int):
+            sys.exit(retcode)
 
     def _parse_compose_file(self):
         args = self.global_args
@@ -2109,14 +2111,16 @@ def compose_build(compose, args):
             cnt = compose.container_by_name[container_names_by_service[service][0]]
             p = build_one(compose, args, cnt)
             status = parse_return_code(p, status)
+            if status != 0:
+                return status
     else:
         for cnt in compose.containers:
             p = build_one(compose, args, cnt)
             status = parse_return_code(p, status)
+            if status != 0:
+                return status
 
-    # When calling the "build" command, exit with the last non-Ok exit code found
-    if args.command == "build" or status != 0:
-        sys.exit(status)
+    return status
 
 
 def create_pods(compose, args):  # pylint: disable=unused-argument
