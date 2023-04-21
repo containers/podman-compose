@@ -2387,7 +2387,7 @@ def compose_run(compose, args):
         services=[args.service],
         if_not_exists=(not args.build),
         build_arg=[],
-        **args.__dict__
+        **args.__dict__,
     )
     compose.commands["build"](compose, build_args)
 
