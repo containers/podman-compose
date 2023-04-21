@@ -2382,6 +2382,15 @@ def compose_run(compose, args):
             )
         )
         compose.commands["up"](compose, up_args)
+
+    build_args = argparse.Namespace(
+        services=[args.service],
+        if_not_exists=(not args.build),
+        build_arg=[],
+        **args.__dict__
+    )
+    compose.commands["build"](compose, build_args)
+
     # adjust one-off container options
     name0 = "{}_{}_tmp{}".format(
         compose.project_name, args.service, random.randrange(0, 65536)
@@ -2751,6 +2760,9 @@ def compose_down_parse(parser):
 
 @cmd_parse(podman_compose, "run")
 def compose_run_parse(parser):
+    parser.add_argument(
+        "--build", action="store_true", help="Build images before starting containers."
+    )
     parser.add_argument(
         "-d",
         "--detach",
