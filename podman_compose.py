@@ -61,6 +61,15 @@ def is_list(list_object):
     )
 
 
+def is_list_of_str(list_of_str_object):
+    if is_list(list_of_str_object):
+        for element in list_of_str_object:
+            if not is_str(element):
+                return False
+        return True
+    return False
+
+
 # identity filter
 def filteri(a):
     return filter(lambda i: i, a)
@@ -1307,14 +1316,25 @@ def rec_merge_one(target, source):
         if key not in source:
             continue
         value2 = source[key]
-        if key == "command":
-            target[key] = clone(value2)
+        if key in ("command", "entrypoint"):
+            if not is_str(value) and not is_list_of_str(value):
+                raise ValueError(
+                    f"can't merge value of [{key}]: must be a string or a list of strings"
+                )
+            if not is_str(value2) and not is_list_of_str(value2):
+                raise ValueError(
+                    f"can't merge value of [{key}]: must be a string or a list of strings"
+                )
+            if is_str(value2):
+                target[key] = value2.split(" ")
+            else:
+                target[key] = clone(value2)
             continue
         if not isinstance(value2, type(value)):
             value_type = type(value)
             value2_type = type(value2)
             raise ValueError(
-                f"can't merge value of {key} of type {value_type} and {value2_type}"
+                f"can't merge value of [{key}] of type {value_type} and {value2_type}"
             )
         if is_list(value2):
             if key == "volumes":
