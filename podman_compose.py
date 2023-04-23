@@ -63,6 +63,8 @@ def is_list(list_object):
 
 def is_list_of_str(list_of_str_object):
     if is_list(list_of_str_object):
+        if len(list_of_str_object) == 0:
+            return False
         for element in list_of_str_object:
             if not is_str(element):
                 return False
@@ -1300,6 +1302,20 @@ def clone(value):
     return value.copy() if is_list(value) or is_dict(value) else value
 
 
+def clone_shell_value(target, key, value):
+    if is_str(value):
+        target[key] = shlex.split(value)
+    else:
+        target[key] = clone(value)
+
+
+def check_shell_value_type(key, value):
+    if not is_str(value) and not is_list_of_str(value):
+        raise ValueError(
+            f"can't merge value of [{key}]: must be a string or a list of strings"
+        )
+
+
 def rec_merge_one(target, source):
     """
     update target from source recursively
@@ -1308,28 +1324,26 @@ def rec_merge_one(target, source):
     for key, value in source.items():
         if key in target:
             continue
-        target[key] = clone(value)
+        if key in ("command", "entrypoint"):
+            check_shell_value_type(key, value)
+            clone_shell_value(target, key, value)
+        else:
+            target[key] = clone(value)
         done.add(key)
     for key, value in target.items():
         if key in done:
             continue
+        if key in ("command", "entrypoint"):
+            if key not in source:
+                check_shell_value_type(key, value)
+                clone_shell_value(target, key, value)
+            else:
+                check_shell_value_type(key, source[key])
+                clone_shell_value(target, key, source[key])
+            continue
         if key not in source:
             continue
         value2 = source[key]
-        if key in ("command", "entrypoint"):
-            if not is_str(value) and not is_list_of_str(value):
-                raise ValueError(
-                    f"can't merge value of [{key}]: must be a string or a list of strings"
-                )
-            if not is_str(value2) and not is_list_of_str(value2):
-                raise ValueError(
-                    f"can't merge value of [{key}]: must be a string or a list of strings"
-                )
-            if is_str(value2):
-                target[key] = value2.split(" ")
-            else:
-                target[key] = clone(value2)
-            continue
         if not isinstance(value2, type(value)):
             value_type = type(value)
             value2_type = type(value2)
