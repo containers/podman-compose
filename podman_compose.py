@@ -1291,6 +1291,20 @@ def clone(value):
     return value.copy() if is_list(value) or is_dict(value) else value
 
 
+def parse_build(build):
+    build_parsed = {}
+    if is_str(build):
+        build_parsed["context"] = build
+    elif is_dict(build):
+        if "context" in build:
+            build_parsed["context"] = build["context"]
+        if "dockerfile" in build:
+            build_parsed["dockerfile"] = build["dockerfile"]
+    else:
+        raise ValueError(f"invalid type of build value [{type(build)}]")
+    return build_parsed
+
+
 def rec_merge_one(target, source):
     """
     update target from source recursively
@@ -1299,10 +1313,20 @@ def rec_merge_one(target, source):
     for key, value in source.items():
         if key in target:
             continue
-        target[key] = clone(value)
+        if key == "build":
+            target[key] = parse_build(value)
+        else:
+            target[key] = clone(value)
         done.add(key)
     for key, value in target.items():
         if key in done:
+            continue
+        if key == "build":
+            target_parsed = parse_build(value)
+            source_parsed = {}
+            if key in source:
+                source_parsed = parse_build(source[key])
+            target["build"] = {**target_parsed, **source_parsed}
             continue
         if key not in source:
             continue
