@@ -1296,10 +1296,7 @@ def parse_build(build):
     if is_str(build):
         build_parsed["context"] = build
     elif is_dict(build):
-        if "context" in build:
-            build_parsed["context"] = build["context"]
-        if "dockerfile" in build:
-            build_parsed["dockerfile"] = build["dockerfile"]
+        build_parsed = build
     else:
         raise ValueError(f"invalid type of build value [{type(build)}]")
     return build_parsed
@@ -1326,7 +1323,7 @@ def rec_merge_one(target, source):
             source_parsed = {}
             if key in source:
                 source_parsed = parse_build(source[key])
-            target["build"] = {**target_parsed, **source_parsed}
+            target["build"] = rec_merge_one(target_parsed, source_parsed)
             continue
         if key not in source:
             continue

@@ -40,6 +40,21 @@ test_cases = [
         {"build": {"dockerfile": "./compose-2.yaml", "context": "./dir-2"}},
         {"build": {"dockerfile": "./compose-2.yaml", "context": "./dir-2"}},
     ),
+    (
+        {"build": {"dockerfile": "./compose-1.yaml"}},
+        {"build": {"dockerfile": "./compose-2.yaml", "args": ["ENV1=1"]}},
+        {"build": {"dockerfile": "./compose-2.yaml", "args": ["ENV1=1"]}},
+    ),
+    (
+        {"build": {"dockerfile": "./compose-2.yaml", "args": ["ENV1=1"]}},
+        {"build": {"dockerfile": "./compose-1.yaml"}},
+        {"build": {"dockerfile": "./compose-1.yaml", "args": ["ENV1=1"]}},
+    ),
+    (
+        {"build": {"dockerfile": "./compose-2.yaml", "args": ["ENV1=1"]}},
+        {"build": {"dockerfile": "./compose-1.yaml", "args": ["ENV2=2"]}},
+        {"build": {"dockerfile": "./compose-1.yaml", "args": ["ENV1=1", "ENV2=2"]}},
+    ),
 ]
 
 
