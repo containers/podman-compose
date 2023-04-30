@@ -63,8 +63,6 @@ def is_list(list_object):
 
 def is_list_of_str(list_of_str_object):
     if is_list(list_of_str_object):
-        if len(list_of_str_object) == 0:
-            return False
         for element in list_of_str_object:
             if not is_str(element):
                 return False
