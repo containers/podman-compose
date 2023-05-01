@@ -1887,6 +1887,24 @@ class cmd_parse:  # pylint: disable=invalid-name,too-few-public-methods
         return wrapped
 
 
+# Thread used to start containers in a compose project. This thread keeps track of the corresponding container name
+# and the service name
+class _ContainerStartThread(Thread):
+    def __init__(self, service_name, container_name, target=None, name=None,
+                 args=(), kwargs=None, daemon=None):
+        super().__init__(target=target, name=name, args=args, kwargs=kwargs, daemon=daemon)
+        self._service_name = service_name
+        self._container_name = container_name
+
+    @property
+    def service_name(self):
+        return self._service_name
+
+    @property
+    def container_name(self):
+        return self._container_name
+
+
 ###################
 # actual commands
 ###################
@@ -2215,6 +2233,7 @@ def compose_up(compose, args):
             curr_length if curr_length > max_service_length else max_service_length
         )
     has_sed = os.path.isfile("/bin/sed")
+    launched_container_names = []  # keep track of containers that we attempted to start
     for i, cnt in enumerate(compose.containers):
         # Add colored service prefix to output by piping output through sed
         color_idx = i % len(compose.console_colors)
@@ -2228,8 +2247,10 @@ def compose_up(compose, args):
             log("** skipping: ", cnt["name"])
             continue
         # TODO: remove sleep from podman.run
-        obj = compose if exit_code_from == cnt["_service"] else None
-        thread = Thread(
+        obj = compose if args.abort_on_container_exit else None
+        thread = _ContainerStartThread(
+            cnt["_service"],
+            cnt["name"],
             target=compose.podman.run,
             args=[[], "start", ["-a", cnt["name"]]],
             kwargs={"obj": obj, "log_formatter": log_formatter},
@@ -2238,22 +2259,67 @@ def compose_up(compose, args):
         )
         thread.start()
         threads.append(thread)
+        launched_container_names.append(cnt["name"])
         time.sleep(1)
 
+    exit_code = None
+    abort_sequence_started = False
     while threads:
         to_remove = []
         for thread in threads:
             thread.join(timeout=1.0)
             if not thread.is_alive():
                 to_remove.append(thread)
-                if args.abort_on_container_exit:
-                    time.sleep(1)
+                if args.abort_on_container_exit and not abort_sequence_started:
+                    abort_sequence_started = True
+                    # keep track of the exit code of the container that triggered the abort
                     exit_code = (
                         compose.exit_code if compose.exit_code is not None else -1
                     )
-                    sys.exit(exit_code)
+                    log("aborting because container:", thread.container_name, "exited with exit code:", exit_code)
+                    # stop other containers that were launched
+                    default_stop_timeout = getattr(args, "timeout", None)
+                    to_stop = launched_container_names
+                    to_stop.remove(thread.container_name)  # no need to attempt stopping this already exited container
+                    _stop_containers(compose, to_stop, default_stop_timeout)
         for thread in to_remove:
             threads.remove(thread)
+    if abort_sequence_started and exit_code is not None:
+        log("aborting with exit code:", exit_code)
+        sys.exit(exit_code)
+
+
+def _stop_containers(compose, to_stop, default_timeout=None):
+    if to_stop is None or len(to_stop) == 0:
+        return
+    """
+        Stops the containers belonging to the project
+
+        Args:
+            compose (PodmanCompose): PodmanCompose instance
+            to_stop (list): A list of container names which should be stopped.
+            default_timeout (int): In the absence of a stop_grace_period for the container being stopped,
+                    this is the default timeout that will be passed to the "stop" command
+                    while stopping the container.
+        Returns:
+            A list of container names that were stopped
+    """
+    stopped_containers = []
+    containers = list(reversed(compose.containers))  # stop in reverse order
+    for cnt in containers:
+        if cnt["name"] not in to_stop:
+            continue  # skip stopping
+        podman_stop_args = []
+        timeout = default_timeout
+        if timeout is None:
+            timeout_str = cnt.get("stop_grace_period", None) or STOP_GRACE_PERIOD
+            timeout = str_to_seconds(timeout_str)
+        if timeout is not None:
+            podman_stop_args.extend(["-t", str(timeout)])
+        log("stopping container: ", cnt["name"])
+        compose.podman.run([], "stop", [*podman_stop_args, cnt["name"]], sleep=0)
+        stopped_containers.append(cnt["name"])
+    return stopped_containers
 
 
 def get_volume_names(compose, cnt):
