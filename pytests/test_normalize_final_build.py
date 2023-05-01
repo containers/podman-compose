@@ -3,7 +3,6 @@
 import argparse
 import copy
 import os
-from pathlib import Path
 import yaml
 from podman_compose import (
     normalize_service,
@@ -13,20 +12,20 @@ from podman_compose import (
     PodmanCompose,
 )
 
-
+cwd = os.path.abspath(".")
 test_cases_simple_normalization = [
     ({"image": "test-image"}, {"image": "test-image"}),
     (
         {"build": "."},
         {
-            "build": {"context": str(Path.cwd()), "dockerfile": "Dockerfile"},
+            "build": {"context": cwd, "dockerfile": "Dockerfile"},
         },
     ),
     (
         {"build": "../relative"},
         {
             "build": {
-                "context": str((Path.cwd() / "../relative").resolve()),
+                "context": os.path.normpath(os.path.join(cwd, "../relative")),
                 "dockerfile": "Dockerfile",
             },
         },
@@ -35,7 +34,7 @@ test_cases_simple_normalization = [
         {"build": "./relative"},
         {
             "build": {
-                "context": str((Path.cwd() / "./relative").resolve()),
+                "context": os.path.normpath(os.path.join(cwd, "./relative")),
                 "dockerfile": "Dockerfile",
             },
         },
@@ -57,7 +56,7 @@ test_cases_simple_normalization = [
         },
         {
             "build": {
-                "context": str(Path.cwd()),
+                "context": cwd,
                 "dockerfile": "Dockerfile",
             },
         },
@@ -70,7 +69,7 @@ test_cases_simple_normalization = [
         },
         {
             "build": {
-                "context": str(Path.cwd()),
+                "context": cwd,
                 "dockerfile": "Dockerfile",
             },
         },
@@ -81,7 +80,7 @@ test_cases_simple_normalization = [
         },
         {
             "build": {
-                "context": str((Path.cwd() / "../").resolve()),
+                "context": os.path.normpath(os.path.join(cwd, "../")),
                 "dockerfile": "test-dockerfile",
             },
         },
@@ -92,7 +91,7 @@ test_cases_simple_normalization = [
         },
         {
             "build": {
-                "context": str(Path.cwd()),
+                "context": cwd,
                 "dockerfile": "./dev/test-dockerfile",
             },
         },
@@ -123,14 +122,14 @@ def test_pre_merge_normalize_does_not_affect_build_section() -> None:
 # [service.build] is normalised after merges
 #
 def test_normalize_service_final_returns_absolute_path_in_context() -> None:
-    project_dir = str(Path.cwd().resolve())
+    project_dir = cwd
     for test_input, expected_service in copy.deepcopy(test_cases_simple_normalization):
         actual_service = normalize_service_final(test_input, project_dir)
         assert expected_service == actual_service
 
 
 def test_normalize_returns_absolute_path_in_context() -> None:
-    project_dir = str(Path.cwd().resolve())
+    project_dir = cwd
     for test_input, expected_result in copy.deepcopy(test_cases_simple_normalization):
         compose_test = {"services": {"test-service": test_input}}
         compose_expected = {"services": {"test-service": expected_result}}
@@ -166,19 +165,19 @@ test_cases_with_merges = [
     (
         {},
         {"build": "."},
-        {"build": {"context": str(Path.cwd()), "dockerfile": "Dockerfile"}},
+        {"build": {"context": cwd, "dockerfile": "Dockerfile"}},
     ),
     (
         {"build": "."},
         {},
-        {"build": {"context": str(Path.cwd()), "dockerfile": "Dockerfile"}},
+        {"build": {"context": cwd, "dockerfile": "Dockerfile"}},
     ),
     (
         {"build": "/workspace/absolute"},
         {"build": "./relative"},
         {
             "build": {
-                "context": str((Path.cwd() / "./relative").resolve()),
+                "context": os.path.normpath(os.path.join(cwd, "./relative")),
                 "dockerfile": "Dockerfile",
             }
         },
@@ -196,22 +195,22 @@ test_cases_with_merges = [
     (
         {"build": {"dockerfile": "test-dockerfile"}},
         {},
-        {"build": {"context": str(Path.cwd()), "dockerfile": "test-dockerfile"}},
+        {"build": {"context": cwd, "dockerfile": "test-dockerfile"}},
     ),
     (
         {},
         {"build": {"dockerfile": "test-dockerfile"}},
-        {"build": {"context": str(Path.cwd()), "dockerfile": "test-dockerfile"}},
+        {"build": {"context": cwd, "dockerfile": "test-dockerfile"}},
     ),
     (
         {},
         {"build": {"dockerfile": "test-dockerfile"}},
-        {"build": {"context": str(Path.cwd()), "dockerfile": "test-dockerfile"}},
+        {"build": {"context": cwd, "dockerfile": "test-dockerfile"}},
     ),
     (
         {"build": {"dockerfile": "test-dockerfile-1"}},
         {"build": {"dockerfile": "test-dockerfile-2"}},
-        {"build": {"context": str(Path.cwd()), "dockerfile": "test-dockerfile-2"}},
+        {"build": {"context": cwd, "dockerfile": "test-dockerfile-2"}},
     ),
     (
         {"build": "/workspace/absolute"},
@@ -222,12 +221,45 @@ test_cases_with_merges = [
         {"build": {"dockerfile": "test-dockerfile"}},
         {"build": "/workspace/absolute"},
         {"build": {"context": "/workspace/absolute", "dockerfile": "test-dockerfile"}},
+    ),
+    (
+        {"build": {"dockerfile": "./test-dockerfile-1"}},
+        {"build": {"dockerfile": "./test-dockerfile-2", "args": ["ENV1=1"]}},
+        {
+            "build": {
+                "context": cwd,
+                "dockerfile": "./test-dockerfile-2",
+                "args": ["ENV1=1"],
+            }
+        },
+    ),
+    (
+        {"build": {"dockerfile": "./test-dockerfile-1", "args": ["ENV1=1"]}},
+        {"build": {"dockerfile": "./test-dockerfile-2"}},
+        {
+            "build": {
+                "context": cwd,
+                "dockerfile": "./test-dockerfile-2",
+                "args": ["ENV1=1"],
+            }
+        },
+    ),
+    (
+        {"build": {"dockerfile": "./test-dockerfile-1", "args": ["ENV1=1"]}},
+        {"build": {"dockerfile": "./test-dockerfile-2", "args": ["ENV2=2"]}},
+        {
+            "build": {
+                "context": cwd,
+                "dockerfile": "./test-dockerfile-2",
+                "args": ["ENV1=1", "ENV2=2"],
+            }
+        },
     ),
 ]
 
 
 #
-# running full parse over merged and extended compose files
+# running full parse over merged
 #
 def test__parse_compose_file_when_multiple_composes() -> None:
     for test_input, test_override, expected_result in copy.deepcopy(
@@ -274,5 +306,5 @@ def dump_yaml(compose: dict, name: str) -> None:
 def test_clean_test_yamls() -> None:
     test_files = ["test-compose-1.yaml", "test-compose-2.yaml", "test-compose.yaml"]
     for file in test_files:
-        if Path(file).exists():
+        if os.path.exists(file):
             os.remove(file)

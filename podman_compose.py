@@ -24,7 +24,6 @@ import json
 import glob
 
 from threading import Thread
-from pathlib import Path
 
 import shlex
 
@@ -1292,10 +1291,12 @@ def normalize_service_final(service: dict, project_dir: str) -> dict:
     if "build" in service:
         build = service["build"]
         context = build if is_str(build) else build.get("context", ".")
-        context = str((Path(project_dir) / context).resolve())
-        dockerfile = "Dockerfile"
-        if "dockerfile" in service["build"]:
-            dockerfile = service["build"]["dockerfile"]
+        context = os.path.normpath(os.path.join(project_dir, context))
+        dockerfile = (
+            "Dockerfile"
+            if is_str(build)
+            else service["build"].get("dockerfile", "Dockerfile")
+        )
         if not is_dict(service["build"]):
             service["build"] = {}
         service["build"]["dockerfile"] = dockerfile
