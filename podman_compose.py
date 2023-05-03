@@ -358,7 +358,7 @@ def norm_ulimit(inner_value):
 
 
 def transform(args, project_name, given_containers):
-    if not args.in_pod:
+    if args.no_pod:
         pod_name = None
         pods = []
     else:
@@ -1768,11 +1768,9 @@ class PodmanCompose:
     def _init_global_parser(parser):
         parser.add_argument("-v", "--version", help="show version", action="store_true")
         parser.add_argument(
-            "--in-pod",
-            help="pod creation",
-            metavar="in_pod",
-            type=bool,
-            default=True,
+            "--no-pod",
+            help="disable pod creation",
+            action="store_true",
         )
         parser.add_argument(
             "--pod-args",
