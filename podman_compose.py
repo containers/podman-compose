@@ -403,13 +403,9 @@ def assert_volume(compose, mount_dict):
         if is_ext:
             raise RuntimeError(f"External volume [{vol_name}] does not exists") from e
         labels = vol.get("labels", None) or []
-        args = [
-            "create",
-            "--label",
-            f"io.podman.compose.project={proj_name}",
-            "--label",
-            f"com.docker.compose.project={proj_name}",
-        ]
+        args = ["create"]
+        if not compose.global_args.no_label:
+            args.extend(["--label", f"io.podman.compose.project={proj_name}"])
         for item in norm_as_list(labels):
             args.extend(["--label", item])
         driver = vol.get("driver", None)
@@ -739,13 +735,9 @@ def assert_cnt_nets(compose, cnt):
                 raise RuntimeError(
                     f"External network [{net_name}] does not exists"
                 ) from e
-            args = [
-                "create",
-                "--label",
-                f"io.podman.compose.project={proj_name}",
-                "--label",
-                f"com.docker.compose.project={proj_name}",
-            ]
+            args = ["create"]
+            if not compose.global_args.no_label:
+                args.extend(["--label", f"io.podman.compose.project={proj_name}"])
             # TODO: add more options here, like dns, ipv6, etc.
             labels = net_desc.get("labels", None) or []
             for item in norm_as_list(labels):
@@ -1644,15 +1636,15 @@ class PodmanCompose:
             raise RuntimeError(f"missing networks: {missing_nets_str}")
         # volumes: [...]
         self.vols = compose.get("volumes", {})
-        podman_compose_labels = [
-            "io.podman.compose.config-hash=" + self.yaml_hash,
-            "io.podman.compose.project=" + project_name,
-            "io.podman.compose.version=" + __version__,
-            f"PODMAN_SYSTEMD_UNIT=podman-compose@{project_name}.service",
-            "com.docker.compose.project=" + project_name,
-            "com.docker.compose.project.working_dir=" + dirname,
-            "com.docker.compose.project.config_files=" + ",".join(relative_files),
-        ]
+        if self.global_args.no_label:
+            podman_compose_labels = []
+        else:
+            podman_compose_labels = [
+                "io.podman.compose.version=" + __version__,
+                "io.podman.compose.config-hash=" + self.yaml_hash,
+                "io.podman.compose.project=" + project_name,
+                "io.podman.compose.project.config_files=" + ",".join(relative_files),
+            ]
         # other top-levels:
         # networks: {driver: ...}
         # configs: {...}
@@ -1682,12 +1674,13 @@ class PodmanCompose:
                 labels = norm_as_list(cnt.get("labels", None))
                 cnt["ports"] = norm_ports(cnt.get("ports", None))
                 labels.extend(podman_compose_labels)
-                labels.extend(
-                    [
-                        f"com.docker.compose.container-number={num}",
-                        "com.docker.compose.service=" + service_name,
-                    ]
-                )
+                if not self.global_args.no_label:
+                    labels.extend(
+                        [
+                            f"io.podman.compose.container-number={num}",
+                            f"io.podman.compose.service={service_name}",
+                        ]
+                    )
                 cnt["labels"] = labels
                 cnt["_service"] = service_name
                 cnt["_project"] = project_name
@@ -1832,6 +1825,11 @@ class PodmanCompose:
         parser.add_argument(
             "--no-cleanup",
             help="Do not stop and remove existing pod & containers",
+            action="store_true",
+        )
+        parser.add_argument(
+            "--no-label",
+            help="disable default labels",
             action="store_true",
         )
         parser.add_argument(
