@@ -2431,7 +2431,8 @@ def compose_run(compose, args):
         if args.rm:
             podman_args.insert(1, "--rm")
     p = compose.podman.run([], "run", podman_args, sleep=0)
-    sys.exit(p.returncode)
+    if p:
+        sys.exit(p.returncode)
 
 
 @cmd_run(podman_compose, "exec", "execute a command in a running container")
