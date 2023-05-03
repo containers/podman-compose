@@ -2072,6 +2072,8 @@ def build_one(compose, args, cnt):
         build_args.extend(["-t", tag])
     if "target" in build_desc:
         build_args.extend(["--target", build_desc["target"]])
+    if "network" in build_desc:
+        build_args.extend(["--network", build_desc["network"]])
     container_to_ulimit_args(cnt, build_args)
     if getattr(args, "no_cache", None):
         build_args.append("--no-cache")
