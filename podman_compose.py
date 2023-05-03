@@ -788,29 +788,24 @@ def get_net_args(compose, cnt):
         net_args.extend(["--mac-address", mac_address])
     is_bridge = False
     net = cnt.get("network_mode", None)
-    if net:
-        if net == "none":
-            is_bridge = False
-        elif net == "host":
-            net_args.extend(["--network", net])
-        elif net.startswith("slirp4netns:"):
-            net_args.extend(["--network", net])
-        elif net.startswith("ns:"):
-            net_args.extend(["--network", net])
-        elif net.startswith("service:"):
-            other_srv = net.split(":", 1)[1].strip()
-            other_cnt = compose.container_names_by_service[other_srv][0]
-            net_args.extend(["--network", f"container:{other_cnt}"])
-        elif net.startswith("container:"):
-            other_cnt = net.split(":", 1)[1].strip()
-            net_args.extend(["--network", f"container:{other_cnt}"])
-        elif net.startswith("bridge"):
-            is_bridge = True
-        else:
-            print(f"unknown network_mode [{net}]")
-            sys.exit(1)
-    else:
+    if net is None or net.startswith("bridge"):
         is_bridge = True
+    elif net in ("host", "none"):
+        net_args.extend(["--network", net])
+    elif net.startswith("slirp4netns:"):
+        net_args.extend(["--network", net])
+    elif net.startswith("ns:"):
+        net_args.extend(["--network", net])
+    elif net.startswith("service:"):
+        other_srv = net.split(":", 1)[1].strip()
+        other_cnt = compose.container_names_by_service[other_srv][0]
+        net_args.extend(["--network", f"container:{other_cnt}"])
+    elif net.startswith("container:"):
+        other_cnt = net.split(":", 1)[1].strip()
+        net_args.extend(["--network", f"container:{other_cnt}"])
+    else:
+        print(f"unknown network_mode [{net}]")
+        sys.exit(1)
     proj_name = compose.project_name
     default_net = compose.default_net
     nets = compose.networks
