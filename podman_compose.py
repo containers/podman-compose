@@ -2390,7 +2390,7 @@ def compose_run(compose, args):
     name0 = "{}_{}_tmp{}".format(
         compose.project_name, args.service, random.randrange(0, 65536)
     )
-    cnt["name"] = args.name or name0
+    cnt["name"] = args.name or container_name or name0
     if args.entrypoint:
         cnt["entrypoint"] = args.entrypoint
     if args.user:
