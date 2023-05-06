@@ -1237,12 +1237,13 @@ class Podman:
 
 
 def normalize_service(service, sub_dir=""):
-    # make `build.context` relative to sub_dir
-    # TODO: should we make volume and secret relative too?
+    if "build" in service:
+        build = service["build"]
+        if is_str(build):
+            service["build"] = {"context": build}
     if sub_dir and "build" in service:
         build = service["build"]
-        context = build if is_str(build) else build.get("context", None)
-        context = context or ""
+        context = build.get("context", None) or ""
         if context or sub_dir:
             if context.startswith("./"):
                 context = context[2:]
@@ -1251,10 +1252,7 @@ def normalize_service(service, sub_dir=""):
             context = context.rstrip("/")
             if not context:
                 context = "."
-            if is_str(build):
-                service["build"] = context
-            else:
-                service["build"]["context"] = context
+            service["build"]["context"] = context
     for key in ("env_file", "security_opt", "volumes"):
         if key not in service:
             continue
@@ -1291,17 +1289,6 @@ def clone(value):
     return value.copy() if is_list(value) or is_dict(value) else value
 
 
-def parse_build(build):
-    build_parsed = {}
-    if is_str(build):
-        build_parsed["context"] = build
-    elif is_dict(build):
-        build_parsed = build
-    else:
-        raise ValueError(f"invalid type of build value [{type(build)}]")
-    return build_parsed
-
-
 def rec_merge_one(target, source):
     """
     update target from source recursively
@@ -1310,20 +1297,10 @@ def rec_merge_one(target, source):
     for key, value in source.items():
         if key in target:
             continue
-        if key == "build":
-            target[key] = parse_build(value)
-        else:
-            target[key] = clone(value)
+        target[key] = clone(value)
         done.add(key)
     for key, value in target.items():
         if key in done:
-            continue
-        if key == "build":
-            target_parsed = parse_build(value)
-            source_parsed = {}
-            if key in source:
-                source_parsed = parse_build(source[key])
-            target["build"] = rec_merge_one(target_parsed, source_parsed)
             continue
         if key not in source:
             continue
