@@ -1253,6 +1253,10 @@ def normalize_service(service, sub_dir=""):
             if not context:
                 context = "."
             service["build"]["context"] = context
+    for key in ("command", "entrypoint"):
+        if key in service:
+            if is_str(service[key]):
+                service[key] = shlex.split(service[key])
     for key in ("env_file", "security_opt", "volumes"):
         if key not in service:
             continue
@@ -1305,14 +1309,14 @@ def rec_merge_one(target, source):
         if key not in source:
             continue
         value2 = source[key]
-        if key == "command":
+        if key in ("command", "entrypoint"):
             target[key] = clone(value2)
             continue
         if not isinstance(value2, type(value)):
             value_type = type(value)
             value2_type = type(value2)
             raise ValueError(
-                f"can't merge value of {key} of type {value_type} and {value2_type}"
+                f"can't merge value of [{key}] of type {value_type} and {value2_type}"
             )
         if is_list(value2):
             if key == "volumes":
