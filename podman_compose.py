@@ -795,6 +795,8 @@ def get_net_args(compose, cnt):
             net_args.extend(["--network", net])
         elif net.startswith("slirp4netns:"):
             net_args.extend(["--network", net])
+        elif net.startswith("pasta"):
+            net_args.extend(["--network", net])
         elif net.startswith("ns:"):
             net_args.extend(["--network", net])
         elif net.startswith("service:"):
