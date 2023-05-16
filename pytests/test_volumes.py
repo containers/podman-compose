@@ -1,3 +1,4 @@
+# pylint: disable=redefined-outer-name
 import pytest
 
 from podman_compose import parse_short_mount

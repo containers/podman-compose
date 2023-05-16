@@ -1,5 +1,7 @@
+# pylint: disable=import-error
+# pylint: disable=unused-import
 import os
-import asyncio
+import asyncio  # noqa: F401
 
 import aioredis
 from aiohttp import web
@@ -14,13 +16,13 @@ routes = web.RouteTableDef()
 
 
 @routes.get("/")
-async def hello(request):
+async def hello(request):  # pylint: disable=unused-argument
     counter = await redis.incr("mycounter")
     return web.Response(text=f"counter={counter}")
 
 
 @routes.get("/hello.json")
-async def hello_json(request):
+async def hello_json(request):  # pylint: disable=unused-argument
     counter = await redis.incr("mycounter")
     data = {"counter": counter}
     return web.json_response(data)
