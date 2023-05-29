@@ -1237,12 +1237,13 @@ class Podman:
 
 
 def normalize_service(service, sub_dir=""):
-    # make `build.context` relative to sub_dir
-    # TODO: should we make volume and secret relative too?
+    if "build" in service:
+        build = service["build"]
+        if is_str(build):
+            service["build"] = {"context": build}
     if sub_dir and "build" in service:
         build = service["build"]
-        context = build if is_str(build) else build.get("context", None)
-        context = context or ""
+        context = build.get("context", None) or ""
         if context or sub_dir:
             if context.startswith("./"):
                 context = context[2:]
@@ -1251,10 +1252,7 @@ def normalize_service(service, sub_dir=""):
             context = context.rstrip("/")
             if not context:
                 context = "."
-            if is_str(build):
-                service["build"] = context
-            else:
-                service["build"]["context"] = context
+            service["build"]["context"] = context
     for key in ("command", "entrypoint"):
         if key in service:
             if is_str(service[key]):
