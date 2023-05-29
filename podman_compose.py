@@ -141,6 +141,35 @@ def strverscmp_lt(a, b):
     return a_ls < b_ls
 
 
+class DependsCondition:  # pylint: disable=too-few-public-methods
+    # enum for possible types of depends_on conditions
+    # see https://github.com/compose-spec/compose-spec/blob/master/spec.md#long-syntax-1
+    STARTED = 0
+    HEALTHY = 1
+    COMPLETED = 2
+
+    @classmethod
+    def to_enum(cls, condition):
+        """
+        Converts and returns a condition value into a valid enum value.
+        """
+        if condition == "service_healthy":
+            return cls.HEALTHY
+        if condition == "service_completed_successfully":
+            return cls.COMPLETED
+        # use cls.STARTED as a catch-all value even
+        # if the condition value is not within spec
+        return cls.STARTED
+
+
+def wait(func):
+    def wrapper(*args, **kwargs):
+        while not func(*args, **kwargs):
+            time.sleep(0.5)
+
+    return wrapper
+
+
 def parse_short_mount(mount_str, basedir):
     mount_a = mount_str.split(":")
     mount_opt_dict = {}
@@ -1119,25 +1148,46 @@ def flat_deps(services, with_extends=False):
     create dependencies "_deps" or update it recursively for all services
     """
     for name, srv in services.items():
-        deps = set()
-        srv["_deps"] = deps
+        deps = {}
         if with_extends:
             ext = srv.get("extends", {}).get("service", None)
             if ext:
                 if ext != name:
-                    deps.add(ext)
+                    deps[ext] = DependsCondition.STARTED
                 continue
+        # NOTE: important that the get call is kept as-is, since depends_on
+        # can be an empty string and in that case we want to have an empty list
         deps_ls = srv.get("depends_on", None) or []
         if is_str(deps_ls):
-            deps_ls = [deps_ls]
+            # depends_on: "foo"
+            # treat as condition: service_started
+            deps_ls = {deps_ls: DependsCondition.STARTED}
         elif is_dict(deps_ls):
-            deps_ls = list(deps_ls.keys())
-        deps.update(deps_ls)
+            # depends_on:
+            #   foo:
+            #       condition: service_xxx
+            tmp = {}
+            for service, condition in deps_ls.items():
+                condition = DependsCondition.to_enum(condition.get("condition"))
+                tmp[service] = condition
+            deps_ls = tmp
+        else:
+            # depends_on:
+            # - foo
+            # treat as condition: service_started
+            deps_ls = {dep: DependsCondition.STARTED for dep in deps_ls}
+        deps = {**deps, **deps_ls}
         # parse link to get service name and remove alias
+        # NOTE: important that the get call is kept as-is, since links can
+        # be an empty string and in that case we want to have an empty list
         links_ls = srv.get("links", None) or []
         if not is_list(links_ls):
             links_ls = [links_ls]
-        deps.update([(c.split(":")[0] if ":" in c else c) for c in links_ls])
+        deps = {
+            **deps,
+            **{c.split(":")[0]: DependsCondition.STARTED for c in links_ls},
+        }
+        srv["_deps"] = deps
     for name, srv in services.items():
         rec_deps(services, name)
 
@@ -1177,7 +1227,7 @@ class Podman:
         podman_args,
         cmd="",
         cmd_args=None,
-        wait=True,
+        _wait=True,
         sleep=1,
         obj=None,
         log_formatter=None,
@@ -1207,7 +1257,7 @@ class Podman:
         else:
             p = subprocess.Popen(cmd_ls)  # pylint: disable=consider-using-with
 
-        if wait:
+        if _wait:
             exit_code = p.wait()
             log("exit code:", exit_code)
             if obj is not None:
@@ -2148,10 +2198,53 @@ def get_excluded(compose, args):
     if args.services:
         excluded = set(compose.services)
         for service in args.services:
-            excluded -= compose.services[service]["_deps"]
+            excluded -= set(compose.services[service]["_deps"].keys())
             excluded.discard(service)
     log("** excluding: ", excluded)
     return excluded
+
+
+@wait
+def wait_healthy(compose, container_name):
+    info = json.loads(compose.podman.output([], "inspect", [container_name]))[0]
+
+    if not info["Config"].get("Healthcheck"):
+        raise ValueError("Container %s does not define a health check" % container_name)
+
+    health = info["State"]["Health"]["Status"]
+    if health == "unhealthy":
+        raise RuntimeError(
+            "Container %s is in unhealthy state, aborting" % container_name
+        )
+    return health == "healthy"
+
+
+@wait
+def wait_completed(compose, container_name):
+    info = json.loads(compose.podman.output([], "inspect", [container_name]))[0]
+
+    if info["State"]["Status"] == "exited":
+        exit_code = info["State"]["ExitCode"]
+        if exit_code != 0:
+            raise RuntimeError(
+                "Container %s didn't complete successfully, exit code: %d"
+                % (container_name, exit_code)
+            )
+        return True
+    return False
+
+
+def wait_for_dependencies(compose, container):
+    for dep, condition in container["_deps"].items():
+        dep_container_name = compose.container_names_by_service[dep][0]
+        if condition == DependsCondition.STARTED:
+            # ignore -- will be handled by container order
+            continue
+        if condition == DependsCondition.HEALTHY:
+            wait_healthy(compose, dep_container_name)
+        else:
+            # implies DependsCondition.COMPLETED
+            wait_completed(compose, dep_container_name)
 
 
 @cmd_run(
@@ -2196,6 +2289,8 @@ def compose_up(compose, args):
             log("** skipping: ", cnt["name"])
             continue
         podman_args = container_to_args(compose, cnt, detached=args.detach)
+        if podman_command == "run":
+            wait_for_dependencies(compose, cnt)
         subproc = compose.podman.run([], podman_command, podman_args)
         if podman_command == "run" and subproc and subproc.returncode:
             compose.podman.run([], "start", [cnt["name"]])
@@ -2231,6 +2326,7 @@ def compose_up(compose, args):
             continue
         # TODO: remove sleep from podman.run
         obj = compose if exit_code_from == cnt["_service"] else None
+        wait_for_dependencies(compose, cnt)
         thread = Thread(
             target=compose.podman.run,
             args=[[], "start", ["-a", cnt["name"]]],

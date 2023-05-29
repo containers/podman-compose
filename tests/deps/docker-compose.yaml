@@ -6,6 +6,14 @@ services:
       tmpfs:
         - /run
         - /tmp
+      healthcheck:
+        # test that httpd is running, the brackets [] thing is a trick
+        # to ignore the grep process returned by ps, meaning that this
+        # should only be true if httpd is currently running
+        test: ps | grep "[h]ttpd"
+        interval: 10s
+        timeout: 5s
+        retries: 5
     sleep:
       image: busybox
       command: ["/bin/busybox", "sh", "-c", "sleep 3600"]
@@ -13,6 +21,11 @@ services:
       tmpfs:
         - /run
         - /tmp
+      healthcheck:
+        test: sleep 15
+        interval: 10s
+        timeout: 20s
+        retries: 5
     sleep2:
       image: busybox
       command: ["/bin/busybox", "sh", "-c", "sleep 3600"]
@@ -21,4 +34,45 @@ services:
       tmpfs:
         - /run
         - /tmp
-
+    setup:
+      image: busybox
+      command: ["/bin/busybox", "sh", "-c", "sleep 30"]
+      tmpfs:
+        - /run
+        - /tmp
+    wait_started:
+      image: busybox
+      command: ["/bin/busybox", "sh", "-c", "echo 'hello world'"]
+      depends_on:
+        sleep:
+          condition: service_started
+      tmpfs:
+        - /run
+        - /tmp
+    wait_healthy:
+      image: busybox
+      command: ["/bin/busybox", "sh", "-c", "echo 'hello world'"]
+      depends_on:
+        web:
+          condition: service_healthy
+      tmpfs:
+        - /run
+        - /tmp
+    wait_multiple_healthchecks:
+      image: busybox
+      command: ["/bin/busybox", "sh", "-c", "echo 'hello world'"]
+      depends_on:
+        sleep:
+          condition: service_healthy
+      tmpfs:
+        - /run
+        - /tmp
+    wait_completed_successfully:
+      image: busybox
+      command: ["/bin/busybox", "sh", "-c", "echo 'hello world'"]
+      depends_on:
+        setup:
+          condition: service_completed_successfully
+      tmpfs:
+        - /run
+        - /tmp
