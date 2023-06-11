@@ -1601,7 +1601,7 @@ class PodmanCompose:
             compose.get("services", {}), set(args.profile)
         )
         compose["services"] = resolved_services
-        if not args.no_normalize:
+        if not getattr(args, "no_normalize", None):
             compose = normalize_final(compose, self.dirname)
         self.merged_yaml = yaml.safe_dump(compose)
         merged_json_b = json.dumps(compose, separators=(",", ":")).encode("utf-8")

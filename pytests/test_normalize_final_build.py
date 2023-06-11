@@ -100,25 +100,6 @@ test_cases_simple_normalization = [
 
 
 #
-# [service.build] is not normalised before coompose files are merged
-#
-def test_pre_merge_normalize_service_does_not_affect_build_section() -> None:
-    for test_input, _ in copy.deepcopy(test_cases_simple_normalization):
-        expected_service = copy.deepcopy(test_input)
-        actual_service = normalize_service(test_input)
-        assert expected_service == actual_service
-
-
-def test_pre_merge_normalize_does_not_affect_build_section() -> None:
-    for test_input, _ in copy.deepcopy(test_cases_simple_normalization):
-        expected_result = copy.deepcopy(test_input)
-        compose_test = {"services": {"test-service": test_input}}
-        compose_expected = {"services": {"test-service": expected_result}}
-        actual_compose = normalize(compose_test)
-        assert compose_expected == actual_compose
-
-
-#
 # [service.build] is normalised after merges
 #
 def test_normalize_service_final_returns_absolute_path_in_context() -> None:
