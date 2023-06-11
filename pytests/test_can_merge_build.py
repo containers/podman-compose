@@ -138,7 +138,9 @@ def test__parse_compose_file_when_multiple_composes() -> None:
         if actual_compose != expected_result:
             print("compose:   ", test_input)
             print("override:  ", test_override)
-            print("result:    ", expected_result)
+            print("expected:  ", expected_result)
+            print("actual:    ", actual_compose)
+
         compose_expected = expected_result
 
         assert compose_expected == actual_compose
@@ -151,6 +153,7 @@ def set_args(podman_compose: PodmanCompose, file_names: list[str]) -> None:
     podman_compose.global_args.env_file = None
     podman_compose.global_args.profile = []
     podman_compose.global_args.in_pod = True
+    podman_compose.global_args.no_normalize = True
 
 
 def dump_yaml(compose: dict, name: str) -> None:

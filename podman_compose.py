@@ -1627,7 +1627,8 @@ class PodmanCompose:
             compose.get("services", {}), set(args.profile)
         )
         compose["services"] = resolved_services
-        compose = normalize_final(compose, self.dirname)
+        if not args.no_normalize:
+            compose = normalize_final(compose, self.dirname)
         self.merged_yaml = yaml.safe_dump(compose)
         merged_json_b = json.dumps(compose, separators=(",", ":")).encode("utf-8")
         self.yaml_hash = hashlib.sha256(merged_json_b).hexdigest()
@@ -3082,6 +3083,9 @@ def compose_build_parse(parser):
 
 @cmd_parse(podman_compose, "config")
 def compose_config_parse(parser):
+    parser.add_argument(
+        "--no-normalize", help="Don't normalize compose model.", action="store_true"
+    )
     parser.add_argument(
         "--services", help="Print the service names, one per line.", action="store_true"
     )

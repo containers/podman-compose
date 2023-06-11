@@ -146,7 +146,7 @@ def test__parse_compose_file_when_single_compose() -> None:
         dump_yaml(compose_test, "test-compose.yaml")
 
         podman_compose = PodmanCompose()
-        set_args(podman_compose, ["test-compose.yaml"])
+        set_args(podman_compose, ["test-compose.yaml"], no_normalize=None)
 
         podman_compose._parse_compose_file()
 
@@ -271,7 +271,11 @@ def test__parse_compose_file_when_multiple_composes() -> None:
         dump_yaml(compose_test_2, "test-compose-2.yaml")
 
         podman_compose = PodmanCompose()
-        set_args(podman_compose, ["test-compose-1.yaml", "test-compose-2.yaml"])
+        set_args(
+            podman_compose,
+            ["test-compose-1.yaml", "test-compose-2.yaml"],
+            no_normalize=None,
+        )
 
         podman_compose._parse_compose_file()
 
@@ -288,13 +292,16 @@ def test__parse_compose_file_when_multiple_composes() -> None:
         assert compose_expected == actual_compose
 
 
-def set_args(podman_compose: PodmanCompose, file_names: list[str]) -> None:
+def set_args(
+    podman_compose: PodmanCompose, file_names: list[str], no_normalize: bool
+) -> None:
     podman_compose.global_args = argparse.Namespace()
     podman_compose.global_args.file = file_names
     podman_compose.global_args.project_name = None
     podman_compose.global_args.env_file = None
     podman_compose.global_args.profile = []
     podman_compose.global_args.in_pod = True
+    podman_compose.global_args.no_normalize = no_normalize
 
 
 def dump_yaml(compose: dict, name: str) -> None:
