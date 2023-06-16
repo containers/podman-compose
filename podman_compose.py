@@ -1799,7 +1799,7 @@ class PodmanCompose:
             "--in-pod",
             help="pod creation",
             metavar="in_pod",
-            type=bool,
+            type=lambda x: x.lower() in ["1", "true"],
             default=True,
         )
         parser.add_argument(
