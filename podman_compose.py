@@ -2641,17 +2641,30 @@ def compose_images(compose, args):
     data = []
     if args.quiet is True:
         for img in img_containers:
-            name = img['name']
-            data.append(compose.podman.output(
-                [], "images", ["--quiet", img['image']]
-            ).decode("utf-8").split())
+            name = img["name"]
+            data.append(
+                compose.podman.output([], "images", ["--quiet", img["image"]])
+                .decode("utf-8")
+                .split()
+            )
     else:
-        data.append(['CONTAINER', 'REPOSITORY', 'TAG', 'IMAGE ID', 'SIZE', ''])
+        data.append(["CONTAINER", "REPOSITORY", "TAG", "IMAGE ID", "SIZE", ""])
         for img in img_containers:
-            name = img['name']
-            data.append(compose.podman.output(
-                [], "images", ["--format", "table " + name + " {{.Repository}} {{.Tag}} {{.ID}} {{.Size}}", "-n", img['image']]
-            ).decode("utf-8").split())
+            name = img["name"]
+            data.append(
+                compose.podman.output(
+                    [],
+                    "images",
+                    [
+                        "--format",
+                        "table " + name + " {{.Repository}} {{.Tag}} {{.ID}} {{.Size}}",
+                        "-n",
+                        img["image"],
+                    ],
+                )
+                .decode("utf-8")
+                .split()
+            )
 
     # Determine the maximum length of each column
     column_widths = [max(map(len, column)) for column in zip(*data)]
@@ -2660,8 +2673,8 @@ def compose_images(compose, args):
     for row in data:
         # Format each cell using the maximum column width
         formatted_row = [cell.ljust(width) for cell, width in zip(row, column_widths)]
-        formatted_row[-2:] = [''.join(formatted_row[-2:]).strip()]
-        print('\t'.join(formatted_row))
+        formatted_row[-2:] = ["".join(formatted_row[-2:]).strip()]
+        print("\t".join(formatted_row))
 
 
 ###################
@@ -3109,6 +3122,7 @@ def compose_kill_parse(parser):
         help="Signal all running containers",
         action="store_true",
     )
+
 
 @cmd_parse(podman_compose, "images")
 def compose_images_parse(parser):
