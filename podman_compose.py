@@ -2692,7 +2692,9 @@ def compose_kill(compose, args):
 
 
 @cmd_run(
-    podman_compose, "stats", "Display percentage of CPU, memory, network I/O, block I/O and PIDs for services."
+    podman_compose,
+    "stats",
+    "Display percentage of CPU, memory, network I/O, block I/O and PIDs for services.",
 )
 def compose_stats(compose, args):
     container_names_by_service = compose.container_names_by_service
