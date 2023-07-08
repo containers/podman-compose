@@ -1276,6 +1276,15 @@ def normalize_service(service, sub_dir=""):
         if is_str(extends):
             extends = {"service": extends}
             service["extends"] = extends
+    if "depends_on" in service:
+        deps = service["depends_on"]
+        if is_str(deps):
+            deps = [deps]
+        if is_list(deps):
+            deps_dict = dict()
+            for d in deps:
+                deps_dict[d] = {'condition': 'service_started'}
+            service["depends_on"] = deps_dict
     return service
 
 
