@@ -1559,7 +1559,15 @@ class PodmanCompose:
             }
         )
         compose = {}
-        for filename in files:
+        # Iterate over files primitively to allow appending to files in-loop
+        files_iter = iter(files)
+
+        while True:
+            try:
+                filename = next(files_iter)
+            except StopIteration:
+                break
+
             with open(filename, "r", encoding="utf-8") as f:
                 content = yaml.safe_load(f)
                 # log(filename, json.dumps(content, indent = 2))
@@ -1573,6 +1581,15 @@ class PodmanCompose:
                 # log(filename, json.dumps(content, indent = 2))
                 content = rec_subs(content, self.environ)
                 rec_merge(compose, content)
+                # If `include` is used, append included files to files
+                if include := compose.get("include", None):
+                    files.append(*include)
+                    # As compose obj is updated and tested with every loop, not deleting `include`
+                    # from it, results in it being tested again and again, original values for
+                    # `include` be appended to `files`, and, included files be processed for ever.
+                    # Solution is to remove 'include' key from compose obj. This doesn't break
+                    # having `include` present and correctly processed in included files
+                    del compose["include"]
         resolved_services = self._resolve_profiles(
             compose.get("services", {}), set(args.profile)
         )
