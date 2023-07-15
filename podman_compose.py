@@ -823,6 +823,8 @@ def get_net_args(compose, cnt):
     ip = None
     ip6 = None
     ip_assignments = 0
+    if cnt.get("_aliases", None):
+        aliases.extend(cnt.get("_aliases", None))
     if cnt_nets and is_dict(cnt_nets):
         prioritized_cnt_nets = []
         # cnt_nets is {net_key: net_value, ...}
@@ -1138,6 +1140,12 @@ def flat_deps(services, with_extends=False):
         if not is_list(links_ls):
             links_ls = [links_ls]
         deps.update([(c.split(":")[0] if ":" in c else c) for c in links_ls])
+        for c in links_ls:
+            if ":" in c:
+                dep_name, dep_alias = c.split(":")
+                if not "_aliases" in services[dep_name]:
+                    services[dep_name]["_aliases"] = set()
+                services[dep_name]["_aliases"].add(dep_alias)
     for name, srv in services.items():
         rec_deps(services, name)
 
