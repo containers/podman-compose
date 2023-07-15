@@ -2083,6 +2083,10 @@ def build_one(compose, args, cnt):
         build_args.append("--pull-always")
     elif getattr(args, "pull", None):
         build_args.append("--pull")
+    env = dict(cnt.get("environment", {}))
+    for name, value in env.items():
+        build_args += ["--env", f"{name}" if value is None else f"{name}={value}"]
+
     args_list = norm_as_list(build_desc.get("args", {}))
     for build_arg in args_list + args.build_arg:
         build_args.extend(
