@@ -1590,7 +1590,8 @@ class PodmanCompose:
                 content = rec_subs(content, self.environ)
                 rec_merge(compose, content)
                 # If `include` is used, append included files to files
-                if include := compose.get("include", None):
+                include = compose.get("include", None)
+                if include:
                     files.append(*include)
                     # As compose obj is updated and tested with every loop, not deleting `include`
                     # from it, results in it being tested again and again, original values for
