@@ -1375,7 +1375,11 @@ def resolve_extends(services, service_names, environ):
                 content = content["services"]
             subdirectory = os.path.dirname(filename)
             content = rec_subs(content, environ)
-            from_service = content.get(from_service_name, {})
+            from_service = (
+                {}
+                if content.get(from_service_name, {}) is None
+                else content.get(from_service_name, {})
+            )
             normalize_service(from_service, subdirectory)
         else:
             from_service = services.get(from_service_name, {}).copy()
