@@ -379,7 +379,7 @@ async def assert_volume(compose, mount_dict):
     proj_name = compose.project_name
     vol_name = vol["name"]
     is_ext = vol.get("external", None)
-    log.debug(f"podman volume inspect {vol_name} || podman volume create {vol_name}")
+    log.debug("podman volume inspect %s || podman volume create %s", vol_name, vol_name)
     # TODO: might move to using "volume list"
     # podman volume list --format '{{.Name}}\t{{.MountPoint}}' \
     #     -f 'label=io.podman.compose.project=HERE'
@@ -555,9 +555,11 @@ def get_secret_args(compose, cnt, secret):
         volume_ref = ["--volume", f"{source_file}:{dest_file}:ro,rprivate,rbind"]
         if uid or gid or mode:
             sec = target if target else secret_name
-            log.warn(
-                f'WARNING: Service {cnt["_service"]} uses secret "{sec}" with uid, gid, or mode.'
-                + " These fields are not supported by this implementation of the Compose file"
+            log.warning(
+                "WARNING: Service %s uses secret %s with uid, gid, or mode."
+                + " These fields are not supported by this implementation of the Compose file",
+                cnt["_service"],
+                sec,
             )
         return volume_ref
     # v3.5 and up added external flag, earlier the spec
@@ -586,11 +588,12 @@ def get_secret_args(compose, cnt, secret):
         if target and target != secret_name:
             raise ValueError(err_str.format(target, secret_name))
         if target:
-            log.warn(
-                'WARNING: Service "{}" uses target: "{}" for secret: "{}".'.format(
-                    cnt["_service"], target, secret_name
-                )
-                + " That is un-supported and a no-op and is ignored."
+            log.warning(
+                'WARNING: Service "%s" uses target: "%s" for secret: "%s".'
+                + " That is un-supported and a no-op and is ignored.",
+                cnt["_service"],
+                target,
+                secret_name,
             )
         return ["--secret", "{}{}".format(secret_name, secret_opts)]
 
@@ -770,7 +773,7 @@ def get_net_args(compose, cnt):
         elif net.startswith("bridge"):
             is_bridge = True
         else:
-            log.fatal(f"unknown network_mode [{net}]")
+            log.fatal("unknown network_mode [%s]", net)
             sys.exit(1)
     else:
         is_bridge = True
@@ -913,10 +916,10 @@ async def container_to_args(compose, cnt, detached=True):
     await assert_cnt_nets(compose, cnt)
     podman_args.extend(get_net_args(compose, cnt))
 
-    logging = cnt.get("logging", None)
-    if logging is not None:
-        podman_args.append(f'--log-driver={logging.get("driver", "k8s-file")}')
-        log_opts = logging.get("options") or {}
+    log_config = cnt.get("logging", None)
+    if log_config is not None:
+        podman_args.append(f'--log-driver={log_config.get("driver", "k8s-file")}')
+        log_opts = log_config.get("options") or {}
         podman_args += [f"--log-opt={name}={value}" for name, value in log_opts.items()]
     for secret in cnt.get("secrets", []):
         podman_args.extend(get_secret_args(compose, cnt, secret))
@@ -1226,7 +1229,7 @@ class Podman:
                     p.kill()
                     exit_code = await p.wait()
 
-            log.info(f"exit code: {exit_code}")
+            log.info("exit code: %s", exit_code)
             return exit_code
 
     async def volume_ls(self, proj=None):
@@ -1474,7 +1477,7 @@ class PodmanCompose:
         missing = given - self.all_services
         if missing:
             missing_csv = ",".join(missing)
-            log.warn(f"missing services [{missing_csv}]")
+            log.warning("missing services [%s]", missing_csv)
             sys.exit(1)
 
     def get_podman_args(self, cmd):
@@ -1488,7 +1491,7 @@ class PodmanCompose:
         return xargs
 
     async def run(self):
-        log.info("podman-compose version: " + __version__)
+        log.info("podman-compose version: %s", __version__)
         args = self._parse_args()
         podman_path = args.podman_path
         if podman_path != "podman":
@@ -1497,7 +1500,7 @@ class PodmanCompose:
             else:
                 # this also works if podman hasn't been installed now
                 if args.dry_run is False:
-                    log.fatal(f"Binary {podman_path} has not been found.")
+                    log.fatal("Binary %s has not been found.", podman_path)
                     sys.exit(1)
         self.podman = Podman(self, podman_path, args.dry_run, asyncio.Semaphore(args.parallel))
 
@@ -1513,7 +1516,7 @@ class PodmanCompose:
             if not self.podman_version:
                 log.fatal("it seems that you do not have `podman` installed")
                 sys.exit(1)
-            log.info("using podman version: " + self.podman_version)
+            log.info("using podman version: %s", self.podman_version)
         cmd_name = args.command
         compose_required = cmd_name != "version" and (
             cmd_name != "systemd" or args.action != "create-unit"
@@ -1648,7 +1651,7 @@ class PodmanCompose:
         services = compose.get("services", None)
         if services is None:
             services = {}
-            log.warn("WARNING: No services defined")
+            log.warning("WARNING: No services defined")
         # include services with no profile defined or the selected profiles
         services = self._resolve_profiles(services, set(args.profile))
 
@@ -1681,7 +1684,7 @@ class PodmanCompose:
         unused_nets = given_nets - allnets - set(["default"])
         if len(unused_nets):
             unused_nets_str = ",".join(unused_nets)
-            log.warn(f"WARNING: unused networks: {unused_nets_str}")
+            log.warning("WARNING: unused networks: %s", unused_nets_str)
         if len(missing_nets):
             missing_nets_str = ",".join(missing_nets)
             raise RuntimeError(f"missing networks: {missing_nets_str}")
@@ -1793,7 +1796,7 @@ class PodmanCompose:
             parser.print_help()
             sys.exit(-1)
 
-        logging.basicConfig(level=('DEBUG' if self.global_args.verbose else 'WARN'))
+        logging.basicConfig(level=("DEBUG" if self.global_args.verbose else "WARN"))
         return self.global_args
 
     @staticmethod
@@ -1981,12 +1984,12 @@ async def compose_systemd(compose, args):
         proj_name = compose.project_name
         fn = os.path.expanduser(f"~/{stacks_dir}/{proj_name}.env")
         os.makedirs(os.path.dirname(fn), exist_ok=True)
-        log.debug(f"writing [{fn}]: ...")
+        log.debug("writing [%s]: ...", fn)
         with open(fn, "w", encoding="utf-8") as f:
             for k, v in compose.environ.items():
                 if k.startswith("COMPOSE_") or k.startswith("PODMAN_"):
                     f.write(f"{k}={v}\n")
-        log.debug(f"writing [{fn}]: done.")
+        log.debug("writing [%s]: done.", fn)
         log.info("\n\ncreating the pod without starting it: ...\n\n")
         process = await asyncio.subprocess.create_subprocess_exec(script, ["up", "--no-start"])
         log.info("\nfinal exit code is ", process)
@@ -2036,10 +2039,10 @@ ExecStop=/usr/bin/podman pod stop pod_%i
 WantedBy=default.target
 """
         if os.access(os.path.dirname(fn), os.W_OK):
-            log.debug(f"writing [{fn}]: ...")
+            log.debug("writing [%s]: ...", fn)
             with open(fn, "w", encoding="utf-8") as f:
                 f.write(out)
-            log.debug(f"writing [{fn}]: done.")
+            log.debug("writing [%s]: done.", fn)
             print(
                 """
 while in your project type `podman-compose systemd -a register`
@@ -2047,7 +2050,7 @@ while in your project type `podman-compose systemd -a register`
             )
         else:
             print(out)
-            log.warn(f"Could not write to [{fn}], use 'sudo'")
+            log.warning("Could not write to [%s], use 'sudo'", fn)
 
 
 @cmd_run(podman_compose, "pull", "pull stack images")
@@ -2367,7 +2370,7 @@ async def compose_down(compose, args):
             if cnt["_service"] not in excluded:
                 continue
             vol_names_to_keep.update(get_volume_names(compose, cnt))
-        log.debug("keep", vol_names_to_keep)
+        log.debug("keep %s", vol_names_to_keep)
         for volume_name in await compose.podman.volume_ls():
             if volume_name in vol_names_to_keep:
                 continue
