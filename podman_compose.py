@@ -2128,6 +2128,14 @@ def build_one(compose, args, cnt):
         build_args.extend(["-t", tag])
     if "target" in build_desc:
         build_args.extend(["--target", build_desc["target"]])
+    cache_from = build_desc.get("cache_from", [])
+    cache_to = build_desc.get("cache_to", [])
+    if cache_from or cache_to:
+        build_args.extend(["--layers"])
+    for cache in cache_from:
+        build_args.extend(["--cache-from", cache])
+    for cache in cache_to:
+        build_args.extend(["--cache-to", cache])
     container_to_ulimit_args(cnt, build_args)
     if getattr(args, "no_cache", None):
         build_args.append("--no-cache")
