@@ -1301,7 +1301,8 @@ def normalize_service_final(service: dict, project_dir: str) -> dict:
     if "build" in service:
         build = service["build"]
         context = build if is_str(build) else build.get("context", ".")
-        context = os.path.normpath(os.path.join(project_dir, context))
+        if not re.match(r"://", context) and not re.match(r"[^:]+:.+", context):
+            context = os.path.normpath(os.path.join(project_dir, context))
         dockerfile = (
             "Dockerfile"
             if is_str(build)
@@ -2103,10 +2104,8 @@ def build_one(compose, args, cnt):
     if not hasattr(build_desc, "items"):
         build_desc = {"context": build_desc}
     ctx = build_desc.get("context", ".")
-    dockerfile = build_desc.get("dockerfile", None)
-    if dockerfile:
-        dockerfile = os.path.join(ctx, dockerfile)
-    else:
+    dockerfile = build_desc.get("dockerfile", "")
+    if not dockerfile:
         dockerfile_alts = [
             "Containerfile",
             "ContainerFile",
@@ -2115,13 +2114,15 @@ def build_one(compose, args, cnt):
             "DockerFile",
             "dockerfile",
         ]
-        for dockerfile in dockerfile_alts:
-            dockerfile = os.path.join(ctx, dockerfile)
-            if os.path.exists(dockerfile):
+        for dockerfile_alt in dockerfile_alts:
+            if os.path.exists(dockerfile_alt):
+                dockerfile = dockerfile_alt
                 break
-    if not os.path.exists(dockerfile):
-        raise OSError("Dockerfile not found in " + ctx)
-    build_args = ["-f", dockerfile, "-t", cnt["image"]]
+    if os.path.exists(os.path.join(ctx, dockerfile)):
+        dockerfile = os.path.normpath(os.path.join(ctx, dockerfile))
+    build_args = ["-t", cnt["image"]]
+    if os.path.exists(dockerfile) or re.match(r"://", ctx) or re.match(r"[^:]+:.+", ctx):
+        build_args.extend(["-f", dockerfile])
     for secret in build_desc.get("secrets", []):
         build_args.extend(get_secret_args(compose, cnt, secret))
     for tag in build_desc.get("tags", []):
