@@ -705,6 +705,9 @@ def get_network_create_args(net_desc, proj_name, net_name):
     if ipam_driver:
         args.extend(("--ipam-driver", ipam_driver))
     ipam_config_ls = ipam.get("config", None) or []
+    if net_desc.get("enable_ipv6", None):
+        args.append("--ipv6")
+
     if is_dict(ipam_config_ls):
         ipam_config_ls = [ipam_config_ls]
     for ipam_config in ipam_config_ls:

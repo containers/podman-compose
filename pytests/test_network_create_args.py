@@ -26,6 +26,29 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
         args = get_network_create_args(net_desc, proj_name, net_name)
         self.assertEqual(args, expected_args)
 
+    def test_ipv6(self):
+        net_desc = {
+            "labels": [],
+            "internal": False,
+            "driver": None,
+            "driver_opts": {},
+            "ipam": {"config": []},
+            "enable_ipv6": True,
+        }
+        proj_name = "test_project"
+        net_name = "test_network"
+        expected_args = [
+            "create",
+            "--label",
+            f"io.podman.compose.project={proj_name}",
+            "--label",
+            f"com.docker.compose.project={proj_name}",
+            "--ipv6",
+            net_name,
+        ]
+        args = get_network_create_args(net_desc, proj_name, net_name)
+        self.assertEqual(args, expected_args)
+
     def test_bridge(self):
         net_desc = {
             "labels": [],
@@ -131,6 +154,7 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
             "opt2=value2",
             "--ipam-driver",
             "default",
+            "--ipv6",
             "--subnet",
             "192.168.0.0/24",
             "--ip-range",
