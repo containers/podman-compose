@@ -358,7 +358,7 @@ def norm_ulimit(inner_value):
 
 
 def transform(args, project_name, given_containers):
-    if not args.in_pod:
+    if args.no_pod:
         pod_name = None
         pods = []
     else:
@@ -403,13 +403,9 @@ def assert_volume(compose, mount_dict):
         if is_ext:
             raise RuntimeError(f"External volume [{vol_name}] does not exists") from e
         labels = vol.get("labels", None) or []
-        args = [
-            "create",
-            "--label",
-            f"io.podman.compose.project={proj_name}",
-            "--label",
-            f"com.docker.compose.project={proj_name}",
-        ]
+        args = ["create"]
+        if not compose.global_args.no_label:
+            args.extend(["--label", f"io.podman.compose.project={proj_name}"])
         for item in norm_as_list(labels):
             args.extend(["--label", item])
         driver = vol.get("driver", None)
@@ -739,13 +735,9 @@ def assert_cnt_nets(compose, cnt):
                 raise RuntimeError(
                     f"External network [{net_name}] does not exists"
                 ) from e
-            args = [
-                "create",
-                "--label",
-                f"io.podman.compose.project={proj_name}",
-                "--label",
-                f"com.docker.compose.project={proj_name}",
-            ]
+            args = ["create"]
+            if not compose.global_args.no_label:
+                args.extend(["--label", f"io.podman.compose.project={proj_name}"])
             # TODO: add more options here, like dns, ipv6, etc.
             labels = net_desc.get("labels", None) or []
             for item in norm_as_list(labels):
@@ -788,29 +780,24 @@ def get_net_args(compose, cnt):
         net_args.extend(["--mac-address", mac_address])
     is_bridge = False
     net = cnt.get("network_mode", None)
-    if net:
-        if net == "none":
-            is_bridge = False
-        elif net == "host":
-            net_args.extend(["--network", net])
-        elif net.startswith("slirp4netns:"):
-            net_args.extend(["--network", net])
-        elif net.startswith("ns:"):
-            net_args.extend(["--network", net])
-        elif net.startswith("service:"):
-            other_srv = net.split(":", 1)[1].strip()
-            other_cnt = compose.container_names_by_service[other_srv][0]
-            net_args.extend(["--network", f"container:{other_cnt}"])
-        elif net.startswith("container:"):
-            other_cnt = net.split(":", 1)[1].strip()
-            net_args.extend(["--network", f"container:{other_cnt}"])
-        elif net.startswith("bridge"):
-            is_bridge = True
-        else:
-            print(f"unknown network_mode [{net}]")
-            sys.exit(1)
-    else:
+    if net is None or net.startswith("bridge"):
         is_bridge = True
+    elif net in ("host", "none"):
+        net_args.extend(["--network", net])
+    elif net.startswith("slirp4netns:"):
+        net_args.extend(["--network", net])
+    elif net.startswith("ns:"):
+        net_args.extend(["--network", net])
+    elif net.startswith("service:"):
+        other_srv = net.split(":", 1)[1].strip()
+        other_cnt = compose.container_names_by_service[other_srv][0]
+        net_args.extend(["--network", f"container:{other_cnt}"])
+    elif net.startswith("container:"):
+        other_cnt = net.split(":", 1)[1].strip()
+        net_args.extend(["--network", f"container:{other_cnt}"])
+    else:
+        print(f"unknown network_mode [{net}]")
+        sys.exit(1)
     proj_name = compose.project_name
     default_net = compose.default_net
     nets = compose.networks
@@ -1703,15 +1690,15 @@ class PodmanCompose:
             raise RuntimeError(f"missing networks: {missing_nets_str}")
         # volumes: [...]
         self.vols = compose.get("volumes", {})
-        podman_compose_labels = [
-            "io.podman.compose.config-hash=" + self.yaml_hash,
-            "io.podman.compose.project=" + project_name,
-            "io.podman.compose.version=" + __version__,
-            f"PODMAN_SYSTEMD_UNIT=podman-compose@{project_name}.service",
-            "com.docker.compose.project=" + project_name,
-            "com.docker.compose.project.working_dir=" + dirname,
-            "com.docker.compose.project.config_files=" + ",".join(relative_files),
-        ]
+        if self.global_args.no_label:
+            podman_compose_labels = []
+        else:
+            podman_compose_labels = [
+                "io.podman.compose.version=" + __version__,
+                "io.podman.compose.config-hash=" + self.yaml_hash,
+                "io.podman.compose.project=" + project_name,
+                "io.podman.compose.project.config_files=" + ",".join(relative_files),
+            ]
         # other top-levels:
         # networks: {driver: ...}
         # configs: {...}
@@ -1741,12 +1728,13 @@ class PodmanCompose:
                 labels = norm_as_list(cnt.get("labels", None))
                 cnt["ports"] = norm_ports(cnt.get("ports", None))
                 labels.extend(podman_compose_labels)
-                labels.extend(
-                    [
-                        f"com.docker.compose.container-number={num}",
-                        "com.docker.compose.service=" + service_name,
-                    ]
-                )
+                if not self.global_args.no_label:
+                    labels.extend(
+                        [
+                            f"io.podman.compose.container-number={num}",
+                            f"io.podman.compose.service={service_name}",
+                        ]
+                    )
                 cnt["labels"] = labels
                 cnt["_service"] = service_name
                 cnt["_project"] = project_name
@@ -1822,11 +1810,9 @@ class PodmanCompose:
     def _init_global_parser(parser):
         parser.add_argument("-v", "--version", help="show version", action="store_true")
         parser.add_argument(
-            "--in-pod",
-            help="pod creation",
-            metavar="in_pod",
-            type=bool,
-            default=True,
+            "--no-pod",
+            help="disable pod creation",
+            action="store_true",
         )
         parser.add_argument(
             "--pod-args",
@@ -1893,6 +1879,11 @@ class PodmanCompose:
         parser.add_argument(
             "--no-cleanup",
             help="Do not stop and remove existing pod & containers",
+            action="store_true",
+        )
+        parser.add_argument(
+            "--no-label",
+            help="disable default labels",
             action="store_true",
         )
         parser.add_argument(
@@ -2128,6 +2119,8 @@ def build_one(compose, args, cnt):
         build_args.extend(["-t", tag])
     if "target" in build_desc:
         build_args.extend(["--target", build_desc["target"]])
+    if "network" in build_desc:
+        build_args.extend(["--network", build_desc["network"]])
     container_to_ulimit_args(cnt, build_args)
     if getattr(args, "no_cache", None):
         build_args.append("--no-cache")
@@ -2453,7 +2446,7 @@ def compose_run(compose, args):
     name0 = "{}_{}_tmp{}".format(
         compose.project_name, args.service, random.randrange(0, 65536)
     )
-    cnt["name"] = args.name or name0
+    cnt["name"] = args.name or container_name or name0
     if args.entrypoint:
         cnt["entrypoint"] = args.entrypoint
     if args.user:
@@ -2489,7 +2482,8 @@ def compose_run(compose, args):
         if args.rm:
             podman_args.insert(1, "--rm")
     p = compose.podman.run([], "run", podman_args, sleep=0)
-    sys.exit(p.returncode)
+    if p:
+        sys.exit(p.returncode)
 
 
 @cmd_run(podman_compose, "exec", "execute a command in a running container")
