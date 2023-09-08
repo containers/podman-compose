@@ -63,8 +63,13 @@ Or latest development version from GitHub:
 pip3 install https://github.com/containers/podman-compose/archive/devel.tar.gz
 ```
 
+Or install on macOS using brew:
 
-or install from Fedora (starting from f31) repositories:
+```bash
+brew install podman-compose
+```
+
+Or install from Fedora (starting from f31) repositories:
 
 ```
 sudo dnf install podman-compose
