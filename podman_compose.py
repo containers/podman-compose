@@ -1261,6 +1261,12 @@ def normalize_service(service, sub_dir=""):
             if not context:
                 context = "."
             service["build"]["context"] = context
+    if "build" in service and "additional_contexts" in service["build"]:
+        if is_dict(build["additional_contexts"]):
+            new_additional_contexts = []
+            for k, v in build["additional_contexts"].items():
+                new_additional_contexts.append(f"{k}={v}")
+            build["additional_contexts"] = new_additional_contexts
     for key in ("command", "entrypoint"):
         if key in service:
             if is_str(service[key]):
@@ -2126,6 +2132,8 @@ def build_one(compose, args, cnt):
         build_args.extend(get_secret_args(compose, cnt, secret))
     for tag in build_desc.get("tags", []):
         build_args.extend(["-t", tag])
+    for additional_ctx in build_desc.get("additional_contexts", {}):
+        build_args.extend([f"--build-context={additional_ctx}"])
     if "target" in build_desc:
         build_args.extend(["--target", build_desc["target"]])
     container_to_ulimit_args(cnt, build_args)

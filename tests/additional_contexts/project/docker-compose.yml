@@ -1,0 +1,12 @@
+version: "3.7"
+services:
+  dict:
+    build:
+      context: .
+      additional_contexts:
+        data: ../data_for_dict
+  list:
+    build:
+      context: .
+      additional_contexts:
+        - data=../data_for_list
