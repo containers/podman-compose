@@ -130,3 +130,25 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(TypeError):
                 cnt["sysctls"] = wrong_type
                 await container_to_args(c, cnt)
+
+    async def test_pid(self):
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+
+        cnt["pid"] = "host"
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--net",
+                "",
+                "--network-alias",
+                "service_name",
+                "--pid",
+                "host",
+                "busybox",
+            ],
+        )
