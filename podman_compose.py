@@ -2039,7 +2039,7 @@ Description=%i rootless pod (podman-compose)
 [Service]
 Type=simple
 EnvironmentFile=%h/{stacks_dir}/%i.env
-ExecStartPre=-{script} up --no-start
+ExecStartPre=-{script} --in-pod=1 up --no-start
 ExecStartPre=/usr/bin/podman pod start pod_%i
 ExecStart={script} wait
 ExecStop=/usr/bin/podman pod stop pod_%i
