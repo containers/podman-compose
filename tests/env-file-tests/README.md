@@ -7,3 +7,9 @@ podman-compose -f project/container-compose.yaml --env-file env-files/project-1.
 ```
 podman-compose -f $(pwd)/project/container-compose.yaml --env-file $(pwd)/env-files/project-1.env up
 ```
+
+based on environment variable precedent this command should give podman-rocks-321
+
+```
+ZZVAR1=podman-rocks-321 podman-compose -f $(pwd)/project/container-compose.yaml --env-file $(pwd)/env-files/project-1.env up
+```
