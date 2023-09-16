@@ -2000,7 +2000,7 @@ def compose_systemd(compose, args):
                     f.write(f"{k}={v}\n")
         print(f"writing [{fn}]: done.")
         print("\n\ncreating the pod without starting it: ...\n\n")
-        process = subprocess.run([script, "up", "--no-start"], check=False)
+        process = subprocess.run([script, "--in-pod", proj_name, "up", "--no-start"], check=False)
         print("\nfinal exit code is ", process.returncode)
         username = getpass.getuser()
         print(
@@ -2039,7 +2039,7 @@ Description=%i rootless pod (podman-compose)
 [Service]
 Type=simple
 EnvironmentFile=%h/{stacks_dir}/%i.env
-ExecStartPre=-{script} up --no-start
+ExecStartPre=-{script} --in-pod %i up --no-start
 ExecStartPre=/usr/bin/podman pod start pod_%i
 ExecStart={script} wait
 ExecStop=/usr/bin/podman pod stop pod_%i
