@@ -48,7 +48,7 @@ coverage report
 coverage html
 ```
 7. Commit your code to your fork's branch. 
-   - Make sure you include a `Signed-off-by` message in your commits. Read [this guide](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits) to learn how to sign your commits 
+   - Make sure you include a `Signed-off-by` message in your commits. Read [this guide](https://github.com/containers/common/blob/main/CONTRIBUTING.md#sign-your-prs) to learn how to sign your commits
    - In the commit message reference the Issue ID that your code fixes and a brief description of the changes. Example: `Fixes #516: allow empty network`
 7. Open a PR to `containers/podman-compose:devel` and wait for a maintainer to review your work.
 
