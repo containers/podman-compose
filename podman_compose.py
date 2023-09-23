@@ -1045,13 +1045,15 @@ async def container_to_args(compose, cnt, detached=True):
         else:
             raise ValueError("'healthcheck.test' either a string or a list")
 
-    # interval, timeout and start_period are specified as durations.
+    # interval, timeout, start_period, and start_interval are specified as durations.
     if "interval" in healthcheck:
         podman_args.extend(["--health-interval", healthcheck["interval"]])
     if "timeout" in healthcheck:
         podman_args.extend(["--health-timeout", healthcheck["timeout"]])
     if "start_period" in healthcheck:
         podman_args.extend(["--health-start-period", healthcheck["start_period"]])
+    if "start_interval" in healthcheck:
+        podman_args.extend(["--health-startup-interval", healthcheck["start_interval"]])
 
     # convert other parameters to string
     if "retries" in healthcheck:
