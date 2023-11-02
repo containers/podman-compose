@@ -2120,7 +2120,7 @@ def build_one(compose, args, cnt):
             if os.path.exists(dockerfile):
                 break
     if not os.path.exists(dockerfile):
-        raise OSError("Dockerfile not found in " + ctx)
+        raise OSError("Dockerfile not found in " + dockerfile)
     build_args = ["-f", dockerfile, "-t", cnt["image"]]
     for secret in build_desc.get("secrets", []):
         build_args.extend(get_secret_args(compose, cnt, secret))
