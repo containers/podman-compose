@@ -14,6 +14,7 @@ import sys
 import os
 import getpass
 import argparse
+import copy
 import itertools
 import subprocess
 import time
@@ -1590,39 +1591,84 @@ class PodmanCompose:
                 "COMPOSE_PATH_SEPARATOR": pathsep,
             }
         )
-        compose = {}
-        # Iterate over files primitively to allow appending to files in-loop
-        files_iter = iter(files)
 
-        while True:
-            try:
-                filename = next(files_iter)
-            except StopIteration:
-                break
+        # read each compose file and their includes, but detect cycles using iterative DFS
+        # files_stack is a stack of 2-tuples of filename and current include chain length
+        files_stack = files[::-1]
+        include_chain = [None]
+        include_chain_set = set()
+        # Cache mapping filename to compose data to avoid multiple file reads
+        files_content_merged = {None: {}}
+        files_content = {}
+
+        while files_stack:
+            filename = files_stack[-1]
+            if filename in files_content:
+                del files_stack[-1]
+                # if filename is not in include_chain_set, then filename has already been processed
+                # and confirmed to NOT have a cyclic include chain, so there is no need
+                # to modify its entry in files_content_merged
+                # if filename is in include_chain_set, then we are now confirming that it does NOT
+                # have cyclic include chain and must finalize its entry in files_content_merged
+                if filename in include_chain_set:
+                    del include_chain[-1]
+                    include_chain_set.remove(filename)
+                    # all included files of current file have been merged at this point,
+                    # so merge the main content
+                    if filename in files_content_merged:
+                        rec_merge_one(
+                            files_content_merged[filename], files_content[filename]
+                        )
+                    else:
+                        files_content_merged[filename] = files_content[filename]
+
+                # merge final content of current file into parent file
+                if include_chain[-1] in files_content_merged:
+                    rec_merge_one(
+                        files_content_merged[include_chain[-1]],
+                        files_content_merged[filename],
+                    )
+                else:
+                    files_content_merged[include_chain[-1]] = copy.deepcopy(
+                        files_content_merged[filename]
+                    )
+                continue
 
             with open(filename, "r", encoding="utf-8") as f:
                 content = yaml.safe_load(f)
-                # log(filename, json.dumps(content, indent = 2))
-                if not isinstance(content, dict):
+
+            # log(filename, json.dumps(content, indent = 2))
+            if not is_dict(content):
+                sys.stderr.write(
+                    "Compose file does not contain a top level object: %s\n" % filename
+                )
+                sys.exit(1)
+            content = normalize(content)
+            # log(filename, json.dumps(content, indent = 2))
+            content = rec_subs(content, self.environ)
+
+            # must add filename to file_visited before iterating includes as
+            # the inclusion of itself should be detected
+            include_chain.append(filename)
+            include_chain_set.add(filename)
+
+            # include keyword shouldn't be necessary in the content data
+            # include list should be reversed as the stack is LIFO and the original
+            # include order should be respected
+            for include in reversed(content.pop("include", [])):
+                if include in include_chain_set:
                     sys.stderr.write(
-                        "Compose file does not contain a top level object: %s\n"
+                        "Compose file contains a cyclic chain of file includes: %s\n"
                         % filename
                     )
                     sys.exit(1)
-                content = normalize(content)
-                # log(filename, json.dumps(content, indent = 2))
-                content = rec_subs(content, self.environ)
-                rec_merge(compose, content)
-                # If `include` is used, append included files to files
-                include = compose.get("include", None)
-                if include:
-                    files.append(*include)
-                    # As compose obj is updated and tested with every loop, not deleting `include`
-                    # from it, results in it being tested again and again, original values for
-                    # `include` be appended to `files`, and, included files be processed for ever.
-                    # Solution is to remove 'include' key from compose obj. This doesn't break
-                    # having `include` present and correctly processed in included files
-                    del compose["include"]
+
+                files_stack.append(include)
+
+            files_content[filename] = content
+
+        compose = files_content_merged[None]
+
         resolved_services = self._resolve_profiles(
             compose.get("services", {}), set(args.profile)
         )

@@ -1,0 +1,5 @@
+version: '3.6'
+
+include:
+  - docker-compose.base-1.yaml
+  - docker-compose.base-2.yaml

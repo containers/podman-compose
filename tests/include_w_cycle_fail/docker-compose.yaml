@@ -1,0 +1,4 @@
+version: '3.6'
+
+include:
+  - docker-compose.base-1.yaml
