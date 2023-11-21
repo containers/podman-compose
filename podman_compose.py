@@ -1611,6 +1611,22 @@ class PodmanCompose:
                     sys.exit(1)
                 content = normalize(content)
                 # log(filename, json.dumps(content, indent = 2))
+
+                if not project_name:
+                    project_name = rec_subs(content.get("name", None), self.environ)
+                    if project_name is None:
+                        # More strict then actually needed for simplicity: podman requires [a-zA-Z0-9][a-zA-Z0-9_.-]*
+                        project_name = (
+                            os.environ.get("COMPOSE_PROJECT_NAME", None) or dir_basename.lower()
+                        )
+                        project_name = norm_re.sub("", project_name)
+                        if not project_name:
+                            raise RuntimeError(
+                                f"Project name [{dir_basename}] normalized to empty"
+                            )
+                self.project_name = project_name
+                self.environ.update({"COMPOSE_PROJECT_NAME": self.project_name})
+
                 content = rec_subs(content, self.environ)
                 rec_merge(compose, content)
                 # If `include` is used, append included files to files
@@ -1637,23 +1653,6 @@ class PodmanCompose:
         if len(files) > 1:
             log(" ** merged:\n", json.dumps(compose, indent=2))
         # ver = compose.get('version', None)
-
-        if not project_name:
-            project_name = compose.get("name", None)
-            if project_name is None:
-                # More strict then actually needed for simplicity: podman requires [a-zA-Z0-9][a-zA-Z0-9_.-]*
-                project_name = (
-                    self.environ.get("COMPOSE_PROJECT_NAME", None)
-                    or dir_basename.lower()
-                )
-                project_name = norm_re.sub("", project_name)
-                if not project_name:
-                    raise RuntimeError(
-                        f"Project name [{dir_basename}] normalized to empty"
-                    )
-
-        self.project_name = project_name
-        self.environ.update({"COMPOSE_PROJECT_NAME": self.project_name})
 
         services = compose.get("services", None)
         if services is None:
