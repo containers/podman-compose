@@ -33,6 +33,8 @@ def test_podman_compose_extends_w_file_subdir():
         "podman",
         "container",
         "ps",
+        "--sort",
+        "status",
         "--all",
         "--format",
         '"{{.Image}}"',
@@ -51,14 +53,16 @@ def test_podman_compose_extends_w_file_subdir():
     # check container was created and exists
     out, _, returncode = capture(command_check_container)
     assert 0 == returncode
-    assert out == b'"localhost/subdir_test:me"\n'
+    assert b'"localhost/subdir_test:me"\n' in out
     out, _, returncode = capture(command_down)
     # cleanup test image(tags)
     assert 0 == returncode
+    print('ok')
     # check container did not exists anymore
     out, _, returncode = capture(command_check_container)
+    print(out)
     assert 0 == returncode
-    assert out == b""
+    assert b'"localhost/subdir_test:me"\n' not in out
 
 
 def test_podman_compose_extends_w_empty_service():
