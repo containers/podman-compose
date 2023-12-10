@@ -3,7 +3,6 @@
 # process, which may cause wedges in the gate later.
 
 coverage
-pytest-cov
 pytest
 tox
 black

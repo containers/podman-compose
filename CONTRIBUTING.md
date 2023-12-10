@@ -39,7 +39,15 @@ $ pre-commit install
 ```shell
 $ pre-commit run --all-files
 ```
-6. Commit your code to your fork's branch. 
+6. Run code coverage
+```shell
+coverage run --source podman_compose -m pytest ./pytests
+python -m pytest ./tests
+coverage combine
+coverage report
+coverage html
+```
+7. Commit your code to your fork's branch. 
    - Make sure you include a `Signed-off-by` message in your commits. Read [this guide](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits) to learn how to sign your commits 
    - In the commit message reference the Issue ID that your code fixes and a brief description of the changes. Example: `Fixes #516: allow empty network`
 7. Open a PR to `containers/podman-compose:devel` and wait for a maintainer to review your work.
@@ -48,18 +56,18 @@ $ pre-commit run --all-files
 
 To add a command you need to add a function that is decorated
 with `@cmd_run` passing the compose instance, command name and
-description. the wrapped function should accept two arguments
-the compose instance and the command-specific arguments (resulted
-from python's `argparse` package) inside that command you can
-run PodMan like this `compose.podman.run(['inspect', 'something'])`
-and inside that function you can access `compose.pods`
-and `compose.containers` ...etc.
-Here is an example
+description. This function must be declared `async` the wrapped 
+function should accept two arguments the compose instance and 
+the command-specific arguments (resulted from python's `argparse` 
+package) inside that command you can run PodMan like this 
+`await compose.podman.run(['inspect', 'something'])`and inside 
+that function you can access `compose.pods` and `compose.containers` 
+...etc. Here is an example
 
 ```
 @cmd_run(podman_compose, 'build', 'build images defined in the stack')
-def compose_build(compose, args):
-    compose.podman.run(['build', 'something'])
+async def compose_build(compose, args):
+    await compose.podman.run(['build', 'something'])
 ```
 
 ## Command arguments parsing
@@ -90,10 +98,10 @@ do something like:
 
 ```
 @cmd_run(podman_compose, 'up', 'up desc')
-def compose_up(compose, args):
-    compose.commands['down'](compose, args)
+async def compose_up(compose, args):
+    await compose.commands['down'](compose, args)
     # or
-    compose.commands['down'](argparse.Namespace(foo=123))
+    await compose.commands['down'](argparse.Namespace(foo=123))
 ```
 
 

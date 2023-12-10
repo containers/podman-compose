@@ -20,7 +20,8 @@ def test_podman_compose_include():
     main_path = Path(__file__).parent.parent
 
     command_up = [
-        "python3",
+        "coverage",
+        "run",
         str(main_path.joinpath("podman_compose.py")),
         "-f",
         str(main_path.joinpath("tests", "include", "docker-compose.yaml")),

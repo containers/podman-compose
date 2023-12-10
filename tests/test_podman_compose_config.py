@@ -22,7 +22,7 @@ def test_config_no_profiles(podman_compose_path, profile_compose_file):
     :param podman_compose_path: The fixture used to specify the path to the podman compose file.
     :param profile_compose_file: The fixtued used to specify the path to the "profile" compose used in the test.
     """
-    config_cmd = ["python3", podman_compose_path, "-f", profile_compose_file, "config"]
+    config_cmd = ["coverage", "run", podman_compose_path, "-f", profile_compose_file, "config"]
 
     out, _, return_code = capture(config_cmd)
     assert return_code == 0
@@ -61,7 +61,7 @@ def test_config_profiles(
     :param expected_services: Dictionary used to model the expected "enabled" services in the profile.
         Key = service name, Value = True if the service is enabled, otherwise False.
     """
-    config_cmd = ["python3", podman_compose_path, "-f", profile_compose_file]
+    config_cmd = ["coverage", "run", podman_compose_path, "-f", profile_compose_file]
     config_cmd.extend(profiles)
 
     out, _, return_code = capture(config_cmd)

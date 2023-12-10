@@ -21,9 +21,10 @@ jobs:
         python-version: "3.10"
     - name: Install dependencies
       run: |
+        apt update && apt install podman
         python -m pip install --upgrade pip
-        pip install flake8 pytest
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        if [ -f test-requirements.txt ]; then pip install -r test-requirements.txt; fi
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
@@ -32,5 +33,7 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
-        python -m pytest ./pytests
-
+        coverage run --source podman_compose -m pytest ./pytests
+        python -m pytest ./tests
+        coverage combine
+        coverage report

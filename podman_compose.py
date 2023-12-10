@@ -2248,7 +2248,8 @@ async def compose_up(compose: PodmanCompose, args):
     if not args.no_build:
         # `podman build` does not cache, so don't always build
         build_args = argparse.Namespace(if_not_exists=(not args.build), **args.__dict__)
-        ret = await compose.commands["build"](compose, build_args)
+        if await compose.commands["build"](compose, build_args) != 0:
+            log("Build command failed")
 
     hashes = (
         (await compose.podman.output(
@@ -2317,7 +2318,12 @@ async def compose_up(compose: PodmanCompose, args):
             log("** skipping: ", cnt["name"])
             continue
 
-        tasks.add(asyncio.create_task(compose.podman.run([], "start", ["-a", cnt["name"]], wait=True, sleep=None, log_formatter=log_formatter), name=cnt["_service"]))
+        tasks.add(
+            asyncio.create_task(
+                compose.podman.run([], "start", ["-a", cnt["name"]], sleep=None, log_formatter=log_formatter),
+                name=cnt["_service"]
+            )
+        )
 
     exit_code = 0
     for task in asyncio.as_completed(tasks):
