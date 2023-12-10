@@ -27,7 +27,8 @@ def teardown(podman_compose_path, profile_compose_file):
     yield
 
     down_cmd = [
-        "python3",
+        "coverage",
+        "run",
         podman_compose_path,
         "--profile",
         "profile-1",
@@ -59,7 +60,8 @@ def teardown(podman_compose_path, profile_compose_file):
 )
 def test_up(podman_compose_path, profile_compose_file, profiles, expected_services):
     up_cmd = [
-        "python3",
+        "coverage",
+        "run",
         podman_compose_path,
         "-f",
         profile_compose_file,

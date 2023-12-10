@@ -45,6 +45,7 @@ setup(
             "black",
             "pylint",
             "pre-commit",
+            "coverage"
         ]
     }
     # test_suite='tests',
