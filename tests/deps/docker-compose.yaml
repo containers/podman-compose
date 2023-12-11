@@ -9,7 +9,8 @@ services:
     sleep:
       image: busybox
       command: ["/bin/busybox", "sh", "-c", "sleep 3600"]
-      depends_on: "web"
+      depends_on:
+        - "web"
       tmpfs:
         - /run
         - /tmp
