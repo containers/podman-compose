@@ -21,7 +21,7 @@ jobs:
         python-version: "3.10"
     - name: Install dependencies
       run: |
-        apt update && apt install podman
+        sudo apt update && apt install podman
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         if [ -f test-requirements.txt ]; then pip install -r test-requirements.txt; fi

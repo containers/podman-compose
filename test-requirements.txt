@@ -6,3 +6,4 @@ coverage
 pytest
 tox
 black
+flake8
