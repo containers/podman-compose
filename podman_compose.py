@@ -223,7 +223,7 @@ def fix_mount_dict(compose, mount_dict, proj_name, srv_name):
         # handle anonymous or implied volume
         if not source:
             # missing source
-            vol["name"] = "_".join(
+            vol["name"] = ("-" if compose.global_args.kubecompat else "_").join(
                 [
                     proj_name,
                     srv_name,
@@ -483,6 +483,8 @@ def mount_desc_to_volume_args(
     source = vol["name"] if vol else mount_desc.get("source", None)
     if not source:
         raise ValueError(f"missing mount source for {mount_type} on {srv_name}")
+    if compose.global_args.kubecompat:
+        source = source.lower().replace('_', '-')
     target = mount_desc["target"]
     opts = []
 
@@ -1659,6 +1661,16 @@ class PodmanCompose:
         if services is None:
             services = {}
             log("WARNING: No services defined")
+        kubecompat = self.global_args.kubecompat
+        if kubecompat:
+            volumes = []
+            for nameservice, service in services.items():
+                vols = service.get('volumes')
+                if vols:
+                    for volume in vols:
+                        name = volume.split(':')[0].lower()
+                        path = volume.split(':')[1]
+                        volumes.append(name + ':' + path)
         # include services with no profile defined or the selected profiles
         services = self._resolve_profiles(services, set(args.profile))
 
@@ -1703,6 +1715,12 @@ class PodmanCompose:
             raise RuntimeError(f"missing networks: {missing_nets_str}")
         # volumes: [...]
         self.vols = compose.get("volumes", {})
+        if kubecompat:
+            volumes = []
+            for name, type in self.vols.items():
+                name = name.lower()
+                volumes.append({name: type})
+            setattr(self, 'volumes', volumes)
         podman_compose_labels = [
             "io.podman.compose.config-hash=" + self.yaml_hash,
             "io.podman.compose.project=" + project_name,
@@ -1722,8 +1740,9 @@ class PodmanCompose:
         for service_name, service_desc in services.items():
             replicas = try_int(service_desc.get("deploy", {}).get("replicas", "1"))
             container_names_by_service[service_name] = []
+
             for num in range(1, replicas + 1):
-                name0 = f"{project_name}_{service_name}_{num}"
+                name0 = f"{project_name}-{service_name}-{num}" if kubecompat else f"{project_name}_{service_name}_{num}"
                 if num == 1:
                     name = service_desc.get("container_name", name0)
                 else:
@@ -1737,7 +1756,7 @@ class PodmanCompose:
                     **service_desc,
                 }
                 if "image" not in cnt:
-                    cnt["image"] = f"{project_name}_{service_name}"
+                    cnt["image"] = f"{project_name}-{service_name}" if kubecompat else f"{project_name}_{service_name}"
                 labels = norm_as_list(cnt.get("labels", None))
                 cnt["ports"] = norm_ports(cnt.get("ports", None))
                 labels.extend(podman_compose_labels)
@@ -1900,7 +1919,11 @@ class PodmanCompose:
             help="No action; perform a simulation of commands",
             action="store_true",
         )
-
+        parser.add_argument(
+            "--kubecompat",
+            help="kube compatible mode for generating correct service and volume names",
+            action="store_true",
+        )
 
 podman_compose = PodmanCompose()
 
@@ -2327,6 +2350,8 @@ def get_volume_names(compose, cnt):
         if mount_type != "volume":
             continue
         volume_name = (volume.get("_vol", None) or {}).get("name", None)
+        if compose.global_args.kubecompat:
+            volume_name = volume_name.lower()
         ls.append(volume_name)
     return ls
 
