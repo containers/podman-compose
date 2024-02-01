@@ -1407,6 +1407,57 @@ def flat_deps(services, with_extends=False):
         rec_deps(services, name)
 
 
+###################
+# Override and reset tags
+###################
+
+
+class OverrideTag(yaml.YAMLObject):
+    yaml_dumper = yaml.Dumper
+    yaml_loader = yaml.SafeLoader
+    yaml_tag = '!override'
+
+    def __init__(self, value):
+        if len(value) > 0 and isinstance(value[0], tuple):
+            self.value = {}
+            # item is a tuple representing service's lower level key and value
+            for item in value:
+                # value can actually be a list, then all the elements from the list have to be
+                # collected
+                if isinstance(item[1].value, list):
+                    self.value[item[0].value] = [item.value for item in item[1].value]
+                else:
+                    self.value[item[0].value] = item[1].value
+        else:
+            self.value = [item.value for item in value]
+
+    @classmethod
+    def from_yaml(cls, loader, node):
+        return OverrideTag(node.value)
+
+    @classmethod
+    def to_yaml(cls, dumper, data):
+        return dumper.represent_scalar(cls.yaml_tag, data.value)
+
+
+class ResetTag(yaml.YAMLObject):
+    yaml_dumper = yaml.Dumper
+    yaml_loader = yaml.SafeLoader
+    yaml_tag = '!reset'
+
+    @classmethod
+    def to_json(cls):
+        return cls.yaml_tag
+
+    @classmethod
+    def from_yaml(cls, loader, node):
+        return ResetTag()
+
+    @classmethod
+    def to_yaml(cls, dumper, data):
+        return dumper.represent_scalar(cls.yaml_tag, '')
+
+
 async def wait_with_timeout(coro, timeout):
     """
     Asynchronously waits for the given coroutine to complete with a timeout.
@@ -1605,6 +1656,12 @@ class Podman:
 
 
 def normalize_service(service, sub_dir=""):
+    if isinstance(service, ResetTag):
+        return service
+
+    if isinstance(service, OverrideTag):
+        service = service.value
+
     if "build" in service:
         build = service["build"]
         if isinstance(build, str):
@@ -1708,6 +1765,8 @@ def rec_merge_one(target, source):
     update target from source recursively
     """
     done = set()
+    remove = set()
+
     for key, value in source.items():
         if key in target:
             continue
@@ -1717,15 +1776,37 @@ def rec_merge_one(target, source):
         if key in done:
             continue
         if key not in source:
+            if isinstance(value, ResetTag):
+                log("INFO: Unneeded !reset found for [{key}]")
+                remove.add(key)
+
+            if isinstance(value, OverrideTag):
+                log("INFO: Unneeded !override found for [{key}] with value '{value}'")
+                target[key] = clone(value.value)
+
             continue
+
         value2 = source[key]
+
+        if isinstance(value, ResetTag) or isinstance(value2, ResetTag):
+            remove.add(key)
+            continue
+
+        if isinstance(value, OverrideTag) or isinstance(value2, OverrideTag):
+            target[key] = (
+                clone(value.value) if isinstance(value, OverrideTag) else clone(value2.value)
+            )
+            continue
+
         if key in ("command", "entrypoint"):
             target[key] = clone(value2)
             continue
+
         if not isinstance(value2, type(value)):
             value_type = type(value)
             value2_type = type(value2)
             raise ValueError(f"can't merge value of [{key}] of type {value_type} and {value2_type}")
+
         if is_list(value2):
             if key == "volumes":
                 # clean duplicate mount targets
@@ -1742,6 +1823,10 @@ def rec_merge_one(target, source):
             rec_merge_one(value, value2)
         else:
             target[key] = value2
+
+    for key in remove:
+        del target[key]
+
     return target
 
 
@@ -2027,10 +2112,13 @@ class PodmanCompose:
             content = rec_subs(content, self.environ)
             if isinstance(services := content.get('services'), dict):
                 for service in services.values():
-                    if 'extends' in service and (service_file := service['extends'].get('file')):
-                        service['extends']['file'] = os.path.join(
-                            os.path.dirname(filename), service_file
-                        )
+                    if not isinstance(service, OverrideTag) and not isinstance(service, ResetTag):
+                        if 'extends' in service and (
+                            service_file := service['extends'].get('file')
+                        ):
+                            service['extends']['file'] = os.path.join(
+                                os.path.dirname(filename), service_file
+                            )
 
             rec_merge(compose, content)
             # If `include` is used, append included files to files
