@@ -1149,6 +1149,47 @@ def flat_deps(services, with_extends=False):
     for name, srv in services.items():
         rec_deps(services, name)
 
+###################
+# Override and reset tags
+###################
+
+class OverrideTag(yaml.YAMLObject):
+    yaml_dumper = yaml.Dumper
+    yaml_loader = yaml.SafeLoader
+    yaml_tag = u'!override'
+
+    def __init__(self, value):
+        values = list()
+
+        for item in value:
+            values.append(item.value)
+
+        self.value = values
+
+    @classmethod
+    def from_yaml(cls, loader, node):
+        return OverrideTag(node.value)
+
+    @classmethod
+    def to_yaml(cls, dumper, data):
+        return dumper.represent_scalar(cls.yaml_tag, data.value)
+
+class ResetTag(yaml.YAMLObject):
+    yaml_dumper = yaml.Dumper
+    yaml_loader = yaml.SafeLoader
+    yaml_tag = u'!reset'
+
+    @classmethod
+    def toJSON(self):
+        return self.yaml_tag
+
+    @classmethod
+    def from_yaml(cls, loader, node):
+        return ResetTag()
+
+    @classmethod
+    def to_yaml(cls, dumper, data):
+        return dumper.represent_scalar(cls.yaml_tag, '')
 
 ###################
 # podman and compose classes
@@ -1245,6 +1286,14 @@ class Podman:
 
 
 def normalize_service(service, sub_dir=""):
+    if isinstance(service, ResetTag):
+        return service
+
+    if isinstance(service, OverrideTag):
+        tagObj = service
+        service = tagObj.value
+        print(subdir)
+
     if "build" in service:
         build = service["build"]
         if is_str(build):
@@ -1284,7 +1333,12 @@ def normalize_service(service, sub_dir=""):
         if is_str(extends):
             extends = {"service": extends}
             service["extends"] = extends
-    return service
+
+    try:
+        tagObj.value = serivce
+        return tagObj
+    except NameError:
+        return service
 
 
 def normalize(compose):
@@ -1330,6 +1384,8 @@ def rec_merge_one(target, source):
     update target from source recursively
     """
     done = set()
+    remove = set()
+
     for key, value in source.items():
         if key in target:
             continue
@@ -1339,17 +1395,37 @@ def rec_merge_one(target, source):
         if key in done:
             continue
         if key not in source:
+            if isinstance(value, ResetTag):
+                log("INFO: Unneeded !reset found for [{key}]")
+                remove.add(key)
+
+            if isinstance(value, OverrideTag):
+                log("INFO: Unneeded !override found for [{key}] with value '{value}'")
+                target[key] = clone(value.value)
+
             continue
+
         value2 = source[key]
+
+        if isinstance(value, ResetTag) or isinstance(value2, ResetTag):
+            remove.add(key)
+            continue
+
+        if isinstance(value, OverrideTag) or isinstance(value2, OverrideTag):
+            target[key] = clone(value.value) if isinstance(value, OverrideTag) else clone(value2.value)
+            continue
+
         if key in ("command", "entrypoint"):
             target[key] = clone(value2)
             continue
+
         if not isinstance(value2, type(value)):
             value_type = type(value)
             value2_type = type(value2)
             raise ValueError(
                 f"can't merge value of [{key}] of type {value_type} and {value2_type}"
             )
+
         if is_list(value2):
             if key == "volumes":
                 # clean duplicate mount targets
@@ -1368,6 +1444,10 @@ def rec_merge_one(target, source):
             rec_merge_one(value, value2)
         else:
             target[key] = value2
+
+    for key in remove:
+        del target[key]
+
     return target
 
 
@@ -1629,7 +1709,7 @@ class PodmanCompose:
         compose["services"] = resolved_services
         if not getattr(args, "no_normalize", None):
             compose = normalize_final(compose, self.dirname)
-        self.merged_yaml = yaml.safe_dump(compose)
+        self.merged_yaml = yaml.dump(compose)
         merged_json_b = json.dumps(compose, separators=(",", ":")).encode("utf-8")
         self.yaml_hash = hashlib.sha256(merged_json_b).hexdigest()
         compose["_dirname"] = dirname
