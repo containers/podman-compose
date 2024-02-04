@@ -1,7 +1,7 @@
 version: "3"
 services:
     redis:
-      image: redis:alpine
+      image: docker.io/library/redis:alpine
       command: ["redis-server", "--appendonly yes", "--notify-keyspace-events", "Ex"]
       volumes:
         - ./data/redis:/data:z
@@ -12,7 +12,7 @@ services:
         - SECRET_KEY=aabbcc
         - ENV_IS_SET
     web:
-      image: busybox
+      image: docker.io/library/busybox
       command: ["/bin/busybox", "httpd", "-f", "-h", "/var/www/html", "-p", "8000"]
       working_dir: /var/www/html
       volumes:
@@ -21,19 +21,19 @@ services:
         - /run
         - /tmp
     web1:
-      image: busybox
+      image: docker.io/library/busybox
       command: ["/bin/busybox", "httpd", "-f", "-h", "/var/www/html", "-p", "8001"]
       working_dir: /var/www/html
       volumes:
         - ./data/web:/var/www/html:ro,z
     web2:
-      image: busybox
+      image: docker.io/library/busybox
       command: ["/bin/busybox", "httpd", "-f", "-h", "/var/www/html", "-p", "8002"]
       working_dir: /var/www/html
       volumes:
         - ~/Downloads/www:/var/www/html:ro,z
     web3:
-      image: busybox
+      image: docker.io/library/busybox
       command: ["/bin/busybox", "httpd", "-f", "-h", "/var/www/html", "-p", "8003"]
       working_dir: /var/www/html
       volumes:
