@@ -3239,9 +3239,11 @@ def compose_format_parse(parser):
         help="Pretty-print container statistics to JSON or using a Go template",
     )
 
-async def main():
+async def async_main():
     await podman_compose.run()
 
+def main():
+    asyncio.run(main())
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
