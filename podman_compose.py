@@ -3243,7 +3243,7 @@ async def async_main():
     await podman_compose.run()
 
 def main():
-    asyncio.run(main())
+    asyncio.run(async_main())
 
 if __name__ == "__main__":
     main()
