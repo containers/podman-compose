@@ -2580,7 +2580,7 @@ async def compose_exec(compose, args):
     sys.exit(p)
 
 
-async def transfer_service_status(compose, args, action):
+async def transfer_service_status(compose: PodmanCompose, args, action):
     # TODO: handle dependencies, handle creations
     container_names_by_service = compose.container_names_by_service
     if not args.services:
@@ -2595,8 +2595,7 @@ async def transfer_service_status(compose, args, action):
         targets = list(reversed(targets))
     podman_args = []
     timeout_global = getattr(args, "timeout", None)
-    tasks = []
-    for target in targets:
+    for target in tqdm(targets):
         if action != "start":
             timeout = timeout_global
             if timeout is None:
@@ -2607,8 +2606,8 @@ async def transfer_service_status(compose, args, action):
                 timeout = str_to_seconds(timeout_str)
             if timeout is not None:
                 podman_args.extend(["-t", str(timeout)])
-        tasks.append(asyncio.create_task(compose.podman.run([], action, podman_args + [target])))
-    await asyncio.gather(*tasks)
+        compose.pool.run([], action, podman_args + [target], name=target)
+    await compose.pool.join()
 
 
 @cmd_run(podman_compose, "start", "start specific services")
