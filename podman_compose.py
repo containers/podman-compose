@@ -2077,10 +2077,11 @@ Description=%i rootless pod (podman-compose)
 [Service]
 Type=simple
 EnvironmentFile=%h/{stacks_dir}/%i.env
-ExecStartPre=-{script} up --no-start
+ExecStartPre=-{script} --in-pod pod_%i up --no-start
 ExecStartPre=/usr/bin/podman pod start pod_%i
 ExecStart={script} wait
 ExecStop=/usr/bin/podman pod stop pod_%i
+ExecStopPost=/usr/bin/podman pod rm pod_%i
 
 [Install]
 WantedBy=default.target
