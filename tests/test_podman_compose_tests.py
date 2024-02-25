@@ -17,7 +17,7 @@ def test_exit_from(podman_compose_path, test_path):
         podman_compose_path,
         "-f",
         os.path.join(test_path, "exit-from", "docker-compose.yaml"),
-        "up"
+        "up",
     ]
 
     out, _, return_code = capture(up_cmd + ["--exit-code-from", "sh1"])
@@ -42,11 +42,11 @@ def test_run(podman_compose_path, test_path):
         "sleep",
         "/bin/sh",
         "-c",
-        "wget -q -O - http://web:8000/hosts"
+        "wget -q -O - http://web:8000/hosts",
     ]
 
     out, _, return_code = capture(run_cmd)
-    assert b'127.0.0.1\tlocalhost' in out
+    assert b"127.0.0.1\tlocalhost" in out
 
     # Run it again to make sure we can run it twice. I saw an issue where a second run, with the container left up,
     # would fail
@@ -61,11 +61,11 @@ def test_run(podman_compose_path, test_path):
         "sleep",
         "/bin/sh",
         "-c",
-        "wget -q -O - http://web:8000/hosts"
+        "wget -q -O - http://web:8000/hosts",
     ]
 
     out, _, return_code = capture(run_cmd)
-    assert b'127.0.0.1\tlocalhost' in out
+    assert b"127.0.0.1\tlocalhost" in out
     assert return_code == 0
 
     # This leaves a container running. Not sure it's intended, but it matches docker-compose
@@ -83,8 +83,6 @@ def test_run(podman_compose_path, test_path):
 
 
 def test_up_with_ports(podman_compose_path, test_path):
-
-
     up_cmd = [
         "coverage",
         "run",
@@ -93,7 +91,7 @@ def test_up_with_ports(podman_compose_path, test_path):
         os.path.join(test_path, "ports", "docker-compose.yml"),
         "up",
         "-d",
-        "--force-recreate"
+        "--force-recreate",
     ]
 
     down_cmd = [
@@ -103,13 +101,12 @@ def test_up_with_ports(podman_compose_path, test_path):
         "-f",
         os.path.join(test_path, "ports", "docker-compose.yml"),
         "down",
-        "--volumes"
+        "--volumes",
     ]
 
     try:
         out, _, return_code = capture(up_cmd)
         assert return_code == 0
-
 
     finally:
         out, _, return_code = capture(down_cmd)
@@ -117,7 +114,6 @@ def test_up_with_ports(podman_compose_path, test_path):
 
 
 def test_down_with_vols(podman_compose_path, test_path):
-
     up_cmd = [
         "coverage",
         "run",
@@ -125,7 +121,7 @@ def test_down_with_vols(podman_compose_path, test_path):
         "-f",
         os.path.join(test_path, "vol", "docker-compose.yaml"),
         "up",
-        "-d"
+        "-d",
     ]
 
     down_cmd = [
@@ -135,13 +131,15 @@ def test_down_with_vols(podman_compose_path, test_path):
         "-f",
         os.path.join(test_path, "vol", "docker-compose.yaml"),
         "down",
-        "--volumes"
+        "--volumes",
     ]
 
     try:
         out, _, return_code = capture(["podman", "volume", "create", "my-app-data"])
         assert return_code == 0
-        out, _, return_code = capture(["podman", "volume", "create", "actual-name-of-volume"])
+        out, _, return_code = capture(
+            ["podman", "volume", "create", "actual-name-of-volume"]
+        )
         assert return_code == 0
 
         out, _, return_code = capture(up_cmd)
@@ -157,8 +155,22 @@ def test_down_with_vols(podman_compose_path, test_path):
 
 
 def test_down_with_orphans(podman_compose_path, test_path):
-
-    container_id, _ , return_code = capture(["podman", "run", "--rm", "-d", "busybox", "/bin/busybox", "httpd", "-f", "-h", "/etc/", "-p", "8000"])
+    container_id, _, return_code = capture(
+        [
+            "podman",
+            "run",
+            "--rm",
+            "-d",
+            "busybox",
+            "/bin/busybox",
+            "httpd",
+            "-f",
+            "-h",
+            "/etc/",
+            "-p",
+            "8000",
+        ]
+    )
 
     down_cmd = [
         "coverage",
@@ -168,13 +180,14 @@ def test_down_with_orphans(podman_compose_path, test_path):
         os.path.join(test_path, "ports", "docker-compose.yml"),
         "down",
         "--volumes",
-        "--remove-orphans"
+        "--remove-orphans",
     ]
 
     out, _, return_code = capture(down_cmd)
     assert return_code == 0
 
-    _, _, exists = capture(["podman", "container", "exists", container_id.decode("utf-8")])
+    _, _, exists = capture(
+        ["podman", "container", "exists", container_id.decode("utf-8")]
+    )
 
     assert exists == 1
-

@@ -400,7 +400,9 @@ async def assert_volume(compose, mount_dict):
     # TODO: might move to using "volume list"
     # podman volume list --format '{{.Name}}\t{{.MountPoint}}' -f 'label=io.podman.compose.project=HERE'
     try:
-        _ = (await compose.podman.output([], "volume", ["inspect", vol_name])).decode("utf-8")
+        _ = (await compose.podman.output([], "volume", ["inspect", vol_name])).decode(
+            "utf-8"
+        )
     except subprocess.CalledProcessError as e:
         if is_ext:
             raise RuntimeError(f"External volume [{vol_name}] does not exists") from e
@@ -422,7 +424,9 @@ async def assert_volume(compose, mount_dict):
             args.extend(["--opt", f"{opt}={value}"])
         args.append(vol_name)
         await compose.podman.output([], "volume", args)
-        _ = (await compose.podman.output([], "volume", ["inspect", vol_name])).decode("utf-8")
+        _ = (await compose.podman.output([], "volume", ["inspect", vol_name])).decode(
+            "utf-8"
+        )
 
 
 def mount_desc_to_mount_args(
@@ -1158,7 +1162,13 @@ def flat_deps(services, with_extends=False):
 
 
 class Podman:
-    def __init__(self, compose, podman_path="podman", dry_run=False, semaphore: asyncio.Semaphore = asyncio.Semaphore(sys.maxsize)):
+    def __init__(
+        self,
+        compose,
+        podman_path="podman",
+        dry_run=False,
+        semaphore: asyncio.Semaphore = asyncio.Semaphore(sys.maxsize),
+    ):
         self.compose = compose
         self.podman_path = podman_path
         self.dry_run = dry_run
@@ -1173,15 +1183,15 @@ class Podman:
             # pylint false positive - https://github.com/pylint-dev/pylint/issues/1469
             # pylint: disable=no-member
             p = await asyncio.subprocess.create_subprocess_exec(
-                *cmd_ls,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                *cmd_ls, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
             )
 
             stdout_data, stderr_data = await p.communicate()
             if p.returncode == 0:
                 return stdout_data
-            raise subprocess.CalledProcessError(p.returncode, " ".join(cmd_ls), stderr_data)
+            raise subprocess.CalledProcessError(
+                p.returncode, " ".join(cmd_ls), stderr_data
+            )
 
     def exec(
         self,
@@ -1204,7 +1214,7 @@ class Podman:
         log_formatter=None,
         *,
         # Intentionally mutable default argument to hold references to tasks
-        task_reference=set()
+        task_reference=set(),
     ) -> int:
         async with self.semaphore:
             cmd_args = list(map(str, cmd_args or []))
@@ -1220,14 +1230,16 @@ class Podman:
                     while True:
                         l = await stdout.readline()
                         if l:
-                            print(log_formatter, l.decode('utf-8'), end='')
+                            print(log_formatter, l.decode("utf-8"), end="")
                         if stdout.at_eof():
                             break
 
                 # pylint false positive - https://github.com/pylint-dev/pylint/issues/1469
                 # pylint: disable=no-member
                 p = await asyncio.subprocess.create_subprocess_exec(
-                    *cmd_ls, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+                    *cmd_ls,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
                 )  # pylint: disable=consider-using-with
 
                 # This is hacky to make the tasks not get garbage collected
@@ -1242,7 +1254,9 @@ class Podman:
 
             else:
                 # pylint false positive - https://github.com/pylint-dev/pylint/issues/1469
-                p = await asyncio.subprocess.create_subprocess_exec(*cmd_ls)  # pylint: disable=consider-using-with,no-member
+                p = await asyncio.subprocess.create_subprocess_exec(  # pylint: disable=no-member
+                    *cmd_ls
+                )
 
             try:
                 exit_code = await p.wait()
@@ -1263,18 +1277,20 @@ class Podman:
     async def volume_ls(self, proj=None):
         if not proj:
             proj = self.compose.project_name
-        output = (await self.output(
-            [],
-            "volume",
-            [
-                "ls",
-                "--noheading",
-                "--filter",
-                f"label=io.podman.compose.project={proj}",
-                "--format",
-                "{{.Name}}",
-            ],
-        )).decode("utf-8")
+        output = (
+            await self.output(
+                [],
+                "volume",
+                [
+                    "ls",
+                    "--noheading",
+                    "--filter",
+                    f"label=io.podman.compose.project={proj}",
+                    "--format",
+                    "{{.Name}}",
+                ],
+            )
+        ).decode("utf-8")
         volumes = output.splitlines()
         return volumes
 
@@ -1474,6 +1490,7 @@ COMPOSE_DEFAULT_LS = [
 class CalledNonCoroutineError(Exception):
     def __init__(self):
         self.message = "Attempted to call a non-asyncronous function"
+
     def __str__(self):
         return str(self.message)
 
@@ -1541,15 +1558,16 @@ class PodmanCompose:
                 if args.dry_run is False:
                     log(f"Binary {podman_path} has not been found.")
                     sys.exit(1)
-        self.podman = Podman(self, podman_path, args.dry_run, asyncio.Semaphore(args.parallel))
+        self.podman = Podman(
+            self, podman_path, args.dry_run, asyncio.Semaphore(args.parallel)
+        )
 
         if not args.dry_run:
             # just to make sure podman is running
             try:
                 self.podman_version = (
-                        (await self.podman.output(["--version"], "", [])).decode("utf-8").strip()
-                        or ""
-                )
+                    await self.podman.output(["--version"], "", [])
+                ).decode("utf-8").strip() or ""
                 self.podman_version = (self.podman_version.split() or [""])[-1]
             except subprocess.CalledProcessError:
                 self.podman_version = None
@@ -1946,7 +1964,7 @@ class PodmanCompose:
         parser.add_argument(
             "--parallel",
             type=int,
-            default=os.environ.get("COMPOSE_PARALLEL_LIMIT", sys.maxsize)
+            default=os.environ.get("COMPOSE_PARALLEL_LIMIT", sys.maxsize),
         )
 
 
@@ -1966,6 +1984,7 @@ class cmd_run:  # pylint: disable=invalid-name,too-few-public-methods
     def __call__(self, func):
         def wrapped(*args, **kw):
             return func(*args, **kw)
+
         if not asyncio.iscoroutinefunction(func):
             raise CalledNonCoroutineError
         wrapped._compose = self.compose
@@ -2051,7 +2070,9 @@ async def compose_systemd(compose, args):
         print("\n\ncreating the pod without starting it: ...\n\n")
         # pylint false positive - https://github.com/pylint-dev/pylint/issues/1469
         # pylint: disable=no-member
-        process = await asyncio.subprocess.create_subprocess_exec(script, ["up", "--no-start"])
+        process = await asyncio.subprocess.create_subprocess_exec(
+            script, ["up", "--no-start"]
+        )
         print("\nfinal exit code is ", process)
         username = getpass.getuser()
         print(
@@ -2269,17 +2290,19 @@ async def compose_up(compose: PodmanCompose, args):
             log("Build command failed")
 
     hashes = (
-        (await compose.podman.output(
-            [],
-            "ps",
-            [
-                "--filter",
-                f"label=io.podman.compose.project={proj_name}",
-                "-a",
-                "--format",
-                '{{ index .Labels "io.podman.compose.config-hash"}}',
-            ],
-        ))
+        (
+            await compose.podman.output(
+                [],
+                "ps",
+                [
+                    "--filter",
+                    f"label=io.podman.compose.project={proj_name}",
+                    "-a",
+                    "--format",
+                    '{{ index .Labels "io.podman.compose.config-hash"}}',
+                ],
+            )
+        )
         .decode("utf-8")
         .splitlines()
     )
@@ -2321,24 +2344,26 @@ async def compose_up(compose: PodmanCompose, args):
     tasks = set()
 
     loop = asyncio.get_event_loop()
-    loop.add_signal_handler(signal.SIGINT, lambda: [t.cancel("User exit") for t in tasks])
+    loop.add_signal_handler(
+        signal.SIGINT, lambda: [t.cancel("User exit") for t in tasks]
+    )
 
     for i, cnt in enumerate(compose.containers):
         # Add colored service prefix to output by piping output through sed
         color_idx = i % len(compose.console_colors)
         color = compose.console_colors[color_idx]
         space_suffix = " " * (max_service_length - len(cnt["_service"]) + 1)
-        log_formatter = "{}[{}]{}|\x1B[0m".format(
-            color, cnt["_service"], space_suffix
-        )
+        log_formatter = "{}[{}]{}|\x1B[0m".format(color, cnt["_service"], space_suffix)
         if cnt["_service"] in excluded:
             log("** skipping: ", cnt["name"])
             continue
 
         tasks.add(
             asyncio.create_task(
-                compose.podman.run([], "start", ["-a", cnt["name"]], log_formatter=log_formatter),
-                name=cnt["_service"]
+                compose.podman.run(
+                    [], "start", ["-a", cnt["name"]], log_formatter=log_formatter
+                ),
+                name=cnt["_service"],
             )
         )
 
@@ -2350,8 +2375,9 @@ async def compose_up(compose: PodmanCompose, args):
             if not exiting:
                 # If 2 containers exit at the exact same time, the cancellation of the other ones cause the status
                 # to overwrite. Sleeping for 1 seems to fix this and make it match docker-compose
+                # pylint: disable=expression-not-assigned
                 await asyncio.sleep(1)
-                [_.cancel() for _ in tasks if not _.cancelling() and not _.cancelled()]  # pylint: disable=expression-not-assigned
+                [_.cancel() for _ in tasks if not _.cancelling() and not _.cancelled()]
             t: Task
             exiting = True
             for t in done:
@@ -2397,7 +2423,12 @@ async def compose_down(compose, args):
             timeout = str_to_seconds(timeout_str)
         if timeout is not None:
             podman_stop_args.extend(["-t", str(timeout)])
-        down_tasks.append(asyncio.create_task(compose.podman.run([], "stop", [*podman_stop_args, cnt["name"]]), name=cnt["name"]))
+        down_tasks.append(
+            asyncio.create_task(
+                compose.podman.run([], "stop", [*podman_stop_args, cnt["name"]]),
+                name=cnt["name"],
+            )
+        )
     await asyncio.gather(*down_tasks)
     for cnt in containers:
         if cnt["_service"] in excluded:
@@ -2405,17 +2436,19 @@ async def compose_down(compose, args):
         await compose.podman.run([], "rm", [cnt["name"]])
     if args.remove_orphans:
         names = (
-            (await compose.podman.output(
-                [],
-                "ps",
-                [
-                    "--filter",
-                    f"label=io.podman.compose.project={compose.project_name}",
-                    "-a",
-                    "--format",
-                    "{{ .Names }}",
-                ],
-            ))
+            (
+                await compose.podman.output(
+                    [],
+                    "ps",
+                    [
+                        "--filter",
+                        f"label=io.podman.compose.project={compose.project_name}",
+                        "-a",
+                        "--format",
+                        "{{ .Names }}",
+                    ],
+                )
+            )
             .decode("utf-8")
             .splitlines()
         )
@@ -2483,7 +2516,7 @@ async def compose_run(compose, args):
                 no_cache=False,
                 build_arg=[],
                 parallel=1,
-                remove_orphans=True
+                remove_orphans=True,
             )
         )
         await compose.commands["up"](compose, up_args)
@@ -2492,7 +2525,7 @@ async def compose_run(compose, args):
         services=[args.service],
         if_not_exists=(not args.build),
         build_arg=[],
-        **args.__dict__
+        **args.__dict__,
     )
     await compose.commands["build"](compose, build_args)
 
@@ -2596,7 +2629,9 @@ async def transfer_service_status(compose, args, action):
                 timeout = str_to_seconds(timeout_str)
             if timeout is not None:
                 podman_args.extend(["-t", str(timeout)])
-        tasks.append(asyncio.create_task(compose.podman.run([], action, podman_args + [target])))
+        tasks.append(
+            asyncio.create_task(compose.podman.run([], action, podman_args + [target]))
+        )
     await asyncio.gather(*tasks)
 
 
@@ -3252,11 +3287,14 @@ def compose_format_parse(parser):
         help="Pretty-print container statistics to JSON or using a Go template",
     )
 
+
 async def async_main():
     await podman_compose.run()
 
+
 def main():
     asyncio.run(async_main())
+
 
 if __name__ == "__main__":
     main()
