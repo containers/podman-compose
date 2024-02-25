@@ -1114,6 +1114,23 @@ def flat_deps(services, with_extends=False):
         rec_deps(services, name)
 
 
+async def wait_with_timeout(coro, timeout):
+    """
+    Asynchronously waits for the given coroutine to complete with a timeout.
+
+    Args:
+        coro: The coroutine to wait for.
+        timeout (int or float): The maximum number of seconds to wait for.
+
+    Raises:
+        TimeoutError: If the coroutine does not complete within the specified timeout.
+    """
+    try:
+        return await asyncio.wait_for(coro, timeout)
+    except asyncio.TimeoutError as exc:
+        raise TimeoutError from exc
+
+
 ###################
 # podman and compose classes
 ###################
@@ -1211,8 +1228,7 @@ class Podman:
                 log("Sending termination signal")
                 p.terminate()
                 try:
-                    async with asyncio.timeout(10):
-                        exit_code = await p.wait()
+                    exit_code = await wait_with_timeout(p.wait(), 10)
                 except TimeoutError:
                     log("container did not shut down after 10 seconds, killing")
                     p.kill()
