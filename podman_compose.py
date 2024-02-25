@@ -1170,6 +1170,8 @@ class Podman:
             xargs = self.compose.get_podman_args(cmd) if cmd else []
             cmd_ls = [self.podman_path, *podman_args, cmd] + xargs + cmd_args
             log(cmd_ls)
+            # pylint false positive - https://github.com/pylint-dev/pylint/issues/1469
+            # pylint: disable=no-member
             p = await asyncio.subprocess.create_subprocess_exec(
                 *cmd_ls,
                 stdout=asyncio.subprocess.PIPE,
@@ -1179,8 +1181,7 @@ class Podman:
             stdout_data, stderr_data = await p.communicate()
             if p.returncode == 0:
                 return stdout_data
-            else:
-                raise subprocess.CalledProcessError(p.returncode, " ".join(cmd_ls), stderr_data)
+            raise subprocess.CalledProcessError(p.returncode, " ".join(cmd_ls), stderr_data)
 
     def exec(
         self,
@@ -1194,6 +1195,7 @@ class Podman:
         log(" ".join([str(i) for i in cmd_ls]))
         os.execlp(self.podman_path, *cmd_ls)
 
+    # pylint: disable=dangerous-default-value
     async def run(
         self,
         podman_args,
@@ -1222,6 +1224,8 @@ class Podman:
                         if stdout.at_eof():
                             break
 
+                # pylint false positive - https://github.com/pylint-dev/pylint/issues/1469
+                # pylint: disable=no-member
                 p = await asyncio.subprocess.create_subprocess_exec(
                     *cmd_ls, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
                 )  # pylint: disable=consider-using-with
@@ -1237,22 +1241,23 @@ class Podman:
                 err_t.add_done_callback(task_reference.discard)
 
             else:
-                p = await asyncio.subprocess.create_subprocess_exec(*cmd_ls)  # pylint: disable=consider-using-with
+                # pylint false positive - https://github.com/pylint-dev/pylint/issues/1469
+                p = await asyncio.subprocess.create_subprocess_exec(*cmd_ls)  # pylint: disable=consider-using-with,no-member
 
             try:
                 exit_code = await p.wait()
-            except asyncio.CancelledError as e:
-                log(f"Sending termination signal")
+            except asyncio.CancelledError:
+                log("Sending termination signal")
                 p.terminate()
                 try:
                     async with asyncio.timeout(10):
                         exit_code = await p.wait()
                 except TimeoutError:
-                    log(f"container did not shut down after 10 seconds, killing")
+                    log("Container did not shut down after 10 seconds, killing")
                     p.kill()
                     exit_code = await p.wait()
 
-            log(f"exit code: {exit_code}")
+            log(f"Exit code: {exit_code}")
             return exit_code
 
     async def volume_ls(self, proj=None):
@@ -1464,6 +1469,13 @@ COMPOSE_DEFAULT_LS = [
     "container-compose.override.yml",
     "container-compose.override.yaml",
 ]
+
+
+class CalledNonCoroutineError(Exception):
+    def __init__(self):
+        self.message = "Attempted to call a non-asyncronous function"
+    def __str__(self):
+        return str(self.message)
 
 
 class PodmanCompose:
@@ -1954,9 +1966,8 @@ class cmd_run:  # pylint: disable=invalid-name,too-few-public-methods
     def __call__(self, func):
         def wrapped(*args, **kw):
             return func(*args, **kw)
-
         if not asyncio.iscoroutinefunction(func):
-            raise Exception("Command must be async")
+            raise CalledNonCoroutineError
         wrapped._compose = self.compose
         # Trim extra indentation at start of multiline docstrings.
         wrapped.desc = self.cmd_desc or re.sub(r"^\s+", "", func.__doc__)
@@ -2038,6 +2049,8 @@ async def compose_systemd(compose, args):
                     f.write(f"{k}={v}\n")
         print(f"writing [{fn}]: done.")
         print("\n\ncreating the pod without starting it: ...\n\n")
+        # pylint false positive - https://github.com/pylint-dev/pylint/issues/1469
+        # pylint: disable=no-member
         process = await asyncio.subprocess.create_subprocess_exec(script, ["up", "--no-start"])
         print("\nfinal exit code is ", process)
         username = getpass.getuser()
@@ -2338,7 +2351,7 @@ async def compose_up(compose: PodmanCompose, args):
                 # If 2 containers exit at the exact same time, the cancellation of the other ones cause the status
                 # to overwrite. Sleeping for 1 seems to fix this and make it match docker-compose
                 await asyncio.sleep(1)
-                [_.cancel() for _ in tasks if not _.cancelling() and not _.cancelled()]
+                [_.cancel() for _ in tasks if not _.cancelling() and not _.cancelled()]  # pylint: disable=expression-not-assigned
             t: Task
             exiting = True
             for t in done:
