@@ -1,0 +1,9 @@
+version: '3.6'
+
+include:
+  - docker-compose.base-2.yaml
+
+services:
+  web:
+    image: busybox
+
