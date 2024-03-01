@@ -2466,7 +2466,7 @@ async def compose_run(compose, args):
         cnt["working_dir"] = args.workdir
     env = dict(cnt.get("environment", {}))
     if args.env:
-        additional_env_vars = dict(map(lambda each: each.split("="), args.env))
+        additional_env_vars = dict(map(lambda each: each.split("=", maxsplit=1), args.env))
         env.update(additional_env_vars)
         cnt["environment"] = env
     if not args.service_ports:
@@ -2514,7 +2514,7 @@ async def compose_exec(compose, args):
     env = dict(cnt.get("environment", {}))
     if args.env:
         additional_env_vars = dict(
-            map(lambda each: each.split("=") if "=" in each else (each, None), args.env)
+            map(lambda each: each.split("=", maxsplit=1) if "=" in each else (each, None), args.env)
         )
         env.update(additional_env_vars)
     for name, value in env.items():
