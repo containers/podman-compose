@@ -1,0 +1,71 @@
+# You can override the included template(s) by including variable overrides
+# SAST customization: https://docs.gitlab.com/ee/user/application_security/sast/#customizing-the-sast-settings
+# Secret Detection customization: https://docs.gitlab.com/ee/user/application_security/secret_detection/#customizing-settings
+# Dependency Scanning customization: https://docs.gitlab.com/ee/user/application_security/dependency_scanning/#customizing-the-dependency-scanning-settings
+# Container Scanning customization: https://docs.gitlab.com/ee/user/application_security/container_scanning/#customizing-the-container-scanning-settings
+# Note that environment variables can be set in several places
+# See https://docs.gitlab.com/ee/ci/variables/#cicd-variable-precedence
+
+#APP=podman-compose
+
+stages:
+- test
+sast:
+  stage: test
+include:
+- template: Security/SAST.gitlab-ci.yml
+python-test::3.12:
+  image: python:3.12
+  script:
+    #- pip install --upgrade pip setuptools wheel
+    #- pip install $APP
+    - python -m pytest --junitxml=pytest.xml -v
+  artifacts:
+    reports:
+      junit: pytest.xml
+python-test::3.11:
+  image: python:3.11
+  extends: python-test::3.12
+python-test::3.10:
+  image: python:3.10
+  extends: python-test::3.11
+python-test::3.9:
+  image: python:3.9
+  extends: python-test::3.10
+python-test::3.8:
+  image: python:3.8
+  extends: python-test::3.9
+python-test::3.12-alpine3.18:
+  image: python:3.12-alpine3.18
+  before_script:
+    - apk update && apk --no-cache --update add build-base
+    - apk add libffi-dev
+    - pip install cffi
+  extends: python-test::3.12
+python-test::3.11-alpine3.18:
+  image: python:3.11-alpine3.18
+  extends: python-test::3.12-alpine3.18
+python-test::3.10-alpine3.18:
+  image: python:3.10-alpine3.18
+  extends: python-test::3.11-alpine3.18
+python-test::3.9-alpine3.18:
+  image: python:3.9-alpine3.18
+  extends: python-test::3.10-alpine3.18
+python-test::3.8-alpine3.18:
+  image: python:3.8-alpine3.18
+  extends: python-test::3.9-alpine3.18
+python-test::3.12-alpine3.17:
+  image: python:3.12-alpine3.17
+  extends: python-test::3.12-alpine3.18
+python-test::3.11-alpine3.17:
+  image: python:3.11-alpine3.17
+  extends: python-test::3.12-alpine3.17
+python-test::3.10-alpine3.17:
+  image: python:3.10-alpine3.17
+  extends: python-test::3.11-alpine3.17
+python-test::3.9-alpine3.17:
+  image: python:3.9-alpine3.17
+  extends: python-test::3.10-alpine3.17
+python-test::3.8-alpine3.17:
+  image: python:3.8-alpine3.17
+  extends: python-test::3.9-alpine3.17
