@@ -5,37 +5,18 @@ on:
 - pull_request
 
 jobs:
-  lint-black:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-    - name: Install psf/black requirements
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y python3 python3-venv
-    - uses: psf/black@stable
-      with:
-        options: "--check --verbose"
-        version: "~= 23.3"
-
-  lint-pylint:
+  lint-ruff:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.11"]
     steps:
     - uses: actions/checkout@v3
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+    - uses: actions/checkout@v3
+      name: Set up Python ${{ matrix.python-version }}
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
+    - name: Analysing the code with ruff
       run: |
-        python -m pip install --upgrade pip
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        pip install pylint
-    - name: Analysing the code with pylint
-      run: |
-        python -m compileall podman_compose.py
-        pylint podman_compose.py
-        # pylint $(git ls-files '*.py')
+        pip install -r test-requirements.txt
+        ruff format --check

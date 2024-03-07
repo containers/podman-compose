@@ -1,8 +1,7 @@
 coverage==7.4.3
 pytest==8.0.2
 tox==4.13.0
-black==24.2.0
-flake8==7.0.0
+ruff==0.3.1
 
 # The packages below are transitive dependencies of the packages above and are included here
 # to make testing reproducible.
@@ -13,19 +12,13 @@ flake8==7.0.0
 
 cachetools==5.3.3
 chardet==5.2.0
-click==8.1.7
 colorama==0.4.6
 distlib==0.3.8
 filelock==3.13.1
 iniconfig==2.0.0
-mccabe==0.7.0
-mypy-extensions==1.0.0
 packaging==23.2
-pathspec==0.12.1
 platformdirs==4.2.0
 pluggy==1.4.0
-pycodestyle==2.11.1
-pyflakes==3.2.0
 pyproject-api==1.6.1
 python-dotenv==1.0.1
 PyYAML==6.0.1
