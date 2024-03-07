@@ -77,9 +77,7 @@ def test_podman_compose_extends_w_empty_service():
         "python3",
         str(main_path.joinpath("podman_compose.py")),
         "-f",
-        str(
-            main_path.joinpath("tests", "extends_w_empty_service", "docker-compose.yml")
-        ),
+        str(main_path.joinpath("tests", "extends_w_empty_service", "docker-compose.yml")),
         "up",
         "-d",
     ]

@@ -3,6 +3,7 @@ test_podman_compose_config.py
 
 Tests the podman-compose config command which is used to return defined compose services.
 """
+
 # pylint: disable=redefined-outer-name
 import os
 from test_podman_compose import capture
@@ -50,9 +51,7 @@ def test_config_no_profiles(podman_compose_path, profile_compose_file):
         ),
     ],
 )
-def test_config_profiles(
-    podman_compose_path, profile_compose_file, profiles, expected_services
-):
+def test_config_profiles(podman_compose_path, profile_compose_file, profiles, expected_services):
     """
     Tests podman-compose
     :param podman_compose_path: The fixture used to specify the path to the podman compose file.

@@ -2,9 +2,7 @@ import os
 from setuptools import setup
 
 try:
-    README = open(
-        os.path.join(os.path.dirname(__file__), "README.md"), encoding="utf-8"
-    ).read()
+    README = open(os.path.join(os.path.dirname(__file__), "README.md"), encoding="utf-8").read()
 except:  # noqa: E722 # pylint: disable=bare-except
     README = ""
 
@@ -39,15 +37,7 @@ setup(
         "pyyaml",
         "python-dotenv",
     ],
-    extras_require={
-        "devel": [
-            "flake8",
-            "black",
-            "pylint",
-            "pre-commit",
-            "coverage"
-        ]
-    }
+    extras_require={"devel": ["ruff", "pre-commit", "coverage"]},
     # test_suite='tests',
     # tests_require=[
     #     'coverage',

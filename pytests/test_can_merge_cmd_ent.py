@@ -71,9 +71,7 @@ def test_normalize_service():
 
 
 def test__parse_compose_file_when_multiple_composes() -> None:
-    for base_template, override_template, expected_template in copy.deepcopy(
-        test_cases_merges
-    ):
+    for base_template, override_template, expected_template in copy.deepcopy(test_cases_merges):
         for key in test_keys:
             base, override, expected = template_to_expression(
                 base_template, override_template, expected_template, key

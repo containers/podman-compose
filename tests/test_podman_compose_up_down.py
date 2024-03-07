@@ -3,6 +3,7 @@ test_podman_compose_up_down.py
 
 Tests the podman compose up and down commands used to create and remove services.
 """
+
 # pylint: disable=redefined-outer-name
 import os
 from test_podman_compose import capture
