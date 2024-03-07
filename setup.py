@@ -2,9 +2,7 @@ import os
 from setuptools import setup
 
 try:
-    README = open(
-        os.path.join(os.path.dirname(__file__), "README.md"), encoding="utf-8"
-    ).read()
+    README = open(os.path.join(os.path.dirname(__file__), "README.md"), encoding="utf-8").read()
 except:  # noqa: E722 # pylint: disable=bare-except
     README = ""
 

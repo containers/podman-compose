@@ -243,9 +243,7 @@ test_cases_with_merges = [
 # running full parse over merged
 #
 def test__parse_compose_file_when_multiple_composes() -> None:
-    for test_input, test_override, expected_result in copy.deepcopy(
-        test_cases_with_merges
-    ):
+    for test_input, test_override, expected_result in copy.deepcopy(test_cases_with_merges):
         compose_test_1 = {"services": {"test-service": test_input}}
         compose_test_2 = {"services": {"test-service": test_override}}
         dump_yaml(compose_test_1, "test-compose-1.yaml")
@@ -273,9 +271,7 @@ def test__parse_compose_file_when_multiple_composes() -> None:
         assert compose_expected == actual_compose
 
 
-def set_args(
-    podman_compose: PodmanCompose, file_names: list[str], no_normalize: bool
-) -> None:
+def set_args(podman_compose: PodmanCompose, file_names: list[str], no_normalize: bool) -> None:
     podman_compose.global_args = argparse.Namespace()
     podman_compose.global_args.file = file_names
     podman_compose.global_args.project_name = None
