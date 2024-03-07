@@ -5,8 +5,6 @@ import copy
 import os
 import yaml
 from podman_compose import (
-    normalize_service,
-    normalize,
     normalize_final,
     normalize_service_final,
     PodmanCompose,

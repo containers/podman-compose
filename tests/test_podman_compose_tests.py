@@ -5,7 +5,6 @@ Tests the podman compose up and down commands used to create and remove services
 """
 # pylint: disable=redefined-outer-name
 import os
-import time
 
 from test_podman_compose import capture
 
@@ -78,12 +77,11 @@ def test_run(podman_compose_path, test_path):
         "down",
     ]
 
-    out, _, return_code = capture(run_cmd)
+    out, _, return_code = capture(down_cmd)
     assert return_code == 0
 
 
 def test_up_with_ports(podman_compose_path, test_path):
-
 
     up_cmd = [
         "coverage",
@@ -109,7 +107,6 @@ def test_up_with_ports(podman_compose_path, test_path):
     try:
         out, _, return_code = capture(up_cmd)
         assert return_code == 0
-
 
     finally:
         out, _, return_code = capture(down_cmd)
@@ -158,7 +155,9 @@ def test_down_with_vols(podman_compose_path, test_path):
 
 def test_down_with_orphans(podman_compose_path, test_path):
 
-    container_id, _ , return_code = capture(["podman", "run", "--rm", "-d", "busybox", "/bin/busybox", "httpd", "-f", "-h", "/etc/", "-p", "8000"])
+    container_id, _, return_code = capture(
+        ["podman", "run", "--rm", "-d", "busybox", "/bin/busybox", "httpd", "-f", "-h", "/etc/", "-p", "8000"]
+    )
 
     down_cmd = [
         "coverage",
@@ -177,4 +176,3 @@ def test_down_with_orphans(podman_compose_path, test_path):
     _, _, exists = capture(["podman", "container", "exists", container_id.decode("utf-8")])
 
     assert exists == 1
-

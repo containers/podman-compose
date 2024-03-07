@@ -1145,7 +1145,7 @@ def flat_deps(services, with_extends=False):
         for c in links_ls:
             if ":" in c:
                 dep_name, dep_alias = c.split(":")
-                if not "_aliases" in services[dep_name]:
+                if "_aliases" not in services[dep_name]:
                     services[dep_name]["_aliases"] = set()
                 services[dep_name]["_aliases"].add(dep_alias)
     for name, srv in services.items():
@@ -1158,7 +1158,12 @@ def flat_deps(services, with_extends=False):
 
 
 class Podman:
-    def __init__(self, compose, podman_path="podman", dry_run=False, semaphore: asyncio.Semaphore = asyncio.Semaphore(sys.maxsize)):
+    def __init__(
+        self,
+        compose, podman_path="podman",
+        dry_run=False,
+        semaphore: asyncio.Semaphore = asyncio.Semaphore(sys.maxsize)
+    ):
         self.compose = compose
         self.podman_path = podman_path
         self.dry_run = dry_run
@@ -1170,7 +1175,7 @@ class Podman:
             xargs = self.compose.get_podman_args(cmd) if cmd else []
             cmd_ls = [self.podman_path, *podman_args, cmd] + xargs + cmd_args
             log(cmd_ls)
-            p = await asyncio.subprocess.create_subprocess_exec(
+            p = await asyncio.create_subprocess_exec(
                 *cmd_ls,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
@@ -1179,8 +1184,8 @@ class Podman:
             stdout_data, stderr_data = await p.communicate()
             if p.returncode == 0:
                 return stdout_data
-            else:
-                raise subprocess.CalledProcessError(p.returncode, " ".join(cmd_ls), stderr_data)
+
+            raise subprocess.CalledProcessError(p.returncode, " ".join(cmd_ls), stderr_data)
 
     def exec(
         self,
@@ -1194,7 +1199,7 @@ class Podman:
         log(" ".join([str(i) for i in cmd_ls]))
         os.execlp(self.podman_path, *cmd_ls)
 
-    async def run(
+    async def run(  # pylint: disable=dangerous-default-value
         self,
         podman_args,
         cmd="",
@@ -1216,13 +1221,13 @@ class Podman:
 
                 async def format_out(stdout):
                     while True:
-                        l = await stdout.readline()
-                        if l:
-                            print(log_formatter, l.decode('utf-8'), end='')
+                        line = await stdout.readline()
+                        if line:
+                            print(log_formatter, line.decode('utf-8'), end='')
                         if stdout.at_eof():
                             break
 
-                p = await asyncio.subprocess.create_subprocess_exec(
+                p = await asyncio.create_subprocess_exec(
                     *cmd_ls, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
                 )  # pylint: disable=consider-using-with
 
@@ -1237,18 +1242,18 @@ class Podman:
                 err_t.add_done_callback(task_reference.discard)
 
             else:
-                p = await asyncio.subprocess.create_subprocess_exec(*cmd_ls)  # pylint: disable=consider-using-with
+                p = await asyncio.create_subprocess_exec(*cmd_ls)  # pylint: disable=consider-using-with
 
             try:
                 exit_code = await p.wait()
-            except asyncio.CancelledError as e:
-                log(f"Sending termination signal")
+            except asyncio.CancelledError:
+                log("Sending termination signal")
                 p.terminate()
                 try:
                     async with asyncio.timeout(10):
                         exit_code = await p.wait()
                 except TimeoutError:
-                    log(f"container did not shut down after 10 seconds, killing")
+                    log("container did not shut down after 10 seconds, killing")
                     p.kill()
                     exit_code = await p.wait()
 
@@ -1940,9 +1945,12 @@ class PodmanCompose:
 
 podman_compose = PodmanCompose()
 
+
 ###################
 # decorators to add commands and parse options
 ###################
+class PodmanComposeError(Exception):
+    pass
 
 
 class cmd_run:  # pylint: disable=invalid-name,too-few-public-methods
@@ -1956,7 +1964,7 @@ class cmd_run:  # pylint: disable=invalid-name,too-few-public-methods
             return func(*args, **kw)
 
         if not asyncio.iscoroutinefunction(func):
-            raise Exception("Command must be async")
+            raise PodmanComposeError("Command must be async")
         wrapped._compose = self.compose
         # Trim extra indentation at start of multiline docstrings.
         wrapped.desc = self.cmd_desc or re.sub(r"^\s+", "", func.__doc__)
@@ -2038,7 +2046,7 @@ async def compose_systemd(compose, args):
                     f.write(f"{k}={v}\n")
         print(f"writing [{fn}]: done.")
         print("\n\ncreating the pod without starting it: ...\n\n")
-        process = await asyncio.subprocess.create_subprocess_exec(script, ["up", "--no-start"])
+        process = await asyncio.create_subprocess_exec(script, ["up", "--no-start"])
         print("\nfinal exit code is ", process)
         username = getpass.getuser()
         print(
@@ -2338,7 +2346,7 @@ async def compose_up(compose: PodmanCompose, args):
                 # If 2 containers exit at the exact same time, the cancellation of the other ones cause the status
                 # to overwrite. Sleeping for 1 seems to fix this and make it match docker-compose
                 await asyncio.sleep(1)
-                [_.cancel() for _ in tasks if not _.cancelling() and not _.cancelled()]
+                _ = [_.cancel() for _ in tasks if not _.cancelling() and not _.cancelled()]
             t: Task
             exiting = True
             for t in done:
@@ -2384,7 +2392,9 @@ async def compose_down(compose, args):
             timeout = str_to_seconds(timeout_str)
         if timeout is not None:
             podman_stop_args.extend(["-t", str(timeout)])
-        down_tasks.append(asyncio.create_task(compose.podman.run([], "stop", [*podman_stop_args, cnt["name"]]), name=cnt["name"]))
+        down_tasks.append(
+            asyncio.create_task(compose.podman.run([], "stop", [*podman_stop_args, cnt["name"]]), name=cnt["name"])
+        )
     await asyncio.gather(*down_tasks)
     for cnt in containers:
         if cnt["_service"] in excluded:
@@ -3239,11 +3249,14 @@ def compose_format_parse(parser):
         help="Pretty-print container statistics to JSON or using a Go template",
     )
 
+
 async def async_main():
     await podman_compose.run()
 
+
 def main():
     asyncio.run(async_main())
+
 
 if __name__ == "__main__":
     main()
