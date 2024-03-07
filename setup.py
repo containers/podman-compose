@@ -39,15 +39,7 @@ setup(
         "pyyaml",
         "python-dotenv",
     ],
-    extras_require={
-        "devel": [
-            "flake8",
-            "black",
-            "pylint",
-            "pre-commit",
-            "coverage"
-        ]
-    }
+    extras_require={"devel": ["flake8", "black", "pylint", "pre-commit", "coverage"]},
     # test_suite='tests',
     # tests_require=[
     #     'coverage',

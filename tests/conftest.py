@@ -2,6 +2,7 @@
 
 Defines global pytest fixtures available to all tests.
 """
+
 # pylint: disable=redefined-outer-name
 from pathlib import Path
 import os

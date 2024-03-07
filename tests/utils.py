@@ -9,7 +9,7 @@ def capture(command):
     )
     out, err = proc.communicate()
 
-    print("stdout:\n" + out.decode('utf-8'))
-    print("stderr:\n" + err.decode('utf-8'))
+    print("stdout:\n" + out.decode("utf-8"))
+    print("stderr:\n" + err.decode("utf-8"))
 
     return out, err, proc.returncode
