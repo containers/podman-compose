@@ -19,10 +19,10 @@ def test_exit_from(podman_compose_path, test_path):
         "up"
     ]
 
-    out, _, return_code = capture(up_cmd + ["--exit-code-from", "sh1"])
+    _, _, return_code = capture(up_cmd + ["--exit-code-from", "sh1"])
     assert return_code == 1
 
-    out, _, return_code = capture(up_cmd + ["--exit-code-from", "sh2"])
+    _, _, return_code = capture(up_cmd + ["--exit-code-from", "sh2"])
     assert return_code == 2
 
 
@@ -105,11 +105,11 @@ def test_up_with_ports(podman_compose_path, test_path):
     ]
 
     try:
-        out, _, return_code = capture(up_cmd)
+        _, _, return_code = capture(up_cmd)
         assert return_code == 0
 
     finally:
-        out, _, return_code = capture(down_cmd)
+        _, _, return_code = capture(down_cmd)
         assert return_code == 0
 
 
@@ -136,18 +136,18 @@ def test_down_with_vols(podman_compose_path, test_path):
     ]
 
     try:
-        out, _, return_code = capture(["podman", "volume", "create", "my-app-data"])
+        _, _, return_code = capture(["podman", "volume", "create", "my-app-data"])
         assert return_code == 0
-        out, _, return_code = capture(["podman", "volume", "create", "actual-name-of-volume"])
+        _, _, return_code = capture(["podman", "volume", "create", "actual-name-of-volume"])
         assert return_code == 0
 
-        out, _, return_code = capture(up_cmd)
+        _, _, return_code = capture(up_cmd)
         assert return_code == 0
 
         capture(["podman", "inspect", "volume", ""])
 
     finally:
-        out, _, return_code = capture(down_cmd)
+        _, _, return_code = capture(down_cmd)
         capture(["podman", "volume", "rm", "my-app-data"])
         capture(["podman", "volume", "rm", "actual-name-of-volume"])
         assert return_code == 0
@@ -170,7 +170,7 @@ def test_down_with_orphans(podman_compose_path, test_path):
         "--remove-orphans"
     ]
 
-    out, _, return_code = capture(down_cmd)
+    _, _, return_code = capture(down_cmd)
     assert return_code == 0
 
     _, _, exists = capture(["podman", "container", "exists", container_id.decode("utf-8")])

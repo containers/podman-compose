@@ -1,15 +1,6 @@
 from pathlib import Path
-import subprocess
 
-
-def capture(command):
-    proc = subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    out, err = proc.communicate()
-    return out, err, proc.returncode
+from utils import capture
 
 
 def test_podman_compose_extends_w_file_subdir():
@@ -52,7 +43,7 @@ def test_podman_compose_extends_w_file_subdir():
     out, _, returncode = capture(command_up)
     assert 0 == returncode
     # check container was created and exists
-    out, err, returncode = capture(command_check_container)
+    out, _, returncode = capture(command_check_container)
     assert 0 == returncode
     assert b'localhost/subdir_test:me\n' == out
     out, _, returncode = capture(command_down)
