@@ -16,6 +16,8 @@ include:
 - template: Security/SAST.gitlab-ci.yml
 python-test::3.12:
   image: python:3.12
+  before_script:
+    - apt install -y podman
   script:
     - pip install --upgrade pip setuptools wheel
     - pip install pytest  pyyaml python-dotenv
@@ -39,7 +41,7 @@ python-test::3.12-alpine3.18:
   image: python:3.12-alpine3.18
   before_script:
     - apk update && apk --no-cache --update add build-base
-    - apk add libffi-dev
+    - apk add libffi-dev  podman
     - pip install cffi
   extends: python-test::3.12
 python-test::3.11-alpine3.18:
