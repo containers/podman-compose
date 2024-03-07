@@ -16,7 +16,7 @@ jobs:
     - uses: psf/black@stable
       with:
         options: "--check --verbose"
-        version: "~= 23.3"
+        version: "~= 24.2"
 
   lint-pylint:
     runs-on: ubuntu-latest
