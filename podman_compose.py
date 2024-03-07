@@ -2231,9 +2231,9 @@ async def compose_build(compose, args):
 
     status = 0
     for t in asyncio.as_completed(tasks):
-        s = await t
-        if s is not None:
-            status = s
+        current_status = await t
+        if current_status is not None:
+            status = current_status
 
     return status
 
@@ -2348,14 +2348,9 @@ async def compose_up(compose: PodmanCompose, args):
             log("** skipping: ", cnt["name"])
             continue
 
-        tasks.add(
-            asyncio.create_task(
-                compose.podman.run(
-                    [], "start", ["-a", cnt["name"]], log_formatter=log_formatter
-                ),
-                name=cnt["_service"],
-            )
-        )
+        task = asyncio.create_task(compose.podman.run([], "start", ["-a", cnt["name"]], log_formatter=log_formatter))
+        task.set_name(cnt["_service"]) # need to do this manually because py3.7 doesn't support name parameter for create_task
+        tasks.add(task)
 
     exit_code = 0
     exiting = False
@@ -2416,12 +2411,9 @@ async def compose_down(compose, args):
             timeout = str_to_seconds(timeout_str)
         if timeout is not None:
             podman_stop_args.extend(["-t", str(timeout)])
-        down_tasks.append(
-            asyncio.create_task(
-                compose.podman.run([], "stop", [*podman_stop_args, cnt["name"]]),
-                name=cnt["name"],
-            )
-        )
+        task = asyncio.create_task(compose.podman.run([], "stop", [*podman_stop_args, cnt["name"]]))
+        task.set_name(cnt["name"])  # need to do this manually because py3.7 doesn't support name parameter for create_task
+        down_tasks.append(task)
     await asyncio.gather(*down_tasks)
     for cnt in containers:
         if cnt["_service"] in excluded:
