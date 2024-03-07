@@ -4,4 +4,4 @@
 
 pyyaml
 python-dotenv
-
+async-timeout; python_version < "3.11"

@@ -23,6 +23,14 @@ import signal
 import shlex
 from asyncio import Task
 
+
+# asyncio.timeout was introduced in Python 3.11;
+# we need to rely on the external module async_timeout for earlier versions
+if sys.version_info >= (3, 11):
+    import asyncio as async_timeout
+else:
+    import async_timeout
+
 try:
     from shlex import quote as cmd_quote
 except ImportError:
@@ -1250,7 +1258,7 @@ class Podman:
                 log("Sending termination signal")
                 p.terminate()
                 try:
-                    async with asyncio.timeout(10):
+                    async with async_timeout.timeout(10):
                         exit_code = await p.wait()
                 except TimeoutError:
                     log("container did not shut down after 10 seconds, killing")
