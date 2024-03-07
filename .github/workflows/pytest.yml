@@ -19,9 +19,13 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: "3.10"
+    - name: Install recent podman
+      run: |
+        echo 'deb http://archive.ubuntu.com/ubuntu/ lunar main universe' | sudo tee /etc/apt/sources.list.d/lunar.list
+        sudo apt update
+        sudo apt -t lunar install -y podman
     - name: Install dependencies
       run: |
-        sudo apt update && sudo apt install -y podman
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         if [ -f test-requirements.txt ]; then pip install -r test-requirements.txt; fi
