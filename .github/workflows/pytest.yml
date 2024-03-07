@@ -11,12 +11,15 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
     steps:
     - uses: actions/checkout@v3
-    - name: Set up Python 3.10
+    - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
-        python-version: "3.10"
+        python-version: ${{ matrix.python-version }}
     - name: Install recent podman
       run: |
         echo 'deb http://archive.ubuntu.com/ubuntu/ lunar main universe' | sudo tee /etc/apt/sources.list.d/lunar.list
