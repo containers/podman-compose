@@ -23,6 +23,8 @@ import signal
 import shlex
 from asyncio import Task
 
+import yaml
+from dotenv import dotenv_values
 
 # asyncio.timeout was introduced in Python 3.11;
 # we need to rely on the external module async_timeout for earlier versions
@@ -39,8 +41,6 @@ except ImportError:
 # import fnmatch
 # fnmatch.fnmatchcase(env, "*_HOST")
 
-import yaml
-from dotenv import dotenv_values
 
 __version__ = "1.0.7"
 
