@@ -1,16 +1,28 @@
 # SPDX-License-Identifier: GPL-2.0
 
+import os
 import subprocess
+import time
 
 
 class RunSubprocessMixin:
+    def is_debug_enabled(self):
+        return "TESTS_DEBUG" in os.environ
+
     def run_subprocess(self, args):
+        begin = time.time()
+        if self.is_debug_enabled():
+            print("TEST_CALL", args)
         proc = subprocess.Popen(
             args,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
         out, err = proc.communicate()
+        if self.is_debug_enabled():
+            print("TEST_CALL completed", time.time() - begin)
+            print("STDOUT:", out.decode('utf-8'))
+            print("STDERR:", err.decode('utf-8'))
         return out, err, proc.returncode
 
     def run_subprocess_assert_returncode(self, args, expected_returncode=0):
