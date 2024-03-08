@@ -1,5 +1,5 @@
 # Podman Compose
-## [![Unit tests  PyTest](https://github.com/containers/podman-compose/actions/workflows/pytest.yml/badge.svg)](https://github.com/containers/podman-compose/actions/workflows/pytest.yml)
+## [![Tests](https://github.com/containers/podman-compose/actions/workflows/test.yml/badge.svg)](https://github.com/containers/podman-compose/actions/workflows/test.yml)
 
 An implementation of [Compose Spec](https://compose-spec.io/) with [Podman](https://podman.io/) backend.
 This project focuses on:
