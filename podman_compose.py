@@ -680,6 +680,48 @@ def norm_ports(ports_in):
     return ports_out
 
 
+def get_network_create_args(net_desc, proj_name, net_name):
+    args = [
+        "create",
+        "--label",
+        f"io.podman.compose.project={proj_name}",
+        "--label",
+        f"com.docker.compose.project={proj_name}",
+    ]
+    # TODO: add more options here, like dns, ipv6, etc.
+    labels = net_desc.get("labels", None) or []
+    for item in norm_as_list(labels):
+        args.extend(["--label", item])
+    if net_desc.get("internal", None):
+        args.append("--internal")
+    driver = net_desc.get("driver", None)
+    if driver:
+        args.extend(("--driver", driver))
+    driver_opts = net_desc.get("driver_opts", None) or {}
+    for key, value in driver_opts.items():
+        args.extend(("--opt", f"{key}={value}"))
+    ipam = net_desc.get("ipam", None) or {}
+    ipam_driver = ipam.get("driver", None)
+    if ipam_driver:
+        args.extend(("--ipam-driver", ipam_driver))
+    ipam_config_ls = ipam.get("config", None) or []
+    if is_dict(ipam_config_ls):
+        ipam_config_ls = [ipam_config_ls]
+    for ipam_config in ipam_config_ls:
+        subnet = ipam_config.get("subnet", None)
+        ip_range = ipam_config.get("ip_range", None)
+        gateway = ipam_config.get("gateway", None)
+        if subnet:
+            args.extend(("--subnet", subnet))
+        if ip_range:
+            args.extend(("--ip-range", ip_range))
+        if gateway:
+            args.extend(("--gateway", gateway))
+    args.append(net_name)
+
+    return args
+
+
 async def assert_cnt_nets(compose, cnt):
     """
     create missing networks
@@ -705,43 +747,7 @@ async def assert_cnt_nets(compose, cnt):
         except subprocess.CalledProcessError as e:
             if is_ext:
                 raise RuntimeError(f"External network [{net_name}] does not exists") from e
-            args = [
-                "create",
-                "--label",
-                f"io.podman.compose.project={proj_name}",
-                "--label",
-                f"com.docker.compose.project={proj_name}",
-            ]
-            # TODO: add more options here, like dns, ipv6, etc.
-            labels = net_desc.get("labels", None) or []
-            for item in norm_as_list(labels):
-                args.extend(["--label", item])
-            if net_desc.get("internal", None):
-                args.append("--internal")
-            driver = net_desc.get("driver", None)
-            if driver:
-                args.extend(("--driver", driver))
-            driver_opts = net_desc.get("driver_opts", None) or {}
-            for key, value in driver_opts.items():
-                args.extend(("--opt", f"{key}={value}"))
-            ipam = net_desc.get("ipam", None) or {}
-            ipam_driver = ipam.get("driver", None)
-            if ipam_driver:
-                args.extend(("--ipam-driver", ipam_driver))
-            ipam_config_ls = ipam.get("config", None) or []
-            if is_dict(ipam_config_ls):
-                ipam_config_ls = [ipam_config_ls]
-            for ipam_config in ipam_config_ls:
-                subnet = ipam_config.get("subnet", None)
-                ip_range = ipam_config.get("ip_range", None)
-                gateway = ipam_config.get("gateway", None)
-                if subnet:
-                    args.extend(("--subnet", subnet))
-                if ip_range:
-                    args.extend(("--ip-range", ip_range))
-                if gateway:
-                    args.extend(("--gateway", gateway))
-            args.append(net_name)
+            args = get_network_create_args(net_desc, proj_name, net_name)
             await compose.podman.output([], "network", args)
             await compose.podman.output([], "network", ["exists", net_name])
 
