@@ -7,16 +7,17 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-
+    container:
+      image: docker.io/library/python:3.11-bookworm
+      # cgroupns needed to address the following error:
+      # write /sys/fs/cgroup/cgroup.subtree_control: operation not supported
+      options: --privileged --cgroupns=host
     steps:
     - uses: actions/checkout@v3
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.10"
     - name: Install dependencies
       run: |
-        sudo apt update && sudo apt install -y podman
+        set -e
+        apt update && apt install -y podman
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         if [ -f test-requirements.txt ]; then pip install -r test-requirements.txt; fi
