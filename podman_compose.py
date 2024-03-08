@@ -1200,8 +1200,8 @@ class Podman:
 
             try:
                 exit_code = await p.wait()
-            except asyncio.CancelledError as e:
-                log(f"Sending termination signal")
+            except asyncio.CancelledError:
+                log("Sending termination signal")
                 p.terminate()
                 try:
                     async with asyncio.timeout(10):
