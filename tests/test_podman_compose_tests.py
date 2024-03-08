@@ -50,8 +50,8 @@ class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
         out, _ = self.run_subprocess_assert_returncode(run_cmd)
         self.assertIn(b'127.0.0.1\tlocalhost', out)
 
-        # Run it again to make sure we can run it twice. I saw an issue where a second run, with the container left up,
-        # would fail
+        # Run it again to make sure we can run it twice. I saw an issue where a second run, with
+        # the container left up, would fail
         run_cmd = [
             "coverage",
             "run",

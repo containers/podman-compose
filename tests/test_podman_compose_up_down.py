@@ -25,7 +25,8 @@ def profile_compose_file():
 class TestUpDown(unittest.TestCase, RunSubprocessMixin):
     def tearDown(self):
         """
-        Ensures that the services within the "profile compose file" are removed between each test case.
+        Ensures that the services within the "profile compose file" are removed between each test
+        case.
         """
         # run the test case
 

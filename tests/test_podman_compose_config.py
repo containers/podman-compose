@@ -63,8 +63,8 @@ class TestComposeConfig(unittest.TestCase, RunSubprocessMixin):
         """
         Tests podman-compose
         :param profiles: The enabled profiles for the parameterized test.
-        :param expected_services: Dictionary used to model the expected "enabled" services in the profile.
-            Key = service name, Value = True if the service is enabled, otherwise False.
+        :param expected_services: Dictionary used to model the expected "enabled" services in the
+            profile. Key = service name, Value = True if the service is enabled, otherwise False.
         """
         config_cmd = ["coverage", "run", podman_compose_path(), "-f", profile_compose_file()]
         config_cmd.extend(profiles)

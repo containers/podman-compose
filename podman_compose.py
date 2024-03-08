@@ -125,7 +125,8 @@ def str_to_seconds(txt):
     mins = int(mins) if mins else 0
     sec = float(sec) if sec else 0
     # "podman stop" takes only int
-    # Error: invalid argument "3.0" for "-t, --time" flag: strconv.ParseUint: parsing "3.0": invalid syntax
+    # Error: invalid argument "3.0" for "-t, --time" flag: strconv.ParseUint: parsing "3.0":
+    # invalid syntax
     return int(mins * 60.0 + sec)
 
 
@@ -388,7 +389,8 @@ async def assert_volume(compose, mount_dict):
     is_ext = vol.get("external", None)
     log(f"podman volume inspect {vol_name} || podman volume create {vol_name}")
     # TODO: might move to using "volume list"
-    # podman volume list --format '{{.Name}}\t{{.MountPoint}}' -f 'label=io.podman.compose.project=HERE'
+    # podman volume list --format '{{.Name}}\t{{.MountPoint}}' \
+    #     -f 'label=io.podman.compose.project=HERE'
     try:
         _ = (await compose.podman.output([], "volume", ["inspect", vol_name])).decode("utf-8")
     except subprocess.CalledProcessError as e:
@@ -583,7 +585,10 @@ def get_secret_args(compose, cnt, secret):
         # having a custom name for the external secret
         # has the same problem as well
         ext_name = declared_secret.get("name", None)
-        err_str = 'ERROR: Custom name/target reference "{}" for mounted external secret "{}" is not supported'
+        err_str = (
+            'ERROR: Custom name/target reference "{}" '
+            'for mounted external secret "{}" is not supported'
+        )
         if ext_name and ext_name != secret_name:
             raise ValueError(err_str.format(secret_name, ext_name))
         if target and target != secret_name:
@@ -1527,7 +1532,8 @@ class PodmanCompose:
         files = args.file
         if not files:
             log(
-                "no compose.yaml, docker-compose.yml or container-compose.yml file found, pass files with -f"
+                "no compose.yaml, docker-compose.yml or container-compose.yml file found, "
+                "pass files with -f"
             )
             sys.exit(-1)
         ex = map(os.path.exists, files)
@@ -1617,7 +1623,8 @@ class PodmanCompose:
         if not project_name:
             project_name = compose.get("name", None)
             if project_name is None:
-                # More strict then actually needed for simplicity: podman requires [a-zA-Z0-9][a-zA-Z0-9_.-]*
+                # More strict then actually needed for simplicity:
+                # podman requires [a-zA-Z0-9][a-zA-Z0-9_.-]*
                 project_name = (
                     self.environ.get("COMPOSE_PROJECT_NAME", None) or dir_basename.lower()
                 )
@@ -1740,11 +1747,11 @@ class PodmanCompose:
 
     def _resolve_profiles(self, defined_services, requested_profiles=None):
         """
-        Returns a service dictionary (key = service name, value = service config) compatible with the requested_profiles
-        list.
+        Returns a service dictionary (key = service name, value = service config) compatible with
+        the requested_profiles list.
 
-        The returned service dictionary contains all services which do not include/reference a profile in addition to
-        services that match the requested_profiles.
+        The returned service dictionary contains all services which do not include/reference a
+        profile in addition to services that match the requested_profiles.
 
         :param defined_services: The service dictionary
         :param requested_profiles: The profiles requested using the --profile arg.
@@ -2255,8 +2262,9 @@ async def compose_up(compose: PodmanCompose, args):
         done, tasks = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         if args.abort_on_container_exit:
             if not exiting:
-                # If 2 containers exit at the exact same time, the cancellation of the other ones cause the status
-                # to overwrite. Sleeping for 1 seems to fix this and make it match docker-compose
+                # If 2 containers exit at the exact same time, the cancellation of the other ones
+                # cause the status to overwrite. Sleeping for 1 seems to fix this and make it match
+                # docker-compose
                 await asyncio.sleep(1)
                 [_.cancel() for _ in tasks if not _.cancelling() and not _.cancelled()]
             t: Task
@@ -2726,7 +2734,8 @@ def compose_up_parse(parser):
     parser.add_argument(
         "--no-recreate",
         action="store_true",
-        help="If containers already exist, don't recreate them. Incompatible with --force-recreate and -V.",
+        help="If containers already exist, don't recreate them. Incompatible with --force-recreate "
+        "and -V.",
     )
     parser.add_argument(
         "--no-build",
@@ -2751,8 +2760,8 @@ def compose_up_parse(parser):
         "--timeout",
         type=int,
         default=None,
-        help="Use this timeout in seconds for container shutdown when attached or when containers are already running. \
-            (default: 10)",
+        help="Use this timeout in seconds for container shutdown when attached or when containers "
+        "are already running. (default: 10)",
     )
     parser.add_argument(
         "-V",
@@ -2769,14 +2778,16 @@ def compose_up_parse(parser):
         "--scale",
         metavar="SERVICE=NUM",
         action="append",
-        help="Scale SERVICE to NUM instances. Overrides the `scale` setting in the Compose file if present.",
+        help="Scale SERVICE to NUM instances. Overrides the `scale` setting in the Compose file if "
+        "present.",
     )
     parser.add_argument(
         "--exit-code-from",
         metavar="SERVICE",
         type=str,
         default=None,
-        help="Return the exit code of the selected service container. Implies --abort-on-container-exit.",
+        help="Return the exit code of the selected service container. "
+        "Implies --abort-on-container-exit.",
     )
 
 
@@ -3018,7 +3029,8 @@ def compose_build_up_parse(parser):
     )
     parser.add_argument(
         "--pull-always",
-        help="attempt to pull a newer version of the image, Raise an error even if the image is present locally.",
+        help="attempt to pull a newer version of the image, Raise an error even if the image is "
+        "present locally.",
         action="store_true",
     )
     parser.add_argument(
