@@ -13,7 +13,7 @@ jobs:
       # write /sys/fs/cgroup/cgroup.subtree_control: operation not supported
       options: --privileged --cgroupns=host
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Analysing the code with ruff
       run: |
         set -e
