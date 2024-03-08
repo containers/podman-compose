@@ -1,11 +1,11 @@
-name: Pylint
+name: Static checks
 
 on:
 - push
 - pull_request
 
 jobs:
-  lint-ruff:
+  static-checks:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
