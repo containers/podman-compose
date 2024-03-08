@@ -29,3 +29,5 @@ jobs:
         python -m unittest tests/*.py
         coverage combine
         coverage report
+      env:
+        TESTS_DEBUG: 1
