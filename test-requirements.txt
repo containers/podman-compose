@@ -1,3 +1,4 @@
+-e .
 coverage==7.4.3
 pytest==8.0.2
 tox==4.13.0
