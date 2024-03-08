@@ -2,76 +2,57 @@ import copy
 import os
 import argparse
 import yaml
+import unittest
+from parameterized import parameterized
 from podman_compose import normalize_service, PodmanCompose
 
 test_keys = ["command", "entrypoint"]
 
-test_cases_normalise_pre_merge = [
-    ({"$$$": []}, {"$$$": []}),
-    ({"$$$": ["sh"]}, {"$$$": ["sh"]}),
-    ({"$$$": ["sh", "-c", "date"]}, {"$$$": ["sh", "-c", "date"]}),
-    ({"$$$": "sh"}, {"$$$": ["sh"]}),
-    ({"$$$": "sleep infinity"}, {"$$$": ["sleep", "infinity"]}),
-    (
-        {"$$$": "bash -c 'sleep infinity'"},
-        {"$$$": ["bash", "-c", "sleep infinity"]},
-    ),
-]
 
-test_cases_merges = [
-    ({}, {"$$$": []}, {"$$$": []}),
-    ({"$$$": []}, {}, {"$$$": []}),
-    ({"$$$": []}, {"$$$": "sh-2"}, {"$$$": ["sh-2"]}),
-    ({"$$$": "sh-2"}, {"$$$": []}, {"$$$": []}),
-    ({}, {"$$$": "sh"}, {"$$$": ["sh"]}),
-    ({"$$$": "sh"}, {}, {"$$$": ["sh"]}),
-    ({"$$$": "sh-1"}, {"$$$": "sh-2"}, {"$$$": ["sh-2"]}),
-    ({"$$$": ["sh-1"]}, {"$$$": "sh-2"}, {"$$$": ["sh-2"]}),
-    ({"$$$": "sh-1"}, {"$$$": ["sh-2"]}, {"$$$": ["sh-2"]}),
-    ({"$$$": "sh-1"}, {"$$$": ["sh-2", "sh-3"]}, {"$$$": ["sh-2", "sh-3"]}),
-    ({"$$$": ["sh-1"]}, {"$$$": ["sh-2", "sh-3"]}, {"$$$": ["sh-2", "sh-3"]}),
-    ({"$$$": ["sh-1", "sh-2"]}, {"$$$": ["sh-3", "sh-4"]}, {"$$$": ["sh-3", "sh-4"]}),
-    ({}, {"$$$": ["sh-3", "sh      4"]}, {"$$$": ["sh-3", "sh      4"]}),
-    ({"$$$": "sleep infinity"}, {"$$$": "sh"}, {"$$$": ["sh"]}),
-    ({"$$$": "sh"}, {"$$$": "sleep infinity"}, {"$$$": ["sleep", "infinity"]}),
-    (
-        {},
-        {"$$$": "bash -c 'sleep infinity'"},
-        {"$$$": ["bash", "-c", "sleep infinity"]},
-    ),
-]
-
-
-def template_to_expression(base, override, expected, key):
-    base_copy = copy.deepcopy(base)
-    override_copy = copy.deepcopy(override)
-    expected_copy = copy.deepcopy(expected)
-
-    expected_copy[key] = expected_copy.pop("$$$")
-    if "$$$" in base:
-        base_copy[key] = base_copy.pop("$$$")
-    if "$$$" in override:
-        override_copy[key] = override_copy.pop("$$$")
-    return base_copy, override_copy, expected_copy
-
-
-def test_normalize_service():
-    for test_input_template, expected_template in test_cases_normalise_pre_merge:
+class TestMergeBuild(unittest.TestCase):
+    @parameterized.expand([
+        ({"$$$": []}, {"$$$": []}),
+        ({"$$$": ["sh"]}, {"$$$": ["sh"]}),
+        ({"$$$": ["sh", "-c", "date"]}, {"$$$": ["sh", "-c", "date"]}),
+        ({"$$$": "sh"}, {"$$$": ["sh"]}),
+        ({"$$$": "sleep infinity"}, {"$$$": ["sleep", "infinity"]}),
+        (
+            {"$$$": "bash -c 'sleep infinity'"},
+            {"$$$": ["bash", "-c", "sleep infinity"]},
+        ),
+    ])
+    def test_normalize_service(self, input_template, expected_template):
         for key in test_keys:
             test_input, _, expected = template_to_expression(
-                test_input_template, {}, expected_template, key
+                input_template, {}, expected_template, key
             )
-            test_input = normalize_service(test_input)
-            test_result = expected == test_input
-            if not test_result:
-                print("base_template:     ", test_input_template)
-                print("expected:          ", expected)
-                print("actual:            ", test_input)
-            assert test_result
+            self.assertEqual(normalize_service(test_input), expected)
 
-
-def test__parse_compose_file_when_multiple_composes() -> None:
-    for base_template, override_template, expected_template in copy.deepcopy(test_cases_merges):
+    @parameterized.expand([
+        ({}, {"$$$": []}, {"$$$": []}),
+        ({"$$$": []}, {}, {"$$$": []}),
+        ({"$$$": []}, {"$$$": "sh-2"}, {"$$$": ["sh-2"]}),
+        ({"$$$": "sh-2"}, {"$$$": []}, {"$$$": []}),
+        ({}, {"$$$": "sh"}, {"$$$": ["sh"]}),
+        ({"$$$": "sh"}, {}, {"$$$": ["sh"]}),
+        ({"$$$": "sh-1"}, {"$$$": "sh-2"}, {"$$$": ["sh-2"]}),
+        ({"$$$": ["sh-1"]}, {"$$$": "sh-2"}, {"$$$": ["sh-2"]}),
+        ({"$$$": "sh-1"}, {"$$$": ["sh-2"]}, {"$$$": ["sh-2"]}),
+        ({"$$$": "sh-1"}, {"$$$": ["sh-2", "sh-3"]}, {"$$$": ["sh-2", "sh-3"]}),
+        ({"$$$": ["sh-1"]}, {"$$$": ["sh-2", "sh-3"]}, {"$$$": ["sh-2", "sh-3"]}),
+        ({"$$$": ["sh-1", "sh-2"]}, {"$$$": ["sh-3", "sh-4"]}, {"$$$": ["sh-3", "sh-4"]}),
+        ({}, {"$$$": ["sh-3", "sh      4"]}, {"$$$": ["sh-3", "sh      4"]}),
+        ({"$$$": "sleep infinity"}, {"$$$": "sh"}, {"$$$": ["sh"]}),
+        ({"$$$": "sh"}, {"$$$": "sleep infinity"}, {"$$$": ["sleep", "infinity"]}),
+        (
+            {},
+            {"$$$": "bash -c 'sleep infinity'"},
+            {"$$$": ["bash", "-c", "sleep infinity"]},
+        ),
+    ])
+    def test_parse_compose_file_when_multiple_composes(
+        self, base_template, override_template, expected_template
+    ):
         for key in test_keys:
             base, override, expected = template_to_expression(
                 base_template, override_template, expected_template, key
@@ -90,12 +71,20 @@ def test__parse_compose_file_when_multiple_composes() -> None:
             if podman_compose.services:
                 podman_compose.services["test-service"].pop("_deps")
                 actual = podman_compose.services["test-service"]
-            if actual != expected:
-                print("compose:   ", base)
-                print("override:  ", override)
-                print("result:    ", expected)
+            self.assertEqual(actual, expected)
 
-            assert expected == actual
+
+def template_to_expression(base, override, expected, key):
+    base_copy = copy.deepcopy(base)
+    override_copy = copy.deepcopy(override)
+    expected_copy = copy.deepcopy(expected)
+
+    expected_copy[key] = expected_copy.pop("$$$")
+    if "$$$" in base:
+        base_copy[key] = base_copy.pop("$$$")
+    if "$$$" in override:
+        override_copy[key] = override_copy.pop("$$$")
+    return base_copy, override_copy, expected_copy
 
 
 def set_args(podman_compose: PodmanCompose, file_names: list[str]) -> None:

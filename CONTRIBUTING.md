@@ -41,8 +41,8 @@ $ pre-commit run --all-files
 ```
 6. Run code coverage
 ```shell
-coverage run --source podman_compose -m pytest ./pytests
-python -m pytest ./tests
+coverage run --source podman_compose -m unittest pytests/*.py
+python -m unittest tests/*.py
 coverage combine
 coverage report
 coverage html

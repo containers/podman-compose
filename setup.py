@@ -37,12 +37,10 @@ setup(
         "pyyaml",
         "python-dotenv",
     ],
-    extras_require={"devel": ["ruff", "pre-commit", "coverage"]},
+    extras_require={"devel": ["ruff", "pre-commit", "coverage", "parameterize"]},
     # test_suite='tests',
     # tests_require=[
     #     'coverage',
-    #     'pytest-cov',
-    #     'pytest',
     #     'tox',
     # ]
 )
