@@ -1,7 +1,7 @@
 version: "3"
 services:
   web:
-    image: busybox
+    image: nopush/podman-compose-test
     extends:
       file: common-services.yml
       service: webapp_default
