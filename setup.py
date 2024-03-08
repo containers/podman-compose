@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 import os
+
 from setuptools import setup
 
 try:

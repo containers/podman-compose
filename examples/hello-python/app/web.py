@@ -1,7 +1,7 @@
 # pylint: disable=import-error
 # pylint: disable=unused-import
-import os
 import asyncio  # noqa: F401
+import os
 
 import aioredis
 from aiohttp import web

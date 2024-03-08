@@ -8,11 +8,13 @@ Tests the podman-compose config command which is used to return defined compose 
 
 # pylint: disable=redefined-outer-name
 import os
+import unittest
+
+from parameterized import parameterized
+
 from .test_podman_compose import podman_compose_path
 from .test_podman_compose import test_path
 from .test_utils import RunSubprocessMixin
-import unittest
-from parameterized import parameterized
 
 
 def profile_compose_file():

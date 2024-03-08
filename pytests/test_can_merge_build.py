@@ -1,12 +1,14 @@
 # SPDX-License-Identifier: GPL-2.0
 
-import copy
-import os
 import argparse
-import yaml
+import os
 import unittest
+
+import yaml
 from parameterized import parameterized
-from podman_compose import normalize_service, PodmanCompose
+
+from podman_compose import PodmanCompose
+from podman_compose import normalize_service
 
 
 class TestMergeBuild(unittest.TestCase):

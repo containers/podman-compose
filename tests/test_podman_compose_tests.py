@@ -8,7 +8,6 @@ Tests the podman compose up and down commands used to create and remove services
 
 # pylint: disable=redefined-outer-name
 import os
-import time
 import unittest
 
 from .test_podman_compose import podman_compose_path

@@ -2,16 +2,15 @@
 # pylint: disable=protected-access
 
 import argparse
-import copy
 import os
-import yaml
 import unittest
+
+import yaml
 from parameterized import parameterized
-from podman_compose import (
-    normalize_final,
-    normalize_service_final,
-    PodmanCompose,
-)
+
+from podman_compose import PodmanCompose
+from podman_compose import normalize_final
+from podman_compose import normalize_service_final
 
 cwd = os.path.abspath(".")
 

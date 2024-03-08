@@ -1,12 +1,15 @@
 # SPDX-License-Identifier: GPL-2.0
 
+import argparse
 import copy
 import os
-import argparse
-import yaml
 import unittest
+
+import yaml
 from parameterized import parameterized
-from podman_compose import normalize_service, PodmanCompose
+
+from podman_compose import PodmanCompose
+from podman_compose import normalize_service
 
 test_keys = ["command", "entrypoint"]
 

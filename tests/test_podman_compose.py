@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 
-from pathlib import Path
 import os
 import unittest
+from pathlib import Path
+
 from .test_utils import RunSubprocessMixin
 
 

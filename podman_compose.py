@@ -7,21 +7,20 @@
 # https://docs.docker.com/compose/django/
 # https://docs.docker.com/compose/wordpress/
 # TODO: podman pod logs --color -n -f pod_testlogs
-import sys
-import os
-import getpass
 import argparse
-import itertools
-import subprocess
-import re
-import hashlib
-import random
-import json
-import glob
 import asyncio.subprocess
-import signal
-
+import getpass
+import glob
+import hashlib
+import itertools
+import json
+import os
+import random
+import re
 import shlex
+import signal
+import subprocess
+import sys
 from asyncio import Task
 
 try:
