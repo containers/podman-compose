@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 """
 test_podman_compose_config.py
 
