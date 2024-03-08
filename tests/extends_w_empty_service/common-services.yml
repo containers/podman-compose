@@ -2,6 +2,6 @@ services:
   webapp_default:
 
   webapp_special:
-    image: busybox
+    image: nopush/podman-compose-test
     volumes:
       - "/data"
