@@ -11,12 +11,12 @@ import os
 import time
 import unittest
 
-from .test_podman_compose import run_subprocess
 from .test_podman_compose import podman_compose_path
 from .test_podman_compose import test_path
+from .test_utils import RunSubprocessMixin
 
 
-class TestPodmanCompose(unittest.TestCase):
+class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
     def test_exit_from(self):
         up_cmd = [
             "coverage",
@@ -27,11 +27,8 @@ class TestPodmanCompose(unittest.TestCase):
             "up",
         ]
 
-        out, _, return_code = run_subprocess(up_cmd + ["--exit-code-from", "sh1"])
-        self.assertEqual(return_code, 1)
-
-        out, _, return_code = run_subprocess(up_cmd + ["--exit-code-from", "sh2"])
-        self.assertEqual(return_code, 2)
+        self.run_subprocess_assert_returncode(up_cmd + ["--exit-code-from", "sh1"], 1)
+        self.run_subprocess_assert_returncode(up_cmd + ["--exit-code-from", "sh2"], 2)
 
     def test_run(self):
         """
@@ -51,7 +48,7 @@ class TestPodmanCompose(unittest.TestCase):
             "wget -q -O - http://web:8000/hosts",
         ]
 
-        out, _, return_code = run_subprocess(run_cmd)
+        out, _ = self.run_subprocess_assert_returncode(run_cmd)
         self.assertIn(b'127.0.0.1\tlocalhost', out)
 
         # Run it again to make sure we can run it twice. I saw an issue where a second run, with the container left up,
@@ -70,9 +67,8 @@ class TestPodmanCompose(unittest.TestCase):
             "wget -q -O - http://web:8000/hosts",
         ]
 
-        out, _, return_code = run_subprocess(run_cmd)
-        assert b'127.0.0.1\tlocalhost' in out
-        self.assertEqual(return_code, 0)
+        out, _ = self.run_subprocess_assert_returncode(run_cmd)
+        self.assertIn(b'127.0.0.1\tlocalhost', out)
 
         # This leaves a container running. Not sure it's intended, but it matches docker-compose
         down_cmd = [
@@ -84,8 +80,7 @@ class TestPodmanCompose(unittest.TestCase):
             "down",
         ]
 
-        out, _, return_code = run_subprocess(run_cmd)
-        self.assertEqual(return_code, 0)
+        self.run_subprocess_assert_returncode(down_cmd)
 
     def test_up_with_ports(self):
         up_cmd = [
@@ -110,12 +105,10 @@ class TestPodmanCompose(unittest.TestCase):
         ]
 
         try:
-            out, _, return_code = run_subprocess(up_cmd)
-            self.assertEqual(return_code, 0)
+            self.run_subprocess_assert_returncode(up_cmd)
 
         finally:
-            out, _, return_code = run_subprocess(down_cmd)
-            self.assertEqual(return_code, 0)
+            self.run_subprocess_assert_returncode(down_cmd)
 
     def test_down_with_vols(self):
         up_cmd = [
@@ -139,29 +132,25 @@ class TestPodmanCompose(unittest.TestCase):
         ]
 
         try:
-            out, _, return_code = run_subprocess(["podman", "volume", "create", "my-app-data"])
-            self.assertEqual(return_code, 0)
-            out, _, return_code = run_subprocess([
+            self.run_subprocess_assert_returncode(["podman", "volume", "create", "my-app-data"])
+            self.run_subprocess_assert_returncode([
                 "podman",
                 "volume",
                 "create",
                 "actual-name-of-volume",
             ])
-            self.assertEqual(return_code, 0)
 
-            out, _, return_code = run_subprocess(up_cmd)
-            self.assertEqual(return_code, 0)
-
-            run_subprocess(["podman", "inspect", "volume", ""])
+            self.run_subprocess_assert_returncode(up_cmd)
+            self.run_subprocess(["podman", "inspect", "volume", ""])
 
         finally:
-            out, _, return_code = run_subprocess(down_cmd)
-            run_subprocess(["podman", "volume", "rm", "my-app-data"])
-            run_subprocess(["podman", "volume", "rm", "actual-name-of-volume"])
+            out, _, return_code = self.run_subprocess(down_cmd)
+            self.run_subprocess(["podman", "volume", "rm", "my-app-data"])
+            self.run_subprocess(["podman", "volume", "rm", "actual-name-of-volume"])
             self.assertEqual(return_code, 0)
 
     def test_down_with_orphans(self):
-        container_id, _, return_code = run_subprocess([
+        container_id, _ = self.run_subprocess_assert_returncode([
             "podman",
             "run",
             "--rm",
@@ -187,14 +176,14 @@ class TestPodmanCompose(unittest.TestCase):
             "--remove-orphans",
         ]
 
-        out, _, return_code = run_subprocess(down_cmd)
-        self.assertEqual(return_code, 0)
+        self.run_subprocess_assert_returncode(down_cmd)
 
-        _, _, exists = run_subprocess([
-            "podman",
-            "container",
-            "exists",
-            container_id.decode("utf-8"),
-        ])
-
-        self.assertEqual(exists, 1)
+        self.run_subprocess_assert_returncode(
+            [
+                "podman",
+                "container",
+                "exists",
+                container_id.decode("utf-8"),
+            ],
+            1,
+        )

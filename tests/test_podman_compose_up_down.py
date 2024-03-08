@@ -8,9 +8,9 @@ Tests the podman compose up and down commands used to create and remove services
 
 # pylint: disable=redefined-outer-name
 import os
-from .test_podman_compose import run_subprocess
 from .test_podman_compose import podman_compose_path
 from .test_podman_compose import test_path
+from .test_utils import RunSubprocessMixin
 from parameterized import parameterized
 import unittest
 
@@ -20,7 +20,7 @@ def profile_compose_file():
     return os.path.join(test_path(), "profile", "docker-compose.yml")
 
 
-class TestUpDown(unittest.TestCase):
+class TestUpDown(unittest.TestCase, RunSubprocessMixin):
     def tearDown(self):
         """
         Ensures that the services within the "profile compose file" are removed between each test case.
@@ -39,7 +39,7 @@ class TestUpDown(unittest.TestCase):
             profile_compose_file(),
             "down",
         ]
-        run_subprocess(down_cmd)
+        self.run_subprocess(down_cmd)
 
     @parameterized.expand(
         [
@@ -67,8 +67,7 @@ class TestUpDown(unittest.TestCase):
         ]
         up_cmd.extend(profiles)
 
-        out, _, return_code = run_subprocess(up_cmd)
-        self.assertEqual(return_code, 0)
+        self.run_subprocess_assert_returncode(up_cmd)
 
         check_cmd = [
             "podman",
@@ -77,8 +76,7 @@ class TestUpDown(unittest.TestCase):
             "--format",
             '"{{.Names}}"',
         ]
-        out, _, return_code = run_subprocess(check_cmd)
-        self.assertEqual(return_code, 0)
+        out, _ = self.run_subprocess_assert_returncode(check_cmd)
 
         self.assertEqual(len(expected_services), 3)
         actual_output = out.decode("utf-8")
