@@ -51,20 +51,25 @@ class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
             '{{.Image}}',
         ]
 
-        command_down = [
-            "podman",
-            "rmi",
-            "--force",
-            "localhost/subdir_test:me",
-            "docker.io/library/busybox",
-        ]
-
         self.run_subprocess_assert_returncode(command_up)
         # check container was created and exists
         out, _ = self.run_subprocess_assert_returncode(command_check_container)
         self.assertEqual(out, b'localhost/subdir_test:me\n')
         # cleanup test image(tags)
-        self.run_subprocess_assert_returncode(command_down)
+        self.run_subprocess_assert_returncode([
+            str(main_path.joinpath("podman_compose.py")),
+            "-f",
+            str(main_path.joinpath("tests", "extends_w_file_subdir", "docker-compose.yml")),
+            "down",
+        ])
+
+        self.run_subprocess_assert_returncode([
+            "podman",
+            "rmi",
+            "--force",
+            "localhost/subdir_test:me",
+        ])
+
         # check container did not exists anymore
         out, _ = self.run_subprocess_assert_returncode(command_check_container)
         self.assertEqual(out, b'')
