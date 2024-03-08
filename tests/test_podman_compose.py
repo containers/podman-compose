@@ -1,19 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 
 from pathlib import Path
-import subprocess
 import os
 import unittest
-
-
-def run_subprocess(command):
-    proc = subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    out, err = proc.communicate()
-    return out, err, proc.returncode
+from .test_utils import RunSubprocessMixin
 
 
 def base_path():
@@ -31,7 +21,7 @@ def podman_compose_path():
     return os.path.join(base_path(), "podman_compose.py")
 
 
-class TestPodmanCompose(unittest.TestCase):
+class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
     def test_extends_w_file_subdir(self):
         """
         Test that podman-compose can execute podman-compose -f <file> up with extended File which
@@ -69,18 +59,14 @@ class TestPodmanCompose(unittest.TestCase):
             "docker.io/library/busybox",
         ]
 
-        out, _, returncode = run_subprocess(command_up)
-        self.assertEqual(returncode, 0)
+        self.run_subprocess_assert_returncode(command_up)
         # check container was created and exists
-        out, err, returncode = run_subprocess(command_check_container)
-        self.assertEqual(returncode, 0)
+        out, _ = self.run_subprocess_assert_returncode(command_check_container)
         self.assertEqual(out, b'localhost/subdir_test:me\n')
-        out, _, returncode = run_subprocess(command_down)
         # cleanup test image(tags)
-        self.assertEqual(returncode, 0)
+        self.run_subprocess_assert_returncode(command_down)
         # check container did not exists anymore
-        out, _, returncode = run_subprocess(command_check_container)
-        self.assertEqual(returncode, 0)
+        out, _ = self.run_subprocess_assert_returncode(command_check_container)
         self.assertEqual(out, b'')
 
     def test_extends_w_empty_service(self):
@@ -100,5 +86,4 @@ class TestPodmanCompose(unittest.TestCase):
             "-d",
         ]
 
-        _, _, returncode = run_subprocess(command_up)
-        self.assertEqual(returncode, 0)
+        self.run_subprocess_assert_returncode(command_up)

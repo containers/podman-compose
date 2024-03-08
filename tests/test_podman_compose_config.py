@@ -9,8 +9,8 @@ Tests the podman-compose config command which is used to return defined compose 
 # pylint: disable=redefined-outer-name
 import os
 from .test_podman_compose import podman_compose_path
-from .test_podman_compose import run_subprocess
 from .test_podman_compose import test_path
+from .test_utils import RunSubprocessMixin
 import unittest
 from parameterized import parameterized
 
@@ -20,7 +20,7 @@ def profile_compose_file():
     return os.path.join(test_path(), "profile", "docker-compose.yml")
 
 
-class TestComposeConfig(unittest.TestCase):
+class TestComposeConfig(unittest.TestCase, RunSubprocessMixin):
     def test_config_no_profiles(self):
         """
         Tests podman-compose config command without profile enablement.
@@ -34,8 +34,7 @@ class TestComposeConfig(unittest.TestCase):
             "config",
         ]
 
-        out, _, return_code = run_subprocess(config_cmd)
-        self.assertEqual(return_code, 0)
+        out, _ = self.run_subprocess_assert_returncode(config_cmd)
 
         string_output = out.decode("utf-8")
         self.assertIn("default-service", string_output)
@@ -68,8 +67,7 @@ class TestComposeConfig(unittest.TestCase):
         config_cmd = ["coverage", "run", podman_compose_path(), "-f", profile_compose_file()]
         config_cmd.extend(profiles)
 
-        out, _, return_code = run_subprocess(config_cmd)
-        self.assertEqual(return_code, 0)
+        out, _ = self.run_subprocess_assert_returncode(config_cmd)
 
         actual_output = out.decode("utf-8")
 
