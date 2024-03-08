@@ -35,7 +35,7 @@ $ pip install '.[devel]'
 $ pre-commit install
 ```
 4. Create a new branch, develop and add tests when possible
-5. Run linting & testing before commiting code. Ensure all the hooks are passing.
+5. Run linting & testing before committing code. Ensure all the hooks are passing.
 ```shell
 $ pre-commit run --all-files
 ```
