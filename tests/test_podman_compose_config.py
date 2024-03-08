@@ -6,72 +6,75 @@ Tests the podman-compose config command which is used to return defined compose 
 
 # pylint: disable=redefined-outer-name
 import os
-from test_podman_compose import capture
-import pytest
+from .test_podman_compose import podman_compose_path
+from .test_podman_compose import run_subprocess
+from .test_podman_compose import test_path
+import unittest
+from parameterized import parameterized
 
 
-@pytest.fixture
-def profile_compose_file(test_path):
+def profile_compose_file():
     """ "Returns the path to the `profile` compose file used for this test module"""
-    return os.path.join(test_path, "profile", "docker-compose.yml")
+    return os.path.join(test_path(), "profile", "docker-compose.yml")
 
 
-def test_config_no_profiles(podman_compose_path, profile_compose_file):
-    """
-    Tests podman-compose config command without profile enablement.
+class TestComposeConfig(unittest.TestCase):
+    def test_config_no_profiles(self):
+        """
+        Tests podman-compose config command without profile enablement.
+        """
+        config_cmd = [
+            "coverage",
+            "run",
+            podman_compose_path(),
+            "-f",
+            profile_compose_file(),
+            "config",
+        ]
 
-    :param podman_compose_path: The fixture used to specify the path to the podman compose file.
-    :param profile_compose_file: The fixtued used to specify the path to the "profile" compose used in the test.
-    """
-    config_cmd = ["coverage", "run", podman_compose_path, "-f", profile_compose_file, "config"]
+        out, _, return_code = run_subprocess(config_cmd)
+        self.assertEqual(return_code, 0)
 
-    out, _, return_code = capture(config_cmd)
-    assert return_code == 0
+        string_output = out.decode("utf-8")
+        self.assertIn("default-service", string_output)
+        self.assertNotIn("service-1", string_output)
+        self.assertNotIn("service-2", string_output)
 
-    string_output = out.decode("utf-8")
-    assert "default-service" in string_output
-    assert "service-1" not in string_output
-    assert "service-2" not in string_output
+    @parameterized.expand(
+        [
+            (
+                ["--profile", "profile-1", "config"],
+                {"default-service": True, "service-1": True, "service-2": False},
+            ),
+            (
+                ["--profile", "profile-2", "config"],
+                {"default-service": True, "service-1": False, "service-2": True},
+            ),
+            (
+                ["--profile", "profile-1", "--profile", "profile-2", "config"],
+                {"default-service": True, "service-1": True, "service-2": True},
+            ),
+        ],
+    )
+    def test_config_profiles(self, profiles, expected_services):
+        """
+        Tests podman-compose
+        :param profiles: The enabled profiles for the parameterized test.
+        :param expected_services: Dictionary used to model the expected "enabled" services in the profile.
+            Key = service name, Value = True if the service is enabled, otherwise False.
+        """
+        config_cmd = ["coverage", "run", podman_compose_path(), "-f", profile_compose_file()]
+        config_cmd.extend(profiles)
 
+        out, _, return_code = run_subprocess(config_cmd)
+        self.assertEqual(return_code, 0)
 
-@pytest.mark.parametrize(
-    "profiles, expected_services",
-    [
-        (
-            ["--profile", "profile-1", "config"],
-            {"default-service": True, "service-1": True, "service-2": False},
-        ),
-        (
-            ["--profile", "profile-2", "config"],
-            {"default-service": True, "service-1": False, "service-2": True},
-        ),
-        (
-            ["--profile", "profile-1", "--profile", "profile-2", "config"],
-            {"default-service": True, "service-1": True, "service-2": True},
-        ),
-    ],
-)
-def test_config_profiles(podman_compose_path, profile_compose_file, profiles, expected_services):
-    """
-    Tests podman-compose
-    :param podman_compose_path: The fixture used to specify the path to the podman compose file.
-    :param profile_compose_file: The fixtued used to specify the path to the "profile" compose used in the test.
-    :param profiles: The enabled profiles for the parameterized test.
-    :param expected_services: Dictionary used to model the expected "enabled" services in the profile.
-        Key = service name, Value = True if the service is enabled, otherwise False.
-    """
-    config_cmd = ["coverage", "run", podman_compose_path, "-f", profile_compose_file]
-    config_cmd.extend(profiles)
+        actual_output = out.decode("utf-8")
 
-    out, _, return_code = capture(config_cmd)
-    assert return_code == 0
+        self.assertEqual(len(expected_services), 3)
 
-    actual_output = out.decode("utf-8")
+        actual_services = {}
+        for service, _ in expected_services.items():
+            actual_services[service] = service in actual_output
 
-    assert len(expected_services) == 3
-
-    actual_services = {}
-    for service, _ in expected_services.items():
-        actual_services[service] = service in actual_output
-
-    assert expected_services == actual_services
+        self.assertEqual(expected_services, actual_services)
