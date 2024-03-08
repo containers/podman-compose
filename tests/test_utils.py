@@ -15,10 +15,12 @@ class RunSubprocessMixin:
 
     def run_subprocess_assert_returncode(self, args, expected_returncode=0):
         out, err, returncode = self.run_subprocess(args)
+        decoded_out = out.decode('utf-8')
+        decoded_err = err.decode('utf-8')
         self.assertEqual(
             returncode,
             expected_returncode,
             f"Invalid return code of process {returncode} != {expected_returncode}\n"
-            f"stdout: {out}\nstderr: {err}\n",
+            f"stdout: {decoded_out}\nstderr: {decoded_err}\n",
         )
         return out, err
