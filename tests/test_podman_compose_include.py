@@ -49,7 +49,7 @@ class TestPodmanComposeInclude(unittest.TestCase, RunSubprocessMixin):
 
         self.run_subprocess_assert_returncode(command_up)
         out, _ = self.run_subprocess_assert_returncode(command_check_container)
-        self.assertEqual(out, b'"docker.io/library/busybox:latest"\n')
+        self.assertEqual(out, b'"localhost/nopush/podman-compose-test:latest"\n')
         # Get container ID to remove it
         out, _ = self.run_subprocess_assert_returncode(command_container_id)
         self.assertNotEqual(out, b"")

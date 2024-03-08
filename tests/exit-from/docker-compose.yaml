@@ -1,20 +1,20 @@
 version: "3"
 services:
     too_long:
-      image: busybox
-      command: ["/bin/busybox", "sh", "-c", "sleep 3600; exit 0"]
+      image: nopush/podman-compose-test
+      command: ["dumb-init", "/bin/busybox", "sh", "-c", "sleep 3600; exit 0"]
       tmpfs:
         - /run
         - /tmp
     sh1:
-      image: busybox
-      command: ["/bin/busybox", "sh", "-c", "sleep 5; exit 1"]
+      image: nopush/podman-compose-test
+      command: ["dumb-init", "/bin/busybox", "sh", "-c", "sleep 1; exit 1"]
       tmpfs:
         - /run
         - /tmp
     sh2:
-      image: busybox
-      command: ["/bin/busybox", "sh", "-c", "sleep 5; exit 2"]
+      image: nopush/podman-compose-test
+      command: ["dumb-init", "/bin/busybox", "sh", "-c", "sleep 1; exit 2"]
       tmpfs:
         - /run
         - /tmp
