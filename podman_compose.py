@@ -1207,7 +1207,7 @@ class Podman:
                     async with asyncio.timeout(10):
                         exit_code = await p.wait()
                 except TimeoutError:
-                    log(f"container did not shut down after 10 seconds, killing")
+                    log("container did not shut down after 10 seconds, killing")
                     p.kill()
                     exit_code = await p.wait()
 
