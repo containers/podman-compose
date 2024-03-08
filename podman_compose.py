@@ -1175,9 +1175,9 @@ class Podman:
 
                 async def format_out(stdout):
                     while True:
-                        l = await stdout.readline()
-                        if l:
-                            print(log_formatter, l.decode('utf-8'), end='')
+                        line = await stdout.readline()
+                        if line:
+                            print(log_formatter, line.decode('utf-8'), end='')
                         if stdout.at_eof():
                             break
 
