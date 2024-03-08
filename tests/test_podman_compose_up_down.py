@@ -8,11 +8,13 @@ Tests the podman compose up and down commands used to create and remove services
 
 # pylint: disable=redefined-outer-name
 import os
+import unittest
+
+from parameterized import parameterized
+
 from .test_podman_compose import podman_compose_path
 from .test_podman_compose import test_path
 from .test_utils import RunSubprocessMixin
-from parameterized import parameterized
-import unittest
 
 
 def profile_compose_file():
@@ -23,7 +25,8 @@ def profile_compose_file():
 class TestUpDown(unittest.TestCase, RunSubprocessMixin):
     def tearDown(self):
         """
-        Ensures that the services within the "profile compose file" are removed between each test case.
+        Ensures that the services within the "profile compose file" are removed between each test
+        case.
         """
         # run the test case
 

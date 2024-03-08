@@ -8,7 +8,6 @@ Tests the podman compose up and down commands used to create and remove services
 
 # pylint: disable=redefined-outer-name
 import os
-import time
 import unittest
 
 from .test_podman_compose import podman_compose_path
@@ -51,8 +50,8 @@ class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
         out, _ = self.run_subprocess_assert_returncode(run_cmd)
         self.assertIn(b'127.0.0.1\tlocalhost', out)
 
-        # Run it again to make sure we can run it twice. I saw an issue where a second run, with the container left up,
-        # would fail
+        # Run it again to make sure we can run it twice. I saw an issue where a second run, with
+        # the container left up, would fail
         run_cmd = [
             "coverage",
             "run",

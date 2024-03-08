@@ -8,11 +8,13 @@ Tests the podman-compose config command which is used to return defined compose 
 
 # pylint: disable=redefined-outer-name
 import os
+import unittest
+
+from parameterized import parameterized
+
 from .test_podman_compose import podman_compose_path
 from .test_podman_compose import test_path
 from .test_utils import RunSubprocessMixin
-import unittest
-from parameterized import parameterized
 
 
 def profile_compose_file():
@@ -61,8 +63,8 @@ class TestComposeConfig(unittest.TestCase, RunSubprocessMixin):
         """
         Tests podman-compose
         :param profiles: The enabled profiles for the parameterized test.
-        :param expected_services: Dictionary used to model the expected "enabled" services in the profile.
-            Key = service name, Value = True if the service is enabled, otherwise False.
+        :param expected_services: Dictionary used to model the expected "enabled" services in the
+            profile. Key = service name, Value = True if the service is enabled, otherwise False.
         """
         config_cmd = ["coverage", "run", podman_compose_path(), "-f", profile_compose_file()]
         config_cmd.extend(profiles)

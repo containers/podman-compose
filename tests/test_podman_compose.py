@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 
-from pathlib import Path
 import os
 import unittest
+from pathlib import Path
+
 from .test_utils import RunSubprocessMixin
 
 
@@ -77,8 +78,8 @@ class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
     def test_extends_w_empty_service(self):
         """
         Test that podman-compose can execute podman-compose -f <file> up with extended File which
-        includes an empty service. (e.g. if the file is used as placeholder for more complex configurations.)
-        :return:
+        includes an empty service. (e.g. if the file is used as placeholder for more complex
+        configurations.)
         """
         main_path = Path(__file__).parent.parent
 
