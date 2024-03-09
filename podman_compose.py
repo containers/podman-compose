@@ -143,8 +143,9 @@ def parse_short_mount(mount_str, basedir):
     elif len(mount_a) == 2:
         mount_src, mount_dst = mount_a
         # dest must start with / like /foo:/var/lib/mysql
+        # or with ~ like /foo:~/data
         # otherwise it's option like /var/lib/mysql:rw
-        if not mount_dst.startswith("/"):
+        if not mount_dst.startswith("/") and not mount_dst.startswith("~") :
             mount_dst, mount_opt = mount_a
             mount_src = None
     elif len(mount_a) == 3:
