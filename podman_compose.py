@@ -1169,15 +1169,15 @@ class Podman:
             xargs = self.compose.get_podman_args(cmd) if cmd else []
             cmd_ls = [self.podman_path, *podman_args, cmd] + xargs + cmd_args
             log.info(str(cmd_ls))
-            p = await asyncio.subprocess.create_subprocess_exec(
+            p = await asyncio.create_subprocess_exec(
                 *cmd_ls, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
             )
 
             stdout_data, stderr_data = await p.communicate()
             if p.returncode == 0:
                 return stdout_data
-            else:
-                raise subprocess.CalledProcessError(p.returncode, " ".join(cmd_ls), stderr_data)
+
+            raise subprocess.CalledProcessError(p.returncode, " ".join(cmd_ls), stderr_data)
 
     def exec(
         self,
@@ -1191,7 +1191,7 @@ class Podman:
         log.info(" ".join([str(i) for i in cmd_ls]))
         os.execlp(self.podman_path, *cmd_ls)
 
-    async def run(
+    async def run(  # pylint: disable=dangerous-default-value
         self,
         podman_args,
         cmd="",
@@ -1219,7 +1219,7 @@ class Podman:
                         if stdout.at_eof():
                             break
 
-                p = await asyncio.subprocess.create_subprocess_exec(
+                p = await asyncio.create_subprocess_exec(
                     *cmd_ls, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
                 )  # pylint: disable=consider-using-with
 
@@ -1234,7 +1234,7 @@ class Podman:
                 err_t.add_done_callback(task_reference.discard)
 
             else:
-                p = await asyncio.subprocess.create_subprocess_exec(*cmd_ls)  # pylint: disable=consider-using-with
+                p = await asyncio.create_subprocess_exec(*cmd_ls)  # pylint: disable=consider-using-with
 
             try:
                 exit_code = await p.wait()
@@ -1912,9 +1912,12 @@ class PodmanCompose:
 
 podman_compose = PodmanCompose()
 
+
 ###################
 # decorators to add commands and parse options
 ###################
+class PodmanComposeError(Exception):
+    pass
 
 
 class cmd_run:  # pylint: disable=invalid-name,too-few-public-methods
@@ -1928,7 +1931,7 @@ class cmd_run:  # pylint: disable=invalid-name,too-few-public-methods
             return func(*args, **kw)
 
         if not asyncio.iscoroutinefunction(func):
-            raise Exception("Command must be async")
+            raise PodmanComposeError("Command must be async")
         wrapped._compose = self.compose
         # Trim extra indentation at start of multiline docstrings.
         wrapped.desc = self.cmd_desc or re.sub(r"^\s+", "", func.__doc__)
@@ -2010,8 +2013,8 @@ async def compose_systemd(compose, args):
                     f.write(f"{k}={v}\n")
         log.debug("writing [%s]: done.", fn)
         log.info("\n\ncreating the pod without starting it: ...\n\n")
-        process = await asyncio.subprocess.create_subprocess_exec(script, ["up", "--no-start"])
-        log.info("\nfinal exit code is ", process)
+        process = await asyncio.create_subprocess_exec(script, ["up", "--no-start"])
+        log.info("\nfinal exit code is %d", process)
         username = getpass.getuser()
         print(
             f"""
@@ -2305,7 +2308,7 @@ async def compose_up(compose: PodmanCompose, args):
                 # cause the status to overwrite. Sleeping for 1 seems to fix this and make it match
                 # docker-compose
                 await asyncio.sleep(1)
-                [_.cancel() for _ in tasks if not _.cancelling() and not _.cancelled()]
+                _ = [_.cancel() for _ in tasks if not _.cancelling() and not _.cancelled()]
             t: Task
             exiting = True
             for t in done:

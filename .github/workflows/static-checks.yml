@@ -22,4 +22,4 @@ jobs:
         ruff check
     - name: Analysing the code with pylint
       run: |
-        pylint podman-compose.py
+        pylint podman_compose.py
