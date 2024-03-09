@@ -16,7 +16,7 @@ from podman_compose import normalize_service_final
 cwd = os.path.abspath(".")
 
 
-class TestNormalizeFullBuild(unittest.TestCase):
+class TestNormalizeFinalBuild(unittest.TestCase):
     cases_simple_normalization = [
         ({"image": "test-image"}, {"image": "test-image"}),
         (

@@ -15,7 +15,7 @@ from podman_compose import normalize_service
 test_keys = ["command", "entrypoint"]
 
 
-class TestMergeBuild(unittest.TestCase):
+class TestCanMergeCmdEnt(unittest.TestCase):
     @parameterized.expand([
         ({"$$$": []}, {"$$$": []}),
         ({"$$$": ["sh"]}, {"$$$": ["sh"]}),

@@ -12,7 +12,7 @@ from podman_compose import PodmanCompose
 from podman_compose import normalize_service
 
 
-class TestMergeBuild(unittest.TestCase):
+class TestCanMergeBuild(unittest.TestCase):
     @parameterized.expand([
         ({"test": "test"}, {"test": "test"}),
         ({"build": "."}, {"build": {"context": "."}}),

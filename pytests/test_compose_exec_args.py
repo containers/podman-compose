@@ -6,7 +6,7 @@ import unittest
 from podman_compose import compose_exec_args
 
 
-class TestExecArgs(unittest.TestCase):
+class TestComposeExecArgs(unittest.TestCase):
     def test_minimal(self):
         cnt = get_minimal_container()
         args = get_minimal_args()
