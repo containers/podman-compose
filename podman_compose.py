@@ -734,7 +734,7 @@ def get_network_create_args(net_desc, proj_name, net_name):
         args.extend(("--opt", f"{key}={value}"))
     ipam = net_desc.get("ipam", None) or {}
     ipam_driver = ipam.get("driver", None)
-    if ipam_driver:
+    if ipam_driver and ipam_driver != "default":
         args.extend(("--ipam-driver", ipam_driver))
     ipam_config_ls = ipam.get("config", None) or []
     if net_desc.get("enable_ipv6", None):
