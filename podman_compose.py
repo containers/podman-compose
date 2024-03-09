@@ -2455,6 +2455,18 @@ async def compose_run(compose, args):
     )
     await compose.commands["build"](compose, build_args)
 
+    compose_run_update_container_from_args(compose, cnt, args)
+    # run podman
+    podman_args = await container_to_args(compose, cnt, args.detach)
+    if not args.detach:
+        podman_args.insert(1, "-i")
+        if args.rm:
+            podman_args.insert(1, "--rm")
+    p = await compose.podman.run([], "run", podman_args)
+    sys.exit(p)
+
+
+def compose_run_update_container_from_args(compose, cnt, args):
     # adjust one-off container options
     name0 = "{}_{}_tmp{}".format(compose.project_name, args.service, random.randrange(0, 65536))
     cnt["name"] = args.name or name0
@@ -2486,14 +2498,6 @@ async def compose_run(compose, args):
     # can't restart and --rm
     if args.rm and "restart" in cnt:
         del cnt["restart"]
-    # run podman
-    podman_args = await container_to_args(compose, cnt, args.detach)
-    if not args.detach:
-        podman_args.insert(1, "-i")
-        if args.rm:
-            podman_args.insert(1, "--rm")
-    p = await compose.podman.run([], "run", podman_args)
-    sys.exit(p)
 
 
 @cmd_run(podman_compose, "exec", "execute a command in a running container")
