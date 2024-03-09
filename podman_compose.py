@@ -2502,6 +2502,12 @@ async def compose_exec(compose, args):
     container_names = compose.container_names_by_service[args.service]
     container_name = container_names[args.index - 1]
     cnt = compose.container_by_name[container_name]
+    podman_args = compose_exec_args(cnt, container_name, args)
+    p = await compose.podman.run([], "exec", podman_args)
+    sys.exit(p)
+
+
+def compose_exec_args(cnt, container_name, args):
     podman_args = ["--interactive"]
     if args.privileged:
         podman_args += ["--privileged"]
@@ -2522,8 +2528,7 @@ async def compose_exec(compose, args):
     podman_args += [container_name]
     if args.cnt_command is not None and len(args.cnt_command) > 0:
         podman_args += args.cnt_command
-    p = await compose.podman.run([], "exec", podman_args)
-    sys.exit(p)
+    return podman_args
 
 
 async def transfer_service_status(compose, args, action):
