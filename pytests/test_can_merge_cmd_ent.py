@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
+from __future__ import annotations
 
 import argparse
 import copy

@@ -6,9 +6,14 @@ on:
 
 jobs:
   test:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ '3.8', '3.9', '3.10', '3.11', '3.12' ]
+
     runs-on: ubuntu-latest
     container:
-      image: docker.io/library/python:3.11-bookworm
+      image: "docker.io/library/python:${{ matrix.python-version }}-bookworm"
       # cgroupns needed to address the following error:
       # write /sys/fs/cgroup/cgroup.subtree_control: operation not supported
       options: --privileged --cgroupns=host
@@ -21,11 +26,15 @@ jobs:
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         if [ -f test-requirements.txt ]; then pip install -r test-requirements.txt; fi
-    - name: Test with unittest
+    - name: Run tests in tests/
       run: |
-        coverage run --source podman_compose -m unittest pytests/*.py
         python -m unittest tests/*.py
-        coverage combine
-        coverage report
       env:
         TESTS_DEBUG: 1
+    - name: Run tests in pytests/
+      run: |
+        coverage run --source podman_compose -m unittest pytests/*.py
+    - name: Report coverage
+      run: |
+        coverage combine
+        coverage report

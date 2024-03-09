@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 # pylint: disable=protected-access
+from __future__ import annotations
 
 import argparse
 import os
