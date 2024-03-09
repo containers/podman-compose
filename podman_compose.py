@@ -981,6 +981,8 @@ async def container_to_args(compose, cnt, detached=True):
         podman_args.append("--tty")
     if cnt.get("privileged", None):
         podman_args.append("--privileged")
+    if cnt.get("pid", None):
+        podman_args.extend(["--pid", cnt["pid"]])
     pull_policy = cnt.get("pull_policy", None)
     if pull_policy is not None and pull_policy != "build":
         podman_args.extend(["--pull", pull_policy])
