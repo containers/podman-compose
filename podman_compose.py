@@ -2298,6 +2298,14 @@ async def compose_up(compose: PodmanCompose, args):
             )
         )
 
+    def _task_cancelled(task: Task) -> bool:
+        if task.cancelled():
+            return True
+        # Task.cancelling() is new in python 3.11
+        if sys.version_info >= (3, 11) and task.cancelling():
+            return True
+        return False
+
     exit_code = 0
     exiting = False
     while tasks:
@@ -2308,7 +2316,9 @@ async def compose_up(compose: PodmanCompose, args):
                 # cause the status to overwrite. Sleeping for 1 seems to fix this and make it match
                 # docker-compose
                 await asyncio.sleep(1)
-                _ = [_.cancel() for _ in tasks if not _.cancelling() and not _.cancelled()]
+                for t in tasks:
+                    if not _task_cancelled(t):
+                        t.cancel()
             t: Task
             exiting = True
             for t in done:
