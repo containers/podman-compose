@@ -2518,10 +2518,10 @@ async def transfer_service_status(compose, args, action):
         targets.extend(container_names_by_service[service])
     if action in ["stop", "restart"]:
         targets = list(reversed(targets))
-    podman_args = []
     timeout_global = getattr(args, "timeout", None)
     tasks = []
     for target in targets:
+        podman_args = []
         if action != "start":
             timeout = timeout_global
             if timeout is None:
