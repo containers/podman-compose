@@ -889,6 +889,8 @@ async def container_to_args(compose, cnt, detached=True):
         podman_args.extend(["--annotation", a])
     if cnt.get("read_only", None):
         podman_args.append("--read-only")
+    if cnt.get("http_proxy", None) is False:
+        podman_args.append("--http-proxy=false")
     for i in cnt.get("labels", []):
         podman_args.extend(["--label", i])
     for c in cnt.get("cap_add", []):
