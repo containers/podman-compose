@@ -7,7 +7,7 @@ from podman_compose import PodmanCompose
 from podman_compose import compose_run_update_container_from_args
 
 
-class TestRunArgs(unittest.TestCase):
+class TestComposeRunUpdateContainerFromArgs(unittest.TestCase):
     def test_minimal(self):
         cnt = get_minimal_container()
         compose = get_minimal_compose()
