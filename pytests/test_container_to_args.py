@@ -25,7 +25,7 @@ def get_minimal_container():
     }
 
 
-class TestContainerToArgs(unittest.TestCase):
+class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
     async def test_minimal(self):
         c = create_compose_mock()
 
