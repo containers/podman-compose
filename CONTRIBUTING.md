@@ -35,14 +35,14 @@ $ pip install '.[devel]'
 $ pre-commit install
 ```
 4. Create a new branch, develop and add tests when possible
-5. Run linting & testing before commiting code. Ensure all the hooks are passing.
+5. Run linting & testing before committing code. Ensure all the hooks are passing.
 ```shell
 $ pre-commit run --all-files
 ```
 6. Run code coverage
 ```shell
-coverage run --source podman_compose -m pytest ./pytests
-python -m pytest ./tests
+coverage run --source podman_compose -m unittest pytests/*.py
+python -m unittest tests/*.py
 coverage combine
 coverage report
 coverage html

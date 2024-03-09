@@ -1,1 +1,1 @@
-FROM busybox as base
+FROM nopush/podman-compose-test as base

@@ -1,22 +1,22 @@
 version: "3"
 services:
     default-service:
-      image: busybox
-      command: ["/bin/busybox", "httpd", "-f", "-h", "/etc/", "-p", "8000"]
+      image: nopush/podman-compose-test
+      command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-h", "/etc/", "-p", "8000"]
       tmpfs:
         - /run
         - /tmp
     service-1:
-      image: busybox
-      command: ["/bin/busybox", "httpd", "-f", "-h", "/etc/", "-p", "8000"]
+      image: nopush/podman-compose-test
+      command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-h", "/etc/", "-p", "8000"]
       tmpfs:
         - /run
         - /tmp
       profiles:
         - profile-1
     service-2:
-      image: busybox
-      command: ["/bin/busybox", "httpd", "-f", "-h", "/etc/", "-p", "8000"]
+      image: nopush/podman-compose-test
+      command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-h", "/etc/", "-p", "8000"]
       tmpfs:
         - /run
         - /tmp
