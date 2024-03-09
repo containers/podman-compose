@@ -2455,6 +2455,18 @@ async def compose_run(compose, args):
     )
     await compose.commands["build"](compose, build_args)
 
+    compose_run_update_container_from_args(compose, cnt, args)
+    # run podman
+    podman_args = await container_to_args(compose, cnt, args.detach)
+    if not args.detach:
+        podman_args.insert(1, "-i")
+        if args.rm:
+            podman_args.insert(1, "--rm")
+    p = await compose.podman.run([], "run", podman_args)
+    sys.exit(p)
+
+
+def compose_run_update_container_from_args(compose, cnt, args):
     # adjust one-off container options
     name0 = "{}_{}_tmp{}".format(compose.project_name, args.service, random.randrange(0, 65536))
     cnt["name"] = args.name or name0
@@ -2466,7 +2478,7 @@ async def compose_run(compose, args):
         cnt["working_dir"] = args.workdir
     env = dict(cnt.get("environment", {}))
     if args.env:
-        additional_env_vars = dict(map(lambda each: each.split("="), args.env))
+        additional_env_vars = dict(map(lambda each: each.split("=", maxsplit=1), args.env))
         env.update(additional_env_vars)
         cnt["environment"] = env
     if not args.service_ports:
@@ -2486,14 +2498,6 @@ async def compose_run(compose, args):
     # can't restart and --rm
     if args.rm and "restart" in cnt:
         del cnt["restart"]
-    # run podman
-    podman_args = await container_to_args(compose, cnt, args.detach)
-    if not args.detach:
-        podman_args.insert(1, "-i")
-        if args.rm:
-            podman_args.insert(1, "--rm")
-    p = await compose.podman.run([], "run", podman_args)
-    sys.exit(p)
 
 
 @cmd_run(podman_compose, "exec", "execute a command in a running container")
@@ -2502,6 +2506,12 @@ async def compose_exec(compose, args):
     container_names = compose.container_names_by_service[args.service]
     container_name = container_names[args.index - 1]
     cnt = compose.container_by_name[container_name]
+    podman_args = compose_exec_args(cnt, container_name, args)
+    p = await compose.podman.run([], "exec", podman_args)
+    sys.exit(p)
+
+
+def compose_exec_args(cnt, container_name, args):
     podman_args = ["--interactive"]
     if args.privileged:
         podman_args += ["--privileged"]
@@ -2514,7 +2524,7 @@ async def compose_exec(compose, args):
     env = dict(cnt.get("environment", {}))
     if args.env:
         additional_env_vars = dict(
-            map(lambda each: each.split("=") if "=" in each else (each, None), args.env)
+            map(lambda each: each.split("=", maxsplit=1) if "=" in each else (each, None), args.env)
         )
         env.update(additional_env_vars)
     for name, value in env.items():
@@ -2522,8 +2532,7 @@ async def compose_exec(compose, args):
     podman_args += [container_name]
     if args.cnt_command is not None and len(args.cnt_command) > 0:
         podman_args += args.cnt_command
-    p = await compose.podman.run([], "exec", podman_args)
-    sys.exit(p)
+    return podman_args
 
 
 async def transfer_service_status(compose, args, action):
