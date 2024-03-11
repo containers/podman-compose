@@ -1,0 +1,11 @@
+version: "3"
+services:
+  healthcheck:
+    image: nopush/podman-compose-test
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost || exit 1" ]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+      start_interval: 5s
