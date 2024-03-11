@@ -1020,9 +1020,7 @@ async def container_to_args(compose, cnt, detached=True):
         # If it's a string, it's equivalent to specifying CMD-SHELL
         if is_str(healthcheck_test):
             # podman does not add shell to handle command with whitespace
-            podman_args.extend(
-                ["--health-cmd", "/bin/sh -c " + cmd_quote(healthcheck_test)]
-            )
+            podman_args.extend(["--health-cmd", "/bin/sh -c " + cmd_quote(healthcheck_test)])
         elif is_list(healthcheck_test):
             healthcheck_test = healthcheck_test.copy()
             # If it's a list, first item is either NONE, CMD or CMD-SHELL.
