@@ -7,6 +7,7 @@ Tests the podman compose up and down commands used to create and remove services
 """
 
 # pylint: disable=redefined-outer-name
+import json
 import os
 import unittest
 
@@ -89,3 +90,47 @@ class TestUpDown(unittest.TestCase, RunSubprocessMixin):
             actual_services[service] = service in actual_output
 
         self.assertEqual(expected_services, actual_services)
+
+    def test_healthcheck(self):
+        up_cmd = [
+            "coverage",
+            "run",
+            podman_compose_path(),
+            "-f",
+            os.path.join(test_path(), "healthcheck", "docker-compose.yml"),
+            "up",
+            "-d",
+        ]
+        self.run_subprocess_assert_returncode(up_cmd)
+
+        command_container_id = [
+            "podman",
+            "ps",
+            "-a",
+            "--filter",
+            "label=io.podman.compose.project=healthcheck",
+            "--format",
+            '"{{.ID}}"',
+        ]
+        out, _ = self.run_subprocess_assert_returncode(command_container_id)
+        self.assertNotEqual(out, b"")
+        container_id = out.decode("utf-8").strip().replace('"', "")
+
+        command_inspect = ["podman", "container", "inspect", container_id]
+
+        out, _ = self.run_subprocess_assert_returncode(command_inspect)
+        out_string = out.decode("utf-8")
+        inspect = json.loads(out_string)
+        healthcheck_obj = inspect[0]["Config"]["Healthcheck"]
+        expected = {
+            "Test": ["CMD-SHELL", "/bin/sh -c 'curl -f http://localhost || exit 1'"],
+            "StartPeriod": 10000000000,
+            "Interval": 60000000000,
+            "Timeout": 10000000000,
+            "Retries": 3,
+        }
+        self.assertEqual(healthcheck_obj, expected)
+
+        # StartInterval is not available in the config object
+        create_obj = inspect[0]["Config"]["CreateCommand"]
+        self.assertIn("--health-startup-interval", create_obj)
