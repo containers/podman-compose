@@ -1145,13 +1145,23 @@ async def container_to_args(compose, cnt, detached=True):
 
     # handle podman extension
     x_podman = cnt.get("x-podman", None)
+    rootfs_mode = False
     if x_podman is not None:
         for uidmap in x_podman.get("uidmaps", []):
             podman_args.extend(["--uidmap", uidmap])
         for gidmap in x_podman.get("gidmaps", []):
             podman_args.extend(["--gidmap", gidmap])
+        rootfs = x_podman.get("rootfs", None)
+        if rootfs is not None:
+            rootfs_mode = True
+            podman_args.extend(["--rootfs", rootfs])
+            log.warning(
+                "WARNING: x-podman.rootfs and image both specified, \
+            image field ignored"
+            )
 
-    podman_args.append(cnt["image"])  # command, ..etc.
+    if not rootfs_mode:
+        podman_args.append(cnt["image"])  # command, ..etc.
     command = cnt.get("command", None)
     if command is not None:
         if is_str(command):
@@ -1831,7 +1841,9 @@ class PodmanCompose:
                     "service_name": service_name,
                     **service_desc,
                 }
-                if "image" not in cnt:
+                x_podman = service_desc.get("x-podman", None)
+                rootfs_mode = x_podman is not None and x_podman.get("rootfs", None) is not None
+                if "image" not in cnt and not rootfs_mode:
                     cnt["image"] = f"{project_name}_{service_name}"
                 labels = norm_as_list(cnt.get("labels", None))
                 cnt["ports"] = norm_ports(cnt.get("ports", None))

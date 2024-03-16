@@ -161,3 +161,25 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "busybox",
             ],
         )
+
+    async def test_rootfs_extension(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        del cnt["image"]
+        cnt["x-podman"] = {
+            "rootfs": "/path/to/rootfs",
+        }
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge",
+                "--network-alias=service_name",
+                "--rootfs",
+                "/path/to/rootfs",
+            ],
+        )
