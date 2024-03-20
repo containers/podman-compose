@@ -13,7 +13,7 @@ python-test::3.13:
     - pip install --upgrade pip setuptools wheel
     - pip install pyyaml python-dotenv
     # install unittest deps
-    - pip install paramaterized
+    - pip install parameterized
     #- python -m unittest --junitxml=unittest.xml -v
     - python -m unittest pytests/*.py
   #artifacts:
