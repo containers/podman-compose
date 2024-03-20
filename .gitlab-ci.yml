@@ -11,11 +11,11 @@ python-test::3.13:
     - apt install -y podman
   script:
     - pip install --upgrade pip setuptools wheel
-    - pip install pytest  pyyaml python-dotenv parameterized
-    - python -m pytest --junitxml=pytest.xml -v
+    - pip install unittest  pyyaml python-dotenv
+    - python -m unittest --junitxml=unittest.xml -v
   artifacts:
     reports:
-      junit: pytest.xml
+      junit: unittest.xml
 python-test::3.12:
   image: python:3.12
   extends: python-test::3.13
