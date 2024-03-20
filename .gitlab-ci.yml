@@ -14,8 +14,8 @@ sast:
   stage: test
 include:
 - template: Security/SAST.gitlab-ci.yml
-python-test::3.12:
-  image: python:3.12
+python-test::3.13:
+  image: python:3.13
   before_script:
     - apt install -y podman
   script:
@@ -25,6 +25,9 @@ python-test::3.12:
   artifacts:
     reports:
       junit: pytest.xml
+python-test::3.12:
+  image: python:3.12
+  extends: python-test::3.13
 python-test::3.11:
   image: python:3.11
   extends: python-test::3.12
@@ -37,13 +40,33 @@ python-test::3.9:
 python-test::3.8:
   image: python:3.8
   extends: python-test::3.9
-python-test::3.12-alpine3.18:
-  image: python:3.12-alpine3.18
+python-test::3.13-alpine3.19:
+  image: python:3.13-alpine3.19
   before_script:
     - apk update && apk --no-cache --update add build-base
     - apk add libffi-dev  podman
-    - pip install cffi
-  extends: python-test::3.12
+    #- pip install cffi
+ python-test::3.12-alpine3.19:
+  image: python:3.12-alpine3.19
+  extends: python-test::3.13-alpine3.19
+python-test::3.11-alpine3.19:
+  image: python:3.11-alpine3.19
+  extends: python-test::3.12-alpine3.19
+python-test::3.10-alpine3.19:
+  image: python:3.10-alpine3.19
+  extends: python-test::3.11-alpine3.19
+python-test::3.9-alpine3.19:
+  image: python:3.9-alpine3.19
+  extends: python-test::3.10-alpine3.19
+python-test::3.8-alpine3.19:
+  image: python:3.8-alpine3.19
+  extends: python-test::3.9-alpine3.19
+python-test::3.13-alpine3.18:
+  image: python:3.13-alpine3.18
+  extends: python-test::3.13-alpine3.19
+python-test::3.12-alpine3.18:
+  image: python:3.12-alpine3.18
+  extends: python-test::3.13-alpine3.18
 python-test::3.11-alpine3.18:
   image: python:3.11-alpine3.18
   extends: python-test::3.12-alpine3.18
@@ -56,9 +79,12 @@ python-test::3.9-alpine3.18:
 python-test::3.8-alpine3.18:
   image: python:3.8-alpine3.18
   extends: python-test::3.9-alpine3.18
+python-test::3.13-alpine3.17:
+  image: python:3.13-alpine3.17
+  extends: python-test::3.13-alpine3.18
 python-test::3.12-alpine3.17:
   image: python:3.12-alpine3.17
-  extends: python-test::3.12-alpine3.18
+  extends: python-test::3.13-alpine3.17
 python-test::3.11-alpine3.17:
   image: python:3.11-alpine3.17
   extends: python-test::3.12-alpine3.17
