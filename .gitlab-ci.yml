@@ -33,6 +33,7 @@ python-test::3.8:
   extends: python-test::3.9
 python-test::3.13-alpine3.19:
   image: python:3.13-alpine3.19
+  extends: python-test::3.13
   before_script:
     - apk update && apk --no-cache --update add build-base
     - apk add libffi-dev  podman
