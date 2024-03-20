@@ -11,7 +11,7 @@ python-test::3.13:
     - apt install -y podman
   script:
     - pip install --upgrade pip setuptools wheel
-    - pip install pytest  pyyaml python-dotenv
+    - pip install pytest  pyyaml python-dotenv parameterized
     - python -m pytest --junitxml=pytest.xml -v
   artifacts:
     reports:
