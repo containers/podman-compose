@@ -1,0 +1,10 @@
+version: "3"
+services:
+  web:
+    image: nopush/podman-compose-test
+    extends:
+      file: common-services.yml
+      service: webapp_default
+    environment:
+      - DEBUG=1
+    cpu_shares: 5

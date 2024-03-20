@@ -9,6 +9,9 @@ repos:
         # https://pre-commit.com/#top_level-default_language_version
         language_version: python3.10
         types: [python]
+        args: [
+          "--check",  # Don't apply changes automatically
+        ]
   - repo: https://github.com/pycqa/flake8
     rev: 6.0.0
     hooks:
@@ -27,3 +30,7 @@ repos:
             "-sn", # Don't display the score
             "--rcfile=.pylintrc", # Link to your config file
           ]
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.2.5
+    hooks:
+    - id: codespell

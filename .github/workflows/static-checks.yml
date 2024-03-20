@@ -1,0 +1,25 @@
+name: Static checks
+
+on:
+- push
+- pull_request
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/library/python:3.11-bookworm
+      # cgroupns needed to address the following error:
+      # write /sys/fs/cgroup/cgroup.subtree_control: operation not supported
+      options: --privileged --cgroupns=host
+    steps:
+    - uses: actions/checkout@v4
+    - name: Analysing the code with ruff
+      run: |
+        set -e
+        pip install -r test-requirements.txt
+        ruff format --check
+        ruff check
+    - name: Analysing the code with pylint
+      run: |
+        pylint podman_compose.py

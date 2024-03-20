@@ -1,25 +1,24 @@
-version: "3.7"
+version: "3"
 services:
-    web:
+    default-service:
       image: nopush/podman-compose-test
       command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-h", "/etc/", "-p", "8000"]
       tmpfs:
         - /run
         - /tmp
-    sleep:
+    service-1:
       image: nopush/podman-compose-test
-      command: ["dumb-init", "/bin/busybox", "sh", "-c", "sleep 3600"]
-      depends_on:
-        - "web"
+      command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-h", "/etc/", "-p", "8000"]
       tmpfs:
         - /run
         - /tmp
-    sleep2:
+      profiles:
+        - profile-1
+    service-2:
       image: nopush/podman-compose-test
-      command: ["dumb-init", "/bin/busybox", "sh", "-c", "sleep 3600"]
-      depends_on:
-      - sleep
+      command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-h", "/etc/", "-p", "8000"]
       tmpfs:
         - /run
         - /tmp
-
+      profiles:
+        - profile-2

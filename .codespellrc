@@ -1,0 +1,4 @@
+[codespell]
+skip = .git,*.pdf,*.svg,requirements.txt,test-requirements.txt
+# poped - loved variable name
+ignore-words-list = poped

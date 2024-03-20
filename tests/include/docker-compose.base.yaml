@@ -1,0 +1,7 @@
+version: '3.6'
+
+services:
+  web:
+    image: nopush/podman-compose-test
+    command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-h", ".", "-p", "8003"]
+

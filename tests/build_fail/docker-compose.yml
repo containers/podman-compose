@@ -1,0 +1,5 @@
+version: "3"
+services:
+    test:
+      build: ./context
+      image: build-fail-img
