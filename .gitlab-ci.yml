@@ -6,7 +6,7 @@ sast:
 include:
   - template: Security/SAST.gitlab-ci.yml
 python-test::3.13:
-  image: python:3.13
+  image: python:3.13-rc
   before_script:
     - cat /etc/debian_version
     - apt update -y
@@ -59,7 +59,7 @@ python-test::3.8-alpine3.19:
   image: python:3.8-alpine3.19
   extends: python-test::3.9-alpine3.19
 python-test::3.13-alpine3.18:
-  image: python:3.13-alpine3.18
+  image: python:3.13-rc-alpine3.18
   extends: python-test::3.13-alpine3.19
 python-test::3.12-alpine3.18:
   image: python:3.12-alpine3.18
@@ -77,7 +77,7 @@ python-test::3.8-alpine3.18:
   image: python:3.8-alpine3.18
   extends: python-test::3.9-alpine3.18
 python-test::3.13-alpine3.17:
-  image: python:3.13-alpine3.17
+  image: python:3.13-rc-alpine3.17
   extends: python-test::3.13-alpine3.18
 python-test::3.12-alpine3.17:
   image: python:3.12-alpine3.17
