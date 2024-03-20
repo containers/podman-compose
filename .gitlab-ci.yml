@@ -12,10 +12,11 @@ python-test::3.13:
   script:
     - pip install --upgrade pip setuptools wheel
     - pip install unittest  pyyaml python-dotenv
-    - python -m unittest --junitxml=unittest.xml -v
-  artifacts:
-    reports:
-      junit: unittest.xml
+    #- python -m unittest --junitxml=unittest.xml -v
+    - python -m unittest pytests/*.py
+  #artifacts:
+    #reports:
+      #junit: unittest.xml
 python-test::3.12:
   image: python:3.12
   extends: python-test::3.13
