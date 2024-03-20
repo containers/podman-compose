@@ -37,7 +37,7 @@ python-test::3.8:
   image: python:3.8
   extends: python-test::3.9
 python-test::3.13-bullseye:
-  image: python:3.13-bullseye
+  image: python:3.13-rc-bullseye
   extends: python-test::3.13
 python-test::3.12-bullseye:
   image: python:3.12-bullseye
