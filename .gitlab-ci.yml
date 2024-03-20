@@ -21,7 +21,7 @@ python-test::3.13:
   #artifacts:
     #reports:
       #junit: unittest.xml
-ppython-test::3.12:
+python-test::3.12:
   image: python:3.12
   extends: python-test::3.13
 python-test::3.11:
