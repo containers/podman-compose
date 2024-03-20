@@ -8,7 +8,7 @@ include:
 python-test::3.13:
   image: python:3.13
   before_script:
-    - cat /etc/debian_release
+    - cat /etc/debian_version
     - apt install -y podman
   script:
     - pip install --upgrade pip setuptools wheel
