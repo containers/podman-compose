@@ -261,7 +261,10 @@ class TestGetNetArgs(unittest.TestCase):
         ("none", []),
         ("slirp4netns", ["--network=slirp4netns"]),
         ("slirp4netns:cidr=10.42.0.0/24", ["--network=slirp4netns:cidr=10.42.0.0/24"]),
+        ("private", ["--network=private"]),
+        ("pasta", ["--network=pasta"]),
         ("pasta:--ipv4-only,-a,10.0.2.0", ["--network=pasta:--ipv4-only,-a,10.0.2.0"]),
+        ("ns:my_namespace", ["--network=ns:my_namespace"]),
         ("container:my_container", ["--network=container:my_container"]),
     ])
     def test_network_modes(self, network_mode, expected_args):

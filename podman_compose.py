@@ -789,7 +789,11 @@ def get_net_args(compose, cnt):
             net_args.append(f"--network={net}")
         elif net.startswith("slirp4netns"):  # Note: podman-specific network mode
             net_args.append(f"--network={net}")
-        elif net.startswith("ns:"):
+        elif net == "private":  # Note: podman-specific network mode
+            net_args.append("--network=private")
+        elif net.startswith("pasta"):  # Note: podman-specific network mode
+            net_args.append(f"--network={net}")
+        elif net.startswith("ns:"):  # Note: podman-specific network mode
             net_args.append(f"--network={net}")
         elif net.startswith("service:"):
             other_srv = net.split(":", 1)[1].strip()
@@ -809,6 +813,7 @@ def get_net_args(compose, cnt):
     default_net = compose.default_net
     nets = compose.networks
     cnt_nets = cnt.get("networks", None)
+
     aliases = [service_name]
     # NOTE: from podman manpage:
     # NOTE: A container will only have access to aliases on the first network

@@ -45,3 +45,23 @@ services:
         ipv4_address: "192.168.1.10"
         podman.mac_address: "02:bb:bb:bb:bb:bb"
 ```
+
+## Podman-specific network modes
+
+Generic docker-compose supports the following values for `network-mode` for a container:
+
+- `bridge`
+- `host`
+- `none`
+- `service`
+- `container`
+
+In addition, podman-compose supports the following podman-specific values for `network-mode`:
+
+- `slirp4netns[:<options>,...]`
+- `ns:<options>`
+- `pasta[:<options>,...]`
+- `private`
+
+The options to the network modes are passed to the `--network` option of the `podman create` command
+as-is.
