@@ -901,6 +901,8 @@ def get_net_args(compose, cnt):
                 net_options.append(f"ip={ipv4}")
             if ipv6:
                 net_options.append(f"ip={ipv6}")
+            if mac:
+                net_options.append(f"mac={mac}")
 
             if net_options:
                 net_args.extend(["--network", f"{net_name}:" + ",".join(net_options)])
