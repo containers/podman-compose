@@ -20,8 +20,10 @@ services:
         networks:
             shared-network:
                 ipv4_address: "172.19.1.10"
+                podman.mac_address: "02:01:01:00:01:01"
             internal-network:
                 ipv4_address: "172.19.2.10"
+                podman.mac_address: "02:01:01:00:02:01"
         volumes:
             - ./test1.txt:/var/www/html/index.txt:ro,z
     web2:

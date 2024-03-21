@@ -779,10 +779,8 @@ async def assert_cnt_nets(compose, cnt):
 def get_net_args(compose, cnt):
     service_name = cnt["service_name"]
     net_args = []
-    mac_address = cnt.get("mac_address", None)
-    if mac_address:
-        net_args.extend(["--mac-address", mac_address])
     is_bridge = False
+    mac_address = cnt.get("mac_address", None)
     net = cnt.get("network_mode", None)
     if net:
         if net == "none":
@@ -866,6 +864,18 @@ def get_net_args(compose, cnt):
         else:
             multiple_nets = {net: net_config or {} for net, net_config in multiple_nets.items()}
 
+        # if a mac_address was specified on the container level, we need to check that it is not
+        # specified on the network level as well
+        if mac_address is not None:
+            for net_config_ in multiple_nets.values():
+                network_mac = net_config_.get("podman.mac_address", None)
+                if network_mac is not None:
+                    raise RuntimeError(
+                        f"conflicting mac addresses {mac_address} and {network_mac}:"
+                        "specifying mac_address on both container and network level "
+                        "is not supported"
+                    )
+
         for net_, net_config_ in multiple_nets.items():
             net_desc = nets[net_] or {}
             is_ext = net_desc.get("external", None)
@@ -875,6 +885,16 @@ def get_net_args(compose, cnt):
 
             ipv4 = net_config_.get("ipv4_address", None)
             ipv6 = net_config_.get("ipv6_address", None)
+            # custom extension; not supported by docker-compose v3
+            mac = net_config_.get("podman.mac_address", None)
+
+            # if a mac_address was specified on the container level, apply it to the first network
+            # This works for Python > 3.6, because dict insert ordering is preserved, so we are
+            # sure that the first network we encounter here is also the first one specified by
+            # the user
+            if mac is None and mac_address is not None:
+                mac = mac_address
+                mac_address = None
 
             net_options = []
             if ipv4:
@@ -893,6 +913,8 @@ def get_net_args(compose, cnt):
             net_args.append(f"--ip={ip}")
         if ip6:
             net_args.append(f"--ip6={ip6}")
+        if mac_address:
+            net_args.append(f"--mac-address={mac_address}")
 
     if is_bridge:
         net_args.extend(["--network-alias", ",".join(aliases)])

@@ -91,8 +91,11 @@ class TestPodmanComposeNetwork(RunSubprocessMixin, unittest.TestCase):
                 self.assertEqual(f"{expect}\r\n", out.decode('utf-8'))
 
         expected_macip = {
-            "web1": {"eth0": ["172.19.1.10"], "eth1": ["172.19.2.10"]},
-            "web2": {"eth0": ["172.19.2.11"]},
+            "web1": {
+                "eth0": ["172.19.1.10", "02:01:01:00:01:01"],
+                "eth1": ["172.19.2.10", "02:01:01:00:02:01"],
+            },
+            "web2": {"eth0": ["172.19.2.11", "02:01:01:00:02:02"]},
         }
 
         for service, interfaces in expected_macip.items():
@@ -108,5 +111,6 @@ class TestPodmanComposeNetwork(RunSubprocessMixin, unittest.TestCase):
             ]
             out, _ = self.run_subprocess_assert_returncode(ip_cmd)
             for interface, values in interfaces.items():
-                ip = values[0]
+                ip, mac = values
+                self.assertIn(f"ether {mac}", out.decode('utf-8'))
                 self.assertIn(f"inet {ip}/", out.decode('utf-8'))

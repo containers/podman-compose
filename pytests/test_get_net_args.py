@@ -104,10 +104,27 @@ class TestGetNetArgs(unittest.TestCase):
         container["mac_address"] = mac
 
         expected_args = [
-            "--mac-address",
-            mac,
             "--network",
             f"{PROJECT_NAME}_net0",
+            "--mac-address=" + mac,
+            "--network-alias",
+            SERVICE_NAME,
+        ]
+        args = get_net_args(compose, container)
+        self.assertListEqual(expected_args, args)
+
+    def test_one_mac_two_nets(self):
+        mac = "00:11:22:33:44:55"
+        compose = get_networked_compose(num_networks=6)
+        container = get_minimal_container()
+        container["networks"] = {"net0": {}, "net1": {}}
+        container["mac_address"] = mac
+
+        expected_args = [
+            "--network",
+            f"{PROJECT_NAME}_net0:mac={mac}",
+            "--network",
+            f"{PROJECT_NAME}_net1",
             "--network-alias",
             SERVICE_NAME,
         ]
@@ -182,6 +199,49 @@ class TestGetNetArgs(unittest.TestCase):
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
 
+    # custom extension; not supported by docker-compose
+    def test_two_mac(self):
+        mac0 = "00:00:00:00:00:01"
+        mac1 = "00:00:00:00:00:02"
+        compose = get_networked_compose(num_networks=2)
+        container = get_minimal_container()
+        container["networks"] = {
+            "net0": {"podman.mac_address": mac0},
+            "net1": {"podman.mac_address": mac1},
+        }
+
+        expected_args = [
+            "--network",
+            f"{PROJECT_NAME}_net0:mac={mac0}",
+            "--network",
+            f"{PROJECT_NAME}_net1:mac={mac1}",
+            "--network-alias",
+            SERVICE_NAME,
+        ]
+        args = get_net_args(compose, container)
+        self.assertListEqual(expected_args, args)
+
+    def test_mixed_mac(self):
+        ip4_0 = "192.168.0.42"
+        ip4_1 = "192.168.1.42"
+        ip4_2 = "192.168.2.42"
+        mac_0 = "00:00:00:00:00:01"
+        mac_1 = "00:00:00:00:00:02"
+
+        compose = get_networked_compose(num_networks=3)
+        container = get_minimal_container()
+        container["networks"] = {
+            "net0": {"ipv4_address": ip4_0},
+            "net1": {"ipv4_address": ip4_1, "podman.mac_address": mac_0},
+            "net2": {"ipv4_address": ip4_2},
+        }
+        container["mac_address"] = mac_1
+
+        expected_exception = (
+            r"specifying mac_address on both container and network level " r"is not supported"
+        )
+        self.assertRaisesRegex(RuntimeError, expected_exception, get_net_args, compose, container)
+
     def test_mixed_config(self):
         ip4_0 = "192.168.0.42"
         ip4_1 = "192.168.1.42"
@@ -199,10 +259,8 @@ class TestGetNetArgs(unittest.TestCase):
         container["mac_address"] = mac
 
         expected_args = [
-            "--mac-address",
-            mac,
             "--network",
-            f"{PROJECT_NAME}_net0:ip={ip4_0},ip={ip6_0}",
+            f"{PROJECT_NAME}_net0:ip={ip4_0},ip={ip6_0},mac={mac}",
             "--network",
             f"{PROJECT_NAME}_net1:ip={ip4_1}",
             "--network",
