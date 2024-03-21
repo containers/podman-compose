@@ -786,18 +786,18 @@ def get_net_args(compose, cnt):
         if net == "none":
             is_bridge = False
         elif net == "host":
-            net_args.extend(["--network", net])
+            net_args.append(f"--network={net}")
         elif net.startswith("slirp4netns:"):
-            net_args.extend(["--network", net])
+            net_args.append(f"--network={net}")
         elif net.startswith("ns:"):
-            net_args.extend(["--network", net])
+            net_args.append(f"--network={net}")
         elif net.startswith("service:"):
             other_srv = net.split(":", 1)[1].strip()
             other_cnt = compose.container_names_by_service[other_srv][0]
-            net_args.extend(["--network", f"container:{other_cnt}"])
+            net_args.append(f"--network=container:{other_cnt}")
         elif net.startswith("container:"):
             other_cnt = net.split(":", 1)[1].strip()
-            net_args.extend(["--network", f"container:{other_cnt}"])
+            net_args.append(f"--network=container:{other_cnt}")
         elif net.startswith("bridge"):
             is_bridge = True
         else:
@@ -905,12 +905,15 @@ def get_net_args(compose, cnt):
                 net_options.append(f"mac={mac}")
 
             if net_options:
-                net_args.extend(["--network", f"{net_name}:" + ",".join(net_options)])
+                net_args.append(f"--network={net_name}:" + ",".join(net_options))
             else:
-                net_args.extend(["--network", f"{net_name}"])
+                net_args.append(f"--network={net_name}")
     else:
         if is_bridge:
-            net_args.extend(["--network", net_names_str])
+            if net_names_str:
+                net_args.append(f"--network={net_names_str}")
+            else:
+                net_args.append("--network=bridge")
         if ip:
             net_args.append(f"--ip={ip}")
         if ip6:
@@ -919,7 +922,8 @@ def get_net_args(compose, cnt):
             net_args.append(f"--mac-address={mac_address}")
 
     if is_bridge:
-        net_args.extend(["--network-alias", ",".join(aliases)])
+        for alias in aliases:
+            net_args.extend([f"--network-alias={alias}"])
 
     return net_args
 
