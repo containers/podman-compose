@@ -6,9 +6,9 @@ from unittest import mock
 from podman_compose import container_to_args
 
 
-def create_compose_mock():
+def create_compose_mock(project_name="test_project_name"):
     compose = mock.Mock()
-    compose.project_name = "test_project_name"
+    compose.project_name = project_name
     compose.dirname = "test_dirname"
     compose.container_names_by_service.get = mock.Mock(return_value=None)
     compose.prefer_volume_over_mount = False
