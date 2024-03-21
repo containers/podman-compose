@@ -1,5 +1,7 @@
 import unittest
 
+from parameterized import parameterized
+
 from podman_compose import get_net_args
 
 from .test_container_to_args import create_compose_mock
@@ -250,5 +252,43 @@ class TestGetNetArgs(unittest.TestCase):
             f"--network={PROJECT_NAME}_net3",
             f"--network-alias={SERVICE_NAME}",
         ]
+        args = get_net_args(compose, container)
+        self.assertListEqual(expected_args, args)
+
+    @parameterized.expand([
+        ("bridge", ["--network=bridge", f"--network-alias={SERVICE_NAME}"]),
+        ("host", ["--network=host"]),
+        ("none", []),
+        ("slirp4netns:cidr=10.42.0.0/24", ["--network=slirp4netns:cidr=10.42.0.0/24"]),
+        ("pasta:--ipv4-only,-a,10.0.2.0", ["--network=pasta:--ipv4-only,-a,10.0.2.0"]),
+        ("container:my_container", ["--network=container:my_container"]),
+    ])
+    def test_network_modes(self, network_mode, expected_args):
+        compose = get_networked_compose()
+        container = get_minimal_container()
+        container["network_mode"] = network_mode
+
+        args = get_net_args(compose, container)
+        self.assertListEqual(expected_args, args)
+
+    def test_network_mode_invalid(self):
+        compose = get_networked_compose()
+        container = get_minimal_container()
+        container["network_mode"] = "invalid_mode"
+
+        with self.assertRaises(SystemExit):
+            get_net_args(compose, container)
+
+    def test_network__mode_service(self):
+        compose = get_networked_compose()
+        compose.container_names_by_service = {
+            "service_1": ["container_1"],
+            "service_2": ["container_2"],
+        }
+
+        container = get_minimal_container()
+        container["network_mode"] = "service:service_2"
+
+        expected_args = ["--network=container:container_2"]
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
