@@ -787,7 +787,7 @@ def get_net_args(compose, cnt):
             is_bridge = False
         elif net == "host":
             net_args.append(f"--network={net}")
-        elif net.startswith("slirp4netns:"):
+        elif net.startswith("slirp4netns"):  # Note: podman-specific network mode
             net_args.append(f"--network={net}")
         elif net.startswith("ns:"):
             net_args.append(f"--network={net}")

@@ -259,6 +259,7 @@ class TestGetNetArgs(unittest.TestCase):
         ("bridge", ["--network=bridge", f"--network-alias={SERVICE_NAME}"]),
         ("host", ["--network=host"]),
         ("none", []),
+        ("slirp4netns", ["--network=slirp4netns"]),
         ("slirp4netns:cidr=10.42.0.0/24", ["--network=slirp4netns:cidr=10.42.0.0/24"]),
         ("pasta:--ipv4-only,-a,10.0.2.0", ["--network=pasta:--ipv4-only,-a,10.0.2.0"]),
         ("container:my_container", ["--network=container:my_container"]),
