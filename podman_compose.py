@@ -853,8 +853,12 @@ def get_net_args(compose, cnt):
         net_names.append(net_name)
     net_names_str = ",".join(net_names)
 
-    # TODO add support for per-interface aliases
-    #  see https://docs.docker.com/compose/compose-file/compose-file-v3/#aliases
+    # TODO: add support for per-interface aliases
+    #  See https://docs.docker.com/compose/compose-file/compose-file-v3/#aliases
+    #  Even though podman accepts network-specific aliases (e.g., --network=bridge:alias=foo,
+    #  podman currently ignores this if a per-container network-alias is set; as pdoman-compose
+    #  always sets a network-alias to the container name, is currently doesn't make sense to
+    #  implement this.
     multiple_nets = cnt.get("networks", None)
     if multiple_nets and len(multiple_nets) > 1:
         # networks can be specified as a dict with config per network or as a plain list without
