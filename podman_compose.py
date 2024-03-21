@@ -855,32 +855,48 @@ def get_net_args(compose, cnt):
         net_names.append(net_name)
     net_names_str = ",".join(net_names)
 
-    if ip_assignments > 1:
-        multiple_nets = cnt.get("networks", None)
-        multiple_net_names = multiple_nets.keys()
+    # TODO add support for per-interface aliases
+    #  see https://docs.docker.com/compose/compose-file/compose-file-v3/#aliases
+    multiple_nets = cnt.get("networks", None)
+    if multiple_nets and len(multiple_nets) > 1:
+        # networks can be specified as a dict with config per network or as a plain list without
+        # config.  Support both cases by converting the plain list to a dict with empty config.
+        if is_list(multiple_nets):
+            multiple_nets = {net: {} for net in multiple_nets}
+        else:
+            multiple_nets = {net: net_config or {} for net, net_config in multiple_nets.items()}
 
-        for net_ in multiple_net_names:
+        for net_, net_config_ in multiple_nets.items():
             net_desc = nets[net_] or {}
             is_ext = net_desc.get("external", None)
             ext_desc = is_ext if is_dict(is_ext) else {}
             default_net_name = net_ if is_ext else f"{proj_name}_{net_}"
             net_name = ext_desc.get("name", None) or net_desc.get("name", None) or default_net_name
 
-            ipv4 = multiple_nets[net_].get("ipv4_address", None)
-            ipv6 = multiple_nets[net_].get("ipv6_address", None)
-            if ipv4 is not None and ipv6 is not None:
-                net_args.extend(["--network", f"{net_name}:ip={ipv4},ip={ipv6}"])
-            elif ipv4 is None and ipv6 is not None:
-                net_args.extend(["--network", f"{net_name}:ip={ipv6}"])
-            elif ipv6 is None and ipv4 is not None:
-                net_args.extend(["--network", f"{net_name}:ip={ipv4}"])
+            ipv4 = net_config_.get("ipv4_address", None)
+            ipv6 = net_config_.get("ipv6_address", None)
+
+            net_options = []
+            if ipv4:
+                net_options.append(f"ip={ipv4}")
+            if ipv6:
+                net_options.append(f"ip={ipv6}")
+
+            if net_options:
+                net_args.extend(["--network", f"{net_name}:" + ",".join(net_options)])
+            else:
+                net_args.extend(["--network", f"{net_name}"])
     else:
         if is_bridge:
-            net_args.extend(["--net", net_names_str, "--network-alias", ",".join(aliases)])
+            net_args.extend(["--network", net_names_str])
         if ip:
             net_args.append(f"--ip={ip}")
         if ip6:
             net_args.append(f"--ip6={ip6}")
+
+    if is_bridge:
+        net_args.extend(["--network-alias", ",".join(aliases)])
+
     return net_args
 
 

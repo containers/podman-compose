@@ -37,7 +37,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--net",
+                "--network",
                 "",
                 "--network-alias",
                 "service_name",
@@ -57,7 +57,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--net",
+                "--network",
                 "",
                 "--network-alias",
                 "service_name",
@@ -82,7 +82,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--net",
+                "--network",
                 "",
                 "--network-alias",
                 "service_name",
@@ -109,7 +109,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--net",
+                "--network",
                 "",
                 "--network-alias",
                 "service_name",
@@ -143,7 +143,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--net",
+                "--network",
                 "",
                 "--network-alias",
                 "service_name",
@@ -166,7 +166,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "--name=project_name_service_name1",
                 "-d",
                 "--http-proxy=false",
-                "--net",
+                "--network",
                 "",
                 "--network-alias",
                 "service_name",
