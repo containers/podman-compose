@@ -1785,7 +1785,6 @@ class PodmanCompose:
             sys.exit(1)
         # make absolute
         relative_files = files
-        files = list(map(os.path.realpath, files))
         filename = files[0]
         project_name = args.project_name
         # no_ansi = args.no_ansi

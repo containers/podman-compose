@@ -1,0 +1,7 @@
+version: "3"
+services:
+  container1:
+    image: nopush/podman-compose-test
+    command: ["/bin/busybox", "cat", "/file"]
+    volumes:
+      - "./file:/file"

@@ -1,0 +1,1 @@
+Fix compatibility with docker-compose in how symlinks to docker-compose.yml are handled.
