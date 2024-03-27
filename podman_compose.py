@@ -527,7 +527,11 @@ async def get_mount_args(compose, cnt, volume):
     return ["--mount", args]
 
 
-def get_secret_args(compose, cnt, secret):
+def get_secret_args(compose, cnt, secret, podman_is_building=False):
+    """
+    podman_is_building: True if we are preparing arguments for an invocation of "podman build"
+                        False if we are preparing for something else like "podman run"
+    """
     secret_name = secret if is_str(secret) else secret.get("source", None)
     if not secret_name or secret_name not in compose.declared_secrets.keys():
         raise ValueError(f'ERROR: undeclared secret: "{secret}", service: {cnt["_service"]}')
@@ -543,16 +547,33 @@ def get_secret_args(compose, cnt, secret):
     mode = None if is_str(secret) else secret.get("mode", None)
 
     if source_file:
-        if not target:
-            dest_file = f"/run/secrets/{secret_name}"
-        elif not target.startswith("/"):
-            sec = target if target else secret_name
-            dest_file = f"/run/secrets/{sec}"
-        else:
-            dest_file = target
+        # assemble path for source file first, because we need it for all cases
         basedir = compose.dirname
         source_file = os.path.realpath(os.path.join(basedir, os.path.expanduser(source_file)))
-        volume_ref = ["--volume", f"{source_file}:{dest_file}:ro,rprivate,rbind"]
+
+        if podman_is_building:
+            # pass file secrets to "podman build" with param --secret
+            if not target:
+                secret_id = secret_name
+            elif "/" in target:
+                raise ValueError(
+                    f'ERROR: Build secret "{secret_name}" has invalid target "{target}". '
+                    + "(Expected plain filename without directory as target.)"
+                )
+            else:
+                secret_id = target
+            volume_ref = ["--secret", f"id={secret_id},src={source_file}"]
+        else:
+            # pass file secrets to "podman run" as volumes
+            if not target:
+                dest_file = f"/run/secrets/{secret_name}"
+            elif not target.startswith("/"):
+                sec = target if target else secret_name
+                dest_file = f"/run/secrets/{sec}"
+            else:
+                dest_file = target
+            volume_ref = ["--volume", f"{source_file}:{dest_file}:ro,rprivate,rbind"]
+
         if uid or gid or mode:
             sec = target if target else secret_name
             log.warning(
@@ -2140,7 +2161,7 @@ async def build_one(compose, args, cnt):
         raise OSError("Dockerfile not found in " + ctx)
     build_args = ["-f", dockerfile, "-t", cnt["image"]]
     for secret in build_desc.get("secrets", []):
-        build_args.extend(get_secret_args(compose, cnt, secret))
+        build_args.extend(get_secret_args(compose, cnt, secret, podman_is_building=True))
     for tag in build_desc.get("tags", []):
         build_args.extend(["-t", tag])
     if "target" in build_desc:
