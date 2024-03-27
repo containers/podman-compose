@@ -1,0 +1,114 @@
+---
+stages:
+  - test
+sast:
+  stage: test
+include:
+  - template: Security/SAST.gitlab-ci.yml
+python-test::3.13:
+  image: python:3.13-rc
+  before_script:
+    - cat /etc/debian_version
+    - apt update -y
+    - apt install -y podman
+  script:
+    - pip install --upgrade pip setuptools wheel
+    - pip install pyyaml python-dotenv
+    # install unittest deps
+    - pip install parameterized
+    #- python -m unittest --junitxml=unittest.xml -v
+    - python -m unittest pytests/*.py
+  #artifacts:
+    #reports:
+      #junit: unittest.xml
+python-test::3.12:
+  image: python:3.12
+  extends: python-test::3.13
+python-test::3.11:
+  image: python:3.11
+  extends: python-test::3.12
+python-test::3.10:
+  image: python:3.10
+  extends: python-test::3.11
+python-test::3.9:
+  image: python:3.9
+  extends: python-test::3.10
+python-test::3.8:
+  image: python:3.8
+  extends: python-test::3.9
+python-test::3.13-bullseye:
+  image: python:3.13-rc-bullseye
+  extends: python-test::3.13
+python-test::3.12-bullseye:
+  image: python:3.12-bullseye
+  extends: python-test::3.13-bullseye
+python-test::3.11-bullseye:
+  image: python:3.11-bullseye
+  extends: python-test::3.12-bullseye
+python-test::3.10-bullseye:
+  image: python:3.10-bullseye
+  extends: python-test::3.11-bullseye
+python-test::3.9-bullseye:
+  image: python:3.9-bullseye
+  extends: python-test::3.10-bullseye
+python-test::3.8-bullseye:
+  image: python:3.8-bullseye
+  extends: python-test::3.9-bullseye
+python-test::3.13-alpine3.19:
+  image: python:3.13-rc-alpine3.19
+  extends: python-test::3.13
+  before_script:
+    - apk update && apk --no-cache --update add build-base
+    - apk add libffi-dev  podman
+    #- pip install cffi
+python-test::3.12-alpine3.19:
+  image: python:3.12-alpine3.19
+  extends: python-test::3.13-alpine3.19
+python-test::3.11-alpine3.19:
+  image: python:3.11-alpine3.19
+  extends: python-test::3.12-alpine3.19
+python-test::3.10-alpine3.19:
+  image: python:3.10-alpine3.19
+  extends: python-test::3.11-alpine3.19
+python-test::3.9-alpine3.19:
+  image: python:3.9-alpine3.19
+  extends: python-test::3.10-alpine3.19
+python-test::3.8-alpine3.19:
+  image: python:3.8-alpine3.19
+  extends: python-test::3.9-alpine3.19
+python-test::3.13-alpine3.18:
+  image: python:3.13-rc-alpine3.18
+  extends: python-test::3.13-alpine3.19
+python-test::3.12-alpine3.18:
+  image: python:3.12-alpine3.18
+  extends: python-test::3.13-alpine3.18
+python-test::3.11-alpine3.18:
+  image: python:3.11-alpine3.18
+  extends: python-test::3.12-alpine3.18
+python-test::3.10-alpine3.18:
+  image: python:3.10-alpine3.18
+  extends: python-test::3.11-alpine3.18
+python-test::3.9-alpine3.18:
+  image: python:3.9-alpine3.18
+  extends: python-test::3.10-alpine3.18
+python-test::3.8-alpine3.18:
+  image: python:3.8-alpine3.18
+  extends: python-test::3.9-alpine3.18
+python-test::3.13-alpine3.17:
+  image: python:3.13-rc-alpine3.17
+  extends: python-test::3.13-alpine3.18
+python-test::3.12-alpine3.17:
+  image: python:3.12-alpine3.17
+  extends: python-test::3.13-alpine3.17
+python-test::3.11-alpine3.17:
+  image: python:3.11-alpine3.17
+  extends: python-test::3.12-alpine3.17
+python-test::3.10-alpine3.17:
+  image: python:3.10-alpine3.17
+  extends: python-test::3.11-alpine3.17
+python-test::3.9-alpine3.17:
+  image: python:3.9-alpine3.17
+  extends: python-test::3.10-alpine3.17
+python-test::3.8-alpine3.17:
+  image: python:3.8-alpine3.17
+  extends: python-test::3.9-alpine3.17
