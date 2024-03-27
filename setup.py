@@ -40,7 +40,7 @@ setup(
         "pyyaml",
         "python-dotenv",
     ],
-    extras_require={"devel": ["ruff", "pre-commit", "coverage", "parameterize"]},
+    extras_require={"devel": ["ruff", "pre-commit", "coverage", "parameterized"]},
     # test_suite='tests',
     # tests_require=[
     #     'coverage',
