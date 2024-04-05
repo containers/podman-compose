@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  test:
+    image: test
+    secrets:
+      - run_secret                  # implicitly mount to /run/secrets/run_secret
+      - source: run_secret
+        target: /tmp/run_secret2    # explicit mount point
+
+    build:
+      context: .
+      secrets:
+        - build_secret              # can be mounted in Dockerfile with "RUN --mount=type=secret,id=build_secret"
+        - source: build_secret
+          target: build_secret2     # rename to build_secret2
+
+secrets:
+  build_secret:
+    file: ./my_secret
+  run_secret:
+    file: ./my_secret

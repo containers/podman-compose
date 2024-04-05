@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  test:
+    image: test
+    build:
+      context: .
+      secrets:
+        # invalid target argument
+        #
+        # According to https://github.com/compose-spec/compose-spec/blob/master/build.md, target is
+        # supposed to be the "name of a *file* to be mounted in /run/secrets/". Not a path.
+        - source: build_secret
+          target: /build_secret
+
+secrets:
+  build_secret:
+    file: ./my_secret
