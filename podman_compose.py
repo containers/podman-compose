@@ -159,7 +159,8 @@ def parse_short_mount(mount_str, basedir):
         # User-relative path
         # - ~/configs:/etc/configs/:ro
         mount_type = "bind"
-        mount_src = os.path.abspath(os.path.join(basedir, os.path.expanduser(mount_src)))
+        if os.name != 'nt' or (os.name == 'nt' and ".sock" not in mount_src):
+            mount_src = os.path.abspath(os.path.join(basedir, os.path.expanduser(mount_src)))
     else:
         # Named volume
         # - datavolume:/var/lib/mysql
