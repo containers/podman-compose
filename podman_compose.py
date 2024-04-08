@@ -1072,7 +1072,11 @@ async def container_to_args(compose, cnt, detached=True):
             if not required:
                 continue
             raise ValueError("Env file at {} does not exist".format(i))
-        podman_args.extend(["--env-file", i])
+        dotenv_dict = {}
+        dotenv_dict = dotenv_to_dict(i)
+        env = norm_as_list(dotenv_dict)
+        for e in env:
+            podman_args.extend(["-e", e])
     env = norm_as_list(cnt.get("environment", {}))
     for e in env:
         podman_args.extend(["-e", e])
