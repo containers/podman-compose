@@ -987,7 +987,12 @@ async def container_to_args(compose, cnt, detached=True):
         env_file = [env_file]
     for i in env_file:
         i = os.path.realpath(os.path.join(dirname, i))
-        podman_args.extend(["--env-file", i])
+        dotenv_dict = {}
+        dotenv_dict = dotenv_to_dict(i)
+        env = norm_as_list(dotenv_dict)
+        for e in env:
+            podman_args.extend(["-e", e])
+
     env = norm_as_list(cnt.get("environment", {}))
     for e in env:
         podman_args.extend(["-e", e])
