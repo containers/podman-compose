@@ -6,9 +6,9 @@ from unittest import mock
 from podman_compose import container_to_args
 
 
-def create_compose_mock():
+def create_compose_mock(project_name="test_project_name"):
     compose = mock.Mock()
-    compose.project_name = "test_project_name"
+    compose.project_name = project_name
     compose.dirname = "test_dirname"
     compose.container_names_by_service.get = mock.Mock(return_value=None)
     compose.prefer_volume_over_mount = False
@@ -37,10 +37,8 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--net",
-                "",
-                "--network-alias",
-                "service_name",
+                "--network=bridge",
+                "--network-alias=service_name",
                 "busybox",
             ],
         )
@@ -57,10 +55,8 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--net",
-                "",
-                "--network-alias",
-                "service_name",
+                "--network=bridge",
+                "--network-alias=service_name",
                 "--runtime",
                 "runsc",
                 "busybox",
@@ -82,10 +78,8 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--net",
-                "",
-                "--network-alias",
-                "service_name",
+                "--network=bridge",
+                "--network-alias=service_name",
                 "--sysctl",
                 "net.core.somaxconn=1024",
                 "--sysctl",
@@ -109,10 +103,8 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--net",
-                "",
-                "--network-alias",
-                "service_name",
+                "--network=bridge",
+                "--network-alias=service_name",
                 "--sysctl",
                 "net.core.somaxconn=1024",
                 "--sysctl",
@@ -143,10 +135,8 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--net",
-                "",
-                "--network-alias",
-                "service_name",
+                "--network=bridge",
+                "--network-alias=service_name",
                 "--pid",
                 "host",
                 "busybox",
@@ -166,10 +156,8 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "--name=project_name_service_name1",
                 "-d",
                 "--http-proxy=false",
-                "--net",
-                "",
-                "--network-alias",
-                "service_name",
+                "--network=bridge",
+                "--network-alias=service_name",
                 "busybox",
             ],
         )

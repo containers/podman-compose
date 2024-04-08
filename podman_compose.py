@@ -780,27 +780,29 @@ async def assert_cnt_nets(compose, cnt):
 def get_net_args(compose, cnt):
     service_name = cnt["service_name"]
     net_args = []
-    mac_address = cnt.get("mac_address", None)
-    if mac_address:
-        net_args.extend(["--mac-address", mac_address])
     is_bridge = False
+    mac_address = cnt.get("mac_address", None)
     net = cnt.get("network_mode", None)
     if net:
         if net == "none":
             is_bridge = False
         elif net == "host":
-            net_args.extend(["--network", net])
-        elif net.startswith("slirp4netns:"):
-            net_args.extend(["--network", net])
-        elif net.startswith("ns:"):
-            net_args.extend(["--network", net])
+            net_args.append(f"--network={net}")
+        elif net.startswith("slirp4netns"):  # Note: podman-specific network mode
+            net_args.append(f"--network={net}")
+        elif net == "private":  # Note: podman-specific network mode
+            net_args.append("--network=private")
+        elif net.startswith("pasta"):  # Note: podman-specific network mode
+            net_args.append(f"--network={net}")
+        elif net.startswith("ns:"):  # Note: podman-specific network mode
+            net_args.append(f"--network={net}")
         elif net.startswith("service:"):
             other_srv = net.split(":", 1)[1].strip()
             other_cnt = compose.container_names_by_service[other_srv][0]
-            net_args.extend(["--network", f"container:{other_cnt}"])
+            net_args.append(f"--network=container:{other_cnt}")
         elif net.startswith("container:"):
             other_cnt = net.split(":", 1)[1].strip()
-            net_args.extend(["--network", f"container:{other_cnt}"])
+            net_args.append(f"--network=container:{other_cnt}")
         elif net.startswith("bridge"):
             is_bridge = True
         else:
@@ -812,6 +814,7 @@ def get_net_args(compose, cnt):
     default_net = compose.default_net
     nets = compose.networks
     cnt_nets = cnt.get("networks", None)
+
     aliases = [service_name]
     # NOTE: from podman manpage:
     # NOTE: A container will only have access to aliases on the first network
@@ -856,32 +859,82 @@ def get_net_args(compose, cnt):
         net_names.append(net_name)
     net_names_str = ",".join(net_names)
 
-    if ip_assignments > 1:
-        multiple_nets = cnt.get("networks", None)
-        multiple_net_names = multiple_nets.keys()
+    # TODO: add support for per-interface aliases
+    #  See https://docs.docker.com/compose/compose-file/compose-file-v3/#aliases
+    #  Even though podman accepts network-specific aliases (e.g., --network=bridge:alias=foo,
+    #  podman currently ignores this if a per-container network-alias is set; as pdoman-compose
+    #  always sets a network-alias to the container name, is currently doesn't make sense to
+    #  implement this.
+    multiple_nets = cnt.get("networks", None)
+    if multiple_nets and len(multiple_nets) > 1:
+        # networks can be specified as a dict with config per network or as a plain list without
+        # config.  Support both cases by converting the plain list to a dict with empty config.
+        if is_list(multiple_nets):
+            multiple_nets = {net: {} for net in multiple_nets}
+        else:
+            multiple_nets = {net: net_config or {} for net, net_config in multiple_nets.items()}
 
-        for net_ in multiple_net_names:
+        # if a mac_address was specified on the container level, we need to check that it is not
+        # specified on the network level as well
+        if mac_address is not None:
+            for net_config_ in multiple_nets.values():
+                network_mac = net_config_.get("podman.mac_address", None)
+                if network_mac is not None:
+                    raise RuntimeError(
+                        f"conflicting mac addresses {mac_address} and {network_mac}:"
+                        "specifying mac_address on both container and network level "
+                        "is not supported"
+                    )
+
+        for net_, net_config_ in multiple_nets.items():
             net_desc = nets[net_] or {}
             is_ext = net_desc.get("external", None)
             ext_desc = is_ext if is_dict(is_ext) else {}
             default_net_name = net_ if is_ext else f"{proj_name}_{net_}"
             net_name = ext_desc.get("name", None) or net_desc.get("name", None) or default_net_name
 
-            ipv4 = multiple_nets[net_].get("ipv4_address", None)
-            ipv6 = multiple_nets[net_].get("ipv6_address", None)
-            if ipv4 is not None and ipv6 is not None:
-                net_args.extend(["--network", f"{net_name}:ip={ipv4},ip={ipv6}"])
-            elif ipv4 is None and ipv6 is not None:
-                net_args.extend(["--network", f"{net_name}:ip={ipv6}"])
-            elif ipv6 is None and ipv4 is not None:
-                net_args.extend(["--network", f"{net_name}:ip={ipv4}"])
+            ipv4 = net_config_.get("ipv4_address", None)
+            ipv6 = net_config_.get("ipv6_address", None)
+            # custom extension; not supported by docker-compose v3
+            mac = net_config_.get("podman.mac_address", None)
+
+            # if a mac_address was specified on the container level, apply it to the first network
+            # This works for Python > 3.6, because dict insert ordering is preserved, so we are
+            # sure that the first network we encounter here is also the first one specified by
+            # the user
+            if mac is None and mac_address is not None:
+                mac = mac_address
+                mac_address = None
+
+            net_options = []
+            if ipv4:
+                net_options.append(f"ip={ipv4}")
+            if ipv6:
+                net_options.append(f"ip={ipv6}")
+            if mac:
+                net_options.append(f"mac={mac}")
+
+            if net_options:
+                net_args.append(f"--network={net_name}:" + ",".join(net_options))
+            else:
+                net_args.append(f"--network={net_name}")
     else:
         if is_bridge:
-            net_args.extend(["--net", net_names_str, "--network-alias", ",".join(aliases)])
+            if net_names_str:
+                net_args.append(f"--network={net_names_str}")
+            else:
+                net_args.append("--network=bridge")
         if ip:
             net_args.append(f"--ip={ip}")
         if ip6:
             net_args.append(f"--ip6={ip6}")
+        if mac_address:
+            net_args.append(f"--mac-address={mac_address}")
+
+    if is_bridge:
+        for alias in aliases:
+            net_args.extend([f"--network-alias={alias}"])
+
     return net_args
 
 
