@@ -2319,7 +2319,7 @@ async def compose_up(compose: PodmanCompose, args):
 
         tasks.add(
             asyncio.create_task(
-                compose.podman.run([], "start", ["-a", cnt["name"]], log_formatter=log_formatter),
+                compose.podman.run([], "start", [cnt["name"]], log_formatter=log_formatter),
                 name=cnt["_service"],
             )
         )
