@@ -888,7 +888,7 @@ def get_net_args(compose, cnt):
         # specified on the network level as well
         if mac_address is not None:
             for net_config_ in multiple_nets.values():
-                network_mac = net_config_.get("podman.mac_address", None)
+                network_mac = net_config_.get("x-podman.mac_address", None)
                 if network_mac is not None:
                     raise RuntimeError(
                         f"conflicting mac addresses {mac_address} and {network_mac}:"
@@ -906,7 +906,7 @@ def get_net_args(compose, cnt):
             ipv4 = net_config_.get("ipv4_address", None)
             ipv6 = net_config_.get("ipv6_address", None)
             # custom extension; not supported by docker-compose v3
-            mac = net_config_.get("podman.mac_address", None)
+            mac = net_config_.get("x-podman.mac_address", None)
 
             # if a mac_address was specified on the container level, apply it to the first network
             # This works for Python > 3.6, because dict insert ordering is preserved, so we are

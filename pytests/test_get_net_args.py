@@ -196,8 +196,8 @@ class TestGetNetArgs(unittest.TestCase):
         compose = get_networked_compose(num_networks=2)
         container = get_minimal_container()
         container["networks"] = {
-            "net0": {"podman.mac_address": mac0},
-            "net1": {"podman.mac_address": mac1},
+            "net0": {"x-podman.mac_address": mac0},
+            "net1": {"x-podman.mac_address": mac1},
         }
 
         expected_args = [
@@ -219,7 +219,7 @@ class TestGetNetArgs(unittest.TestCase):
         container = get_minimal_container()
         container["networks"] = {
             "net0": {"ipv4_address": ip4_0},
-            "net1": {"ipv4_address": ip4_1, "podman.mac_address": mac_0},
+            "net1": {"ipv4_address": ip4_1, "x-podman.mac_address": mac_0},
             "net2": {"ipv4_address": ip4_2},
         }
         container["mac_address"] = mac_1

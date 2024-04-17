@@ -9,8 +9,8 @@ container has multiple network interfaces, the specified MAC address is applied 
 specified network.
 
 Podman-compose in addition supports the specification of MAC addresses on a per-network basis. This
-is done by adding a `podman.mac_address` key to the network configuration in the container. The
-value of the `podman.mac_address` key is the MAC address to be used for the network interface.
+is done by adding a `x-podman.mac_address` key to the network configuration in the container. The
+value of the `x-podman.mac_address` key is the MAC address to be used for the network interface.
 
 Specifying a MAC address for the container and for individual networks at the same time is not
 supported.
@@ -40,10 +40,10 @@ services:
     networks:
       net0:
         ipv4_address: "192.168.0.10"
-        podman.mac_address: "02:aa:aa:aa:aa:aa"
+        x-podman.mac_address: "02:aa:aa:aa:aa:aa"
       net1:
         ipv4_address: "192.168.1.10"
-        podman.mac_address: "02:bb:bb:bb:bb:bb"
+        x-podman.mac_address: "02:bb:bb:bb:bb:bb"
 ```
 
 ## Podman-specific network modes
