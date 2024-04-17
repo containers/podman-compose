@@ -441,8 +441,7 @@ def mount_desc_to_mount_args(compose, mount_desc, srv_name, cnt_name):  # pylint
     raise ValueError("unknown mount type:" + mount_type)
 
 
-def container_to_ulimit_args(cnt, podman_args):
-    ulimit = cnt.get("ulimits", [])
+def ulimit_to_ulimit_args(ulimit, podman_args):
     if ulimit is not None:
         # ulimit can be a single value, i.e. ulimit: host
         if is_str(ulimit):
@@ -456,6 +455,17 @@ def container_to_ulimit_args(cnt, podman_args):
             ]
             for i in ulimit:
                 podman_args.extend(["--ulimit", i])
+
+
+def container_to_ulimit_args(cnt, podman_args):
+    ulimit_to_ulimit_args(cnt.get("ulimits", []), podman_args)
+
+
+def container_to_ulimit_build_args(cnt, podman_args):
+    build = cnt.get("build", None)
+
+    if build is not None:
+        ulimit_to_ulimit_args(build.get("ulimits", []), podman_args)
 
 
 def mount_desc_to_volume_args(compose, mount_desc, srv_name, cnt_name):  # pylint: disable=unused-argument
@@ -2220,7 +2230,7 @@ async def build_one(compose, args, cnt):
         build_args.extend(["-t", tag])
     if "target" in build_desc:
         build_args.extend(["--target", build_desc["target"]])
-    container_to_ulimit_args(cnt, build_args)
+    container_to_ulimit_build_args(cnt, build_args)
     if getattr(args, "no_cache", None):
         build_args.append("--no-cache")
     if getattr(args, "pull_always", None):
