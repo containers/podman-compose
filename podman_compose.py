@@ -35,7 +35,7 @@ except ImportError:
 import yaml
 from dotenv import dotenv_values
 
-__version__ = "1.0.7"
+__version__ = "1.1.0"
 
 script = os.path.realpath(sys.argv[0])
 
