@@ -35,6 +35,21 @@ class TestComposeRunUpdateContainerFromArgs(unittest.TestCase):
         }
         self.assertEqual(cnt, expected_cnt)
 
+    def test_publish_ports(self):
+        cnt = get_minimal_container()
+        compose = get_minimal_compose()
+        args = get_minimal_args()
+        args.publish = ["1111", "2222:2222"]
+
+        compose_run_update_container_from_args(compose, cnt, args)
+
+        expected_cnt = {
+            "name": "default_name",
+            "ports": ["1111", "2222:2222"],
+            "tty": True,
+        }
+        self.assertEqual(cnt, expected_cnt)
+
 
 def get_minimal_container():
     return {}
@@ -53,6 +68,7 @@ def get_minimal_args():
         name="default_name",
         rm=None,
         service=None,
+        publish=None,
         service_ports=None,
         user=None,
         volume=None,
