@@ -2587,6 +2587,10 @@ def compose_run_update_container_from_args(compose, cnt, args):
                 del cnt[k]
             except KeyError:
                 pass
+    if args.publish:
+        ports = cnt.get("ports", [])
+        ports.extend(norm_ports(args.publish))
+        cnt["ports"] = ports
     if args.volume:
         # TODO: handle volumes
         volumes = clone(cnt.get("volumes", None) or [])
