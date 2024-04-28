@@ -346,7 +346,7 @@ def norm_ulimit(inner_value):
 
 
 def transform(args, project_name, given_containers):
-    if not args.in_pod:
+    if not args.in_pod_bool:
         pod_name = None
         pods = []
     else:
@@ -1911,6 +1911,13 @@ class PodmanCompose:
             for cmd_parser in cmd._parse_args:  # pylint: disable=protected-access
                 cmd_parser(subparser)
         self.global_args = parser.parse_args()
+        if self.global_args.in_pod.lower() not in ('', 'true', '1', 'false', '0'):
+            raise ValueError(
+                f'Invalid --in-pod value: \'{self.global_args.in_pod}\'. '
+                'It must be set to either of: empty value, true, 1, false, 0'
+            )
+        self.global_args.in_pod_bool = self.global_args.in_pod.lower() in ('', 'true', '1')
+
         if self.global_args.version:
             self.global_args.command = "version"
         if not self.global_args.command or self.global_args.command == "help":
@@ -1927,8 +1934,8 @@ class PodmanCompose:
             "--in-pod",
             help="pod creation",
             metavar="in_pod",
-            type=bool,
-            default=True,
+            type=str,
+            default="true",
         )
         parser.add_argument(
             "--pod-args",
