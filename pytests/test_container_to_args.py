@@ -162,14 +162,21 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
+    async def test_uidmaps_extension_old_path(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt['x-podman'] = {'uidmaps': ['1000:1000:1']}
+
+        with self.assertRaises(ValueError):
+            await container_to_args(c, cnt)
+
     async def test_rootfs_extension(self):
         c = create_compose_mock()
 
         cnt = get_minimal_container()
         del cnt["image"]
-        cnt["x-podman"] = {
-            "rootfs": "/path/to/rootfs",
-        }
+        cnt["x-podman.rootfs"] = "/path/to/rootfs"
 
         args = await container_to_args(c, cnt)
         self.assertEqual(
