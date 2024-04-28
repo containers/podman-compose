@@ -1,6 +1,30 @@
 # Podman specific extensions to the docker-compose format
 
-Podman-compose supports the following extension to the docker-compose format.
+Podman-compose supports the following extension to the docker-compose format. These extensions
+are generally specified under fields with "x-podman" prefix in the compose file.
+
+## Container management
+
+The following extension keys are available under container configuration:
+
+* `x-podman.uidmap` - Run the container in a new user namespace using the supplied UID mapping.
+
+* `x-podman.gidmap` - Run the container in a new user namespace using the supplied GID mapping.
+
+* `x-podman.rootfs` - Run the container without requiring any image management; the rootfs of the
+container is assumed to be managed externally.
+
+For example, the following docker-compose.yml allows running a podman container with externally managed rootfs.
+```yml
+version: "3"
+services:
+    my_service:
+        command: ["/bin/busybox"]
+        x-podman.rootfs: "/path/to/rootfs"
+```
+
+For explanations of these extensions, please refer to the [Podman Documentation](https://docs.podman.io/).
+
 
 ## Per-network MAC-addresses
 
@@ -65,27 +89,3 @@ In addition, podman-compose supports the following podman-specific values for `n
 
 The options to the network modes are passed to the `--network` option of the `podman create` command
 as-is.
-
-# Service management
-
-Podman-compose extends the compose specification to support some unique features of Podman. These extensions can be specified in the compose file under the "x-podman" field.
-
-Currently, podman-compose supports the following extensions:
-
-* `uidmap` - Run the container in a new user namespace using the supplied UID mapping.
-
-* `gidmap` - Run the container in a new user namespace using the supplied GID mapping.
-
-* `rootfs` - Run the container without requiring any image management; the rootfs of the container is assumed to be managed externally.
-
-For example, the following docker-compose.yml allows running a podman container with externally managed rootfs.
-```yml
-version: "3"
-services:
-    my_service:
-      command: ["/bin/busybox"]
-      x-podman:
-        rootfs: "/path/to/rootfs"
-```
-
-For explanations of these extensions, please refer to the [Podman Documentation](https://docs.podman.io/).

@@ -1144,21 +1144,22 @@ async def container_to_args(compose, cnt, detached=True):
         podman_args.extend(["--healthcheck-retries", str(healthcheck["retries"])])
 
     # handle podman extension
-    x_podman = cnt.get("x-podman", None)
+    if 'x-podman' in cnt:
+        raise ValueError(
+            'Configuration under x-podman has been migrated to x-podman.uidmap and '
+            'x-podman.gidman fields'
+        )
+
     rootfs_mode = False
-    if x_podman is not None:
-        for uidmap in x_podman.get("uidmaps", []):
-            podman_args.extend(["--uidmap", uidmap])
-        for gidmap in x_podman.get("gidmaps", []):
-            podman_args.extend(["--gidmap", gidmap])
-        rootfs = x_podman.get("rootfs", None)
-        if rootfs is not None:
-            rootfs_mode = True
-            podman_args.extend(["--rootfs", rootfs])
-            log.warning(
-                "WARNING: x-podman.rootfs and image both specified, \
-            image field ignored"
-            )
+    for uidmap in cnt.get('x-podman.uidmaps', []):
+        podman_args.extend(["--uidmap", uidmap])
+    for gidmap in cnt.get('x-podman.gidmaps', []):
+        podman_args.extend(["--gidmap", gidmap])
+    rootfs = cnt.get('x-podman.rootfs', None)
+    if rootfs is not None:
+        rootfs_mode = True
+        podman_args.extend(["--rootfs", rootfs])
+        log.warning("WARNING: x-podman.rootfs and image both specified, image field ignored")
 
     if not rootfs_mode:
         podman_args.append(cnt["image"])  # command, ..etc.
