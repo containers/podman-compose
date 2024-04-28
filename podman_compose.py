@@ -2851,6 +2851,42 @@ async def compose_stats(compose, args):
         pass
 
 
+@cmd_run(podman_compose, "images", "List images used by the created containers")
+async def compose_images(compose, args):
+    img_containers = [cnt for cnt in compose.containers if "image" in cnt]
+    data = []
+    if args.quiet is True:
+        for img in img_containers:
+            name = img["name"]
+            output = await compose.podman.output([], "images", ["--quiet", img["image"]])
+            data.append(output.decode("utf-8").split())
+    else:
+        data.append(["CONTAINER", "REPOSITORY", "TAG", "IMAGE ID", "SIZE", ""])
+        for img in img_containers:
+            name = img["name"]
+            output = await compose.podman.output(
+                [],
+                "images",
+                [
+                    "--format",
+                    "table " + name + " {{.Repository}} {{.Tag}} {{.ID}} {{.Size}}",
+                    "-n",
+                    img["image"],
+                ],
+            )
+            data.append(output.decode("utf-8").split())
+
+    # Determine the maximum length of each column
+    column_widths = [max(map(len, column)) for column in zip(*data)]
+
+    # Print each row
+    for row in data:
+        # Format each cell using the maximum column width
+        formatted_row = [cell.ljust(width) for cell, width in zip(row, column_widths)]
+        formatted_row[-2:] = ["".join(formatted_row[-2:]).strip()]
+        print("\t".join(formatted_row))
+
+
 ###################
 # command arguments parsing
 ###################
@@ -3283,6 +3319,11 @@ def compose_kill_parse(parser):
         help="Signal all running containers",
         action="store_true",
     )
+
+
+@cmd_parse(podman_compose, "images")
+def compose_images_parse(parser):
+    parser.add_argument("-q", "--quiet", help="Only display images IDs", action="store_true")
 
 
 @cmd_parse(podman_compose, ["stats"])
