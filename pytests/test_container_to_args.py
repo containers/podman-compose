@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 import unittest
+from os import path
 from unittest import mock
 
 from podman_compose import container_to_args
@@ -232,5 +233,95 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "--network-alias=service_name",
                 "--rootfs",
                 "/path/to/rootfs",
+            ],
+        )
+
+    async def test_env_file_str(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        env_file = path.realpath('tests/env-file-tests/env-files/project-1.env')
+        cnt['env_file'] = env_file
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--env-file",
+                env_file,
+                "--network=bridge",
+                "--network-alias=service_name",
+                "busybox",
+            ],
+        )
+
+    async def test_env_file_str_not_exists(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt['env_file'] = 'notexists'
+
+        with self.assertRaises(ValueError):
+            await container_to_args(c, cnt)
+
+    async def test_env_file_str_arr(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        env_file = path.realpath('tests/env-file-tests/env-files/project-1.env')
+        cnt['env_file'] = [env_file]
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--env-file",
+                env_file,
+                "--network=bridge",
+                "--network-alias=service_name",
+                "busybox",
+            ],
+        )
+
+    async def test_env_file_obj_required(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        env_file = path.realpath('tests/env-file-tests/env-files/project-1.env')
+        cnt['env_file'] = {'path': env_file, 'required': True}
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--env-file",
+                env_file,
+                "--network=bridge",
+                "--network-alias=service_name",
+                "busybox",
+            ],
+        )
+
+    async def test_env_file_obj_optional(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt['env_file'] = {'path': 'not-exists', 'required': False}
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge",
+                "--network-alias=service_name",
+                "busybox",
             ],
         )
