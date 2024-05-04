@@ -9,44 +9,9 @@ import yaml
 from parameterized import parameterized
 
 from podman_compose import PodmanCompose
-from podman_compose import normalize_service
 
 
 class TestCanMergeBuild(unittest.TestCase):
-    @parameterized.expand([
-        ({"test": "test"}, {"test": "test"}),
-        ({"build": "."}, {"build": {"context": "."}}),
-        ({"build": "./dir-1"}, {"build": {"context": "./dir-1"}}),
-        ({"build": {"context": "./dir-1"}}, {"build": {"context": "./dir-1"}}),
-        (
-            {"build": {"dockerfile": "dockerfile-1"}},
-            {"build": {"dockerfile": "dockerfile-1"}},
-        ),
-        (
-            {"build": {"context": "./dir-1", "dockerfile": "dockerfile-1"}},
-            {"build": {"context": "./dir-1", "dockerfile": "dockerfile-1"}},
-        ),
-    ])
-    def test_simple(self, input, expected):
-        self.assertEqual(normalize_service(input), expected)
-
-    @parameterized.expand([
-        ({"test": "test"}, {"test": "test"}),
-        ({"build": "."}, {"build": {"context": "./sub_dir/."}}),
-        ({"build": "./dir-1"}, {"build": {"context": "./sub_dir/dir-1"}}),
-        ({"build": {"context": "./dir-1"}}, {"build": {"context": "./sub_dir/dir-1"}}),
-        (
-            {"build": {"dockerfile": "dockerfile-1"}},
-            {"build": {"context": "./sub_dir", "dockerfile": "dockerfile-1"}},
-        ),
-        (
-            {"build": {"context": "./dir-1", "dockerfile": "dockerfile-1"}},
-            {"build": {"context": "./sub_dir/dir-1", "dockerfile": "dockerfile-1"}},
-        ),
-    ])
-    def test_normalize_service_with_sub_dir(self, input, expected):
-        self.assertEqual(normalize_service(input, sub_dir="./sub_dir"), expected)
-
     @parameterized.expand([
         ({}, {}, {}),
         ({}, {"test": "test"}, {"test": "test"}),

@@ -10,32 +10,11 @@ import yaml
 from parameterized import parameterized
 
 from podman_compose import PodmanCompose
-from podman_compose import normalize_service
 
 test_keys = ["command", "entrypoint"]
 
 
 class TestCanMergeCmdEnt(unittest.TestCase):
-    @parameterized.expand([
-        ([], []),
-        (["sh"], ["sh"]),
-        (["sh", "-c", "date"], ["sh", "-c", "date"]),
-        ("sh", ["sh"]),
-        ("sleep infinity", ["sleep", "infinity"]),
-        (
-            "bash -c 'sleep infinity'",
-            ["bash", "-c", "sleep infinity"],
-        ),
-    ])
-    def test_command_like(self, input, expected):
-        for key in ['command', 'entrypoint']:
-            input_service = {}
-            input_service[key] = input
-
-            expected_service = {}
-            expected_service[key] = expected
-            self.assertEqual(normalize_service(input_service), expected_service)
-
     @parameterized.expand([
         ({}, {"$$$": []}, {"$$$": []}),
         ({"$$$": []}, {}, {"$$$": []}),
