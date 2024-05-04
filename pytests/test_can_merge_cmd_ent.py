@@ -17,22 +17,24 @@ test_keys = ["command", "entrypoint"]
 
 class TestCanMergeCmdEnt(unittest.TestCase):
     @parameterized.expand([
-        ({"$$$": []}, {"$$$": []}),
-        ({"$$$": ["sh"]}, {"$$$": ["sh"]}),
-        ({"$$$": ["sh", "-c", "date"]}, {"$$$": ["sh", "-c", "date"]}),
-        ({"$$$": "sh"}, {"$$$": ["sh"]}),
-        ({"$$$": "sleep infinity"}, {"$$$": ["sleep", "infinity"]}),
+        ([], []),
+        (["sh"], ["sh"]),
+        (["sh", "-c", "date"], ["sh", "-c", "date"]),
+        ("sh", ["sh"]),
+        ("sleep infinity", ["sleep", "infinity"]),
         (
-            {"$$$": "bash -c 'sleep infinity'"},
-            {"$$$": ["bash", "-c", "sleep infinity"]},
+            "bash -c 'sleep infinity'",
+            ["bash", "-c", "sleep infinity"],
         ),
     ])
-    def test_normalize_service(self, input_template, expected_template):
-        for key in test_keys:
-            test_input, _, expected = template_to_expression(
-                input_template, {}, expected_template, key
-            )
-            self.assertEqual(normalize_service(test_input), expected)
+    def test_command_like(self, input, expected):
+        for key in ['command', 'entrypoint']:
+            input_service = {}
+            input_service[key] = input
+
+            expected_service = {}
+            expected_service[key] = expected
+            self.assertEqual(normalize_service(input_service), expected_service)
 
     @parameterized.expand([
         ({}, {"$$$": []}, {"$$$": []}),
