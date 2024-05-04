@@ -52,9 +52,11 @@ like `hostnet`. If you desire that behavior, pass it the standard way like `netw
 
 ## Installation
 
+### Pip
+
 Install the latest stable version from PyPI:
 
-```
+```bash
 pip3 install podman-compose
 ```
 
@@ -62,14 +64,33 @@ pass `--user` to install inside regular user home without being root.
 
 Or latest development version from GitHub:
 
-```
-pip3 install https://github.com/containers/podman-compose/archive/devel.tar.gz
+```bash
+pip3 install https://github.com/containers/podman-compose/archive/main.tar.gz
 ```
 
+### Homebrew
+
+```bash
+brew install podman-compose
+```
+
+### Manual
+
+```bash
+curl -o /usr/local/bin/podman-compose https://raw.githubusercontent.com/containers/podman-compose/main/podman_compose.py
+chmod +x /usr/local/bin/podman-compose
+```
+
+or inside your home
+
+```bash
+curl -o ~/.local/bin/podman-compose https://raw.githubusercontent.com/containers/podman-compose/main/podman_compose.py
+chmod +x ~/.local/bin/podman-compose
+```
 
 or install from Fedora (starting from f31) repositories:
 
-```
+```bash
 sudo dnf install podman-compose
 ```
 
@@ -78,10 +99,9 @@ sudo dnf install podman-compose
 We have included fully functional sample stacks inside `examples/` directory.
 You can get more examples from [awesome-compose](https://github.com/docker/awesome-compose).
 
-
 A quick example would be
 
-```
+```bash
 cd examples/busybox
 podman-compose --help
 podman-compose up --help
