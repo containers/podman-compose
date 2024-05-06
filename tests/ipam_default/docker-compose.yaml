@@ -1,0 +1,15 @@
+version: '3'
+
+# --ipam-driver must not be pass when driver is "default"
+networks:
+  ipam_test_default:
+    ipam:
+      driver: default
+      config:
+          - subnet: 172.19.0.0/24
+
+services:
+  testipam:
+    image: busybox
+    command: ["echo", "ipamtest"]
+

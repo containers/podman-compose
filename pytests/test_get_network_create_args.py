@@ -77,7 +77,7 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
         args = get_network_create_args(net_desc, proj_name, net_name)
         self.assertEqual(args, expected_args)
 
-    def test_ipam_driver(self):
+    def test_ipam_driver_default(self):
         net_desc = {
             "labels": [],
             "internal": False,
@@ -102,8 +102,44 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
             f"io.podman.compose.project={proj_name}",
             "--label",
             f"com.docker.compose.project={proj_name}",
+            "--subnet",
+            "192.168.0.0/24",
+            "--ip-range",
+            "192.168.0.2/24",
+            "--gateway",
+            "192.168.0.1",
+            net_name,
+        ]
+        args = get_network_create_args(net_desc, proj_name, net_name)
+        self.assertEqual(args, expected_args)
+
+    def test_ipam_driver(self):
+        net_desc = {
+            "labels": [],
+            "internal": False,
+            "driver": None,
+            "driver_opts": {},
+            "ipam": {
+                "driver": "someipamdriver",
+                "config": [
+                    {
+                        "subnet": "192.168.0.0/24",
+                        "ip_range": "192.168.0.2/24",
+                        "gateway": "192.168.0.1",
+                    }
+                ],
+            },
+        }
+        proj_name = "test_project"
+        net_name = "test_network"
+        expected_args = [
+            "create",
+            "--label",
+            f"io.podman.compose.project={proj_name}",
+            "--label",
+            f"com.docker.compose.project={proj_name}",
             "--ipam-driver",
-            "default",
+            "someipamdriver",
             "--subnet",
             "192.168.0.0/24",
             "--ip-range",
@@ -122,7 +158,7 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
             "driver": "bridge",
             "driver_opts": {"opt1": "value1", "opt2": "value2"},
             "ipam": {
-                "driver": "default",
+                "driver": "someipamdriver",
                 "config": [
                     {
                         "subnet": "192.168.0.0/24",
@@ -153,7 +189,7 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
             "--opt",
             "opt2=value2",
             "--ipam-driver",
-            "default",
+            "someipamdriver",
             "--ipv6",
             "--subnet",
             "192.168.0.0/24",
