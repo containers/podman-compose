@@ -2543,7 +2543,7 @@ async def compose_ps(compose, args):
     "create a container similar to a service to run a one-off command",
 )
 async def compose_run(compose, args):
-    create_pods(compose, args)
+    await create_pods(compose, args)
     compose.assert_services(args.service)
     container_names = compose.container_names_by_service[args.service]
     container_name = container_names[0]
