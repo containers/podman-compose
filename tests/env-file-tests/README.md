@@ -7,3 +7,15 @@ podman-compose -f project/container-compose.yaml --env-file env-files/project-1.
 ```
 podman-compose -f $(pwd)/project/container-compose.yaml --env-file $(pwd)/env-files/project-1.env up
 ```
+
+```
+podman-compose -f $(pwd)/project/container-compose.env-file-flat.yaml up
+```
+
+```
+podman-compose -f $(pwd)/project/container-compose.env-file-obj.yaml up
+```
+
+```
+podman-compose -f $(pwd)/project/container-compose.env-file-obj-optional.yaml up
+```

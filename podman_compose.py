@@ -993,10 +993,18 @@ async def container_to_args(compose, cnt, detached=True):
     for item in norm_as_list(cnt.get("dns_search", None)):
         podman_args.extend(["--dns-search", item])
     env_file = cnt.get("env_file", [])
-    if is_str(env_file):
+    if is_str(env_file) or is_dict(env_file):
         env_file = [env_file]
     for i in env_file:
-        i = os.path.realpath(os.path.join(dirname, i))
+        if is_str(i):
+            i = {"path": i}
+        path = i["path"]
+        required = i.get("required", True)
+        i = os.path.realpath(os.path.join(dirname, path))
+        if not os.path.exists(i):
+            if not required:
+                continue
+            raise ValueError("Env file at {} does not exist".format(i))
         podman_args.extend(["--env-file", i])
     env = norm_as_list(cnt.get("environment", {}))
     for e in env:
