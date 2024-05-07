@@ -1943,7 +1943,7 @@ class PodmanCompose:
             help="pod creation",
             metavar="in_pod",
             type=str,
-            default="true",
+            default=os.getenv("PODMAN_COMPOSE_USE_PODS", "true"),
         )
         parser.add_argument(
             "--pod-args",
