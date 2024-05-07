@@ -2348,7 +2348,7 @@ async def compose_up(compose: PodmanCompose, args):
         # `podman build` does not cache, so don't always build
         build_args = argparse.Namespace(if_not_exists=(not args.build), **args.__dict__)
         if await compose.commands["build"](compose, build_args) != 0:
-            log("Build command failed")
+            log.error("Build command failed")
 
     hashes = (
         (
