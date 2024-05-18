@@ -1749,7 +1749,7 @@ class PodmanCompose:
                 # If `include` is used, append included files to files
                 include = compose.get("include", None)
                 if include:
-                    files.append(*include)
+                    files.extend(include)
                     # As compose obj is updated and tested with every loop, not deleting `include`
                     # from it, results in it being tested again and again, original values for
                     # `include` be appended to `files`, and, included files be processed for ever.
