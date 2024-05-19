@@ -635,6 +635,62 @@ def get_secret_args(compose, cnt, secret, podman_is_building=False):
 
 
 def container_to_res_args(cnt, podman_args):
+    container_to_cpu_res_args(cnt, podman_args)
+    container_to_gpu_res_args(cnt, podman_args)
+
+
+def container_to_gpu_res_args(cnt, podman_args):
+    # https://docs.docker.com/compose/gpu-support/
+    # https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/cdi-support.html
+
+    deploy = cnt.get("deploy", None) or {}
+    res = deploy.get("resources", None) or {}
+    reservations = res.get("reservations", None) or {}
+    devices = reservations.get("devices", [])
+    gpu_on = False
+    for device in devices:
+        driver = device.get("driver", None)
+        if driver is None:
+            continue
+
+        capabilities = device.get("capabilities", None)
+        if capabilities is None:
+            continue
+
+        if driver != "nvidia" or "gpu" not in capabilities:
+            continue
+
+        count = device.get("count", "all")
+        device_ids = device.get("device_ids", "all")
+        if device_ids != "all" and len(device_ids) > 0:
+            for device_id in device_ids:
+                podman_args.extend((
+                    "--device",
+                    f"nvidia.com/gpu={device_id}",
+                ))
+            gpu_on = True
+            continue
+
+        if count != "all":
+            for device_id in range(count):
+                podman_args.extend((
+                    "--device",
+                    f"nvidia.com/gpu={device_id}",
+                ))
+            gpu_on = True
+            continue
+
+        podman_args.extend((
+            "--device",
+            "nvidia.com/gpu=all",
+        ))
+        gpu_on = True
+
+    if gpu_on:
+        podman_args.append("--security-opt=label=disable")
+
+
+def container_to_cpu_res_args(cnt, podman_args):
     # v2: https://docs.docker.com/compose/compose-file/compose-file-v2/#cpu-and-other-resources
     # cpus, cpu_shares, mem_limit, mem_reservation
     cpus_limit_v2 = try_float(cnt.get("cpus", None), None)

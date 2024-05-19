@@ -325,3 +325,106 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "busybox",
             ],
         )
+
+    async def test_gpu(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["command"] = ["nvidia-smi"]
+        cnt["deploy"] = {"resources": {"reservations": {"devices": [{}]}}}
+
+        # count: all
+        cnt["deploy"]["resources"]["reservations"]["devices"][0] = {
+            "driver": "nvidia",
+            "count": "all",
+            "capabilities": ["gpu"],
+        }
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge",
+                "--network-alias=service_name",
+                "--device",
+                "nvidia.com/gpu=all",
+                "--security-opt=label=disable",
+                "busybox",
+                "nvidia-smi",
+            ],
+        )
+
+        # count: 2
+        cnt["deploy"]["resources"]["reservations"]["devices"][0] = {
+            "driver": "nvidia",
+            "count": 2,
+            "capabilities": ["gpu"],
+        }
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge",
+                "--network-alias=service_name",
+                "--device",
+                "nvidia.com/gpu=0",
+                "--device",
+                "nvidia.com/gpu=1",
+                "--security-opt=label=disable",
+                "busybox",
+                "nvidia-smi",
+            ],
+        )
+
+        # device_ids: all
+        cnt["deploy"]["resources"]["reservations"]["devices"][0] = {
+            "driver": "nvidia",
+            "device_ids": "all",
+            "capabilities": ["gpu"],
+        }
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge",
+                "--network-alias=service_name",
+                "--device",
+                "nvidia.com/gpu=all",
+                "--security-opt=label=disable",
+                "busybox",
+                "nvidia-smi",
+            ],
+        )
+
+        # device_ids: 1,3
+        cnt["deploy"]["resources"]["reservations"]["devices"][0] = {
+            "driver": "nvidia",
+            "device_ids": [1, 3],
+            "capabilities": ["gpu"],
+        }
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge",
+                "--network-alias=service_name",
+                "--device",
+                "nvidia.com/gpu=1",
+                "--device",
+                "nvidia.com/gpu=3",
+                "--security-opt=label=disable",
+                "busybox",
+                "nvidia-smi",
+            ],
+        )
