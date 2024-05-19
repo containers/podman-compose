@@ -1,0 +1,14 @@
+version: "3"
+services:
+  web1:
+    image: busybox
+    command: httpd -f -p 80 -h /var/www/html
+    volumes:
+      - type: bind
+        source: ./docker-compose.yml
+        target: /var/www/html/index.html
+        bind:
+          selinux: z
+    ports:
+      - "8080:80"
+
