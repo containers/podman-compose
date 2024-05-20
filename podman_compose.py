@@ -431,11 +431,6 @@ def mount_desc_to_mount_args(compose, mount_desc, srv_name, cnt_name):  # pylint
         tmpfs_mode = tmpfs_opts.get("mode", None)
         if tmpfs_mode:
             opts.append(f"tmpfs-mode={tmpfs_mode}")
-    if mount_type == "bind":
-        bind_opts = mount_desc.get("bind", {})
-        selinux = bind_opts.get("selinux", None)
-        if selinux is not None:
-            opts.append(selinux)
     opts = ",".join(opts)
     if mount_type == "bind":
         return f"type=bind,source={source},destination={target},{opts}".rstrip(",")
@@ -501,12 +496,6 @@ def mount_desc_to_volume_args(compose, mount_desc, srv_name, cnt_name):  # pylin
     read_only = mount_desc.get("read_only", None)
     if read_only is not None:
         opts.append("ro" if read_only else "rw")
-    if mount_type == "bind":
-        bind_opts = mount_desc.get("bind", {})
-        selinux = bind_opts.get("selinux", None)
-        if selinux is not None:
-            opts.append(selinux)
-
     args = f"{source}:{target}"
     if opts:
         args += ":" + ",".join(opts)
