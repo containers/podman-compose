@@ -4,6 +4,8 @@ import unittest
 from os import path
 from unittest import mock
 
+from parameterized import parameterized
+
 from podman_compose import container_to_args
 
 
@@ -426,5 +428,45 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "--security-opt=label=disable",
                 "busybox",
                 "nvidia-smi",
+            ],
+        )
+
+    @parameterized.expand([
+        (False, "z", ["--mount", "type=bind,source=./foo,destination=/mnt,z"]),
+        (False, "Z", ["--mount", "type=bind,source=./foo,destination=/mnt,Z"]),
+        (True, "z", ["-v", "./foo:/mnt:z"]),
+        (True, "Z", ["-v", "./foo:/mnt:Z"]),
+    ])
+    async def test_selinux_volume(self, prefer_volume, selinux_type, expected_additional_args):
+        c = create_compose_mock()
+        c.prefer_volume_over_mount = prefer_volume
+
+        cnt = get_minimal_container()
+
+        # This is supposed to happen during `_parse_compose_file`
+        # but that is probably getting skipped during testing
+        cnt["_service"] = cnt["service_name"]
+
+        cnt["volumes"] = [
+            {
+                "type": "bind",
+                "source": "./foo",
+                "target": "/mnt",
+                "bind": {
+                    "selinux": selinux_type,
+                },
+            }
+        ]
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                *expected_additional_args,
+                "--network=bridge",
+                "--network-alias=service_name",
+                "busybox",
             ],
         )
