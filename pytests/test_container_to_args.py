@@ -326,14 +326,13 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_gpu(self):
+    async def test_gpu_count_all(self):
         c = create_compose_mock()
 
         cnt = get_minimal_container()
         cnt["command"] = ["nvidia-smi"]
         cnt["deploy"] = {"resources": {"reservations": {"devices": [{}]}}}
 
-        # count: all
         cnt["deploy"]["resources"]["reservations"]["devices"][0] = {
             "driver": "nvidia",
             "count": "all",
@@ -356,11 +355,23 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-        # count: 2
-        cnt["deploy"]["resources"]["reservations"]["devices"][0] = {
-            "driver": "nvidia",
-            "count": 2,
-            "capabilities": ["gpu"],
+    async def test_gpu_count_specific(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["command"] = ["nvidia-smi"]
+        cnt["deploy"] = {
+            "resources": {
+                "reservations": {
+                    "devices": [
+                        {
+                            "driver": "nvidia",
+                            "count": 2,
+                            "capabilities": ["gpu"],
+                        }
+                    ]
+                }
+            }
         }
 
         args = await container_to_args(c, cnt)
@@ -381,11 +392,23 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-        # device_ids: all
-        cnt["deploy"]["resources"]["reservations"]["devices"][0] = {
-            "driver": "nvidia",
-            "device_ids": "all",
-            "capabilities": ["gpu"],
+    async def test_gpu_device_ids_all(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["command"] = ["nvidia-smi"]
+        cnt["deploy"] = {
+            "resources": {
+                "reservations": {
+                    "devices": [
+                        {
+                            "driver": "nvidia",
+                            "device_ids": "all",
+                            "capabilities": ["gpu"],
+                        }
+                    ]
+                }
+            }
         }
 
         args = await container_to_args(c, cnt)
@@ -404,11 +427,23 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-        # device_ids: 1,3
-        cnt["deploy"]["resources"]["reservations"]["devices"][0] = {
-            "driver": "nvidia",
-            "device_ids": [1, 3],
-            "capabilities": ["gpu"],
+    async def test_gpu_device_ids_specific(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["command"] = ["nvidia-smi"]
+        cnt["deploy"] = {
+            "resources": {
+                "reservations": {
+                    "devices": [
+                        {
+                            "driver": "nvidia",
+                            "device_ids": [1, 3],
+                            "capabilities": ["gpu"],
+                        }
+                    ]
+                }
+            }
         }
 
         args = await container_to_args(c, cnt)
