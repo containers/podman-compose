@@ -20,6 +20,14 @@ class TestNormalizeService(unittest.TestCase):
             {"build": {"context": "./dir-1", "dockerfile": "dockerfile-1"}},
             {"build": {"context": "./dir-1", "dockerfile": "dockerfile-1"}},
         ),
+        (
+            {"build": {"additional_contexts": ["ctx=../ctx", "ctx2=../ctx2"]}},
+            {"build": {"additional_contexts": ["ctx=../ctx", "ctx2=../ctx2"]}},
+        ),
+        (
+            {"build": {"additional_contexts": {"ctx": "../ctx", "ctx2": "../ctx2"}}},
+            {"build": {"additional_contexts": ["ctx=../ctx", "ctx2=../ctx2"]}},
+        ),
     ])
     def test_simple(self, input, expected):
         self.assertEqual(normalize_service(input), expected)
