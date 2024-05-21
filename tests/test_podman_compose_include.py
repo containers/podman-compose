@@ -44,16 +44,18 @@ class TestPodmanComposeInclude(unittest.TestCase, RunSubprocessMixin):
             '"{{.ID}}"',
         ]
 
-        command_down = ["podman", "rm", "--force", "CONTAINER_ID"]
+        command_down = ["podman", "rm", "--force"]
 
         self.run_subprocess_assert_returncode(command_up)
         out, _ = self.run_subprocess_assert_returncode(command_check_container)
-        self.assertEqual(out, b'"localhost/nopush/podman-compose-test:latest"\n"localhost/nopush/podman-compose-test:latest"\n')
+        expected_output = b'"localhost/nopush/podman-compose-test:latest"\n' * 2
+        self.assertEqual(out, expected_output)
         # Get container ID to remove it
         out, _ = self.run_subprocess_assert_returncode(command_container_id)
         self.assertNotEqual(out, b"")
-        container_id = out.decode().strip().replace('"', "")
-        command_down[3] = container_id
+        container_ids = out.decode().strip().split("\n")
+        container_ids = [container_id.replace('"', "") for container_id in container_ids]
+        command_down.extend(container_ids)
         out, _ = self.run_subprocess_assert_returncode(command_down)
         # cleanup test image(tags)
         self.assertNotEqual(out, b"")
