@@ -251,8 +251,12 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--env-file",
-                env_file,
+                "-e",
+                "ZZVAR1=podman-rocks-123",
+                "-e",
+                "ZZVAR2=podman-rocks-124",
+                "-e",
+                "ZZVAR3=podman-rocks-125",
                 "--network=bridge",
                 "--network-alias=service_name",
                 "busybox",
@@ -268,7 +272,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):
             await container_to_args(c, cnt)
 
-    async def test_env_file_str_arr(self):
+    async def test_env_file_str_array_one_path(self):
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -281,8 +285,42 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--env-file",
-                env_file,
+                "-e",
+                "ZZVAR1=podman-rocks-123",
+                "-e",
+                "ZZVAR2=podman-rocks-124",
+                "-e",
+                "ZZVAR3=podman-rocks-125",
+                "--network=bridge",
+                "--network-alias=service_name",
+                "busybox",
+            ],
+        )
+
+    async def test_env_file_str_array_two_paths(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        env_file = path.realpath('tests/env-file-tests/env-files/project-1.env')
+        env_file_2 = path.realpath('tests/env-file-tests/env-files/project-2.env')
+        cnt['env_file'] = [env_file, env_file_2]
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "-e",
+                "ZZVAR1=podman-rocks-123",
+                "-e",
+                "ZZVAR2=podman-rocks-124",
+                "-e",
+                "ZZVAR3=podman-rocks-125",
+                "-e",
+                "ZZVAR1=podman-rocks-223",
+                "-e",
+                "ZZVAR2=podman-rocks-224",
                 "--network=bridge",
                 "--network-alias=service_name",
                 "busybox",
@@ -302,8 +340,12 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--env-file",
-                env_file,
+                "-e",
+                "ZZVAR1=podman-rocks-123",
+                "-e",
+                "ZZVAR2=podman-rocks-124",
+                "-e",
+                "ZZVAR3=podman-rocks-125",
                 "--network=bridge",
                 "--network-alias=service_name",
                 "busybox",
