@@ -312,7 +312,6 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
 
     async def test_env_file_obj_optional(self):
         c = create_compose_mock()
-
         cnt = get_minimal_container()
         cnt['env_file'] = {'path': 'not-exists', 'required': False}
 
