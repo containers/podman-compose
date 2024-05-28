@@ -17,6 +17,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Codespell
-        uses: codespell-project/actions-codespell@v2
+        uses: codespell-project/actions-codespell@v1
         with:
             ignore_words_file: .codespellignore
