@@ -1218,6 +1218,10 @@ async def container_to_args(compose, cnt, detached=True):
     if "start_period" in healthcheck:
         podman_args.extend(["--healthcheck-start-period", healthcheck["start_period"]])
 
+    # check if any action must be taken on healtcheck failure
+    if "on_failure" in healthcheck:
+        podman_args.extend(["--health-on-failure", healthcheck["on_failure"]])
+
     # convert other parameters to string
     if "retries" in healthcheck:
         podman_args.extend(["--healthcheck-retries", str(healthcheck["retries"])])
