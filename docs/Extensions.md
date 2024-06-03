@@ -89,3 +89,23 @@ In addition, podman-compose supports the following podman-specific values for `n
 
 The options to the network modes are passed to the `--network` option of the `podman create` command
 as-is.
+
+
+## Custom pods management
+
+Podman-compose can have containers in pods. This can be controlled by extension key x-podman in_pod.
+It allows providing custom value for --in-pod and is especially relevant when --userns has to be set.
+
+For example, the following docker-compose.yml allows using userns_mode by overriding the default
+value of --in-pod (unless it was specifically provided by "--in-pod=True" in command line interface).
+```yml
+version: "3"
+services:
+    cont:
+        image: nopush/podman-compose-test
+        userns_mode: keep-id:uid=1000
+        command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-p", "8080"]
+
+x-podman:
+    in_pod: false
+```

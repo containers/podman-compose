@@ -1741,6 +1741,18 @@ class PodmanCompose:
         if isinstance(retcode, int):
             sys.exit(retcode)
 
+    def resolve_in_pod(self, compose):
+        if self.global_args.in_pod_bool is None:
+            extension_dict = compose.get("x-podman", None)
+            if extension_dict is not None:
+                in_pod_value = extension_dict.get("in_pod", None)
+                if in_pod_value is not None:
+                    self.global_args.in_pod_bool = in_pod_value
+            else:
+                self.global_args.in_pod_bool = True
+        # otherwise use `in_pod` value provided by command line
+        return self.global_args.in_pod_bool
+
     def _parse_compose_file(self):
         args = self.global_args
         # cmd = args.command
@@ -1968,6 +1980,8 @@ class PodmanCompose:
         given_containers = list(container_by_name.values())
         given_containers.sort(key=lambda c: len(c.get("_deps", None) or []))
         # log("sorted:", [c["name"] for c in given_containers])
+
+        args.in_pod_bool = self.resolve_in_pod(compose)
         pods, containers = transform(args, project_name, given_containers)
         self.pods = pods
         self.containers = containers
@@ -2005,12 +2019,22 @@ class PodmanCompose:
             for cmd_parser in cmd._parse_args:  # pylint: disable=protected-access
                 cmd_parser(subparser)
         self.global_args = parser.parse_args()
-        if self.global_args.in_pod.lower() not in ('', 'true', '1', 'false', '0'):
+        if self.global_args.in_pod is not None and self.global_args.in_pod.lower() not in (
+            '',
+            'true',
+            '1',
+            'false',
+            '0',
+        ):
             raise ValueError(
                 f'Invalid --in-pod value: \'{self.global_args.in_pod}\'. '
                 'It must be set to either of: empty value, true, 1, false, 0'
             )
-        self.global_args.in_pod_bool = self.global_args.in_pod.lower() in ('', 'true', '1')
+
+        if self.global_args.in_pod == '' or self.global_args.in_pod is None:
+            self.global_args.in_pod_bool = None
+        else:
+            self.global_args.in_pod_bool = self.global_args.in_pod.lower() in ('true', '1')
 
         if self.global_args.version:
             self.global_args.command = "version"
@@ -2029,7 +2053,7 @@ class PodmanCompose:
             help="pod creation",
             metavar="in_pod",
             type=str,
-            default="true",
+            default=None,
         )
         parser.add_argument(
             "--pod-args",
