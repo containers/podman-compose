@@ -2051,7 +2051,7 @@ class PodmanCompose:
         parser.add_argument(
             "-f",
             "--file",
-            help="Specify an alternate compose file (default: docker-compose.yml). If '-' is specified, the input will be read from standard input (stdin).",
+            help="Specify an alternate compose file (default: docker-compose.yml) or '-' for reading from stdin.",
             metavar="file",
             action="append",
             default=[],
