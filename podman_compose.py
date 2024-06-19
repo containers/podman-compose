@@ -1762,7 +1762,7 @@ class PodmanCompose:
                 "pass files with -f"
             )
             sys.exit(-1)
-        ex = map(os.path.exists, files)
+        ex = map(lambda x: x == '-' or os.path.exists(x), files)
         missing = [fn0 for ex0, fn0 in zip(ex, files) if not ex0]
         if missing:
             log.fatal("missing files: %s", missing)
@@ -1811,28 +1811,31 @@ class PodmanCompose:
             except StopIteration:
                 break
 
-            with open(filename, "r", encoding="utf-8") as f:
-                content = yaml.safe_load(f)
+            if filename.strip().split('/')[-1] == '-':
+                content = yaml.safe_load(sys.stdin)
+            else:
+                with open(filename, "r", encoding="utf-8") as f:
+                    content = yaml.safe_load(f)
                 # log(filename, json.dumps(content, indent = 2))
-                if not isinstance(content, dict):
-                    sys.stderr.write(
-                        "Compose file does not contain a top level object: %s\n" % filename
-                    )
-                    sys.exit(1)
-                content = normalize(content)
-                # log(filename, json.dumps(content, indent = 2))
-                content = rec_subs(content, self.environ)
-                rec_merge(compose, content)
-                # If `include` is used, append included files to files
-                include = compose.get("include", None)
-                if include:
-                    files.extend(include)
-                    # As compose obj is updated and tested with every loop, not deleting `include`
-                    # from it, results in it being tested again and again, original values for
-                    # `include` be appended to `files`, and, included files be processed for ever.
-                    # Solution is to remove 'include' key from compose obj. This doesn't break
-                    # having `include` present and correctly processed in included files
-                    del compose["include"]
+            if not isinstance(content, dict):
+                sys.stderr.write(
+                    "Compose file does not contain a top level object: %s\n" % filename
+                )
+                sys.exit(1)
+            content = normalize(content)
+            # log(filename, json.dumps(content, indent = 2))
+            content = rec_subs(content, self.environ)
+            rec_merge(compose, content)
+            # If `include` is used, append included files to files
+            include = compose.get("include", None)
+            if include:
+                files.extend(include)
+                # As compose obj is updated and tested with every loop, not deleting `include`
+                # from it, results in it being tested again and again, original values for
+                # `include` be appended to `files`, and, included files be processed for ever.
+                # Solution is to remove 'include' key from compose obj. This doesn't break
+                # having `include` present and correctly processed in included files
+                del compose["include"]
         resolved_services = self._resolve_profiles(compose.get("services", {}), set(args.profile))
         compose["services"] = resolved_services
         if not getattr(args, "no_normalize", None):
@@ -2048,7 +2051,7 @@ class PodmanCompose:
         parser.add_argument(
             "-f",
             "--file",
-            help="Specify an alternate compose file (default: docker-compose.yml)",
+            help="Specify an compose file (default: docker-compose.yml) or '-' to read from stdin.",
             metavar="file",
             action="append",
             default=[],
