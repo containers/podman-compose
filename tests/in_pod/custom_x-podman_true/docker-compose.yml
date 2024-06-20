@@ -1,0 +1,9 @@
+version: "3"
+services:
+    cont:
+        image: nopush/podman-compose-test
+        userns_mode: keep-id:uid=1000
+        command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-p", "8080"]
+
+x-podman:
+    in_pod: true
