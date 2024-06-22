@@ -1804,8 +1804,8 @@ class PodmanCompose:
         os.environ.update({
             key: value for key, value in dotenv_dict.items() if key.startswith("PODMAN_")
         })
-        self.environ = dict(os.environ)
-        self.environ.update(dotenv_dict)
+        self.environ = dotenv_dict
+        self.environ.update(dict(os.environ))
         # see: https://docs.docker.com/compose/reference/envvars/
         # see: https://docs.docker.com/compose/env-file/
         self.environ.update({
