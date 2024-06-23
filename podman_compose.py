@@ -1184,10 +1184,7 @@ async def container_to_args(compose, cnt, detached=True):
         # If it's a string, it's equivalent to specifying CMD-SHELL
         if is_str(healthcheck_test):
             # podman does not add shell to handle command with whitespace
-            podman_args.extend([
-                "--healthcheck-command",
-                "/bin/sh -c " + cmd_quote(healthcheck_test),
-            ])
+            podman_args.extend(["--health-cmd", "/bin/sh -c " + cmd_quote(healthcheck_test)])
         elif is_list(healthcheck_test):
             healthcheck_test = healthcheck_test.copy()
             # If it's a list, first item is either NONE, CMD or CMD-SHELL.
@@ -1196,12 +1193,12 @@ async def container_to_args(compose, cnt, detached=True):
                 podman_args.append("--no-healthcheck")
             elif healthcheck_type == "CMD":
                 cmd_q = "' '".join([cmd_quote(i) for i in healthcheck_test])
-                podman_args.extend(["--healthcheck-command", "/bin/sh -c " + cmd_q])
+                podman_args.extend(["--health-cmd", "/bin/sh -c " + cmd_q])
             elif healthcheck_type == "CMD-SHELL":
                 if len(healthcheck_test) != 1:
                     raise ValueError("'CMD_SHELL' takes a single string after it")
                 cmd_q = cmd_quote(healthcheck_test[0])
-                podman_args.extend(["--healthcheck-command", "/bin/sh -c " + cmd_q])
+                podman_args.extend(["--health-cmd", "/bin/sh -c " + cmd_q])
             else:
                 raise ValueError(
                     f"unknown healthcheck test type [{healthcheck_type}],\
@@ -1210,17 +1207,19 @@ async def container_to_args(compose, cnt, detached=True):
         else:
             raise ValueError("'healthcheck.test' either a string or a list")
 
-    # interval, timeout and start_period are specified as durations.
+    # interval, timeout, start_period, and start_interval are specified as durations.
     if "interval" in healthcheck:
-        podman_args.extend(["--healthcheck-interval", healthcheck["interval"]])
+        podman_args.extend(["--health-interval", healthcheck["interval"]])
     if "timeout" in healthcheck:
-        podman_args.extend(["--healthcheck-timeout", healthcheck["timeout"]])
+        podman_args.extend(["--health-timeout", healthcheck["timeout"]])
     if "start_period" in healthcheck:
-        podman_args.extend(["--healthcheck-start-period", healthcheck["start_period"]])
+        podman_args.extend(["--health-start-period", healthcheck["start_period"]])
+    if "start_interval" in healthcheck:
+        podman_args.extend(["--health-startup-interval", healthcheck["start_interval"]])
 
     # convert other parameters to string
     if "retries" in healthcheck:
-        podman_args.extend(["--healthcheck-retries", str(healthcheck["retries"])])
+        podman_args.extend(["--health-retries", str(healthcheck["retries"])])
 
     # handle podman extension
     if 'x-podman' in cnt:
