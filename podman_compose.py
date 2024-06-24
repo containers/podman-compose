@@ -619,7 +619,7 @@ def get_secret_args(compose, cnt, secret, podman_is_building=False):
         secret_opts += f",mode={secret_mode}" if secret_mode else ""
         secret_opts += f",type={secret_type}" if secret_type else ""
         secret_opts += f",target={secret_target}" if secret_target and secret_type == "env" else ""
-        # The secret_target option is only valid for type=env,
+        # The target option is only valid for type=env,
         # which in an ideal world would work
         # for type=mount as well.
         # having a custom name for the external secret
