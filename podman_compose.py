@@ -563,10 +563,11 @@ def get_secret_args(compose, cnt, secret, podman_is_building=False):
     dest_file = ""
     secret_opts = ""
 
-    target = None if is_str(secret) else secret.get("target", None)
-    uid = None if is_str(secret) else secret.get("uid", None)
-    gid = None if is_str(secret) else secret.get("gid", None)
-    mode = None if is_str(secret) else secret.get("mode", None)
+    secret_target = None if is_str(secret) else secret.get("target", None)
+    secret_uid = None if is_str(secret) else secret.get("uid", None)
+    secret_gid = None if is_str(secret) else secret.get("gid", None)
+    secret_mode = None if is_str(secret) else secret.get("mode", None)
+    secret_type = None if is_str(secret) else secret.get("type", None)
 
     if source_file:
         # assemble path for source file first, because we need it for all cases
@@ -575,29 +576,29 @@ def get_secret_args(compose, cnt, secret, podman_is_building=False):
 
         if podman_is_building:
             # pass file secrets to "podman build" with param --secret
-            if not target:
+            if not secret_target:
                 secret_id = secret_name
-            elif "/" in target:
+            elif "/" in secret_target:
                 raise ValueError(
-                    f'ERROR: Build secret "{secret_name}" has invalid target "{target}". '
+                    f'ERROR: Build secret "{secret_name}" has invalid target "{secret_target}". '
                     + "(Expected plain filename without directory as target.)"
                 )
             else:
-                secret_id = target
+                secret_id = secret_target
             volume_ref = ["--secret", f"id={secret_id},src={source_file}"]
         else:
             # pass file secrets to "podman run" as volumes
-            if not target:
-                dest_file = f"/run/secrets/{secret_name}"
-            elif not target.startswith("/"):
-                sec = target if target else secret_name
+            if not secret_target:
+                dest_file = "/run/secrets/{}".format(secret_name)
+            elif not secret_target.startswith("/"):
+                sec = secret_target if secret_target else secret_name
                 dest_file = f"/run/secrets/{sec}"
             else:
-                dest_file = target
+                dest_file = secret_target
             volume_ref = ["--volume", f"{source_file}:{dest_file}:ro,rprivate,rbind"]
 
-        if uid or gid or mode:
-            sec = target if target else secret_name
+        if secret_uid or secret_gid or secret_mode:
+            sec = secret_target if secret_target else secret_name
             log.warning(
                 "WARNING: Service %s uses secret %s with uid, gid, or mode."
                 + " These fields are not supported by this implementation of the Compose file",
@@ -613,9 +614,11 @@ def get_secret_args(compose, cnt, secret, podman_is_building=False):
     # podman-create commands, albeit we can only support a 1:1 mapping
     # at the moment
     if declared_secret.get("external", False) or declared_secret.get("name", None):
-        secret_opts += f",uid={uid}" if uid else ""
-        secret_opts += f",gid={gid}" if gid else ""
-        secret_opts += f",mode={mode}" if mode else ""
+        secret_opts += f",uid={secret_uid}" if secret_uid else ""
+        secret_opts += f",gid={secret_gid}" if secret_gid else ""
+        secret_opts += f",mode={secret_mode}" if secret_mode else ""
+        secret_opts += f",type={secret_type}" if secret_type else ""
+        secret_opts += f",target={secret_target}" if secret_target and secret_type == "env" else ""
         # The target option is only valid for type=env,
         # which in an ideal world would work
         # for type=mount as well.
@@ -628,14 +631,14 @@ def get_secret_args(compose, cnt, secret, podman_is_building=False):
         )
         if ext_name and ext_name != secret_name:
             raise ValueError(err_str.format(secret_name, ext_name))
-        if target and target != secret_name:
-            raise ValueError(err_str.format(target, secret_name))
-        if target:
+        if secret_target and secret_target != secret_name and secret_type != 'env':
+            raise ValueError(err_str.format(secret_target, secret_name))
+        if secret_target and secret_type != 'env':
             log.warning(
                 'WARNING: Service "%s" uses target: "%s" for secret: "%s".'
                 + " That is un-supported and a no-op and is ignored.",
                 cnt["_service"],
-                target,
+                secret_target,
                 secret_name,
             )
         return ["--secret", "{}{}".format(secret_name, secret_opts)]
