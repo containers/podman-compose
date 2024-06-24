@@ -1,0 +1,4 @@
+# This overrides the repository root .gitignore (ignoring all .env).
+# The .env files in this directory are important for the test cases.
+!.env
+!project/.env
