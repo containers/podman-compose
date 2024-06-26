@@ -1527,12 +1527,8 @@ def normalize_service_final(service: dict, project_dir: str) -> dict:
         build = service["build"]
         context = build if is_str(build) else build.get("context", ".")
         context = os.path.normpath(os.path.join(project_dir, context))
-        dockerfile = (
-            "Dockerfile" if is_str(build) else service["build"].get("dockerfile", "Dockerfile")
-        )
         if not is_dict(service["build"]):
             service["build"] = {}
-        service["build"]["dockerfile"] = dockerfile
         service["build"]["context"] = context
     return service
 
