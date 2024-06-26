@@ -22,7 +22,7 @@ class TestNormalizeFinalBuild(unittest.TestCase):
         (
             {"build": "."},
             {
-                "build": {"context": cwd, "dockerfile": "Dockerfile"},
+                "build": {"context": cwd},
             },
         ),
         (
@@ -30,7 +30,6 @@ class TestNormalizeFinalBuild(unittest.TestCase):
             {
                 "build": {
                     "context": os.path.normpath(os.path.join(cwd, "../relative")),
-                    "dockerfile": "Dockerfile",
                 },
             },
         ),
@@ -39,7 +38,6 @@ class TestNormalizeFinalBuild(unittest.TestCase):
             {
                 "build": {
                     "context": os.path.normpath(os.path.join(cwd, "./relative")),
-                    "dockerfile": "Dockerfile",
                 },
             },
         ),
@@ -48,7 +46,6 @@ class TestNormalizeFinalBuild(unittest.TestCase):
             {
                 "build": {
                     "context": "/workspace/absolute",
-                    "dockerfile": "Dockerfile",
                 },
             },
         ),
@@ -74,7 +71,6 @@ class TestNormalizeFinalBuild(unittest.TestCase):
             {
                 "build": {
                     "context": cwd,
-                    "dockerfile": "Dockerfile",
                 },
             },
         ),
@@ -135,12 +131,12 @@ class TestNormalizeFinalBuild(unittest.TestCase):
         (
             {},
             {"build": "."},
-            {"build": {"context": cwd, "dockerfile": "Dockerfile"}},
+            {"build": {"context": cwd}},
         ),
         (
             {"build": "."},
             {},
-            {"build": {"context": cwd, "dockerfile": "Dockerfile"}},
+            {"build": {"context": cwd}},
         ),
         (
             {"build": "/workspace/absolute"},
@@ -148,19 +144,18 @@ class TestNormalizeFinalBuild(unittest.TestCase):
             {
                 "build": {
                     "context": os.path.normpath(os.path.join(cwd, "./relative")),
-                    "dockerfile": "Dockerfile",
                 }
             },
         ),
         (
             {"build": "./relative"},
             {"build": "/workspace/absolute"},
-            {"build": {"context": "/workspace/absolute", "dockerfile": "Dockerfile"}},
+            {"build": {"context": "/workspace/absolute"}},
         ),
         (
             {"build": "./relative"},
             {"build": "/workspace/absolute"},
-            {"build": {"context": "/workspace/absolute", "dockerfile": "Dockerfile"}},
+            {"build": {"context": "/workspace/absolute"}},
         ),
         (
             {"build": {"dockerfile": "test-dockerfile"}},
