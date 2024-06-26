@@ -26,14 +26,14 @@ jobs:
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         if [ -f test-requirements.txt ]; then pip install -r test-requirements.txt; fi
-    - name: Run tests in tests/
+    - name: Run integration tests
       run: |
-        python -m unittest -v tests/*.py
+        python -m unittest -v tests/integration/*.py
       env:
         TESTS_DEBUG: 1
-    - name: Run tests in pytests/
+    - name: Run unit tests
       run: |
-        coverage run --source podman_compose -m unittest pytests/*.py
+        coverage run --source podman_compose -m unittest tests/unit/*.py
     - name: Report coverage
       run: |
         coverage combine

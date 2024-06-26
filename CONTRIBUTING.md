@@ -54,8 +54,8 @@ Note: Some steps are OPTIONAL but all are RECOMMENDED.
 7. Run code coverage:
 
     ```shell
-    $ coverage run --source podman_compose -m unittest pytests/*.py
-    $ python -m unittest tests/*.py
+    $ coverage run --source podman_compose -m unittest tests/unit/*.py
+    $ python -m unittest tests/integration/*.py
     $ coverage combine
     $ coverage report
     $ coverage html
