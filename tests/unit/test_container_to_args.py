@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
+import os
 import unittest
-from os import path
 from unittest import mock
 
 from parameterized import parameterized
@@ -26,6 +26,11 @@ def get_minimal_container():
         "service_name": "service_name",
         "image": "busybox",
     }
+
+
+def get_test_file_path(rel_path):
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    return os.path.realpath(os.path.join(repo_root, rel_path))
 
 
 class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
@@ -242,7 +247,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
         c = create_compose_mock()
 
         cnt = get_minimal_container()
-        env_file = path.realpath('tests/env-file-tests/env-files/project-1.env')
+        env_file = get_test_file_path('tests/integration/env-file-tests/env-files/project-1.env')
         cnt['env_file'] = env_file
 
         args = await container_to_args(c, cnt)
@@ -276,7 +281,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
         c = create_compose_mock()
 
         cnt = get_minimal_container()
-        env_file = path.realpath('tests/env-file-tests/env-files/project-1.env')
+        env_file = get_test_file_path('tests/integration/env-file-tests/env-files/project-1.env')
         cnt['env_file'] = [env_file]
 
         args = await container_to_args(c, cnt)
@@ -301,8 +306,8 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
         c = create_compose_mock()
 
         cnt = get_minimal_container()
-        env_file = path.realpath('tests/env-file-tests/env-files/project-1.env')
-        env_file_2 = path.realpath('tests/env-file-tests/env-files/project-2.env')
+        env_file = get_test_file_path('tests/integration/env-file-tests/env-files/project-1.env')
+        env_file_2 = get_test_file_path('tests/integration/env-file-tests/env-files/project-2.env')
         cnt['env_file'] = [env_file, env_file_2]
 
         args = await container_to_args(c, cnt)
@@ -331,7 +336,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
         c = create_compose_mock()
 
         cnt = get_minimal_container()
-        env_file = path.realpath('tests/env-file-tests/env-files/project-1.env')
+        env_file = get_test_file_path('tests/integration/env-file-tests/env-files/project-1.env')
         cnt['env_file'] = {'path': env_file, 'required': True}
 
         args = await container_to_args(c, cnt)

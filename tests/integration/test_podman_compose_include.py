@@ -12,14 +12,14 @@ class TestPodmanComposeInclude(unittest.TestCase, RunSubprocessMixin):
         Test that podman-compose can execute podman-compose -f <file> up with include
         :return:
         """
-        main_path = Path(__file__).parent.parent
+        main_path = Path(__file__).parent.parent.parent
 
         command_up = [
             "coverage",
             "run",
             str(main_path.joinpath("podman_compose.py")),
             "-f",
-            str(main_path.joinpath("tests", "include", "docker-compose.yaml")),
+            str(main_path.joinpath("tests", "integration", "include", "docker-compose.yaml")),
             "up",
             "-d",
         ]

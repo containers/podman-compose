@@ -9,12 +9,12 @@ from .test_utils import RunSubprocessMixin
 
 def base_path():
     """Returns the base path for the project"""
-    return Path(__file__).parent.parent
+    return Path(__file__).parent.parent.parent
 
 
 def test_path():
     """Returns the path to the tests directory"""
-    return os.path.join(base_path(), "tests")
+    return os.path.join(base_path(), "tests/integration")
 
 
 def podman_compose_path():
@@ -29,14 +29,18 @@ class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
         includes a build context
         :return:
         """
-        main_path = Path(__file__).parent.parent
+        main_path = Path(__file__).parent.parent.parent
 
         command_up = [
             "coverage",
             "run",
             str(main_path.joinpath("podman_compose.py")),
             "-f",
-            str(main_path.joinpath("tests", "extends_w_file_subdir", "docker-compose.yml")),
+            str(
+                main_path.joinpath(
+                    "tests", "integration", "extends_w_file_subdir", "docker-compose.yml"
+                )
+            ),
             "up",
             "-d",
         ]
@@ -46,7 +50,11 @@ class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
             "run",
             str(main_path.joinpath("podman_compose.py")),
             "-f",
-            str(main_path.joinpath("tests", "extends_w_file_subdir", "docker-compose.yml")),
+            str(
+                main_path.joinpath(
+                    "tests", "integration", "extends_w_file_subdir", "docker-compose.yml"
+                )
+            ),
             "ps",
             "--format",
             '{{.Image}}',
@@ -60,7 +68,11 @@ class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
         self.run_subprocess_assert_returncode([
             str(main_path.joinpath("podman_compose.py")),
             "-f",
-            str(main_path.joinpath("tests", "extends_w_file_subdir", "docker-compose.yml")),
+            str(
+                main_path.joinpath(
+                    "tests", "integration", "extends_w_file_subdir", "docker-compose.yml"
+                )
+            ),
             "down",
         ])
 
@@ -81,13 +93,17 @@ class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
         includes an empty service. (e.g. if the file is used as placeholder for more complex
         configurations.)
         """
-        main_path = Path(__file__).parent.parent
+        main_path = Path(__file__).parent.parent.parent
 
         command_up = [
             "python3",
             str(main_path.joinpath("podman_compose.py")),
             "-f",
-            str(main_path.joinpath("tests", "extends_w_empty_service", "docker-compose.yml")),
+            str(
+                main_path.joinpath(
+                    "tests", "integration", "extends_w_empty_service", "docker-compose.yml"
+                )
+            ),
             "up",
             "-d",
         ]
