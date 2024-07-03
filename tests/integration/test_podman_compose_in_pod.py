@@ -2,14 +2,13 @@
 
 import os
 import unittest
-from pathlib import Path
 
 from .test_utils import RunSubprocessMixin
 
 
 def base_path():
     """Returns the base path for the project"""
-    return Path(__file__).parent.parent.parent
+    return os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
 
 def test_path():
@@ -33,16 +32,17 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         Test that podman-compose will not create a pod, when x-podman in_pod=false and command line
         does not provide this option
         """
-        main_path = Path(__file__).parent.parent.parent
-
         command_up = [
             "python3",
-            str(main_path.joinpath("podman_compose.py")),
+            os.path.join(base_path(), "podman_compose.py"),
             "-f",
-            str(
-                main_path.joinpath(
-                    "tests", "integration", "in_pod", "custom_x-podman_false", "docker-compose.yml"
-                )
+            os.path.join(
+                base_path(),
+                "tests",
+                "integration",
+                "in_pod",
+                "custom_x-podman_false",
+                "docker-compose.yml",
             ),
             "up",
             "-d",
@@ -52,10 +52,13 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             "python3",
             podman_compose_path(),
             "-f",
-            str(
-                main_path.joinpath(
-                    "tests", "integration", "in_pod", "custom_x-podman_false", "docker-compose.yml"
-                )
+            os.path.join(
+                base_path(),
+                "tests",
+                "integration",
+                "in_pod",
+                "custom_x-podman_false",
+                "docker-compose.yml",
             ),
             "down",
         ]
@@ -74,18 +77,19 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         Test that podman-compose does not allow pod creating even with command line in_pod=True
         when --userns and --pod are set together: throws an error
         """
-        main_path = Path(__file__).parent.parent.parent
-
         # FIXME: creates a pod anyway, although it should not
         command_up = [
             "python3",
-            str(main_path.joinpath("podman_compose.py")),
+            os.path.join(base_path(), "podman_compose.py"),
             "--in-pod=True",
             "-f",
-            str(
-                main_path.joinpath(
-                    "tests", "integration", "in_pod", "custom_x-podman_false", "docker-compose.yml"
-                )
+            os.path.join(
+                base_path(),
+                "tests",
+                "integration",
+                "in_pod",
+                "custom_x-podman_false",
+                "docker-compose.yml",
             ),
             "up",
             "-d",
@@ -105,17 +109,18 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         """
         Test that podman-compose will not create a pod as command line sets in_pod=False
         """
-        main_path = Path(__file__).parent.parent.parent
-
         command_up = [
             "python3",
-            str(main_path.joinpath("podman_compose.py")),
+            os.path.join(base_path(), "podman_compose.py"),
             "--in-pod=False",
             "-f",
-            str(
-                main_path.joinpath(
-                    "tests", "integration", "in_pod", "custom_x-podman_false", "docker-compose.yml"
-                )
+            os.path.join(
+                base_path(),
+                "tests",
+                "integration",
+                "in_pod",
+                "custom_x-podman_false",
+                "docker-compose.yml",
             ),
             "up",
             "-d",
@@ -125,10 +130,13 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             "python3",
             podman_compose_path(),
             "-f",
-            str(
-                main_path.joinpath(
-                    "tests", "integration", "in_pod", "custom_x-podman_false", "docker-compose.yml"
-                )
+            os.path.join(
+                base_path(),
+                "tests",
+                "integration",
+                "in_pod",
+                "custom_x-podman_false",
+                "docker-compose.yml",
             ),
             "down",
         ]
@@ -147,17 +155,18 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         Test that podman-compose will not create a pod, when x-podman in_pod=false and command line
         command line in_pod=""
         """
-        main_path = Path(__file__).parent.parent.parent
-
         command_up = [
             "python3",
-            str(main_path.joinpath("podman_compose.py")),
+            os.path.join(base_path(), "podman_compose.py"),
             "--in-pod=",
             "-f",
-            str(
-                main_path.joinpath(
-                    "tests", "integration", "in_pod", "custom_x-podman_false", "docker-compose.yml"
-                )
+            os.path.join(
+                base_path(),
+                "tests",
+                "integration",
+                "in_pod",
+                "custom_x-podman_false",
+                "docker-compose.yml",
             ),
             "up",
             "-d",
@@ -167,10 +176,13 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             "python3",
             podman_compose_path(),
             "-f",
-            str(
-                main_path.joinpath(
-                    "tests", "integration", "in_pod", "custom_x-podman_false", "docker-compose.yml"
-                )
+            os.path.join(
+                base_path(),
+                "tests",
+                "integration",
+                "in_pod",
+                "custom_x-podman_false",
+                "docker-compose.yml",
             ),
             "down",
         ]
@@ -190,18 +202,19 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         Test that podman-compose does not allow pod creating when --userns and --pod are set
         together even when x-podman in_pod=true: throws an error
         """
-        main_path = Path(__file__).parent.parent.parent
-
         # FIXME: creates a pod anyway, although it should not
         # Container is not created, so command 'down' is not needed
         command_up = [
             "python3",
-            str(main_path.joinpath("podman_compose.py")),
+            os.path.join(base_path(), "podman_compose.py"),
             "-f",
-            str(
-                main_path.joinpath(
-                    "tests", "integration", "in_pod", "custom_x-podman_true", "docker-compose.yml"
-                )
+            os.path.join(
+                base_path(),
+                "tests",
+                "integration",
+                "in_pod",
+                "custom_x-podman_true",
+                "docker-compose.yml",
             ),
             "up",
             "-d",
@@ -222,19 +235,20 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         Test that podman-compose does not allow pod creating when --userns and --pod are set
         together even when x-podman in_pod=true and and command line in_pod=True: throws an error
         """
-        main_path = Path(__file__).parent.parent.parent
-
         # FIXME: creates a pod anyway, although it should not
         # Container is not created, so command 'down' is not needed
         command_up = [
             "python3",
-            str(main_path.joinpath("podman_compose.py")),
+            os.path.join(base_path(), "podman_compose.py"),
             "--in-pod=True",
             "-f",
-            str(
-                main_path.joinpath(
-                    "tests", "integration", "in_pod", "custom_x-podman_true", "docker-compose.yml"
-                )
+            os.path.join(
+                base_path(),
+                "tests",
+                "integration",
+                "in_pod",
+                "custom_x-podman_true",
+                "docker-compose.yml",
             ),
             "up",
             "-d",
@@ -254,17 +268,18 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         """
         Test that podman-compose will not create a pod as command line sets in_pod=False
         """
-        main_path = Path(__file__).parent.parent.parent
-
         command_up = [
             "python3",
-            str(main_path.joinpath("podman_compose.py")),
+            os.path.join(base_path(), "podman_compose.py"),
             "--in-pod=False",
             "-f",
-            str(
-                main_path.joinpath(
-                    "tests", "integration", "in_pod", "custom_x-podman_true", "docker-compose.yml"
-                )
+            os.path.join(
+                base_path(),
+                "tests",
+                "integration",
+                "in_pod",
+                "custom_x-podman_true",
+                "docker-compose.yml",
             ),
             "up",
             "-d",
@@ -274,10 +289,13 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             "python3",
             podman_compose_path(),
             "-f",
-            str(
-                main_path.joinpath(
-                    "tests", "integration", "in_pod", "custom_x-podman_true", "docker-compose.yml"
-                )
+            os.path.join(
+                base_path(),
+                "tests",
+                "integration",
+                "in_pod",
+                "custom_x-podman_true",
+                "docker-compose.yml",
             ),
             "down",
         ]
@@ -296,19 +314,20 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         Test that podman-compose does not allow pod creating when --userns and --pod are set
         together even when x-podman in_pod=true and command line in_pod="": throws an error
         """
-        main_path = Path(__file__).parent.parent.parent
-
         # FIXME: creates a pod anyway, although it should not
         # Container is not created, so command 'down' is not needed
         command_up = [
             "python3",
-            str(main_path.joinpath("podman_compose.py")),
+            os.path.join(base_path(), "podman_compose.py"),
             "--in-pod=",
             "-f",
-            str(
-                main_path.joinpath(
-                    "tests", "integration", "in_pod", "custom_x-podman_true", "docker-compose.yml"
-                )
+            os.path.join(
+                base_path(),
+                "tests",
+                "integration",
+                "in_pod",
+                "custom_x-podman_true",
+                "docker-compose.yml",
             ),
             "up",
             "-d",
@@ -330,22 +349,19 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         Test that podman-compose does not allow pod creating when --userns and --pod are set
         together: throws an error
         """
-        main_path = Path(__file__).parent.parent.parent
-
         # FIXME: creates a pod anyway, although it should not
         # Container is not created, so command 'down' is not needed
         command_up = [
             "python3",
-            str(main_path.joinpath("podman_compose.py")),
+            os.path.join(base_path(), "podman_compose.py"),
             "-f",
-            str(
-                main_path.joinpath(
-                    "tests",
-                    "integration",
-                    "in_pod",
-                    "custom_x-podman_not_exists",
-                    "docker-compose.yml",
-                )
+            os.path.join(
+                base_path(),
+                "tests",
+                "integration",
+                "in_pod",
+                "custom_x-podman_not_exists",
+                "docker-compose.yml",
             ),
             "up",
             "-d",
@@ -366,23 +382,20 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         Test that podman-compose does not allow pod creating when --userns and --pod are set
         together even when x-podman in_pod=true: throws an error
         """
-        main_path = Path(__file__).parent.parent.parent
-
         # FIXME: creates a pod anyway, although it should not
         # Container was not created, so command 'down' is not needed
         command_up = [
             "python3",
-            str(main_path.joinpath("podman_compose.py")),
+            os.path.join(base_path(), "podman_compose.py"),
             "--in-pod=True",
             "-f",
-            str(
-                main_path.joinpath(
-                    "tests",
-                    "integration",
-                    "in_pod",
-                    "custom_x-podman_not_exists",
-                    "docker-compose.yml",
-                )
+            os.path.join(
+                base_path(),
+                "tests",
+                "integration",
+                "in_pod",
+                "custom_x-podman_not_exists",
+                "docker-compose.yml",
             ),
             "up",
             "-d",
@@ -402,21 +415,18 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         """
         Test that podman-compose will not create a pod as command line sets in_pod=False
         """
-        main_path = Path(__file__).parent.parent.parent
-
         command_up = [
             "python3",
-            str(main_path.joinpath("podman_compose.py")),
+            os.path.join(base_path(), "podman_compose.py"),
             "--in-pod=False",
             "-f",
-            str(
-                main_path.joinpath(
-                    "tests",
-                    "integration",
-                    "in_pod",
-                    "custom_x-podman_not_exists",
-                    "docker-compose.yml",
-                )
+            os.path.join(
+                base_path(),
+                "tests",
+                "integration",
+                "in_pod",
+                "custom_x-podman_not_exists",
+                "docker-compose.yml",
             ),
             "up",
             "-d",
@@ -426,14 +436,13 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             "python3",
             podman_compose_path(),
             "-f",
-            str(
-                main_path.joinpath(
-                    "tests",
-                    "integration",
-                    "in_pod",
-                    "custom_x-podman_not_exists",
-                    "docker-compose.yml",
-                )
+            os.path.join(
+                base_path(),
+                "tests",
+                "integration",
+                "in_pod",
+                "custom_x-podman_not_exists",
+                "docker-compose.yml",
             ),
             "down",
         ]
@@ -453,23 +462,20 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         Test that podman-compose does not allow pod creating when --userns and --pod are set
         together: throws an error
         """
-        main_path = Path(__file__).parent.parent.parent
-
         # FIXME: creates a pod anyway, although it should not
         # Container was not created, so command 'down' is not needed
         command_up = [
             "python3",
-            str(main_path.joinpath("podman_compose.py")),
+            os.path.join(base_path(), "podman_compose.py"),
             "--in-pod=",
             "-f",
-            str(
-                main_path.joinpath(
-                    "tests",
-                    "integration",
-                    "in_pod",
-                    "custom_x-podman_not_exists",
-                    "docker-compose.yml",
-                )
+            os.path.join(
+                base_path(),
+                "tests",
+                "integration",
+                "in_pod",
+                "custom_x-podman_not_exists",
+                "docker-compose.yml",
             ),
             "up",
             "-d",
