@@ -10,9 +10,9 @@ Tests the podman networking parameters
 import os
 import unittest
 
-from .test_podman_compose import podman_compose_path
-from .test_podman_compose import test_path
-from .test_utils import RunSubprocessMixin
+from tests.integration.test_podman_compose import podman_compose_path
+from tests.integration.test_podman_compose import test_path
+from tests.integration.test_utils import RunSubprocessMixin
 
 
 class TestPodmanComposeNetwork(RunSubprocessMixin, unittest.TestCase):

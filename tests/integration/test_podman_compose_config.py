@@ -12,9 +12,9 @@ import unittest
 
 from parameterized import parameterized
 
-from .test_podman_compose import podman_compose_path
-from .test_podman_compose import test_path
-from .test_utils import RunSubprocessMixin
+from tests.integration.test_podman_compose import podman_compose_path
+from tests.integration.test_podman_compose import test_path
+from tests.integration.test_utils import RunSubprocessMixin
 
 
 def profile_compose_file():

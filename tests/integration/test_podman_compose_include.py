@@ -3,7 +3,7 @@
 import unittest
 from pathlib import Path
 
-from .test_utils import RunSubprocessMixin
+from tests.integration.test_utils import RunSubprocessMixin
 
 
 class TestPodmanComposeInclude(unittest.TestCase, RunSubprocessMixin):

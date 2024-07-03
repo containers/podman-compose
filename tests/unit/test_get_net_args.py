@@ -3,8 +3,7 @@ import unittest
 from parameterized import parameterized
 
 from podman_compose import get_net_args
-
-from .test_container_to_args import create_compose_mock
+from tests.unit.test_container_to_args import create_compose_mock
 
 PROJECT_NAME = "test_project_name"
 SERVICE_NAME = "service_name"

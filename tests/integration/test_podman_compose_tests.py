@@ -10,9 +10,9 @@ Tests the podman compose up and down commands used to create and remove services
 import os
 import unittest
 
-from .test_podman_compose import podman_compose_path
-from .test_podman_compose import test_path
-from .test_utils import RunSubprocessMixin
+from tests.integration.test_podman_compose import podman_compose_path
+from tests.integration.test_podman_compose import test_path
+from tests.integration.test_utils import RunSubprocessMixin
 
 
 class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
