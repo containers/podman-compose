@@ -2422,8 +2422,16 @@ async def compose_build(compose, args):
     return status
 
 
+async def pod_exists(compose, name):
+    exit_code = await compose.podman.run([], "pod", ["exists", name])
+    return exit_code == 0
+
+
 async def create_pods(compose, args):  # pylint: disable=unused-argument
     for pod in compose.pods:
+        if await pod_exists(compose, pod["name"]):
+            continue
+
         podman_args = [
             "create",
             "--name=" + pod["name"],
