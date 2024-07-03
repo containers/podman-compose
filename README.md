@@ -130,7 +130,7 @@ that are meant to test as many cases as we can to make sure we are compatible
 run a unittest with following command
 
 ```shell
-python -m unittest pytests/*.py
+python3 -m unittest discover tests/unit
 ```
 
 # Contributing guide

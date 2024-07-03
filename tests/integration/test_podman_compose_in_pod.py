@@ -3,7 +3,7 @@
 import os
 import unittest
 
-from .test_utils import RunSubprocessMixin
+from tests.integration.test_utils import RunSubprocessMixin
 
 
 def base_path():

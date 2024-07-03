@@ -6,9 +6,8 @@ import unittest
 from parameterized import parameterized
 
 from podman_compose import container_to_args
-
-from .test_container_to_args import create_compose_mock
-from .test_container_to_args import get_minimal_container
+from tests.unit.test_container_to_args import create_compose_mock
+from tests.unit.test_container_to_args import get_minimal_container
 
 
 def repo_root():

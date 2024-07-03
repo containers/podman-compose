@@ -4,7 +4,7 @@ import os
 import unittest
 from pathlib import Path
 
-from .test_utils import RunSubprocessMixin
+from tests.integration.test_utils import RunSubprocessMixin
 
 
 def base_path():

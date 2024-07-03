@@ -28,12 +28,12 @@ jobs:
         if [ -f test-requirements.txt ]; then pip install -r test-requirements.txt; fi
     - name: Run integration tests
       run: |
-        python -m unittest -v tests/integration/*.py
+        python -m unittest discover -v tests/integration
       env:
         TESTS_DEBUG: 1
     - name: Run unit tests
       run: |
-        coverage run --source podman_compose -m unittest tests/unit/*.py
+        coverage run --source podman_compose -m unittest discover tests/unit
     - name: Report coverage
       run: |
         coverage combine
