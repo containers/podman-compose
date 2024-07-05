@@ -1,0 +1,11 @@
+version: "3"
+services:
+  container1:
+    image: nopush/podman-compose-test
+    ports: "9001:9001"
+    command: ["/bin/bash", "-c", "echo test1; sleep infinity"]
+  container2:
+    image: nopush/podman-compose-test
+    restart: never
+    ports: "9002:9002"
+    command: ["/bin/bash", "-c", "echo test2"]
