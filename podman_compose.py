@@ -336,9 +336,14 @@ def norm_ulimit(inner_value):
     return inner_value
 
 
-def default_network_name_for_project(proj_name, net, is_ext):
-    # docker-compose removes dashes from project name when building network name
-    return net if is_ext else f"{proj_name}_{net}"
+def default_network_name_for_project(compose, proj_name, net, is_ext):
+    if is_ext:
+        return net
+
+    default_net_name_compat = compose.x_podman.get("default_net_name_compat", False)
+    if default_net_name_compat is True:
+        return f"{proj_name.replace('-', '')}_{net}"
+    return f"{proj_name}_{net}"
 
 
 # def tr_identity(project_name, given_containers):
@@ -850,7 +855,7 @@ async def assert_cnt_nets(compose, cnt):
         net_desc = nets[net] or {}
         is_ext = net_desc.get("external", None)
         ext_desc = is_ext if is_dict(is_ext) else {}
-        default_net_name = default_network_name_for_project(proj_name, net, is_ext)
+        default_net_name = default_network_name_for_project(compose, proj_name, net, is_ext)
         net_name = ext_desc.get("name", None) or net_desc.get("name", None) or default_net_name
         try:
             await compose.podman.output([], "network", ["exists", net_name])
@@ -939,7 +944,7 @@ def get_net_args(compose, cnt):
         net_desc = nets[net] or {}
         is_ext = net_desc.get("external", None)
         ext_desc = is_ext if is_dict(is_ext) else {}
-        default_net_name = default_network_name_for_project(proj_name, net, is_ext)
+        default_net_name = default_network_name_for_project(compose, proj_name, net, is_ext)
         net_name = ext_desc.get("name", None) or net_desc.get("name", None) or default_net_name
         net_names.append(net_name)
     net_names_str = ",".join(net_names)
@@ -975,7 +980,7 @@ def get_net_args(compose, cnt):
             net_desc = nets[net_] or {}
             is_ext = net_desc.get("external", None)
             ext_desc = is_ext if is_dict(is_ext) else {}
-            default_net_name = default_network_name_for_project(proj_name, net_, is_ext)
+            default_net_name = default_network_name_for_project(compose, proj_name, net_, is_ext)
             net_name = ext_desc.get("name", None) or net_desc.get("name", None) or default_net_name
 
             ipv4 = net_config_.get("ipv4_address", None)
@@ -1677,6 +1682,7 @@ class PodmanCompose:
         self.services = None
         self.all_services = set()
         self.prefer_volume_over_mount = True
+        self.x_podman = {}
         self.merged_yaml = None
         self.yaml_hash = ""
         self.console_colors = [
@@ -1745,15 +1751,9 @@ class PodmanCompose:
         if isinstance(retcode, int):
             sys.exit(retcode)
 
-    def resolve_in_pod(self, compose):
+    def resolve_in_pod(self):
         if self.global_args.in_pod_bool is None:
-            extension_dict = compose.get("x-podman", None)
-            if extension_dict is not None:
-                in_pod_value = extension_dict.get("in_pod", None)
-                if in_pod_value is not None:
-                    self.global_args.in_pod_bool = in_pod_value
-            else:
-                self.global_args.in_pod_bool = True
+            self.global_args.in_pod_bool = self.x_podman.get("in_pod", True)
         # otherwise use `in_pod` value provided by command line
         return self.global_args.in_pod_bool
 
@@ -1994,7 +1994,9 @@ class PodmanCompose:
         given_containers.sort(key=lambda c: len(c.get("_deps", None) or []))
         # log("sorted:", [c["name"] for c in given_containers])
 
-        args.in_pod_bool = self.resolve_in_pod(compose)
+        self.x_podman = compose.get("x-podman", {})
+
+        args.in_pod_bool = self.resolve_in_pod()
         pods, containers = transform(args, project_name, given_containers)
         self.pods = pods
         self.containers = containers
