@@ -336,6 +336,11 @@ def norm_ulimit(inner_value):
     return inner_value
 
 
+def default_network_name_for_project(proj_name, net, is_ext):
+    # docker-compose removes dashes from project name when building network name
+    return net if is_ext else f"{proj_name}_{net}"
+
+
 # def tr_identity(project_name, given_containers):
 #    pod_name = f'pod_{project_name}'
 #    pod = dict(name=pod_name)
@@ -845,7 +850,7 @@ async def assert_cnt_nets(compose, cnt):
         net_desc = nets[net] or {}
         is_ext = net_desc.get("external", None)
         ext_desc = is_ext if is_dict(is_ext) else {}
-        default_net_name = net if is_ext else f"{proj_name}_{net}"
+        default_net_name = default_network_name_for_project(proj_name, net, is_ext)
         net_name = ext_desc.get("name", None) or net_desc.get("name", None) or default_net_name
         try:
             await compose.podman.output([], "network", ["exists", net_name])
@@ -934,7 +939,7 @@ def get_net_args(compose, cnt):
         net_desc = nets[net] or {}
         is_ext = net_desc.get("external", None)
         ext_desc = is_ext if is_dict(is_ext) else {}
-        default_net_name = net if is_ext else f"{proj_name}_{net}"
+        default_net_name = default_network_name_for_project(proj_name, net, is_ext)
         net_name = ext_desc.get("name", None) or net_desc.get("name", None) or default_net_name
         net_names.append(net_name)
     net_names_str = ",".join(net_names)
@@ -970,7 +975,7 @@ def get_net_args(compose, cnt):
             net_desc = nets[net_] or {}
             is_ext = net_desc.get("external", None)
             ext_desc = is_ext if is_dict(is_ext) else {}
-            default_net_name = net_ if is_ext else f"{proj_name}_{net_}"
+            default_net_name = default_network_name_for_project(proj_name, net_, is_ext)
             net_name = ext_desc.get("name", None) or net_desc.get("name", None) or default_net_name
 
             ipv4 = net_config_.get("ipv4_address", None)
