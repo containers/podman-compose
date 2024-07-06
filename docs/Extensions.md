@@ -91,6 +91,23 @@ The options to the network modes are passed to the `--network` option of the `po
 as-is.
 
 
+## Compatibility of default network names between docker-compose and podman-compose
+
+Current versions of podman-compose may produce different default external network names than
+docker-compose under certain conditions. Specifically, docker-compose removes dashes (`-` character)
+from project name.
+
+To enable compatibility between docker-compose and podman-compose, specify
+`default_net_name_compat: true` under global `x-podman` key:
+
+```
+x-podman:
+    default_net_name_compat: true
+```
+
+By default `default_net_name_compat` is `false`. This will change to `true` at some point and the
+setting will be removed.
+
 ## Custom pods management
 
 Podman-compose can have containers in pods. This can be controlled by extension key x-podman in_pod.

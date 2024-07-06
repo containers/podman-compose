@@ -17,6 +17,12 @@ def create_compose_mock(project_name="test_project_name"):
     compose.prefer_volume_over_mount = False
     compose.default_net = None
     compose.networks = {}
+    compose.x_podman = {}
+
+    async def podman_output(*args, **kwargs):
+        pass
+
+    compose.podman.output = mock.Mock(side_effect=podman_output)
     return compose
 
 
@@ -557,6 +563,31 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "-d",
                 *expected_additional_args,
                 "--network=bridge",
+                "--network-alias=service_name",
+                "busybox",
+            ],
+        )
+
+    @parameterized.expand([
+        ("not_compat", False, "test_project_name", "test_project_name_network1"),
+        ("compat_no_dash", True, "test_project_name", "test_project_name_network1"),
+        ("compat_dash", True, "test_project-name", "test_projectname_network1"),
+    ])
+    async def test_network_default_name(self, name, is_compat, project_name, expected_network_name):
+        c = create_compose_mock(project_name)
+        c.x_podman = {"default_net_name_compat": is_compat}
+        c.networks = {'network1': {}}
+
+        cnt = get_minimal_container()
+        cnt['networks'] = ['network1']
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                f"--network={expected_network_name}",
                 "--network-alias=service_name",
                 "busybox",
             ],
