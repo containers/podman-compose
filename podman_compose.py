@@ -2378,6 +2378,11 @@ async def build_one(compose, args, cnt):
         build_args.extend(get_secret_args(compose, cnt, secret, podman_is_building=True))
     for tag in build_desc.get("tags", []):
         build_args.extend(["-t", tag])
+    labels = build_desc.get("labels", [])
+    if isinstance(labels, dict):
+        labels = [f"{k}={v}" for (k, v) in labels.items()]
+    for label in labels:
+        build_args.extend(["--label", label])
     for additional_ctx in build_desc.get("additional_contexts", {}):
         build_args.extend([f"--build-context={additional_ctx}"])
     if "target" in build_desc:

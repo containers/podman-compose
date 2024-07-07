@@ -21,5 +21,3 @@ ALT buildno=2 port 8000 2019-09-03T15:16:38+0000
 
 as you can see we were able to override buildno to be 2 instead of 1,
 and httpd_port to 8000.
-
-NOTE: build labels are not passed to `podman build`
