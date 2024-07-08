@@ -29,5 +29,6 @@ pluggy==1.4.0
 pyproject-api==1.6.1
 python-dotenv==1.0.1
 PyYAML==6.0.1
+requests
 tomlkit==0.12.4
 virtualenv==20.25.1
