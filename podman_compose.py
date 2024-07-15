@@ -1713,9 +1713,9 @@ class PodmanCompose:
             xargs.extend(shlex.split(args))
         return xargs
 
-    async def run(self):
+    async def run(self, argv=None):
         log.info("podman-compose version: %s", __version__)
-        args = self._parse_args()
+        args = self._parse_args(argv)
         podman_path = args.podman_path
         if podman_path != "podman":
             if os.path.isfile(podman_path) and os.access(podman_path, os.X_OK):
@@ -2023,7 +2023,7 @@ class PodmanCompose:
                 services[name] = config
         return services
 
-    def _parse_args(self):
+    def _parse_args(self, argv=None):
         parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
         self._init_global_parser(parser)
         subparsers = parser.add_subparsers(title="command", dest="command")
@@ -2032,7 +2032,7 @@ class PodmanCompose:
             subparser = subparsers.add_parser(cmd_name, help=cmd.desc)  # pylint: disable=protected-access
             for cmd_parser in cmd._parse_args:  # pylint: disable=protected-access
                 cmd_parser(subparser)
-        self.global_args = parser.parse_args()
+        self.global_args = parser.parse_args(argv)
         if self.global_args.in_pod is not None and self.global_args.in_pod.lower() not in (
             '',
             'true',
