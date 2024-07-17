@@ -257,7 +257,7 @@ class TestGetNetArgs(unittest.TestCase):
     @parameterized.expand([
         ("bridge", ["--network=bridge", f"--network-alias={SERVICE_NAME}"]),
         ("host", ["--network=host"]),
-        ("none", []),
+        ("none", ["--network=none"]),
         ("slirp4netns", ["--network=slirp4netns"]),
         ("slirp4netns:cidr=10.42.0.0/24", ["--network=slirp4netns:cidr=10.42.0.0/24"]),
         ("private", ["--network=private"]),
