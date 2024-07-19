@@ -8,11 +8,6 @@
 - Developers that want to fix bugs,
 - Developers that want to implement new functionalities or enhancements.
 
-## Branches
-
-Please request your pull request to be merged into the `devel` branch.
-Changes to the `stable` branch are managed by the repository maintainers.
-
 ## Development environment setup
 
 Note: Some steps are OPTIONAL but all are RECOMMENDED.
@@ -68,8 +63,7 @@ Note: Some steps are OPTIONAL but all are RECOMMENDED.
    - In the commit message, reference the Issue ID that your code fixes and a brief description of
      the changes.
      Example: `Fixes #516: Allow empty network`
-9. Open a pull request to `containers/podman-compose:devel` and wait for a maintainer to review your
-   work.
+9. Open a pull request to `containers/podman-compose` and wait for a maintainer to review your work.
 
 ## Adding new commands
 
