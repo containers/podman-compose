@@ -264,6 +264,16 @@ def rec_subs(value, subs_dict):
     do bash-like substitution in value and if list of dictionary do that recursively
     """
     if is_dict(value):
+        if 'environment' in value and is_dict(value['environment']):
+            # Load service's environment variables
+            subs_dict = subs_dict.copy()
+            svc_envs = {k: v for k, v in value['environment'].items() if k not in subs_dict}
+            # we need to add `svc_envs` to the `subs_dict` so that it can evaluate the
+            # service environment that reference to another service environment.
+            subs_dict.update(svc_envs)
+            svc_envs = rec_subs(svc_envs, subs_dict)
+            subs_dict.update(svc_envs)
+
         value = {k: rec_subs(v, subs_dict) for k, v in value.items()}
     elif is_str(value):
 
@@ -1823,6 +1833,11 @@ class PodmanCompose:
             "COMPOSE_FILE": pathsep.join(relative_files),
             "COMPOSE_PATH_SEPARATOR": pathsep,
         })
+
+        if args and 'env' in args and args.env:
+            env_vars = norm_as_dict(args.env)
+            self.environ.update(env_vars)
+
         compose = {}
         # Iterate over files primitively to allow appending to files in-loop
         files_iter = iter(files)

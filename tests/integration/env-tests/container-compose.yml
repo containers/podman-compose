@@ -1,9 +1,10 @@
-version: '3'
+version: "3"
 
 services:
   env-test:
     image: busybox
     command: sh -c "export | grep ZZ"
     environment:
-    - ZZVAR1=myval1
-
+      ZZVAR1: myval1
+      ZZVAR2: 2-$ZZVAR1
+      ZZVAR3: 3-$ZZVAR2
