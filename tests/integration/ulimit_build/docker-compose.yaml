@@ -1,0 +1,26 @@
+version: "3"
+services:
+  ulimit1:
+    image: ulimit_build_test
+    build:
+      context: ./
+      dockerfile: Dockerfile
+      ulimits: nofile=1001
+  ulimit2:
+    image: ulimit_build_test
+    build:
+      context: ./
+      dockerfile: Dockerfile
+      ulimits:
+        - nproc=1002:2002
+        - nofile=1002
+  ulimit3:
+    image: ulimit_build_test
+    build:
+      context: ./
+      dockerfile: Dockerfile
+      ulimits:
+        nofile: 1003
+        nproc:
+          soft: 1003
+          hard: 2003

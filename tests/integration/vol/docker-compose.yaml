@@ -1,0 +1,49 @@
+version: "3"
+services:
+    web:
+      image: nopush/podman-compose-test
+      command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-h", "/var/www/html", "-p", "8000"]
+      working_dir: /var/www/html
+      restart: always
+      volumes:
+        - /var/www/html
+      tmpfs:
+        - /run
+        - /tmp
+    web1:
+      image: nopush/podman-compose-test
+      command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-h", "/var/www/html", "-p", "8001"]
+      restart: unless-stopped
+      working_dir: /var/www/html
+      volumes:
+        - myvol1:/var/www/html:ro,z
+    web2:
+      image: nopush/podman-compose-test
+      command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-h", "/var/www/html", "-p", "8002"]
+      working_dir: /var/www/html
+      volumes:
+        - myvol2:/var/www/html:ro
+    web3:
+      image: nopush/podman-compose-test
+      command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-h", "/var/www/html", "-p", "8003"]
+      working_dir: /var/www/html
+      volumes:
+        - myvol2:/var/www/html
+        - data:/var/www/html_data
+        - data2:/var/www/html_data2
+        - data3:/var/www/html_data3
+
+volumes:
+  myvol1:
+  myvol2:
+    labels:
+      mylabel: myval
+  data:
+    name: my-app-data
+    external: true
+  data2:
+    external:
+      name: actual-name-of-volume
+  data3:
+    name: my-app-data3
+

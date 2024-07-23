@@ -47,6 +47,8 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+test-compose.yaml
+test-compose-?.yaml
 
 # Translations
 *.mo
@@ -103,3 +105,6 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+
+.vscode

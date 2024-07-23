@@ -1,0 +1,40 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ '3.8', '3.9', '3.10', '3.11', '3.12' ]
+
+    runs-on: ubuntu-latest
+    container:
+      image: "docker.io/library/python:${{ matrix.python-version }}-bookworm"
+      # cgroupns needed to address the following error:
+      # write /sys/fs/cgroup/cgroup.subtree_control: operation not supported
+      options: --privileged --cgroupns=host
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install dependencies
+      run: |
+        set -e
+        apt update && apt install -y podman
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r test-requirements.txt
+    - name: Run integration tests
+      run: |
+        python -m unittest discover -v tests/integration
+      env:
+        TESTS_DEBUG: 1
+    - name: Run unit tests
+      run: |
+        coverage run --source podman_compose -m unittest discover tests/unit
+    - name: Report coverage
+      run: |
+        coverage combine
+        coverage report --format=markdown | tee -a $GITHUB_STEP_SUMMARY

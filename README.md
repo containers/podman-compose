@@ -1,6 +1,5 @@
 # Podman Compose
-## [![Pylint Test: ](https://github.com/containers/podman-compose/actions/workflows/pylint.yml/badge.svg)](https://github.com/containers/podman-compose/actions/workflows/pylint.yml) [![Unit tests  PyTest](https://github.com/containers/podman-compose/actions/workflows/pytest.yml/badge.svg)](https://github.com/containers/podman-compose/actions/workflows/pytest.yml)
-
+## [![Tests](https://github.com/containers/podman-compose/actions/workflows/test.yml/badge.svg)](https://github.com/containers/podman-compose/actions/workflows/test.yml)
 
 An implementation of [Compose Spec](https://compose-spec.io/) with [Podman](https://podman.io/) backend.
 This project focuses on:
@@ -11,7 +10,11 @@ This project focuses on:
 This project only depends on:
 
 * `podman`
-* [podman dnsname plugin](https://github.com/containers/dnsname): It is usually found in the `podman-plugins` or `podman-dnsname` distro packages, those packages are not pulled by default and you need to install them. This allows containers to be able to resolve each other if they are on the same CNI network.
+* [podman dnsname plugin](https://github.com/containers/dnsname): It is usually found in
+  the `podman-plugins` or `podman-dnsname` distro packages, those packages are not pulled
+  by default and you need to install them. This allows containers to be able to resolve
+  each other if they are on the same CNI network. This is not necessary when podman is using
+  netavark as a network backend.
 * Python3
 * [PyYAML](https://pyyaml.org/)
 * [python-dotenv](https://pypi.org/project/python-dotenv/)
@@ -49,9 +52,11 @@ like `hostnet`. If you desire that behavior, pass it the standard way like `netw
 
 ## Installation
 
+### Pip
+
 Install the latest stable version from PyPI:
 
-```
+```bash
 pip3 install podman-compose
 ```
 
@@ -59,14 +64,33 @@ pass `--user` to install inside regular user home without being root.
 
 Or latest development version from GitHub:
 
-```
-pip3 install https://github.com/containers/podman-compose/archive/devel.tar.gz
+```bash
+pip3 install https://github.com/containers/podman-compose/archive/main.tar.gz
 ```
 
+### Homebrew
+
+```bash
+brew install podman-compose
+```
+
+### Manual
+
+```bash
+curl -o /usr/local/bin/podman-compose https://raw.githubusercontent.com/containers/podman-compose/main/podman_compose.py
+chmod +x /usr/local/bin/podman-compose
+```
+
+or inside your home
+
+```bash
+curl -o ~/.local/bin/podman-compose https://raw.githubusercontent.com/containers/podman-compose/main/podman_compose.py
+chmod +x ~/.local/bin/podman-compose
+```
 
 or install from Fedora (starting from f31) repositories:
 
-```
+```bash
 sudo dnf install podman-compose
 ```
 
@@ -75,10 +99,9 @@ sudo dnf install podman-compose
 We have included fully functional sample stacks inside `examples/` directory.
 You can get more examples from [awesome-compose](https://github.com/docker/awesome-compose).
 
-
 A quick example would be
 
-```
+```bash
 cd examples/busybox
 podman-compose --help
 podman-compose up --help
@@ -103,11 +126,11 @@ There is also AWX 17.1.0
 Inside `tests/` directory we have many useless docker-compose stacks
 that are meant to test as many cases as we can to make sure we are compatible
 
-### Unit tests with pytest
-run a pytest with following command
+### Unit tests with unittest
+run a unittest with following command
 
 ```shell
-python -m pytest pytests
+python3 -m unittest discover tests/unit
 ```
 
 # Contributing guide

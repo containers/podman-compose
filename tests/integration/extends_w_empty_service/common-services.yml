@@ -1,0 +1,7 @@
+services:
+  webapp_default:
+
+  webapp_special:
+    image: nopush/podman-compose-test
+    volumes:
+      - "/data"

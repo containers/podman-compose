@@ -1,0 +1,6 @@
+version: "3"
+services:
+  serv:
+    image: busybox
+    pid: host
+    command: sh -c "ps all"

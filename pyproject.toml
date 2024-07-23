@@ -1,0 +1,15 @@
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+
+[tool.ruff.lint]
+select = ["W", "E", "F", "I"]
+ignore = [
+]
+
+[tool.ruff.lint.isort]
+force-single-line = true
+
+[tool.ruff.format]
+preview = true # needed for quote-style
+quote-style = "preserve"

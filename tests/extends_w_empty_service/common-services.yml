@@ -1,7 +1,0 @@
-services:
-  webapp_default:
-
-  webapp_special:
-    image: busybox
-    volumes:
-      - "/data"

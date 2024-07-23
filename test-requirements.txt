@@ -1,9 +1,34 @@
-# The order of packages is significant, because pip processes them in the order
-# of appearance. Changing the order has an impact on the overall integration
-# process, which may cause wedges in the gate later.
+-e .
+coverage==7.4.3
+parameterized==0.9.0
+pytest==8.0.2
+tox==4.13.0
+ruff==0.3.1
+pylint==3.1.0
 
-coverage
-pytest-cov
-pytest
-tox
-black
+# The packages below are transitive dependencies of the packages above and are included here
+# to make testing reproducible.
+# To refresh, create a new virtualenv and do:
+#  pip install -r requirements.txt -r test-requirements.txt
+#  pip freeze > test-requirements.txt
+# and edit test-requirements.txt to add this comment
+
+astroid==3.1.0
+cachetools==5.3.3
+chardet==5.2.0
+colorama==0.4.6
+dill==0.3.8
+distlib==0.3.8
+filelock==3.13.1
+iniconfig==2.0.0
+isort==5.13.2
+mccabe==0.7.0
+packaging==23.2
+platformdirs==4.2.0
+pluggy==1.4.0
+pyproject-api==1.6.1
+python-dotenv==1.0.1
+PyYAML==6.0.1
+requests
+tomlkit==0.12.4
+virtualenv==20.25.1

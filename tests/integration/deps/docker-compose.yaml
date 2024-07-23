@@ -1,0 +1,25 @@
+version: "3.7"
+services:
+    web:
+      image: nopush/podman-compose-test
+      command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-h", "/etc/", "-p", "8000"]
+      tmpfs:
+        - /run
+        - /tmp
+    sleep:
+      image: nopush/podman-compose-test
+      command: ["dumb-init", "/bin/busybox", "sh", "-c", "sleep 3600"]
+      depends_on:
+        - "web"
+      tmpfs:
+        - /run
+        - /tmp
+    sleep2:
+      image: nopush/podman-compose-test
+      command: ["dumb-init", "/bin/busybox", "sh", "-c", "sleep 3600"]
+      depends_on:
+      - sleep
+      tmpfs:
+        - /run
+        - /tmp
+

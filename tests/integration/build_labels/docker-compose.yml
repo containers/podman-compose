@@ -1,0 +1,22 @@
+version: "3"
+services:
+  test_build_labels_map:
+    build:
+      context: ./context
+      dockerfile: Dockerfile
+      labels:
+        com.example.description: "Accounting webapp"
+        com.example.department: "Finance"
+        com.example.label-with-empty-value: ""
+    image: my-busybox-build-labels-map
+    command: env
+  test_build_labels_array:
+    build:
+      context: ./context
+      dockerfile: Dockerfile
+      labels:
+        - "com.example.description=Accounting webapp"
+        - "com.example.department=Finance"
+        - "com.example.label-with-empty-value"
+    image: my-busybox-build-labels-array
+    command: env
