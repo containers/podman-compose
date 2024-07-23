@@ -1239,8 +1239,8 @@ async def container_to_args(compose, cnt, detached=True):
     # handle podman extension
     if 'x-podman' in cnt:
         raise ValueError(
-            'Configuration under x-podman has been migrated to x-podman.uidmap and '
-            'x-podman.gidmap fields'
+            'Configuration under x-podman has been migrated to x-podman.uidmaps and '
+            'x-podman.gidmaps fields'
         )
 
     rootfs_mode = False
