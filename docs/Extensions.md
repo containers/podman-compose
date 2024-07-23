@@ -7,9 +7,9 @@ are generally specified under fields with "x-podman" prefix in the compose file.
 
 The following extension keys are available under container configuration:
 
-* `x-podman.uidmap` - Run the container in a new user namespace using the supplied UID mapping.
+* `x-podman.uidmaps` - Run the container in a new user namespace using the supplied UID mapping.
 
-* `x-podman.gidmap` - Run the container in a new user namespace using the supplied GID mapping.
+* `x-podman.gidmaps` - Run the container in a new user namespace using the supplied GID mapping.
 
 * `x-podman.rootfs` - Run the container without requiring any image management; the rootfs of the
 container is assumed to be managed externally.
