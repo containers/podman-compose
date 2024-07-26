@@ -2375,6 +2375,8 @@ async def build_one(compose, args, cnt):
     if not os.path.exists(dockerfile):
         raise OSError("Dockerfile not found in " + ctx)
     build_args = ["-f", dockerfile, "-t", cnt["image"]]
+    if "platform" in cnt:
+        build_args.extend(["--platform", cnt["platform"]])
     for secret in build_desc.get("secrets", []):
         build_args.extend(get_secret_args(compose, cnt, secret, podman_is_building=True))
     for tag in build_desc.get("tags", []):
