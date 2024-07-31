@@ -579,11 +579,17 @@ def get_secret_args(compose, cnt, secret, podman_is_building=False):
     dest_file = ""
     secret_opts = ""
 
-    secret_target = None if isinstance(secret, str) else secret.get("target", None)
-    secret_uid = None if isinstance(secret, str) else secret.get("uid", None)
-    secret_gid = None if isinstance(secret, str) else secret.get("gid", None)
-    secret_mode = None if isinstance(secret, str) else secret.get("mode", None)
-    secret_type = None if isinstance(secret, str) else secret.get("type", None)
+    secret_target = None
+    secret_uid = None
+    secret_gid = None
+    secret_mode = None
+    secret_type = None
+    if isinstance(secret, dict):
+        secret_target = secret.get("target", None)
+        secret_uid = secret.get("uid", None)
+        secret_gid = secret.get("gid", None)
+        secret_mode = secret.get("mode", None)
+        secret_type = secret.get("type", None)
 
     if source_file:
         # assemble path for source file first, because we need it for all cases
