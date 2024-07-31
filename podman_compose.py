@@ -851,14 +851,12 @@ async def assert_cnt_nets(compose, cnt):
     net = cnt.get("network_mode", None)
     if net and not net.startswith("bridge"):
         return
-    nets = compose.networks
-    default_net = compose.default_net
     cnt_nets = cnt.get("networks", None)
     if cnt_nets and is_dict(cnt_nets):
         cnt_nets = list(cnt_nets.keys())
-    cnt_nets = norm_as_list(cnt_nets or default_net)
+    cnt_nets = norm_as_list(cnt_nets or compose.default_net)
     for net in cnt_nets:
-        net_desc = nets[net] or {}
+        net_desc = compose.networks[net] or {}
         is_ext = net_desc.get("external", None)
         ext_desc = is_ext if is_dict(is_ext) else {}
         default_net_name = default_network_name_for_project(compose, net, is_ext)
@@ -907,8 +905,6 @@ def get_net_args(compose, cnt):
             sys.exit(1)
     else:
         is_bridge = True
-    default_net = compose.default_net
-    nets = compose.networks
     cnt_nets = cnt.get("networks", None)
 
     aliases = [service_name]
@@ -944,10 +940,10 @@ def get_net_args(compose, cnt):
         # sort dict by priority
         prioritized_cnt_nets.sort(reverse=True)
         cnt_nets = [net_key for _, net_key in prioritized_cnt_nets]
-    cnt_nets = norm_as_list(cnt_nets or default_net)
+    cnt_nets = norm_as_list(cnt_nets or compose.default_net)
     net_names = []
     for net in cnt_nets:
-        net_desc = nets[net] or {}
+        net_desc = compose.networks[net] or {}
         is_ext = net_desc.get("external", None)
         ext_desc = is_ext if is_dict(is_ext) else {}
         default_net_name = default_network_name_for_project(compose, net, is_ext)
@@ -983,7 +979,7 @@ def get_net_args(compose, cnt):
                     )
 
         for net_, net_config_ in multiple_nets.items():
-            net_desc = nets[net_] or {}
+            net_desc = compose.networks[net_] or {}
             is_ext = net_desc.get("external", None)
             ext_desc = is_ext if is_dict(is_ext) else {}
             default_net_name = default_network_name_for_project(compose, net_, is_ext)
@@ -1919,10 +1915,9 @@ class PodmanCompose:
             self.default_net = "default"
         else:
             self.default_net = None
-        default_net = self.default_net
         allnets = set()
         for name, srv in services.items():
-            srv_nets = srv.get("networks", None) or default_net
+            srv_nets = srv.get("networks", None) or self.default_net
             srv_nets = list(srv_nets.keys()) if is_dict(srv_nets) else norm_as_list(srv_nets)
             allnets.update(srv_nets)
         given_nets = set(nets.keys())
