@@ -1949,7 +1949,8 @@ class PodmanCompose:
         container_names_by_service = {}
         self.services = services
         for service_name, service_desc in services.items():
-            replicas = try_int(service_desc.get("deploy", {}).get("replicas", "1"))
+            replicas = try_int(service_desc.get("deploy", {}).get("replicas"), fallback=1)
+
             container_names_by_service[service_name] = []
             for num in range(1, replicas + 1):
                 name0 = f"{project_name}_{service_name}_{num}"
