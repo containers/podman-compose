@@ -1667,11 +1667,11 @@ class PodmanCompose:
         self.environ = {}
         self.exit_code = None
         self.commands = {}
-        self.global_args = None
+        self.global_args = argparse.Namespace()
         self.project_name = None
         self.dirname = None
         self.pods = None
-        self.containers = None
+        self.containers = []
         self.vols = None
         self.networks = {}
         self.default_net = "default"
