@@ -194,7 +194,7 @@ def parse_short_mount(mount_str, basedir):
 # unless it's anonymous-volume
 
 
-def fix_mount_dict(compose, mount_dict, proj_name, srv_name):
+def fix_mount_dict(compose, mount_dict, srv_name):
     """
     in-place fix mount dictionary to:
     - define _vol to be the corresponding top-level volume
@@ -214,7 +214,7 @@ def fix_mount_dict(compose, mount_dict, proj_name, srv_name):
         if not source:
             # missing source
             vol["name"] = "_".join([
-                proj_name,
+                compose.project_name,
                 srv_name,
                 hashlib.sha256(mount_dict["target"].encode("utf-8")).hexdigest(),
             ])
@@ -225,7 +225,7 @@ def fix_mount_dict(compose, mount_dict, proj_name, srv_name):
             elif external:
                 vol["name"] = f"{source}"
             else:
-                vol["name"] = f"{proj_name}_{source}"
+                vol["name"] = f"{compose.project_name}_{source}"
     return mount_dict
 
 
@@ -346,14 +346,14 @@ def norm_ulimit(inner_value):
     return inner_value
 
 
-def default_network_name_for_project(compose, proj_name, net, is_ext):
+def default_network_name_for_project(compose, net, is_ext):
     if is_ext:
         return net
 
     default_net_name_compat = compose.x_podman.get("default_net_name_compat", False)
     if default_net_name_compat is True:
-        return f"{proj_name.replace('-', '')}_{net}"
-    return f"{proj_name}_{net}"
+        return f"{compose.project_name.replace('-', '')}_{net}"
+    return f"{compose.project_name}_{net}"
 
 
 # def tr_identity(project_name, given_containers):
@@ -397,7 +397,6 @@ async def assert_volume(compose, mount_dict):
         return
     if mount_dict["type"] != "volume" or not vol or not vol.get("name", None):
         return
-    proj_name = compose.project_name
     vol_name = vol["name"]
     is_ext = vol.get("external", None)
     log.debug("podman volume inspect %s || podman volume create %s", vol_name, vol_name)
@@ -413,9 +412,9 @@ async def assert_volume(compose, mount_dict):
         args = [
             "create",
             "--label",
-            f"io.podman.compose.project={proj_name}",
+            f"io.podman.compose.project={compose.project_name}",
             "--label",
-            f"com.docker.compose.project={proj_name}",
+            f"com.docker.compose.project={compose.project_name}",
         ]
         for item in norm_as_list(labels):
             args.extend(["--label", item])
@@ -534,17 +533,15 @@ def mount_desc_to_volume_args(compose, mount_desc, srv_name, cnt_name):  # pylin
 
 
 def get_mnt_dict(compose, cnt, volume):
-    proj_name = compose.project_name
     srv_name = cnt["_service"]
     basedir = compose.dirname
     if is_str(volume):
         volume = parse_short_mount(volume, basedir)
-    return fix_mount_dict(compose, volume, proj_name, srv_name)
+    return fix_mount_dict(compose, volume, srv_name)
 
 
 async def get_mount_args(compose, cnt, volume):
     volume = get_mnt_dict(compose, cnt, volume)
-    # proj_name = compose.project_name
     srv_name = cnt["_service"]
     mount_type = volume["type"]
     await assert_volume(compose, volume)
@@ -854,25 +851,22 @@ async def assert_cnt_nets(compose, cnt):
     net = cnt.get("network_mode", None)
     if net and not net.startswith("bridge"):
         return
-    proj_name = compose.project_name
-    nets = compose.networks
-    default_net = compose.default_net
     cnt_nets = cnt.get("networks", None)
     if cnt_nets and is_dict(cnt_nets):
         cnt_nets = list(cnt_nets.keys())
-    cnt_nets = norm_as_list(cnt_nets or default_net)
+    cnt_nets = norm_as_list(cnt_nets or compose.default_net)
     for net in cnt_nets:
-        net_desc = nets[net] or {}
+        net_desc = compose.networks[net] or {}
         is_ext = net_desc.get("external", None)
         ext_desc = is_ext if is_dict(is_ext) else {}
-        default_net_name = default_network_name_for_project(compose, proj_name, net, is_ext)
+        default_net_name = default_network_name_for_project(compose, net, is_ext)
         net_name = ext_desc.get("name", None) or net_desc.get("name", None) or default_net_name
         try:
             await compose.podman.output([], "network", ["exists", net_name])
         except subprocess.CalledProcessError as e:
             if is_ext:
                 raise RuntimeError(f"External network [{net_name}] does not exists") from e
-            args = get_network_create_args(net_desc, proj_name, net_name)
+            args = get_network_create_args(net_desc, compose.project_name, net_name)
             await compose.podman.output([], "network", args)
             await compose.podman.output([], "network", ["exists", net_name])
 
@@ -911,9 +905,6 @@ def get_net_args(compose, cnt):
             sys.exit(1)
     else:
         is_bridge = True
-    proj_name = compose.project_name
-    default_net = compose.default_net
-    nets = compose.networks
     cnt_nets = cnt.get("networks", None)
 
     aliases = [service_name]
@@ -949,13 +940,13 @@ def get_net_args(compose, cnt):
         # sort dict by priority
         prioritized_cnt_nets.sort(reverse=True)
         cnt_nets = [net_key for _, net_key in prioritized_cnt_nets]
-    cnt_nets = norm_as_list(cnt_nets or default_net)
+    cnt_nets = norm_as_list(cnt_nets or compose.default_net)
     net_names = []
     for net in cnt_nets:
-        net_desc = nets[net] or {}
+        net_desc = compose.networks[net] or {}
         is_ext = net_desc.get("external", None)
         ext_desc = is_ext if is_dict(is_ext) else {}
-        default_net_name = default_network_name_for_project(compose, proj_name, net, is_ext)
+        default_net_name = default_network_name_for_project(compose, net, is_ext)
         net_name = ext_desc.get("name", None) or net_desc.get("name", None) or default_net_name
         net_names.append(net_name)
     net_names_str = ",".join(net_names)
@@ -988,10 +979,10 @@ def get_net_args(compose, cnt):
                     )
 
         for net_, net_config_ in multiple_nets.items():
-            net_desc = nets[net_] or {}
+            net_desc = compose.networks[net_] or {}
             is_ext = net_desc.get("external", None)
             ext_desc = is_ext if is_dict(is_ext) else {}
-            default_net_name = default_network_name_for_project(compose, proj_name, net_, is_ext)
+            default_net_name = default_network_name_for_project(compose, net_, is_ext)
             net_name = ext_desc.get("name", None) or net_desc.get("name", None) or default_net_name
 
             ipv4 = net_config_.get("ipv4_address", None)
@@ -1454,9 +1445,7 @@ class Podman:
             log.info("exit code: %s", exit_code)
             return exit_code
 
-    async def volume_ls(self, proj=None):
-        if not proj:
-            proj = self.compose.project_name
+    async def volume_ls(self):
         output = (
             await self.output(
                 [],
@@ -1465,7 +1454,7 @@ class Podman:
                     "ls",
                     "--noheading",
                     "--filter",
-                    f"label=io.podman.compose.project={proj}",
+                    f"label=io.podman.compose.project={self.compose.project_name}",
                     "--format",
                     "{{.Name}}",
                 ],
@@ -1926,10 +1915,9 @@ class PodmanCompose:
             self.default_net = "default"
         else:
             self.default_net = None
-        default_net = self.default_net
         allnets = set()
         for name, srv in services.items():
-            srv_nets = srv.get("networks", None) or default_net
+            srv_nets = srv.get("networks", None) or self.default_net
             srv_nets = list(srv_nets.keys()) if is_dict(srv_nets) else norm_as_list(srv_nets)
             allnets.update(srv_nets)
         given_nets = set(nets.keys())
@@ -2490,7 +2478,6 @@ def get_excluded(compose, args):
 
 @cmd_run(podman_compose, "up", "Create and start the entire stack or some of its services")
 async def compose_up(compose: PodmanCompose, args):
-    proj_name = compose.project_name
     excluded = get_excluded(compose, args)
     if not args.no_build:
         # `podman build` does not cache, so don't always build
@@ -2505,7 +2492,7 @@ async def compose_up(compose: PodmanCompose, args):
                 "ps",
                 [
                     "--filter",
-                    f"label=io.podman.compose.project={proj_name}",
+                    f"label=io.podman.compose.project={compose.project_name}",
                     "-a",
                     "--format",
                     '{{ index .Labels "io.podman.compose.config-hash"}}',
@@ -2601,14 +2588,13 @@ async def compose_up(compose: PodmanCompose, args):
 
 
 def get_volume_names(compose, cnt):
-    proj_name = compose.project_name
     basedir = compose.dirname
     srv_name = cnt["_service"]
     ls = []
     for volume in cnt.get("volumes", []):
         if is_str(volume):
             volume = parse_short_mount(volume, basedir)
-        volume = fix_mount_dict(compose, volume, proj_name, srv_name)
+        volume = fix_mount_dict(compose, volume, srv_name)
         mount_type = volume["type"]
         if mount_type != "volume":
             continue
@@ -2688,8 +2674,7 @@ async def compose_down(compose, args):
 
 @cmd_run(podman_compose, "ps", "show status of containers")
 async def compose_ps(compose, args):
-    proj_name = compose.project_name
-    ps_args = ["-a", "--filter", f"label=io.podman.compose.project={proj_name}"]
+    ps_args = ["-a", "--filter", f"label=io.podman.compose.project={compose.project_name}"]
     if args.quiet is True:
         ps_args.extend(["--format", "{{.ID}}"])
     elif args.format:
