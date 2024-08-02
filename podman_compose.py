@@ -7,6 +7,8 @@
 # https://docs.docker.com/compose/django/
 # https://docs.docker.com/compose/wordpress/
 # TODO: podman pod logs --color -n -f pod_testlogs
+from __future__ import annotations
+
 import argparse
 import asyncio.subprocess
 import getpass
@@ -297,6 +299,7 @@ def norm_as_list(src):
     given a dictionary {key1:value1, key2: None} or list
     return a list of ["key1=value1", "key2"]
     """
+    dst: list[str]
     if src is None:
         dst = []
     elif isinstance(src, dict):
@@ -1659,7 +1662,7 @@ COMPOSE_DEFAULT_LS = [
 
 class PodmanCompose:
     def __init__(self):
-        self.podman = None
+        self.podman: Podman
         self.podman_version = None
         self.environ = {}
         self.exit_code = None
