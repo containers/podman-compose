@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ '3.8', '3.9', '3.10', '3.11', '3.12' ]
+        python-version: [ '3.9', '3.10', '3.11', '3.12' ]
 
     runs-on: ubuntu-latest
     container:
@@ -22,7 +22,7 @@ jobs:
     - name: Install dependencies
       run: |
         set -e
-        apt update && apt install -y podman
+        apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y podman
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r test-requirements.txt
