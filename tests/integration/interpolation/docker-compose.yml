@@ -4,8 +4,8 @@ services:
         image: busybox
         command: ["/bin/busybox", "sh", "-c", "export | grep EXAMPLE"]
         environment:
-            EXAMPLE_VARIABLE: "Host user: $USER"
-            EXAMPLE_BRACES: "Host user: ${USER}"
+            EXAMPLE_VARIABLE: "Host user: $EXAMPLE_VARIABLE_USER"
+            EXAMPLE_BRACES: "Host user: ${EXAMPLE_VARIABLE_USER}"
             EXAMPLE_COLON_DASH_DEFAULT: ${NOT_A_VARIABLE:-My default}
             EXAMPLE_DASH_DEFAULT: ${NOT_A_VARIABLE-My other default}
             EXAMPLE_DOT_ENV: $DOT_ENV_VARIABLE
