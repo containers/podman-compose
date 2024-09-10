@@ -205,7 +205,7 @@ def fix_mount_dict(compose, mount_dict, srv_name):
     if mount_dict["type"] == "volume":
         vols = compose.vols
         source = mount_dict.get("source", None)
-        vol = (vols.get(source, None) or {}) if source else {}
+        vol = vols.get(source, {}) if source else {}
         name = vol.get("name", None)
         mount_dict["_vol"] = vol
         # handle anonymous or implied volume
