@@ -2,6 +2,5 @@ version: '3'
 services:
   web:
     image: busybox
-    command: httpd -f -p 8123 -h /etc/
+    command: httpd -f -p 8123 -h /tmp/
     network_mode: host
-
