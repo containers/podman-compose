@@ -1,6 +1,6 @@
 version: '3'
 
-# --ipam-driver must not be pass when driver is "default"
+# --ipam-driver must not be passed when driver is "default"
 networks:
   ipam_test_default:
     ipam:
