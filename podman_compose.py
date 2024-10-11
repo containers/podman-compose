@@ -2401,6 +2401,8 @@ async def build_one(compose, args, cnt):
         build_args.extend([f"--build-context={additional_ctx}"])
     if "target" in build_desc:
         build_args.extend(["--target", build_desc["target"]])
+    for agent_or_key in norm_as_list(build_desc.get("ssh", {})):
+        build_args.extend(["--ssh", agent_or_key])
     container_to_ulimit_build_args(cnt, build_args)
     if getattr(args, "no_cache", None):
         build_args.append("--no-cache")
