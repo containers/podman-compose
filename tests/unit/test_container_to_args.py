@@ -249,6 +249,25 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
+    async def test_no_hosts_extension(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["x-podman.no_hosts"] = True
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge",
+                "--network-alias=service_name",
+                "--no-hosts",
+                "busybox",
+            ],
+        )
+
     async def test_env_file_str(self):
         c = create_compose_mock()
 

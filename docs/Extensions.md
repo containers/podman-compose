@@ -14,6 +14,8 @@ The following extension keys are available under container configuration:
 * `x-podman.rootfs` - Run the container without requiring any image management; the rootfs of the
 container is assumed to be managed externally.
 
+* `x-podman.no_hosts` - Run the container without creating /etc/hosts file
+
 For example, the following docker-compose.yml allows running a podman container with externally managed rootfs.
 ```yml
 version: "3"
