@@ -1,0 +1,26 @@
+version: "3"
+services:
+  test_build_ssh_map:
+    build:
+      context: ./context
+      dockerfile: Dockerfile
+      ssh:
+        default:
+        id1: "./id_ed25519_dummy"
+        id2: "./agent_dummy.sock"
+    image: my-alpine-build-ssh-map
+    command:
+      - cat
+      - /result.log
+  test_build_ssh_array:
+    build:
+      context: ./context
+      dockerfile: Dockerfile
+      ssh:
+        - default
+        - "id1=./id_ed25519_dummy"
+        - "id2=./agent_dummy.sock"
+    image: my-alpine-build-ssh-array
+    command:
+      - cat
+      - /result.log
