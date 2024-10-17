@@ -187,3 +187,33 @@ class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
             ],
             1,
         )
+
+    def test_down_with_network(self):
+        up_cmd = [
+            "coverage",
+            "run",
+            podman_compose_path(),
+            "-f",
+            os.path.join(test_path(), "network", "docker-compose.yml"),
+            "up",
+            "-d",
+        ]
+
+        down_cmd = [
+            "coverage",
+            "run",
+            podman_compose_path(),
+            "-f",
+            os.path.join(test_path(), "network", "docker-compose.yml"),
+            "down",
+        ]
+
+        try:
+            self.run_subprocess_assert_returncode(up_cmd)
+            output, _, _ = self.run_subprocess(["podman", "network", "ls"])
+            self.assertIn("network_mystack", output.decode())
+        finally:
+            out, _, return_code = self.run_subprocess(down_cmd)
+            self.assertEqual(return_code, 0)
+            output, _, _ = self.run_subprocess(["podman", "network", "ls"])
+            self.assertNotIn("network_mystack", output.decode())
