@@ -1452,6 +1452,24 @@ class Podman:
             log.info("exit code: %s", exit_code)
             return exit_code
 
+    async def network_ls(self):
+        output = (
+            await self.output(
+                [],
+                "network",
+                [
+                    "ls",
+                    "--noheading",
+                    "--filter",
+                    f"label=io.podman.compose.project={self.compose.project_name}",
+                    "--format",
+                    "{{.Name}}",
+                ],
+            )
+        ).decode()
+        networks = output.splitlines()
+        return networks
+
     async def volume_ls(self):
         output = (
             await self.output(
@@ -2612,7 +2630,7 @@ def get_volume_names(compose, cnt):
 
 
 @cmd_run(podman_compose, "down", "tear down entire stack")
-async def compose_down(compose, args):
+async def compose_down(compose: PodmanCompose, args):
     excluded = get_excluded(compose, args)
     podman_args = []
     timeout_global = getattr(args, "timeout", None)
@@ -2678,6 +2696,8 @@ async def compose_down(compose, args):
         return
     for pod in compose.pods:
         await compose.podman.run([], "pod", ["rm", pod["name"]])
+    for network in await compose.podman.network_ls():
+        await compose.podman.run([], "network", ["rm", network])
 
 
 @cmd_run(podman_compose, "ps", "show status of containers")

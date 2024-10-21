@@ -48,7 +48,7 @@ class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
         ]
 
         out, _ = self.run_subprocess_assert_returncode(run_cmd)
-        self.assertIn(b'127.0.0.1\tlocalhost', out)
+        self.assertIn(b"127.0.0.1\tlocalhost", out)
 
         # Run it again to make sure we can run it twice. I saw an issue where a second run, with
         # the container left up, would fail
@@ -67,7 +67,7 @@ class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
         ]
 
         out, _ = self.run_subprocess_assert_returncode(run_cmd)
-        self.assertIn(b'127.0.0.1\tlocalhost', out)
+        self.assertIn(b"127.0.0.1\tlocalhost", out)
 
         # This leaves a container running. Not sure it's intended, but it matches docker-compose
         down_cmd = [
@@ -187,3 +187,28 @@ class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
             ],
             1,
         )
+
+    def test_down_with_network(self):
+        try:
+            self.run_subprocess_assert_returncode([
+                "coverage",
+                "run",
+                podman_compose_path(),
+                "-f",
+                os.path.join(test_path(), "network", "docker-compose.yml"),
+                "up",
+                "-d",
+            ])
+            output, _, _ = self.run_subprocess(["podman", "network", "ls"])
+            self.assertIn("network_mystack", output.decode())
+        finally:
+            self.run_subprocess_assert_returncode([
+                "coverage",
+                "run",
+                podman_compose_path(),
+                "-f",
+                os.path.join(test_path(), "network", "docker-compose.yml"),
+                "down",
+            ])
+            output, _, _ = self.run_subprocess(["podman", "network", "ls"])
+            self.assertNotIn("network_mystack", output.decode())
