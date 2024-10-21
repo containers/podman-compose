@@ -56,6 +56,6 @@ check_selinux() {
 SELINUX=$(check_selinux)
 
 # Build binary
-$CONTAINER_TOOL image rm podman-compose
-$CONTAINER_TOOL build -v "$PROJECT_ROOT_DIR:/result$SELINUX" -t podman-compose $PROJECT_ROOT_DIR
-$CONTAINER_TOOL image rm podman-compose
+$CONTAINER_TOOL image rm build-podman-compose
+$CONTAINER_TOOL build -v "$PROJECT_ROOT_DIR:/result$SELINUX" -t build-podman-compose $PROJECT_ROOT_DIR
+$CONTAINER_TOOL image rm build-podman-compose
