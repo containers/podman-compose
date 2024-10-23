@@ -15,22 +15,8 @@ find_container_tool() {
 # Determine which container tool to use
 CONTAINER_TOOL=$(find_container_tool)
 
-# Find the directory containing the dockerfile by traversing up the directory tree
-find_dockerfile_dir() {
-    DIR=$(cd "$(dirname "$0")" && pwd)/$(basename "$0")
-    while [ "$DIR" != "/" ]; do
-        if ls "$DIR"/*Dockerfile 1> /dev/null 2>&1; then
-            echo "$DIR"
-            return
-        fi
-        DIR=$(dirname "$DIR")
-    done
-    echo "Error: Dockerfile not found in the directory hierarchy." >&2
-    exit 1
-}
-
 # Locate the directory containing dockerfile (root)
-PROJECT_ROOT_DIR=$(find_dockerfile_dir)
+PROJECT_ROOT_DIR="$(cd "$(dirname "$0")" && pwd)/.."
 
 # Check SELinux status and set appropriate mount option
 check_selinux() {
@@ -57,5 +43,15 @@ SELINUX=$(check_selinux)
 
 # Build binary
 $CONTAINER_TOOL image rm build-podman-compose
-$CONTAINER_TOOL build -v "$PROJECT_ROOT_DIR:/result$SELINUX" -t build-podman-compose $PROJECT_ROOT_DIR
+
+if expr "$CONTAINER_TOOL" : '.*docker.*' >/dev/null; then
+    $CONTAINER_TOOL build -t build-podman-compose "$PROJECT_ROOT_DIR"
+    $CONTAINER_TOOL run --name build-podman-compose build-podman-compose
+    $CONTAINER_TOOL cp build-podman-compose:/result/podman-compose "$PROJECT_ROOT_DIR/podman-compose"
+    $CONTAINER_TOOL container stop build-podman-compose
+    $CONTAINER_TOOL container rm -f build-podman-compose
+else
+    $CONTAINER_TOOL build -v "$PROJECT_ROOT_DIR:/result$SELINUX" -t build-podman-compose "$PROJECT_ROOT_DIR"
+fi
+$CONTAINER_TOOL image rm python:3.11-slim
 $CONTAINER_TOOL image rm build-podman-compose

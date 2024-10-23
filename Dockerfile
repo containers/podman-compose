@@ -23,5 +23,8 @@ RUN pip install -r requirements.txt
 # Create a binary with PyInstaller
 RUN pyinstaller --onefile --clean podman_compose.py
 
+# Create /result dir in case it is not mounted
+RUN mkdir -p /result
+
 # Export binary
 RUN cp /app/dist/podman_compose /result/podman-compose
