@@ -20,7 +20,7 @@ jobs:
           mv "$PWD/release/podman-compose" "$PWD/release/podman-compose-linux-x86"
 
       - name: Upload release asset
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: ./release/podman-compose-linux-x86
         env:
