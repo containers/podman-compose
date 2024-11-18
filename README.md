@@ -75,7 +75,7 @@ brew install podman-compose
 ```
 
 ### Generate binary using docker/podman locally
-This script will download the repo, generate the binary using [this Dockerfile](https://github.com/containers/podman-compose/blob/main/Dockerfile.md) and let the binary in the directory where you called this script.
+This script will download the repo, generate the binary using [this Dockerfile](https://github.com/containers/podman-compose/blob/main/Dockerfile), and place the binary in the directory where you called this script.
 ```bash
 sh -c "$(curl -sSL https://raw.githubusercontent.com/containers/podman-compose/main/scripts/download_and_build_podman-compose.sh)"
 ```
