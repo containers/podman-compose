@@ -25,6 +25,7 @@ import signal
 import subprocess
 import sys
 from asyncio import Task
+from enum import Enum
 
 try:
     from shlex import quote as cmd_quote
@@ -1048,8 +1049,8 @@ async def container_to_args(compose, cnt, detached=True):
     if pod:
         podman_args.append(f"--pod={pod}")
     deps = []
-    for dep_srv in cnt.get("_deps", None) or []:
-        deps.extend(compose.container_names_by_service.get(dep_srv, None) or [])
+    for dep_srv in cnt.get("_deps", []):
+        deps.extend(compose.container_names_by_service.get(dep_srv.name, []))
     if deps:
         deps_csv = ",".join(deps)
         podman_args.append(f"--requires={deps_csv}")
@@ -1273,33 +1274,63 @@ async def container_to_args(compose, cnt, detached=True):
     return podman_args
 
 
-def rec_deps(services, service_name, start_point=None):
-    """
-    return all dependencies of service_name recursively
-    """
-    if not start_point:
-        start_point = service_name
-    deps = services[service_name]["_deps"]
-    for dep_name in deps.copy():
-        # avoid A depens on A
-        if dep_name == service_name:
-            continue
-        dep_srv = services.get(dep_name, None)
-        if not dep_srv:
-            continue
-        # NOTE: avoid creating loops, A->B->A
-        if start_point and start_point in dep_srv["_deps"]:
-            continue
-        new_deps = rec_deps(services, dep_name, start_point)
-        deps.update(new_deps)
-    return deps
+class ServiceDependencyCondition(Enum):
+    NONE = ""
+    HEALTHY = "service_healthy"    
+    STARTED = "service_started"
+    COMPLETED = "service_completed_successfully"
+
+
+class ServiceDependency:
+    def __init__(self, name, condition=None):
+        self._name = name
+        self._condition = ServiceDependencyCondition(condition or "")
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def condition(self):
+        return self._condition
+
+    def __hash__(self):
+        # Compute hash based on the frozenset of items to ensure order does not matter
+        return hash(('name', self._name)+('condition', self._condition))
+
+    def __eq__(self, other):
+        # Compare equality based on dictionary content
+        if isinstance(other, ServiceDependency):
+            return self._name == other.name and self._condition == other.condition
+        return False
 
 
 def flat_deps(services, with_extends=False):
     """
     create dependencies "_deps" or update it recursively for all services
     """
+    def rec_deps(services, service_name, start_point=None):
+        """
+        return all dependencies of service_name recursively
+        """
+        start_point = start_point or service_name
+        deps = services[service_name]["_deps"]
+        for dep_name in deps.copy():
+            # avoid A depens on A
+            if dep_name.name == service_name:
+                continue
+            dep_srv = services.get(dep_name.name, None)
+            if not dep_srv:
+                continue
+            # NOTE: avoid creating loops, A->B->A
+            if start_point in any(x.name for x in dep_srv["_deps"]):
+                continue
+            new_deps = rec_deps(services, dep_name, start_point)
+            deps.update(new_deps)
+        return deps
+    
     for name, srv in services.items():
+        # parse dependencies for each service
         deps = set()
         srv["_deps"] = deps
         if with_extends:
@@ -1308,14 +1339,16 @@ def flat_deps(services, with_extends=False):
                 if ext != name:
                     deps.add(ext)
                 continue
-        deps_ls = srv.get("depends_on", None) or []
-        if isinstance(deps_ls, str):
-            deps_ls = [deps_ls]
+        deps_ls = srv.get("depends_on", [])
+        if isinstance(deps_ls, list):
+            deps_ls = [ServiceDependency(t) for t in deps_ls]
         elif isinstance(deps_ls, dict):
-            deps_ls = list(deps_ls.keys())
-        deps.update(deps_ls)
+            deps_ls = [ServiceDependency(k, v.get("condition")) for k, v in deps.items()]
+        else:
+            raise RuntimeError("depends_on should be a list of strings or a dict")
+
         # parse link to get service name and remove alias
-        links_ls = srv.get("links", None) or []
+        links_ls = srv.get("links", [])
         if not is_list(links_ls):
             links_ls = [links_ls]
         deps.update([(c.split(":")[0] if ":" in c else c) for c in links_ls])
@@ -1325,6 +1358,8 @@ def flat_deps(services, with_extends=False):
                 if "_aliases" not in services[dep_name]:
                     services[dep_name]["_aliases"] = set()
                 services[dep_name]["_aliases"].add(dep_alias)
+    
+    # expand the dependencies on each service
     for name, srv in services.items():
         rec_deps(services, name)
 
@@ -2022,7 +2057,7 @@ class PodmanCompose:
         container_by_name = {c["name"]: c for c in given_containers}
         # log("deps:", [(c["name"], c["_deps"]) for c in given_containers])
         given_containers = list(container_by_name.values())
-        given_containers.sort(key=lambda c: len(c.get("_deps", None) or []))
+        given_containers.sort(key=lambda c: len(c.get("_deps", [])))
         # log("sorted:", [c["name"] for c in given_containers])
 
         self.x_podman = compose.get("x-podman", {})
@@ -2496,7 +2531,7 @@ def get_excluded(compose, args):
     if args.services:
         excluded = set(compose.services)
         for service in args.services:
-            excluded -= compose.services[service]["_deps"]
+            excluded -= set(x.name for x in compose.services[service]["_deps"])
             excluded.discard(service)
     log.debug("** excluding: %s", excluded)
     return excluded
@@ -2732,7 +2767,7 @@ async def compose_run(compose, args):
             **dict(
                 args.__dict__,
                 detach=True,
-                services=deps,
+                services=[x.name for x in deps],
                 # defaults
                 no_build=False,
                 build=None,
@@ -2750,6 +2785,19 @@ async def compose_run(compose, args):
         services=[args.service], if_not_exists=(not args.build), build_arg=[], **args.__dict__
     )
     await compose.commands["build"](compose, build_args)
+
+    # Separate the dependencies into different lists based on their condition
+    deps_healthy = [d.name for d in deps if d.condition == ServiceDependencyCondition.HEALTHY]
+    deps_started = [d.name for d in deps if d.condition == ServiceDependencyCondition.STARTED]
+    deps_completed = [d.name for d in deps if d.condition == ServiceDependencyCondition.COMPLETED]
+
+    # execute podman wait on the dependencies
+    if deps_started:
+        await compose.podman.run([], "wait", ["--condition=running"] + deps_started)
+    if deps_healthy:
+        await compose.podman.run([], "wait", ["--condition=healthy"] + deps_healthy)
+    if deps_completed:
+        await compose.podman.run([], "wait", deps_completed)
 
     compose_run_update_container_from_args(compose, cnt, args)
     # run podman
