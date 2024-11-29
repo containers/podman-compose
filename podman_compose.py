@@ -1337,7 +1337,7 @@ def flat_deps(services, with_extends=False):
             ext = srv.get("extends", {}).get("service", None)
             if ext:
                 if ext != name:
-                    deps.add(ext)
+                    deps.add(ServiceDependency(ext))
                 continue
         deps_ls = srv.get("depends_on", [])
         if isinstance(deps_ls, str):
