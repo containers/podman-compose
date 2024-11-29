@@ -1323,7 +1323,7 @@ def flat_deps(services, with_extends=False):
             if not dep_srv:
                 continue
             # NOTE: avoid creating loops, A->B->A
-            if start_point in any(x.name for x in dep_srv["_deps"]):
+            if any(start_point == x.name for x in dep_srv["_deps"]):
                 continue
             new_deps = rec_deps(services, dep_name, start_point)
             deps.update(new_deps)
