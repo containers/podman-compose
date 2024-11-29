@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDt-License-Identifier: GPL-2.0
 
 import json
 import os
@@ -34,7 +34,7 @@ class TestComposeIpamDefault(unittest.TestCase, RunSubprocessMixin):
                 [
                     "podman",
                     "inspect",
-                    "ipam_default_testipam_1",
+                    "ipam_default-testipam-1",
                 ],
             )
             network_info = json.loads(output.decode('utf-8'))[0]

@@ -34,8 +34,8 @@ class TestComposeNetsTest1(unittest.TestCase, RunSubprocessMixin):
                 compose_yaml_path(),
                 "ps",
             ])
-            self.assertIn(b"nets_test1_web1_1", output)
-            self.assertIn(b"nets_test1_web2_1", output)
+            self.assertIn(b"nets_test1-web1-1", output)
+            self.assertIn(b"nets_test1-web2-1", output)
 
             response = requests.get('http://localhost:8001/index.txt')
             self.assertTrue(response.ok)
@@ -49,7 +49,7 @@ class TestComposeNetsTest1(unittest.TestCase, RunSubprocessMixin):
             output, _ = self.run_subprocess_assert_returncode([
                 "podman",
                 "inspect",
-                "nets_test1_web1_1",
+                "nets_test1-web1-1",
             ])
             container_info = json.loads(output.decode('utf-8'))[0]
 
@@ -70,7 +70,7 @@ class TestComposeNetsTest1(unittest.TestCase, RunSubprocessMixin):
             output, _ = self.run_subprocess_assert_returncode([
                 "podman",
                 "inspect",
-                "nets_test1_web2_1",
+                "nets_test1-web2-1",
             ])
             container_info = json.loads(output.decode('utf-8'))[0]
             self.assertEqual(
