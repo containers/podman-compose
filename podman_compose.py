@@ -1354,7 +1354,7 @@ def flat_deps(services, with_extends=False):
         links_ls = srv.get("links", [])
         if not is_list(links_ls):
             links_ls = [links_ls]
-        deps.update([(c.split(":")[0] if ":" in c else c) for c in links_ls])
+        deps.update([ServiceDependency(c.split(":")[0] if ":" in c else c) for c in links_ls])
         for c in links_ls:
             if ":" in c:
                 dep_name, dep_alias = c.split(":")
