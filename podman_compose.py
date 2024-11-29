@@ -1345,9 +1345,9 @@ def flat_deps(services, with_extends=False):
         elif isinstance(deps_ls, list):
             deps_ls = [ServiceDependency(t) for t in deps_ls]
         elif isinstance(deps_ls, dict):
-            deps_ls = [ServiceDependency(k, v.get("condition")) for k, v in deps.items()]
+            deps_ls = [ServiceDependency(k, v.get("condition")) for k, v in deps_ls.items()]
         else:
-            raise RuntimeError("depends_on should be a list of strings or a dict")
+            raise RuntimeError("depends_on should be a string, a list of strings or a dict")
 
         # parse link to get service name and remove alias
         links_ls = srv.get("links", [])
