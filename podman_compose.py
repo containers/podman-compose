@@ -1340,7 +1340,9 @@ def flat_deps(services, with_extends=False):
                     deps.add(ext)
                 continue
         deps_ls = srv.get("depends_on", [])
-        if isinstance(deps_ls, list):
+        if isinstance(deps_ls, str):
+            deps_ls = [ServiceDependency(dep_ls)]
+        elif isinstance(deps_ls, list):
             deps_ls = [ServiceDependency(t) for t in deps_ls]
         elif isinstance(deps_ls, dict):
             deps_ls = [ServiceDependency(k, v.get("condition")) for k, v in deps.items()]
