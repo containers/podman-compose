@@ -63,8 +63,8 @@ class TestPodmanComposeNetwork(RunSubprocessMixin, unittest.TestCase):
             '"{{.Names}}"',
         ]
         out, _ = self.run_subprocess_assert_returncode(check_cmd)
-        self.assertIn(b"nets_test_ip_web1_1", out)
-        self.assertIn(b"nets_test_ip_web2_1", out)
+        self.assertIn(b"nets_test_ip-web1-1", out)
+        self.assertIn(b"nets_test_ip-web2-1", out)
 
         expected_wget = {
             "172.19.1.10": "test1",

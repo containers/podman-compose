@@ -26,7 +26,7 @@ class TestComposeDeps(unittest.TestCase, RunSubprocessMixin):
                 "wget -O - http://web:8000/hosts",
             ])
             self.assertIn(b"HTTP request sent, awaiting response... 200 OK", output)
-            self.assertIn(b"deps_web_1", output)
+            self.assertIn(b"deps-web-1", output)
         finally:
             self.run_subprocess_assert_returncode([
                 podman_compose_path(),

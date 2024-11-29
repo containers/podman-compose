@@ -29,7 +29,7 @@ class TestComposeExtendsWithFileSubdir(unittest.TestCase, RunSubprocessMixin):
                 compose_yaml_path(),
                 "ps",
             ])
-            self.assertIn("extends_w_file_subdir_web_1", str(output))
+            self.assertIn("extends_w_file_subdir-web-1", str(output))
         finally:
             self.run_subprocess_assert_returncode([
                 podman_compose_path(),

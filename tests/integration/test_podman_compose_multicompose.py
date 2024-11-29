@@ -38,14 +38,14 @@ class TestComposeMulticompose(unittest.TestCase, RunSubprocessMixin):
                 os.path.join(os.path.join(test_path(), "multicompose"), "d2/docker-compose.yml"),
                 "ps",
             ])
-            self.assertIn(b"d1_web1_1", output)
-            self.assertIn(b"d1_web2_1", output)
+            self.assertIn(b"d1-web1-1", output)
+            self.assertIn(b"d1-web2-1", output)
 
             output, _ = self.run_subprocess_assert_returncode([
                 "podman",
                 "exec",
                 "-ti",
-                "d1_web1_1",
+                "d1-web1-1",
                 "sh",
                 "-c",
                 "set",
@@ -58,7 +58,7 @@ class TestComposeMulticompose(unittest.TestCase, RunSubprocessMixin):
                 "podman",
                 "exec",
                 "-ti",
-                "d1_web2_1",
+                "d1-web2-1",
                 "sh",
                 "-c",
                 "set",
@@ -70,7 +70,7 @@ class TestComposeMulticompose(unittest.TestCase, RunSubprocessMixin):
                 "podman",
                 "exec",
                 "-ti",
-                "d1_web1_1",
+                "d1-web1-1",
                 "sh",
                 "-c",
                 "cat /var/www/html/index.txt",
@@ -82,7 +82,7 @@ class TestComposeMulticompose(unittest.TestCase, RunSubprocessMixin):
                 "podman",
                 "exec",
                 "-ti",
-                "d1_web2_1",
+                "d1-web2-1",
                 "sh",
                 "-c",
                 "cat /var/www/html/index.txt",

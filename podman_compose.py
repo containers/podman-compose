@@ -223,7 +223,7 @@ def fix_mount_dict(compose, mount_dict, srv_name):
             elif external:
                 vol["name"] = f"{source}"
             else:
-                vol["name"] = f"{compose.project_name}_{source}"
+                vol["name"] = f"{compose.project_name}-{source}"
     return mount_dict
 
 
@@ -351,7 +351,7 @@ def default_network_name_for_project(compose, net, is_ext):
 
     default_net_name_compat = compose.x_podman.get("default_net_name_compat", False)
     if default_net_name_compat is True:
-        return f"{compose.project_name.replace('-', '')}_{net}"
+        return f"{compose.project_name.replace('-', '')}-{net}"
     return f"{compose.project_name}_{net}"
 
 
@@ -369,7 +369,7 @@ def transform(args, project_name, given_containers):
         pod_name = None
         pods = []
     else:
-        pod_name = f"pod_{project_name}"
+        pod_name = f"pod-{project_name}"
         pod = {"name": pod_name}
         pods = [pod]
     containers = []
@@ -1979,7 +1979,7 @@ class PodmanCompose:
 
             container_names_by_service[service_name] = []
             for num in range(1, replicas + 1):
-                name0 = f"{project_name}_{service_name}_{num}"
+                name0 = f"{project_name}-{service_name}-{num}"
                 if num == 1:
                     name = service_desc.get("container_name", name0)
                 else:
@@ -1995,7 +1995,7 @@ class PodmanCompose:
                 x_podman = service_desc.get("x-podman", None)
                 rootfs_mode = x_podman is not None and x_podman.get("rootfs", None) is not None
                 if "image" not in cnt and not rootfs_mode:
-                    cnt["image"] = f"{project_name}_{service_name}"
+                    cnt["image"] = f"{project_name}-{service_name}"
                 labels = norm_as_list(cnt.get("labels", None))
                 cnt["ports"] = norm_ports(cnt.get("ports", None))
                 labels.extend(podman_compose_labels)
@@ -2764,7 +2764,7 @@ async def compose_run(compose, args):
 
 def compose_run_update_container_from_args(compose, cnt, args):
     # adjust one-off container options
-    name0 = "{}_{}_tmp{}".format(compose.project_name, args.service, random.randrange(0, 65536))
+    name0 = "{}-{}-tmp{}".format(compose.project_name, args.service, random.randrange(0, 65536))
     cnt["name"] = args.name or name0
     if args.entrypoint:
         cnt["entrypoint"] = args.entrypoint
