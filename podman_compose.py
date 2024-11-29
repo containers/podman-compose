@@ -1348,6 +1348,7 @@ def flat_deps(services, with_extends=False):
             deps_ls = [ServiceDependency(k, v.get("condition")) for k, v in deps_ls.items()]
         else:
             raise RuntimeError("depends_on should be a string, a list of strings or a dict")
+        deps.update(deps_ls)
 
         # parse link to get service name and remove alias
         links_ls = srv.get("links", [])
