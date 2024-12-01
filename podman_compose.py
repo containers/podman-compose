@@ -2502,6 +2502,15 @@ def get_excluded(compose, args):
     return excluded
 
 
+async def run_container(
+    compose: PodmanCompose, name: str, command: tuple, log_formatter: str = None
+):
+    """runs a container after waiting for its dependencies to be fulfilled"""
+
+    log.debug("Starting task for container %s", name)
+    return await compose.podman.run(*command, log_formatter=log_formatter)
+
+
 @cmd_run(podman_compose, "up", "Create and start the entire stack or some of its services")
 async def compose_up(compose: PodmanCompose, args):
     excluded = get_excluded(compose, args)
@@ -2546,7 +2555,7 @@ async def compose_up(compose: PodmanCompose, args):
         podman_args = await container_to_args(compose, cnt, detached=args.detach)
         subproc = await compose.podman.run([], podman_command, podman_args)
         if podman_command == "run" and subproc is not None:
-            await compose.podman.run([], "start", [cnt["name"]])
+            await run_container(compose, cnt["name"], ([], "start", [cnt["name"]]))
     if args.no_start or args.detach or args.dry_run:
         return
     # TODO: handle already existing
@@ -2578,7 +2587,12 @@ async def compose_up(compose: PodmanCompose, args):
 
         tasks.add(
             asyncio.create_task(
-                compose.podman.run([], "start", ["-a", cnt["name"]], log_formatter=log_formatter),
+                run_container(
+                    compose,
+                    cnt["name"],
+                    ([], "start", ["-a", cnt["name"]]),
+                    log_formatter=log_formatter,
+                ),
                 name=cnt["_service"],
             )
         )
