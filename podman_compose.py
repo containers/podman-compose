@@ -1049,7 +1049,7 @@ async def container_to_args(compose, cnt, detached=True):
         podman_args.append(f"--pod={pod}")
     deps = []
     for dep_srv in cnt.get("_deps", None) or []:
-        deps.extend(compose.container_names_by_service.get(dep_srv, None) or [])
+        deps.extend(compose.container_names_by_service.get(dep_srv.name, None) or [])
     if deps:
         deps_csv = ",".join(deps)
         podman_args.append(f"--requires={deps_csv}")
@@ -1273,6 +1273,25 @@ async def container_to_args(compose, cnt, detached=True):
     return podman_args
 
 
+class ServiceDependency:
+    def __init__(self, name):
+        self._name = name
+
+    @property
+    def name(self):
+        return self._name
+
+    def __hash__(self):
+        # Compute hash based on the frozenset of items to ensure order does not matter
+        return hash(('name', self._name))
+
+    def __eq__(self, other):
+        # Compare equality based on dictionary content
+        if isinstance(other, ServiceDependency):
+            return self._name == other.name
+        return False
+
+
 def rec_deps(services, service_name, start_point=None):
     """
     return all dependencies of service_name recursively
@@ -1282,15 +1301,15 @@ def rec_deps(services, service_name, start_point=None):
     deps = services[service_name]["_deps"]
     for dep_name in deps.copy():
         # avoid A depens on A
-        if dep_name == service_name:
+        if dep_name.name == service_name:
             continue
-        dep_srv = services.get(dep_name, None)
+        dep_srv = services.get(dep_name.name, None)
         if not dep_srv:
             continue
         # NOTE: avoid creating loops, A->B->A
-        if start_point and start_point in dep_srv["_deps"]:
+        if any(start_point == x.name for x in dep_srv["_deps"]):
             continue
-        new_deps = rec_deps(services, dep_name, start_point)
+        new_deps = rec_deps(services, dep_name.name, start_point)
         deps.update(new_deps)
     return deps
 
@@ -1306,19 +1325,21 @@ def flat_deps(services, with_extends=False):
             ext = srv.get("extends", {}).get("service", None)
             if ext:
                 if ext != name:
-                    deps.add(ext)
+                    deps.add(ServiceDependency(ext))
                 continue
         deps_ls = srv.get("depends_on", None) or []
         if isinstance(deps_ls, str):
-            deps_ls = [deps_ls]
+            deps_ls = [ServiceDependency(deps_ls)]
         elif isinstance(deps_ls, dict):
-            deps_ls = list(deps_ls.keys())
+            deps_ls = [ServiceDependency(d) for d in deps_ls.keys()]
+        else:
+            deps_ls = [ServiceDependency(d) for d in deps_ls]
         deps.update(deps_ls)
         # parse link to get service name and remove alias
         links_ls = srv.get("links", None) or []
         if not is_list(links_ls):
             links_ls = [links_ls]
-        deps.update([(c.split(":")[0] if ":" in c else c) for c in links_ls])
+        deps.update([ServiceDependency(c.split(":")[0]) for c in links_ls])
         for c in links_ls:
             if ":" in c:
                 dep_name, dep_alias = c.split(":")
@@ -2496,7 +2517,7 @@ def get_excluded(compose, args):
     if args.services:
         excluded = set(compose.services)
         for service in args.services:
-            excluded -= compose.services[service]["_deps"]
+            excluded -= set(x.name for x in compose.services[service]["_deps"])
             excluded.discard(service)
     log.debug("** excluding: %s", excluded)
     return excluded
@@ -2746,7 +2767,7 @@ async def compose_run(compose, args):
             **dict(
                 args.__dict__,
                 detach=True,
-                services=deps,
+                services=[x.name for x in deps],
                 # defaults
                 no_build=False,
                 build=None,
