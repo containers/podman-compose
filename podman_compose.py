@@ -25,6 +25,7 @@ import signal
 import subprocess
 import sys
 from asyncio import Task
+from enum import Enum
 
 try:
     from shlex import quote as cmd_quote
@@ -1273,22 +1274,59 @@ async def container_to_args(compose, cnt, detached=True):
     return podman_args
 
 
+class ServiceDependencyCondition(Enum):
+    CONFIGURED = "configured"
+    CREATED = "created"
+    EXITED = "exited"
+    HEALTHY = "healthy"
+    INITIALIZED = "initialized"
+    PAUSED = "paused"
+    REMOVING = "removing"
+    RUNNING = "running"
+    STOPPED = "stopped"
+    STOPPING = "stopping"
+    UNHEALTHY = "unhealthy"
+
+    @classmethod
+    def from_value(cls, value):
+        # Check if the value exists in the enum
+        for member in cls:
+            if member.value == value:
+                return member
+
+        # Check if this is a value coming from  reference
+        docker_to_podman_cond = {
+            "service_healthy": ServiceDependencyCondition.HEALTHY,
+            "service_started": ServiceDependencyCondition.RUNNING,
+            "service_completed_successfully": ServiceDependencyCondition.STOPPED,
+        }
+        try:
+            return docker_to_podman_cond[value]
+        except KeyError:
+            raise ValueError(f"Value '{value}' is not a valid condition for a service dependency")  # pylint: disable=raise-missing-from
+
+
 class ServiceDependency:
-    def __init__(self, name):
+    def __init__(self, name, condition):
         self._name = name
+        self._condition = ServiceDependencyCondition.from_value(condition)
 
     @property
     def name(self):
         return self._name
 
+    @property
+    def condition(self):
+        return self._condition
+
     def __hash__(self):
         # Compute hash based on the frozenset of items to ensure order does not matter
-        return hash(('name', self._name))
+        return hash(('name', self._name) + ('condition', self._condition))
 
     def __eq__(self, other):
         # Compare equality based on dictionary content
         if isinstance(other, ServiceDependency):
-            return self._name == other.name
+            return self._name == other.name and self._condition == other.condition
         return False
 
 
@@ -1319,31 +1357,35 @@ def flat_deps(services, with_extends=False):
     create dependencies "_deps" or update it recursively for all services
     """
     for name, srv in services.items():
+        # parse dependencies for each service
         deps = set()
         srv["_deps"] = deps
+        # TODO: manage properly the dependencies coming from base services when extended
         if with_extends:
             ext = srv.get("extends", {}).get("service", None)
             if ext:
                 if ext != name:
-                    deps.add(ServiceDependency(ext))
+                    deps.add(ServiceDependency(ext, "service_started"))
                 continue
 
         # the compose file has been normalized. depends_on, if exists, can only be a dictionary
         # the normalization adds a "service_started" condition by default
         deps_ls = srv.get("depends_on", {})
-        deps_ls = [ServiceDependency(k) for k, v in deps_ls.items()]
+        deps_ls = [ServiceDependency(k, v["condition"]) for k, v in deps_ls.items()]
         deps.update(deps_ls)
         # parse link to get service name and remove alias
         links_ls = srv.get("links", None) or []
         if not is_list(links_ls):
             links_ls = [links_ls]
-        deps.update([ServiceDependency(c.split(":")[0]) for c in links_ls])
+        deps.update([ServiceDependency(c.split(":")[0], "service_started") for c in links_ls])
         for c in links_ls:
             if ":" in c:
                 dep_name, dep_alias = c.split(":")
                 if "_aliases" not in services[dep_name]:
                     services[dep_name]["_aliases"] = set()
                 services[dep_name]["_aliases"].add(dep_alias)
+
+    # expand the dependencies on each service
     for name, srv in services.items():
         rec_deps(services, name)
 
@@ -2525,11 +2567,54 @@ def get_excluded(compose, args):
     return excluded
 
 
+async def check_dep_conditions(compose: PodmanCompose, deps: set) -> None:
+    """Enforce that all specified conditions in deps are met"""
+    if not deps:
+        return
+
+    for condition in ServiceDependencyCondition:
+        deps_cd = []
+        for d in deps:
+            if d.condition == condition:
+                deps_cd.extend(compose.container_names_by_service[d.name])
+
+        if deps_cd:
+            # podman wait will return always with a rc -1.
+            while True:
+                try:
+                    await compose.podman.output(
+                        [], "wait", [f"--condition={condition.value}"] + deps_cd
+                    )
+                    log.debug(
+                        "dependencies for condition %s have been fulfilled on containers %s",
+                        condition.value,
+                        ', '.join(deps_cd),
+                    )
+                    break
+                except subprocess.CalledProcessError as _exc:
+                    output = list(
+                        ((_exc.stdout or b"") + (_exc.stderr or b"")).decode().split('\n')
+                    )
+                    log.debug(
+                        'Podman wait returned an error (%d) when executing "%s": %s',
+                        _exc.returncode,
+                        _exc.cmd,
+                        output,
+                    )
+                await asyncio.sleep(1)
+
+
 async def run_container(
-    compose: PodmanCompose, name: str, command: tuple, log_formatter: str = None
+    compose: PodmanCompose, name: str, deps: set, command: tuple, log_formatter: str = None
 ):
     """runs a container after waiting for its dependencies to be fulfilled"""
 
+    # wait for the dependencies to be fulfilled
+    if "start" in command:
+        log.debug("Checking dependencies prior to container %s start", name)
+        await check_dep_conditions(compose, deps)
+
+    # start the container
     log.debug("Starting task for container %s", name)
     return await compose.podman.run(*command, log_formatter=log_formatter)
 
@@ -2578,7 +2663,7 @@ async def compose_up(compose: PodmanCompose, args):
         podman_args = await container_to_args(compose, cnt, detached=args.detach)
         subproc = await compose.podman.run([], podman_command, podman_args)
         if podman_command == "run" and subproc is not None:
-            await run_container(compose, cnt["name"], ([], "start", [cnt["name"]]))
+            await run_container(compose, cnt["name"], cnt["_deps"], ([], "start", [cnt["name"]]))
     if args.no_start or args.detach or args.dry_run:
         return
     # TODO: handle already existing
@@ -2613,6 +2698,7 @@ async def compose_up(compose: PodmanCompose, args):
                 run_container(
                     compose,
                     cnt["name"],
+                    cnt["_deps"],
                     ([], "start", ["-a", cnt["name"]]),
                     log_formatter=log_formatter,
                 ),
