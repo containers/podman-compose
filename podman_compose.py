@@ -1327,13 +1327,11 @@ def flat_deps(services, with_extends=False):
                 if ext != name:
                     deps.add(ServiceDependency(ext))
                 continue
-        deps_ls = srv.get("depends_on", None) or []
-        if isinstance(deps_ls, str):
-            deps_ls = [ServiceDependency(deps_ls)]
-        elif isinstance(deps_ls, dict):
-            deps_ls = [ServiceDependency(d) for d in deps_ls.keys()]
-        else:
-            deps_ls = [ServiceDependency(d) for d in deps_ls]
+
+        # the compose file has been normalized. depends_on, if exists, can only be a dictionary
+        # the normalization adds a "service_started" condition by default
+        deps_ls = srv.get("depends_on", {})
+        deps_ls = [ServiceDependency(k) for k, v in deps_ls.items()]
         deps.update(deps_ls)
         # parse link to get service name and remove alias
         links_ls = srv.get("links", None) or []
@@ -1557,14 +1555,18 @@ def normalize_service(service, sub_dir=""):
             extends = {"service": extends}
             service["extends"] = extends
     if "depends_on" in service:
+        # deps should become a dictionary of dependencies
         deps = service["depends_on"]
         if isinstance(deps, str):
-            deps = [deps]
-        if is_list(deps):
-            deps_dict = {}
-            for d in deps:
-                deps_dict[d] = {'condition': 'service_started'}
-            service["depends_on"] = deps_dict
+            deps = {deps: {}}
+        elif is_list(deps):
+            deps = {x: {} for x in deps}
+
+        # the dependency service_started is set by default
+        # unless requested otherwise.
+        for k, v in deps.items():
+            v.setdefault('condition', 'service_started')
+        service["depends_on"] = deps
     return service
 
 
