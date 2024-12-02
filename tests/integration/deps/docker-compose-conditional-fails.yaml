@@ -1,0 +1,22 @@
+version: "3.7"
+services:
+  web:
+    image: nopush/podman-compose-test
+    command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-h", "/etc/", "-p", "8000"]
+    tmpfs:
+      - /run
+      - /tmp
+    healthcheck:
+      test: ["CMD", "/bin/false"]
+      interval: 10s # Time between health checks
+      timeout: 1s # Time to wait for a response
+      retries: 1 # Number of consecutive failures before marking as unhealthy
+  sleep:
+    image: nopush/podman-compose-test
+    command: ["dumb-init", "/bin/busybox", "sh", "-c", "sleep 3600"]
+    depends_on:
+      web:
+        condition: service_healthy
+    tmpfs:
+      - /run
+      - /tmp
