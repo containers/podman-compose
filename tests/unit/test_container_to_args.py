@@ -611,3 +611,26 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "busybox",
             ],
         )
+
+    async def test_device(self):
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+
+        cnt['devices'] = ['/dev/ttyS0']
+        cnt['device_cgroup_rules'] = ['c 100:200 rwm']
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--device",
+                "/dev/ttyS0",
+                "--device-cgroup-rule",
+                "c 100:200 rwm",
+                "--network=bridge",
+                "--network-alias=service_name",
+                "busybox",
+            ],
+        )

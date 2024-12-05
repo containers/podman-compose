@@ -1074,6 +1074,8 @@ async def container_to_args(compose, cnt, detached=True):
         podman_args.extend(["--group-add", item])
     for item in cnt.get("devices", []):
         podman_args.extend(["--device", item])
+    for item in cnt.get("device_cgroup_rules", []):
+        podman_args.extend(["--device-cgroup-rule", item])
     for item in norm_as_list(cnt.get("dns")):
         podman_args.extend(["--dns", item])
     for item in norm_as_list(cnt.get("dns_opt")):
