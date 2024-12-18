@@ -877,38 +877,46 @@ async def assert_cnt_nets(compose, cnt):
             await compose.podman.output([], "network", ["exists", net_name])
 
 
+def get_net_args_from_network_mode(compose, cnt):
+    net_args = []
+    net = cnt.get("network_mode")
+
+    is_bridge = False
+    if net == "none":
+        net_args.append("--network=none")
+    elif net == "host":
+        net_args.append(f"--network={net}")
+    elif net.startswith("slirp4netns"):  # Note: podman-specific network mode
+        net_args.append(f"--network={net}")
+    elif net == "private":  # Note: podman-specific network mode
+        net_args.append("--network=private")
+    elif net.startswith("pasta"):  # Note: podman-specific network mode
+        net_args.append(f"--network={net}")
+    elif net.startswith("ns:"):  # Note: podman-specific network mode
+        net_args.append(f"--network={net}")
+    elif net.startswith("service:"):
+        other_srv = net.split(":", 1)[1].strip()
+        other_cnt = compose.container_names_by_service[other_srv][0]
+        net_args.append(f"--network=container:{other_cnt}")
+    elif net.startswith("container:"):
+        other_cnt = net.split(":", 1)[1].strip()
+        net_args.append(f"--network=container:{other_cnt}")
+    elif net.startswith("bridge"):
+        is_bridge = True
+    else:
+        log.fatal("unknown network_mode [%s]", net)
+        sys.exit(1)
+
+    return net_args, is_bridge
+
+
 def get_net_args(compose, cnt):
     service_name = cnt["service_name"]
     net_args = []
-    is_bridge = False
     mac_address = cnt.get("mac_address")
     net = cnt.get("network_mode")
     if net:
-        if net == "none":
-            is_bridge = False
-            net_args.append("--network=none")
-        elif net == "host":
-            net_args.append(f"--network={net}")
-        elif net.startswith("slirp4netns"):  # Note: podman-specific network mode
-            net_args.append(f"--network={net}")
-        elif net == "private":  # Note: podman-specific network mode
-            net_args.append("--network=private")
-        elif net.startswith("pasta"):  # Note: podman-specific network mode
-            net_args.append(f"--network={net}")
-        elif net.startswith("ns:"):  # Note: podman-specific network mode
-            net_args.append(f"--network={net}")
-        elif net.startswith("service:"):
-            other_srv = net.split(":", 1)[1].strip()
-            other_cnt = compose.container_names_by_service[other_srv][0]
-            net_args.append(f"--network=container:{other_cnt}")
-        elif net.startswith("container:"):
-            other_cnt = net.split(":", 1)[1].strip()
-            net_args.append(f"--network=container:{other_cnt}")
-        elif net.startswith("bridge"):
-            is_bridge = True
-        else:
-            log.fatal("unknown network_mode [%s]", net)
-            sys.exit(1)
+        net_args, is_bridge = get_net_args_from_network_mode(compose, cnt)
     else:
         is_bridge = True
     cnt_nets = cnt.get("networks")
