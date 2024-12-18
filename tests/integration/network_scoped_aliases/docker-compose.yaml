@@ -1,0 +1,33 @@
+---
+networks:
+  net0:
+    ipam:
+      config:
+        - subnet: "172.19.3.0/24"
+  net1:
+    ipam:
+      config:
+        - subnet: "172.19.4.0/24"
+services:
+  web1:
+    image: busybox
+    command: ["/bin/busybox", "httpd", "-f", "-h", "/tmp", "-p", "8001"]
+    networks:
+      net0:
+        ipv4_address: "172.19.3.11"
+        aliases:
+          - secure-web
+      net1:
+        ipv4_address: "172.19.4.11"
+        aliases:
+          - insecure-web
+  utils-net0:
+    image: busybox
+    command: ["/bin/busybox", "httpd", "-f", "-h", "/tmp", "-p", "8001"]
+    networks:
+      - net0
+  utils-net1:
+    image: busybox
+    command: ["/bin/busybox", "httpd", "-f", "-h", "/tmp", "-p", "8001"]
+    networks:
+      - net1

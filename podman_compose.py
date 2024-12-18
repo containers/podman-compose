@@ -983,9 +983,9 @@ def get_net_args_from_networks(compose, cnt):
 
         ipv4 = net_config_.get("ipv4_address")
         ipv6 = net_config_.get("ipv6_address")
-
+        # custom extension; not supported by docker-compose v3
         mac = net_config_.get("x-podman.mac_address")
-        aliases_on_net = net_config_.get("aliases")
+        aliases_on_net = norm_as_list(net_config_.get("aliases", []))
 
         # if a mac_address was specified on the container level, apply it to the first network
         # This works for Python > 3.6, because dict insert ordering is preserved, so we are
