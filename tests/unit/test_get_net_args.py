@@ -59,6 +59,15 @@ class TestGetNetArgs(unittest.TestCase):
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
 
+    def test_network_mode_and_networks_unsupported(self):
+        compose = get_networked_compose()
+        container = get_minimal_container()
+        container["networks"] = {"net0": {}}
+        container["network_mode"] = "none"
+
+        with self.assertRaises(ValueError):
+            get_net_args(compose, container)
+
     def test_alias(self):
         compose = get_networked_compose()
         container = get_minimal_container()

@@ -880,6 +880,12 @@ async def assert_cnt_nets(compose, cnt):
 def get_net_args_from_network_mode(compose, cnt):
     net_args = []
     net = cnt.get("network_mode")
+    service_name = cnt["service_name"]
+
+    if "networks" in cnt:
+        raise ValueError(
+            f"networks and network_mode must not be present in the same service [{service_name}]"
+        )
 
     is_bridge = False
     if net == "none":
