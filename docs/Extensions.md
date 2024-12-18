@@ -110,6 +110,26 @@ x-podman:
 By default `default_net_name_compat` is `false`. This will change to `true` at some point and the
 setting will be removed.
 
+## Compatibility of default network behavior between docker-compose and podman-compose
+
+When there is no network defined (neither network-mode nor networks) in service,
+The behavior of default network in docker-compose and podman-compose are different.
+
+| Top-level networks             | podman-compose             | docker-compose |
+| ------------------------------ | -------------------------- | -------------- |
+| No networks                    | default                    | default        |
+| One network named net0         | net0                       | default        |
+| Two networks named net0, net1  | podman(`--network=bridge`) | default        |
+| Contains network named default | default                    | default        |
+
+To enable compatibility between docker-compose and podman-compose, specify
+`default_net_behavior_compat: true` under global `x-podman` key:
+
+```yaml
+x-podman:
+    default_net_behavior_compat: true
+```
+
 ## Custom pods management
 
 Podman-compose can have containers in pods. This can be controlled by extension key x-podman in_pod.

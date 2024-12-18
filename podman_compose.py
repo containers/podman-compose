@@ -1998,13 +1998,23 @@ class PodmanCompose:
         nets = compose.get("networks", {})
         if not nets:
             nets["default"] = None
+
         self.networks = nets
-        if len(self.networks) == 1:
-            self.default_net = list(nets.keys())[0]
-        elif "default" in nets:
-            self.default_net = "default"
+        if compose.get("x-podman", {}).get("default_net_behavior_compat", False):
+            # If there is no network_mode and networks in service,
+            # docker-compose will create default network named '<project_name>_default'
+            # and add the service to the default network.
+            # So we always set `default_net = 'default'` for compatibility
+            if "default" not in self.networks:
+                self.networks["default"] = None
         else:
-            self.default_net = None
+            if len(self.networks) == 1:
+                self.default_net = list(nets.keys())[0]
+            elif "default" in nets:
+                self.default_net = "default"
+            else:
+                self.default_net = None
+
         allnets = set()
         for name, srv in services.items():
             srv_nets = srv.get("networks", self.default_net)
