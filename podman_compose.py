@@ -857,6 +857,7 @@ async def assert_cnt_nets(compose, cnt):
     net = cnt.get("network_mode")
     if net and not net.startswith("bridge"):
         return
+
     cnt_nets = cnt.get("networks")
     if cnt_nets and isinstance(cnt_nets, dict):
         cnt_nets = list(cnt_nets.keys())
@@ -910,12 +911,13 @@ def get_net_args_from_network_mode(compose, cnt):
         aliases_on_container = [service_name]
         if cnt.get("_aliases"):
             aliases_on_container.extend(cnt.get("_aliases"))
-        net_args.append("--network=bridge")
+        net_options = [f"alias={alias}" for alias in aliases_on_container]
         mac_address = cnt.get("mac_address")
         if mac_address:
-            net_args.append(f"--mac-address={mac_address}")
-        for alias in aliases_on_container:
-            net_args.extend([f"--network-alias={alias}"])
+            net_options.append(f"mac={mac_address}")
+
+        net = f"{net}," if ":" in net else f"{net}:"
+        net_args.append(f"--network={net}{','.join(net_options)}")
     else:
         log.fatal("unknown network_mode [%s]", net)
         sys.exit(1)
@@ -937,29 +939,18 @@ def get_net_args_from_networks(compose, cnt):
     service_name = cnt["service_name"]
 
     aliases_on_container = [service_name]
-    # NOTE: from podman manpage:
-    # NOTE: A container will only have access to aliases on the first network
-    #       that it joins. This is a limitation that will be removed in a later
-    #       release.
     aliases_on_container.extend(cnt.get("_aliases", []))
-    aliases_on_net = []
 
-    # TODO: add support for per-interface aliases
-    #  See https://docs.docker.com/compose/compose-file/compose-file-v3/#aliases
-    #  Even though podman accepts network-specific aliases (e.g., --network=bridge:alias=foo,
-    #  podman currently ignores this if a per-container network-alias is set; as pdoman-compose
-    #  always sets a network-alias to the container name, is currently doesn't make sense to
-    #  implement this.
     multiple_nets = cnt.get("networks", {})
     if not multiple_nets:
         if not compose.default_net:
             # The bridge mode in podman is using the `podman` network.
             # It seems weird, but we should keep this behavior to avoid
             # breaking changes.
-            net_args.append("--network=bridge")
+            net_options = [f"alias={alias}" for alias in aliases_on_container]
             if mac_address:
-                net_args.append(f"--mac-address={mac_address}")
-            net_args.extend([f"--network-alias={alias}" for alias in aliases_on_container])
+                net_options.append(f"mac={mac_address}")
+            net_args.append(f"--network=bridge:{','.join(net_options)}")
             return net_args
 
         multiple_nets = {compose.default_net: {}}
@@ -984,7 +975,7 @@ def get_net_args_from_networks(compose, cnt):
                 )
 
     for net_, net_config_ in multiple_nets.items():
-        net_desc = compose.networks[net_] or {}
+        net_desc = compose.networks.get(net_) or {}
         is_ext = net_desc.get("external")
         ext_desc = is_ext if isinstance(is_ext, str) else {}
         default_net_name = default_network_name_for_project(compose, net_, is_ext)
@@ -992,9 +983,9 @@ def get_net_args_from_networks(compose, cnt):
 
         ipv4 = net_config_.get("ipv4_address")
         ipv6 = net_config_.get("ipv6_address")
-        # custom extension; not supported by docker-compose v3
+
         mac = net_config_.get("x-podman.mac_address")
-        aliases_on_net = norm_as_list(net_config_.get("aliases", []))
+        aliases_on_net = net_config_.get("aliases")
 
         # if a mac_address was specified on the container level, apply it to the first network
         # This works for Python > 3.6, because dict insert ordering is preserved, so we are
@@ -1004,30 +995,24 @@ def get_net_args_from_networks(compose, cnt):
             mac = mac_address
             mac_address = None
 
-        if len(multiple_nets) == 1:
-            net_args.append(f"--network={net_name}")
-            if ipv4:
-                net_args.append(f"--ip={ipv4}")
-            if ipv6:
-                net_args.append(f"--ip6={ipv6}")
-            if mac:
-                net_args.append(f"--mac-address={mac}")
+        net_options = []
+        if ipv4:
+            net_options.append(f"ip={ipv4}")
+        if ipv6:
+            net_options.append(f"ip6={ipv6}")
+        if mac:
+            net_options.append(f"mac={mac}")
+
+        # Container level service aliases
+        net_options.extend([f"alias={alias}" for alias in aliases_on_container])
+        # network level service aliases
+        if aliases_on_net:
+            net_options.extend([f"alias={alias}" for alias in aliases_on_net])
+
+        if net_options:
+            net_args.append(f"--network={net_name}:" + ",".join(net_options))
         else:
-            net_options = []
-            if ipv4:
-                net_options.append(f"ip={ipv4}")
-            if ipv6:
-                net_options.append(f"ip={ipv6}")
-            if mac:
-                net_options.append(f"mac={mac}")
-
-            if net_options:
-                net_args.append(f"--network={net_name}:" + ",".join(net_options))
-            else:
-                net_args.append(f"--network={net_name}")
-
-    net_args.extend([f"--network-alias={alias}" for alias in aliases_on_container])
-    net_args.extend([f"--network-alias={alias}" for alias in aliases_on_net])
+            net_args.append(f"--network={net_name}")
 
     return net_args
 
@@ -3487,7 +3472,7 @@ def compose_logs_parse(parser):
     parser.add_argument("-t", "--timestamps", action="store_true", help="Show timestamps.")
     parser.add_argument(
         "--tail",
-        help="Number of lines to show from the end of the logs for each " "container.",
+        help="Number of lines to show from the end of the logs for each container.",
         type=str,
         default="all",
     )
