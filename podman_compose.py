@@ -977,7 +977,6 @@ def get_net_args_from_networks(compose, cnt):
         # cnt_nets is {net_key: net_value, ...}
         for net_key, net_value in cnt_nets.items():
             net_value = net_value or {}
-            aliases.extend(norm_as_list(net_value.get("aliases")))
 
             net_priority = net_value.get("priority", 0)
             prioritized_cnt_nets.append((
@@ -1010,6 +1009,7 @@ def get_net_args_from_networks(compose, cnt):
             ipv6 = net_config_.get("ipv6_address")
             # custom extension; not supported by docker-compose v3
             mac = net_config_.get("x-podman.mac_address")
+            aliases.extend(norm_as_list(net_config_.get("aliases")))
 
             # if a mac_address was specified on the container level, apply it to the first network
             # This works for Python > 3.6, because dict insert ordering is preserved, so we are
@@ -1042,6 +1042,7 @@ def get_net_args_from_networks(compose, cnt):
             net_config = list(multiple_nets.values())[0]
             ipv4 = net_config.get("ipv4_address")
             ipv6 = net_config.get("ipv6_address")
+            aliases.extend(norm_as_list(net_config.get("aliases")))
         if ipv4:
             net_args.append(f"--ip={ipv4}")
         if ipv6:
