@@ -951,6 +951,18 @@ def get_net_args_from_networks(compose, cnt):
     #  always sets a network-alias to the container name, is currently doesn't make sense to
     #  implement this.
     multiple_nets = cnt.get("networks", {})
+    if not multiple_nets:
+        if not compose.default_net:
+            # The bridge mode in podman is using the `podman` network.
+            # It seems weird, but we should keep this behavior to avoid
+            # breaking changes.
+            net_args.append("--network=bridge")
+            if mac_address:
+                net_args.append(f"--mac-address={mac_address}")
+            net_args.extend([f"--network-alias={alias}" for alias in aliases_on_container])
+            return net_args
+
+        multiple_nets = {compose.default_net: {}}
 
     # networks can be specified as a dict with config per network or as a plain list without
     # config.  Support both cases by converting the plain list to a dict with empty config.
@@ -971,7 +983,7 @@ def get_net_args_from_networks(compose, cnt):
                     "is not supported"
                 )
 
-    if multiple_nets and len(multiple_nets) > 1:
+    if len(multiple_nets) > 1:
         for net_, net_config_ in multiple_nets.items():
             net_desc = compose.networks[net_] or {}
             is_ext = net_desc.get("external")
@@ -1006,24 +1018,20 @@ def get_net_args_from_networks(compose, cnt):
             else:
                 net_args.append(f"--network={net_name}")
     else:
-        if multiple_nets or compose.default_net:
-            net = list(multiple_nets.keys())[0] if multiple_nets else compose.default_net
-            net_desc = compose.networks[net] or {}
-            is_ext = net_desc.get("external")
-            ext_desc = is_ext if isinstance(is_ext, str) else {}
-            default_net_name = default_network_name_for_project(compose, net, is_ext)
-            net_name = ext_desc.get("name") or net_desc.get("name") or default_net_name
-            net_args.append(f"--network={net_name}")
-        else:
-            net_args.append("--network=bridge")
+        net = list(multiple_nets.keys())[0]
+        net_config = list(multiple_nets.values())[0]
 
-        ipv4 = None
-        ipv6 = None
-        if multiple_nets:
-            net_config = list(multiple_nets.values())[0]
-            ipv4 = net_config.get("ipv4_address")
-            ipv6 = net_config.get("ipv6_address")
-            aliases_on_net = norm_as_list(net_config.get("aliases"))
+        net_desc = compose.networks[net] or {}
+        is_ext = net_desc.get("external")
+        ext_desc = is_ext if isinstance(is_ext, str) else {}
+        default_net_name = default_network_name_for_project(compose, net, is_ext)
+        net_name = ext_desc.get("name") or net_desc.get("name") or default_net_name
+        net_args.append(f"--network={net_name}")
+
+        ipv4 = net_config.get("ipv4_address")
+        ipv6 = net_config.get("ipv6_address")
+        aliases_on_net = norm_as_list(net_config.get("aliases"))
+
         if ipv4:
             net_args.append(f"--ip={ipv4}")
         if ipv6:
