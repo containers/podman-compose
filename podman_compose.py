@@ -983,28 +983,36 @@ def get_net_args_from_networks(compose, cnt):
                     "is not supported"
                 )
 
-    if len(multiple_nets) > 1:
-        for net_, net_config_ in multiple_nets.items():
-            net_desc = compose.networks[net_] or {}
-            is_ext = net_desc.get("external")
-            ext_desc = is_ext if isinstance(is_ext, str) else {}
-            default_net_name = default_network_name_for_project(compose, net_, is_ext)
-            net_name = ext_desc.get("name") or net_desc.get("name") or default_net_name
+    for net_, net_config_ in multiple_nets.items():
+        net_desc = compose.networks[net_] or {}
+        is_ext = net_desc.get("external")
+        ext_desc = is_ext if isinstance(is_ext, str) else {}
+        default_net_name = default_network_name_for_project(compose, net_, is_ext)
+        net_name = ext_desc.get("name") or net_desc.get("name") or default_net_name
 
-            ipv4 = net_config_.get("ipv4_address")
-            ipv6 = net_config_.get("ipv6_address")
-            # custom extension; not supported by docker-compose v3
-            mac = net_config_.get("x-podman.mac_address")
-            aliases_on_net = norm_as_list(net_config_.get("aliases", []))
+        ipv4 = net_config_.get("ipv4_address")
+        ipv6 = net_config_.get("ipv6_address")
+        # custom extension; not supported by docker-compose v3
+        mac = net_config_.get("x-podman.mac_address")
+        aliases_on_net = norm_as_list(net_config_.get("aliases", []))
 
-            # if a mac_address was specified on the container level, apply it to the first network
-            # This works for Python > 3.6, because dict insert ordering is preserved, so we are
-            # sure that the first network we encounter here is also the first one specified by
-            # the user
-            if mac is None and mac_address is not None:
-                mac = mac_address
-                mac_address = None
+        # if a mac_address was specified on the container level, apply it to the first network
+        # This works for Python > 3.6, because dict insert ordering is preserved, so we are
+        # sure that the first network we encounter here is also the first one specified by
+        # the user
+        if mac is None and mac_address is not None:
+            mac = mac_address
+            mac_address = None
 
+        if len(multiple_nets) == 1:
+            net_args.append(f"--network={net_name}")
+            if ipv4:
+                net_args.append(f"--ip={ipv4}")
+            if ipv6:
+                net_args.append(f"--ip6={ipv6}")
+            if mac:
+                net_args.append(f"--mac-address={mac}")
+        else:
             net_options = []
             if ipv4:
                 net_options.append(f"ip={ipv4}")
@@ -1017,27 +1025,6 @@ def get_net_args_from_networks(compose, cnt):
                 net_args.append(f"--network={net_name}:" + ",".join(net_options))
             else:
                 net_args.append(f"--network={net_name}")
-    else:
-        net = list(multiple_nets.keys())[0]
-        net_config = list(multiple_nets.values())[0]
-
-        net_desc = compose.networks[net] or {}
-        is_ext = net_desc.get("external")
-        ext_desc = is_ext if isinstance(is_ext, str) else {}
-        default_net_name = default_network_name_for_project(compose, net, is_ext)
-        net_name = ext_desc.get("name") or net_desc.get("name") or default_net_name
-        net_args.append(f"--network={net_name}")
-
-        ipv4 = net_config.get("ipv4_address")
-        ipv6 = net_config.get("ipv6_address")
-        aliases_on_net = norm_as_list(net_config.get("aliases"))
-
-        if ipv4:
-            net_args.append(f"--ip={ipv4}")
-        if ipv6:
-            net_args.append(f"--ip6={ipv6}")
-        if mac_address:
-            net_args.append(f"--mac-address={mac_address}")
 
     net_args.extend([f"--network-alias={alias}" for alias in aliases_on_container])
     net_args.extend([f"--network-alias={alias}" for alias in aliases_on_net])
