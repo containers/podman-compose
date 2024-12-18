@@ -936,13 +936,13 @@ def get_net_args_from_networks(compose, cnt):
     mac_address = cnt.get("mac_address")
     service_name = cnt["service_name"]
 
-    aliases = [service_name]
+    aliases_on_container = [service_name]
     # NOTE: from podman manpage:
     # NOTE: A container will only have access to aliases on the first network
     #       that it joins. This is a limitation that will be removed in a later
     #       release.
-    if cnt.get("_aliases"):
-        aliases.extend(cnt.get("_aliases"))
+    aliases_on_container.extend(cnt.get("_aliases", []))
+    aliases_on_net = []
 
     # TODO: add support for per-interface aliases
     #  See https://docs.docker.com/compose/compose-file/compose-file-v3/#aliases
@@ -983,7 +983,7 @@ def get_net_args_from_networks(compose, cnt):
             ipv6 = net_config_.get("ipv6_address")
             # custom extension; not supported by docker-compose v3
             mac = net_config_.get("x-podman.mac_address")
-            aliases.extend(norm_as_list(net_config_.get("aliases")))
+            aliases_on_net = norm_as_list(net_config_.get("aliases", []))
 
             # if a mac_address was specified on the container level, apply it to the first network
             # This works for Python > 3.6, because dict insert ordering is preserved, so we are
@@ -1023,7 +1023,7 @@ def get_net_args_from_networks(compose, cnt):
             net_config = list(multiple_nets.values())[0]
             ipv4 = net_config.get("ipv4_address")
             ipv6 = net_config.get("ipv6_address")
-            aliases.extend(norm_as_list(net_config.get("aliases")))
+            aliases_on_net = norm_as_list(net_config.get("aliases"))
         if ipv4:
             net_args.append(f"--ip={ipv4}")
         if ipv6:
@@ -1031,8 +1031,8 @@ def get_net_args_from_networks(compose, cnt):
         if mac_address:
             net_args.append(f"--mac-address={mac_address}")
 
-    for alias in aliases:
-        net_args.extend([f"--network-alias={alias}"])
+    net_args.extend([f"--network-alias={alias}" for alias in aliases_on_container])
+    net_args.extend([f"--network-alias={alias}" for alias in aliases_on_net])
 
     return net_args
 
