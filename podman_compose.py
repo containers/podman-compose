@@ -935,7 +935,6 @@ def get_net_args_from_networks(compose, cnt):
     net_args = []
     mac_address = cnt.get("mac_address")
     service_name = cnt["service_name"]
-    cnt_nets = cnt.get("networks")
 
     aliases = [service_name]
     # NOTE: from podman manpage:
@@ -972,31 +971,6 @@ def get_net_args_from_networks(compose, cnt):
                     "is not supported"
                 )
 
-    if cnt_nets and isinstance(cnt_nets, dict):
-        prioritized_cnt_nets = []
-        # cnt_nets is {net_key: net_value, ...}
-        for net_key, net_value in cnt_nets.items():
-            net_value = net_value or {}
-
-            net_priority = net_value.get("priority", 0)
-            prioritized_cnt_nets.append((
-                net_priority,
-                net_key,
-            ))
-        # sort dict by priority
-        prioritized_cnt_nets.sort(reverse=True)
-        cnt_nets = [net_key for _, net_key in prioritized_cnt_nets]
-    cnt_nets = norm_as_list(cnt_nets or compose.default_net)
-    net_names = []
-    for net in cnt_nets:
-        net_desc = compose.networks[net] or {}
-        is_ext = net_desc.get("external")
-        ext_desc = is_ext if isinstance(is_ext, str) else {}
-        default_net_name = default_network_name_for_project(compose, net, is_ext)
-        net_name = ext_desc.get("name") or net_desc.get("name") or default_net_name
-        net_names.append(net_name)
-    net_names_str = ",".join(net_names)
-
     if multiple_nets and len(multiple_nets) > 1:
         for net_, net_config_ in multiple_nets.items():
             net_desc = compose.networks[net_] or {}
@@ -1032,10 +1006,17 @@ def get_net_args_from_networks(compose, cnt):
             else:
                 net_args.append(f"--network={net_name}")
     else:
-        if net_names_str:
-            net_args.append(f"--network={net_names_str}")
+        if multiple_nets or compose.default_net:
+            net = list(multiple_nets.keys())[0] if multiple_nets else compose.default_net
+            net_desc = compose.networks[net] or {}
+            is_ext = net_desc.get("external")
+            ext_desc = is_ext if isinstance(is_ext, str) else {}
+            default_net_name = default_network_name_for_project(compose, net, is_ext)
+            net_name = ext_desc.get("name") or net_desc.get("name") or default_net_name
+            net_args.append(f"--network={net_name}")
         else:
             net_args.append("--network=bridge")
+
         ipv4 = None
         ipv6 = None
         if multiple_nets:
