@@ -946,6 +946,34 @@ def get_net_args_from_networks(compose, cnt):
     ip6 = None
     if cnt.get("_aliases"):
         aliases.extend(cnt.get("_aliases"))
+
+    # TODO: add support for per-interface aliases
+    #  See https://docs.docker.com/compose/compose-file/compose-file-v3/#aliases
+    #  Even though podman accepts network-specific aliases (e.g., --network=bridge:alias=foo,
+    #  podman currently ignores this if a per-container network-alias is set; as pdoman-compose
+    #  always sets a network-alias to the container name, is currently doesn't make sense to
+    #  implement this.
+    multiple_nets = cnt.get("networks", {})
+
+    # networks can be specified as a dict with config per network or as a plain list without
+    # config.  Support both cases by converting the plain list to a dict with empty config.
+    if is_list(multiple_nets):
+        multiple_nets = {net: {} for net in multiple_nets}
+    else:
+        multiple_nets = {net: net_config or {} for net, net_config in multiple_nets.items()}
+
+    # if a mac_address was specified on the container level, we need to check that it is not
+    # specified on the network level as well
+    if mac_address is not None:
+        for net_config in multiple_nets.values():
+            network_mac = net_config.get("x-podman.mac_address")
+            if network_mac is not None:
+                raise RuntimeError(
+                    f"conflicting mac addresses {mac_address} and {network_mac}:"
+                    "specifying mac_address on both container and network level "
+                    "is not supported"
+                )
+
     if cnt_nets and isinstance(cnt_nets, dict):
         prioritized_cnt_nets = []
         # cnt_nets is {net_key: net_value, ...}
@@ -976,33 +1004,7 @@ def get_net_args_from_networks(compose, cnt):
         net_names.append(net_name)
     net_names_str = ",".join(net_names)
 
-    # TODO: add support for per-interface aliases
-    #  See https://docs.docker.com/compose/compose-file/compose-file-v3/#aliases
-    #  Even though podman accepts network-specific aliases (e.g., --network=bridge:alias=foo,
-    #  podman currently ignores this if a per-container network-alias is set; as pdoman-compose
-    #  always sets a network-alias to the container name, is currently doesn't make sense to
-    #  implement this.
-    multiple_nets = cnt.get("networks")
     if multiple_nets and len(multiple_nets) > 1:
-        # networks can be specified as a dict with config per network or as a plain list without
-        # config.  Support both cases by converting the plain list to a dict with empty config.
-        if is_list(multiple_nets):
-            multiple_nets = {net: {} for net in multiple_nets}
-        else:
-            multiple_nets = {net: net_config or {} for net, net_config in multiple_nets.items()}
-
-        # if a mac_address was specified on the container level, we need to check that it is not
-        # specified on the network level as well
-        if mac_address is not None:
-            for net_config_ in multiple_nets.values():
-                network_mac = net_config_.get("x-podman.mac_address")
-                if network_mac is not None:
-                    raise RuntimeError(
-                        f"conflicting mac addresses {mac_address} and {network_mac}:"
-                        "specifying mac_address on both container and network level "
-                        "is not supported"
-                    )
-
         for net_, net_config_ in multiple_nets.items():
             net_desc = compose.networks[net_] or {}
             is_ext = net_desc.get("external")
