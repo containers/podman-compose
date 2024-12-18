@@ -942,8 +942,6 @@ def get_net_args_from_networks(compose, cnt):
     # NOTE: A container will only have access to aliases on the first network
     #       that it joins. This is a limitation that will be removed in a later
     #       release.
-    ip = None
-    ip6 = None
     if cnt.get("_aliases"):
         aliases.extend(cnt.get("_aliases"))
 
@@ -981,10 +979,6 @@ def get_net_args_from_networks(compose, cnt):
             net_value = net_value or {}
             aliases.extend(norm_as_list(net_value.get("aliases")))
 
-            if not ip:
-                ip = net_value.get("ipv4_address")
-            if not ip6:
-                ip6 = net_value.get("ipv6_address")
             net_priority = net_value.get("priority", 0)
             prioritized_cnt_nets.append((
                 net_priority,
@@ -1042,10 +1036,16 @@ def get_net_args_from_networks(compose, cnt):
             net_args.append(f"--network={net_names_str}")
         else:
             net_args.append("--network=bridge")
-        if ip:
-            net_args.append(f"--ip={ip}")
-        if ip6:
-            net_args.append(f"--ip6={ip6}")
+        ipv4 = None
+        ipv6 = None
+        if multiple_nets:
+            net_config = list(multiple_nets.values())[0]
+            ipv4 = net_config.get("ipv4_address")
+            ipv6 = net_config.get("ipv6_address")
+        if ipv4:
+            net_args.append(f"--ip={ipv4}")
+        if ipv6:
+            net_args.append(f"--ip6={ipv6}")
         if mac_address:
             net_args.append(f"--mac-address={mac_address}")
 
