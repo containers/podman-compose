@@ -887,7 +887,6 @@ def get_net_args_from_network_mode(compose, cnt):
             f"networks and network_mode must not be present in the same service [{service_name}]"
         )
 
-    is_bridge = False
     if net == "none":
         net_args.append("--network=none")
     elif net == "host":
@@ -908,12 +907,20 @@ def get_net_args_from_network_mode(compose, cnt):
         other_cnt = net.split(":", 1)[1].strip()
         net_args.append(f"--network=container:{other_cnt}")
     elif net.startswith("bridge"):
-        is_bridge = True
+        aliases_on_container = [service_name]
+        if cnt.get("_aliases"):
+            aliases_on_container.extend(cnt.get("_aliases"))
+        net_args.append("--network=bridge")
+        mac_address = cnt.get("mac_address")
+        if mac_address:
+            net_args.append(f"--mac-address={mac_address}")
+        for alias in aliases_on_container:
+            net_args.extend([f"--network-alias={alias}"])
     else:
         log.fatal("unknown network_mode [%s]", net)
         sys.exit(1)
 
-    return net_args, is_bridge
+    return net_args
 
 
 def get_net_args(compose, cnt):
@@ -922,7 +929,7 @@ def get_net_args(compose, cnt):
     mac_address = cnt.get("mac_address")
     net = cnt.get("network_mode")
     if net:
-        net_args, is_bridge = get_net_args_from_network_mode(compose, cnt)
+        return get_net_args_from_network_mode(compose, cnt)
     else:
         is_bridge = True
     cnt_nets = cnt.get("networks")
