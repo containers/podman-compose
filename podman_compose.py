@@ -924,14 +924,17 @@ def get_net_args_from_network_mode(compose, cnt):
 
 
 def get_net_args(compose, cnt):
-    service_name = cnt["service_name"]
-    net_args = []
-    mac_address = cnt.get("mac_address")
     net = cnt.get("network_mode")
     if net:
         return get_net_args_from_network_mode(compose, cnt)
-    else:
-        is_bridge = True
+
+    return get_net_args_from_networks(compose, cnt)
+
+
+def get_net_args_from_networks(compose, cnt):
+    net_args = []
+    mac_address = cnt.get("mac_address")
+    service_name = cnt["service_name"]
     cnt_nets = cnt.get("networks")
 
     aliases = [service_name]
@@ -1038,11 +1041,10 @@ def get_net_args(compose, cnt):
             else:
                 net_args.append(f"--network={net_name}")
     else:
-        if is_bridge:
-            if net_names_str:
-                net_args.append(f"--network={net_names_str}")
-            else:
-                net_args.append("--network=bridge")
+        if net_names_str:
+            net_args.append(f"--network={net_names_str}")
+        else:
+            net_args.append("--network=bridge")
         if ip:
             net_args.append(f"--ip={ip}")
         if ip6:
@@ -1050,9 +1052,8 @@ def get_net_args(compose, cnt):
         if mac_address:
             net_args.append(f"--mac-address={mac_address}")
 
-    if is_bridge:
-        for alias in aliases:
-            net_args.extend([f"--network-alias={alias}"])
+    for alias in aliases:
+        net_args.extend([f"--network-alias={alias}"])
 
     return net_args
 
