@@ -944,7 +944,6 @@ def get_net_args_from_networks(compose, cnt):
     #       release.
     ip = None
     ip6 = None
-    ip_assignments = 0
     if cnt.get("_aliases"):
         aliases.extend(cnt.get("_aliases"))
     if cnt_nets and isinstance(cnt_nets, dict):
@@ -953,10 +952,6 @@ def get_net_args_from_networks(compose, cnt):
         for net_key, net_value in cnt_nets.items():
             net_value = net_value or {}
             aliases.extend(norm_as_list(net_value.get("aliases")))
-            if net_value.get("ipv4_address") is not None:
-                ip_assignments = ip_assignments + 1
-            if net_value.get("ipv6_address") is not None:
-                ip_assignments = ip_assignments + 1
 
             if not ip:
                 ip = net_value.get("ipv4_address")
