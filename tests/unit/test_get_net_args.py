@@ -53,10 +53,13 @@ class TestGetNetArgs(unittest.TestCase):
         compose = get_networked_compose()
         container = get_minimal_container()
 
+        mac_address = "11:22:33:44:55:66"
+        container["mac_address"] = mac_address
+
         compose.default_net = None
 
         expected_args = [
-            f"--network=bridge:alias={SERVICE_NAME}",
+            f"--network=bridge:alias={SERVICE_NAME},mac={mac_address}",
         ]
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
@@ -275,8 +278,11 @@ class TestGetNetArgs(unittest.TestCase):
         self.assertListEqual(expected_args, args)
 
     @parameterized.expand([
-        ("bridge", [f"--network=bridge:alias={SERVICE_NAME}"]),
-        ("bridge:ip=10.88.0.3", [f"--network=bridge:ip=10.88.0.3,alias={SERVICE_NAME}"]),
+        ("bridge", [f"--network=bridge:alias={SERVICE_NAME},mac=11:22:33:44:55:66"]),
+        (
+            "bridge:ip=10.88.0.3",
+            [f"--network=bridge:ip=10.88.0.3,alias={SERVICE_NAME},mac=11:22:33:44:55:66"],
+        ),
         ("host", ["--network=host"]),
         ("none", ["--network=none"]),
         ("slirp4netns", ["--network=slirp4netns"]),
@@ -291,6 +297,10 @@ class TestGetNetArgs(unittest.TestCase):
         compose = get_networked_compose()
         container = get_minimal_container()
         container["network_mode"] = network_mode
+
+        mac_address = "11:22:33:44:55:66"
+        container["network_mode"] = network_mode
+        container["mac_address"] = mac_address
 
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)

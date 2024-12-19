@@ -912,8 +912,12 @@ def get_net_args_from_network_mode(compose, cnt):
         if cnt.get("_aliases"):
             aliases_on_container.extend(cnt.get("_aliases"))
         net_options = [f"alias={alias}" for alias in aliases_on_container]
+        mac_address = cnt.get("mac_address")
+        if mac_address:
+            net_options.append(f"mac={mac_address}")
+
         net = f"{net}," if ":" in net else f"{net}:"
-        net_args.append(f"--network={net}{'.'.join(net_options)}")
+        net_args.append(f"--network={net}{','.join(net_options)}")
     else:
         log.fatal("unknown network_mode [%s]", net)
         sys.exit(1)
@@ -944,7 +948,9 @@ def get_net_args_from_networks(compose, cnt):
             # It seems weird, but we should keep this behavior to avoid
             # breaking changes.
             net_options = [f"alias={alias}" for alias in aliases_on_container]
-            net_args.append(f"--network=bridge:{'.'.join(net_options)}")
+            if mac_address:
+                net_options.append(f"mac={mac_address}")
+            net_args.append(f"--network=bridge:{','.join(net_options)}")
             return net_args
 
         multiple_nets = {compose.default_net: {}}
