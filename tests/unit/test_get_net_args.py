@@ -24,6 +24,9 @@ def get_networked_compose(num_networks=1):
             "enable_ipv6": True,
         }
 
+    if num_networks == 1:
+        compose.default_net = "net0"
+
     return compose
 
 
@@ -41,8 +44,22 @@ class TestGetNetArgs(unittest.TestCase):
         container = get_minimal_container()
 
         expected_args = [
-            "--network=bridge",
-            f"--network-alias={SERVICE_NAME}",
+            f"--network={PROJECT_NAME}_net0:alias={SERVICE_NAME}",
+        ]
+        args = get_net_args(compose, container)
+        self.assertListEqual(expected_args, args)
+
+    def test_default_net_is_None(self):
+        compose = get_networked_compose()
+        container = get_minimal_container()
+
+        mac_address = "11:22:33:44:55:66"
+        container["mac_address"] = mac_address
+
+        compose.default_net = None
+
+        expected_args = [
+            f"--network=bridge:alias={SERVICE_NAME},mac={mac_address}",
         ]
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
@@ -53,8 +70,7 @@ class TestGetNetArgs(unittest.TestCase):
         container["networks"] = {"net0": {}}
 
         expected_args = [
-            f"--network={PROJECT_NAME}_net0",
-            f"--network-alias={SERVICE_NAME}",
+            f"--network={PROJECT_NAME}_net0:alias={SERVICE_NAME}",
         ]
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
@@ -66,10 +82,18 @@ class TestGetNetArgs(unittest.TestCase):
         container["_aliases"] = ["alias1", "alias2"]
 
         expected_args = [
-            f"--network={PROJECT_NAME}_net0",
-            f"--network-alias={SERVICE_NAME}",
-            "--network-alias=alias1",
-            "--network-alias=alias2",
+            f"--network={PROJECT_NAME}_net0:alias={SERVICE_NAME},alias=alias1,alias=alias2",
+        ]
+        args = get_net_args(compose, container)
+        self.assertListEqual(expected_args, args)
+
+    def test_aliases_on_network_scope(self):
+        compose = get_networked_compose()
+        container = get_minimal_container()
+        container["networks"] = {"net0": {"aliases": ["alias1"]}}
+
+        expected_args = [
+            f"--network={PROJECT_NAME}_net0:alias={SERVICE_NAME},alias=alias1",
         ]
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
@@ -81,9 +105,7 @@ class TestGetNetArgs(unittest.TestCase):
         container["networks"] = {"net0": {"ipv4_address": ip}}
 
         expected_args = [
-            f"--network={PROJECT_NAME}_net0",
-            f"--ip={ip}",
-            f"--network-alias={SERVICE_NAME}",
+            f"--network={PROJECT_NAME}_net0:ip={ip},alias={SERVICE_NAME}",
         ]
         args = get_net_args(compose, container)
         self.assertEqual(expected_args, args)
@@ -95,9 +117,7 @@ class TestGetNetArgs(unittest.TestCase):
         container["networks"] = {"net0": {"ipv6_address": ipv6_address}}
 
         expected_args = [
-            f"--network={PROJECT_NAME}_net0",
-            f"--ip6={ipv6_address}",
-            f"--network-alias={SERVICE_NAME}",
+            f"--network={PROJECT_NAME}_net0:ip6={ipv6_address},alias={SERVICE_NAME}",
         ]
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
@@ -110,9 +130,7 @@ class TestGetNetArgs(unittest.TestCase):
         container["mac_address"] = mac
 
         expected_args = [
-            f"--network={PROJECT_NAME}_net0",
-            f"--mac-address={mac}",
-            f"--network-alias={SERVICE_NAME}",
+            f"--network={PROJECT_NAME}_net0:mac={mac},alias={SERVICE_NAME}",
         ]
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
@@ -125,9 +143,20 @@ class TestGetNetArgs(unittest.TestCase):
         container["mac_address"] = mac
 
         expected_args = [
-            f"--network={PROJECT_NAME}_net0:mac={mac}",
-            f"--network={PROJECT_NAME}_net1",
-            f"--network-alias={SERVICE_NAME}",
+            f"--network={PROJECT_NAME}_net0:mac={mac},alias={SERVICE_NAME}",
+            f"--network={PROJECT_NAME}_net1:alias={SERVICE_NAME}",
+        ]
+        args = get_net_args(compose, container)
+        self.assertListEqual(expected_args, args)
+
+    def test_mac_on_network(self):
+        mac = "00:11:22:33:44:55"
+        compose = get_networked_compose()
+        container = get_minimal_container()
+        container["networks"] = {"net0": {"x-podman.mac_address": mac}}
+
+        expected_args = [
+            f"--network={PROJECT_NAME}_net0:mac={mac},alias={SERVICE_NAME}",
         ]
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
@@ -138,9 +167,8 @@ class TestGetNetArgs(unittest.TestCase):
         container["networks"] = {"net0": {}, "net1": {}}
 
         expected_args = [
-            f"--network={PROJECT_NAME}_net0",
-            f"--network={PROJECT_NAME}_net1",
-            f"--network-alias={SERVICE_NAME}",
+            f"--network={PROJECT_NAME}_net0:alias={SERVICE_NAME}",
+            f"--network={PROJECT_NAME}_net1:alias={SERVICE_NAME}",
         ]
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
@@ -151,9 +179,8 @@ class TestGetNetArgs(unittest.TestCase):
         container["networks"] = ["net0", "net1"]
 
         expected_args = [
-            f"--network={PROJECT_NAME}_net0",
-            f"--network={PROJECT_NAME}_net1",
-            f"--network-alias={SERVICE_NAME}",
+            f"--network={PROJECT_NAME}_net0:alias={SERVICE_NAME}",
+            f"--network={PROJECT_NAME}_net1:alias={SERVICE_NAME}",
         ]
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
@@ -166,9 +193,8 @@ class TestGetNetArgs(unittest.TestCase):
         container["networks"] = {"net0": {"ipv4_address": ip0}, "net1": {"ipv4_address": ip1}}
 
         expected_args = [
-            f"--network={PROJECT_NAME}_net0:ip={ip0}",
-            f"--network={PROJECT_NAME}_net1:ip={ip1}",
-            f"--network-alias={SERVICE_NAME}",
+            f"--network={PROJECT_NAME}_net0:ip={ip0},alias={SERVICE_NAME}",
+            f"--network={PROJECT_NAME}_net1:ip={ip1},alias={SERVICE_NAME}",
         ]
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
@@ -181,9 +207,8 @@ class TestGetNetArgs(unittest.TestCase):
         container["networks"] = {"net0": {"ipv6_address": ip0}, "net1": {"ipv6_address": ip1}}
 
         expected_args = [
-            f"--network={PROJECT_NAME}_net0:ip={ip0}",
-            f"--network={PROJECT_NAME}_net1:ip={ip1}",
-            f"--network-alias={SERVICE_NAME}",
+            f"--network={PROJECT_NAME}_net0:ip6={ip0},alias={SERVICE_NAME}",
+            f"--network={PROJECT_NAME}_net1:ip6={ip1},alias={SERVICE_NAME}",
         ]
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
@@ -200,9 +225,8 @@ class TestGetNetArgs(unittest.TestCase):
         }
 
         expected_args = [
-            f"--network={PROJECT_NAME}_net0:mac={mac0}",
-            f"--network={PROJECT_NAME}_net1:mac={mac1}",
-            f"--network-alias={SERVICE_NAME}",
+            f"--network={PROJECT_NAME}_net0:mac={mac0},alias={SERVICE_NAME}",
+            f"--network={PROJECT_NAME}_net1:mac={mac1},alias={SERVICE_NAME}",
         ]
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
@@ -224,7 +248,7 @@ class TestGetNetArgs(unittest.TestCase):
         container["mac_address"] = mac_1
 
         expected_exception = (
-            r"specifying mac_address on both container and network level " r"is not supported"
+            r"specifying mac_address on both container and network level is not supported"
         )
         self.assertRaisesRegex(RuntimeError, expected_exception, get_net_args, compose, container)
 
@@ -245,17 +269,20 @@ class TestGetNetArgs(unittest.TestCase):
         container["mac_address"] = mac
 
         expected_args = [
-            f"--network={PROJECT_NAME}_net0:ip={ip4_0},ip={ip6_0},mac={mac}",
-            f"--network={PROJECT_NAME}_net1:ip={ip4_1}",
-            f"--network={PROJECT_NAME}_net2:ip={ip6_2}",
-            f"--network={PROJECT_NAME}_net3",
-            f"--network-alias={SERVICE_NAME}",
+            f"--network={PROJECT_NAME}_net0:ip={ip4_0},ip6={ip6_0},mac={mac},alias={SERVICE_NAME}",
+            f"--network={PROJECT_NAME}_net1:ip={ip4_1},alias={SERVICE_NAME}",
+            f"--network={PROJECT_NAME}_net2:ip6={ip6_2},alias={SERVICE_NAME}",
+            f"--network={PROJECT_NAME}_net3:alias={SERVICE_NAME}",
         ]
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
 
     @parameterized.expand([
-        ("bridge", ["--network=bridge", f"--network-alias={SERVICE_NAME}"]),
+        ("bridge", [f"--network=bridge:alias={SERVICE_NAME},mac=11:22:33:44:55:66"]),
+        (
+            "bridge:ip=10.88.0.3",
+            [f"--network=bridge:ip=10.88.0.3,alias={SERVICE_NAME},mac=11:22:33:44:55:66"],
+        ),
         ("host", ["--network=host"]),
         ("none", ["--network=none"]),
         ("slirp4netns", ["--network=slirp4netns"]),
@@ -270,6 +297,10 @@ class TestGetNetArgs(unittest.TestCase):
         compose = get_networked_compose()
         container = get_minimal_container()
         container["network_mode"] = network_mode
+
+        mac_address = "11:22:33:44:55:66"
+        container["network_mode"] = network_mode
+        container["mac_address"] = mac_address
 
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
