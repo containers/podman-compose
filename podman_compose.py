@@ -855,7 +855,7 @@ async def assert_cnt_nets(compose, cnt):
     create missing networks
     """
     net = cnt.get("network_mode")
-    if net and not net.startswith("bridge"):
+    if net:
         return
 
     cnt_nets = cnt.get("networks")
