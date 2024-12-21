@@ -51,8 +51,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "busybox",
             ],
         )
@@ -69,8 +68,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "--runtime",
                 "runsc",
                 "busybox",
@@ -92,8 +90,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "--sysctl",
                 "net.core.somaxconn=1024",
                 "--sysctl",
@@ -117,8 +114,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "--sysctl",
                 "net.core.somaxconn=1024",
                 "--sysctl",
@@ -149,8 +145,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "--pid",
                 "host",
                 "busybox",
@@ -170,8 +165,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "--name=project_name_service_name1",
                 "-d",
                 "--http-proxy=false",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "busybox",
             ],
         )
@@ -197,8 +191,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 '--uidmap',
                 '1000:1000:1',
                 '--uidmap',
@@ -219,8 +212,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 '--gidmap',
                 '1000:1000:1',
                 '--gidmap',
@@ -242,8 +234,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "--rootfs",
                 "/path/to/rootfs",
             ],
@@ -261,8 +252,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "--no-hosts",
                 "busybox",
             ],
@@ -287,8 +277,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "ZZVAR2=podman-rocks-124",
                 "-e",
                 "ZZVAR3=podman-rocks-125",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "busybox",
             ],
         )
@@ -321,8 +310,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "ZZVAR2=podman-rocks-124",
                 "-e",
                 "ZZVAR3=podman-rocks-125",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "busybox",
             ],
         )
@@ -351,8 +339,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "ZZVAR1=podman-rocks-223",
                 "-e",
                 "ZZVAR2=podman-rocks-224",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "busybox",
             ],
         )
@@ -376,8 +363,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "ZZVAR2=podman-rocks-124",
                 "-e",
                 "ZZVAR3=podman-rocks-125",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "busybox",
             ],
         )
@@ -403,8 +389,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "busybox",
             ],
         )
@@ -428,8 +413,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "--device",
                 "nvidia.com/gpu=all",
                 "--security-opt=label=disable",
@@ -463,8 +447,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "--device",
                 "nvidia.com/gpu=0",
                 "--device",
@@ -500,8 +483,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "--device",
                 "nvidia.com/gpu=all",
                 "--security-opt=label=disable",
@@ -535,8 +517,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "--device",
                 "nvidia.com/gpu=1",
                 "--device",
@@ -581,8 +562,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "--name=project_name_service_name1",
                 "-d",
                 *expected_additional_args,
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "busybox",
             ],
         )
@@ -606,8 +586,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                f"--network={expected_network_name}",
-                "--network-alias=service_name",
+                f"--network={expected_network_name}:alias=service_name",
                 "busybox",
             ],
         )
@@ -629,8 +608,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "/dev/ttyS0",
                 "--device-cgroup-rule",
                 "c 100:200 rwm",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "busybox",
             ],
         )

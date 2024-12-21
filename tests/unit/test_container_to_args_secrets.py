@@ -36,8 +36,7 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "--secret",
                 "my_secret,type=env,target=ENV_SECRET",
                 "busybox",
@@ -68,8 +67,7 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "--secret",
                 "my_secret,type=env,target=ENV_SECRET",
                 "busybox",
@@ -152,8 +150,7 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "--secret",
                 "my_secret_name",
                 "busybox",
@@ -191,8 +188,7 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "--secret",
                 "my_secret_name,uid=103,gid=103,mode=400",
                 "busybox",
@@ -257,8 +253,7 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "--secret",
                 "my_secret_name,type=env,target=does_not_equal_secret_name",
                 "busybox",
@@ -289,8 +284,7 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "--secret",
                 "my_secret_name,type=does_not_equal_env",
                 "busybox",
@@ -361,8 +355,7 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "--volume",
                 expected_volume_ref,
                 "busybox",
@@ -398,8 +391,7 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             [
                 "--name=project_name_service_name1",
                 "-d",
-                "--network=bridge",
-                "--network-alias=service_name",
+                "--network=bridge:alias=service_name",
                 "--volume",
                 repo_root()
                 + "/test_dirname/my_secret:/run/secrets/unused_params_warning:ro,rprivate,rbind",
