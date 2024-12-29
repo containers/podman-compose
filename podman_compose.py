@@ -2429,18 +2429,7 @@ async def compose_push(compose, args):
         await compose.podman.run([], "push", [cnt["image"]])
 
 
-async def build_one(compose, args, cnt):
-    if "build" not in cnt:
-        return None
-    if getattr(args, "if_not_exists", None):
-        try:
-            img_id = await compose.podman.output(
-                [], "inspect", ["-t", "image", "-f", "{{.Id}}", cnt["image"]]
-            )
-        except subprocess.CalledProcessError:
-            img_id = None
-        if img_id:
-            return None
+def container_to_build_args(compose, cnt, args, path_exists):
     build_desc = cnt["build"]
     if not hasattr(build_desc, "items"):
         build_desc = {"context": build_desc}
@@ -2459,9 +2448,9 @@ async def build_one(compose, args, cnt):
         ]
         for dockerfile in dockerfile_alts:
             dockerfile = os.path.join(ctx, dockerfile)
-            if os.path.exists(dockerfile):
+            if path_exists(dockerfile):
                 break
-    if not os.path.exists(dockerfile):
+    if not path_exists(dockerfile):
         raise OSError("Dockerfile not found in " + ctx)
     build_args = ["-f", dockerfile, "-t", cnt["image"]]
     if "platform" in cnt:
@@ -2495,6 +2484,23 @@ async def build_one(compose, args, cnt):
             build_arg,
         ))
     build_args.append(ctx)
+    return build_args
+
+
+async def build_one(compose, args, cnt):
+    if "build" not in cnt:
+        return None
+    if getattr(args, "if_not_exists", None):
+        try:
+            img_id = await compose.podman.output(
+                [], "inspect", ["-t", "image", "-f", "{{.Id}}", cnt["image"]]
+            )
+        except subprocess.CalledProcessError:
+            img_id = None
+        if img_id:
+            return None
+
+    build_args = container_to_build_args(compose, cnt, args, os.path.exists)
     status = await compose.podman.run([], "build", build_args)
     return status
 
