@@ -38,6 +38,12 @@ Podman-compose in addition supports the specification of MAC addresses on a per-
 is done by adding a `x-podman.mac_address` key to the network configuration in the container. The
 value of the `x-podman.mac_address` key is the MAC address to be used for the network interface.
 
+Note that the [compose spec](https://github.com/compose-spec/compose-spec/blob/main/05-services.md#mac_address)
+now supports `mac_address` on the network level, so we recommend using
+the standard `mac_address` key for setting the MAC address. The
+`x-podman.mac_address` is still supported for backwards compatibility.
+
+
 Specifying a MAC address for the container and for individual networks at the same time is not
 supported.
 
@@ -69,7 +75,7 @@ services:
         x-podman.mac_address: "02:aa:aa:aa:aa:aa"
       net1:
         ipv4_address: "192.168.1.10"
-        x-podman.mac_address: "02:bb:bb:bb:bb:bb"
+        mac_address: "02:bb:bb:bb:bb:bb" # mac_address is supported
 ```
 
 ## Podman-specific network modes

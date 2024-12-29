@@ -149,11 +149,15 @@ class TestGetNetArgs(unittest.TestCase):
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
 
-    def test_mac_on_network(self):
+    @parameterized.expand([
+        "mac_address",
+        "x-podman.mac_address",
+    ])
+    def test_mac_on_network(self, mac_attr):
         mac = "00:11:22:33:44:55"
         compose = get_networked_compose()
         container = get_minimal_container()
-        container["networks"] = {"net0": {"x-podman.mac_address": mac}}
+        container["networks"] = {"net0": {mac_attr: mac}}
 
         expected_args = [
             f"--network={PROJECT_NAME}_net0:mac={mac},alias={SERVICE_NAME}",

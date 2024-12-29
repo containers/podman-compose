@@ -966,7 +966,7 @@ def get_net_args_from_networks(compose, cnt):
     # specified on the network level as well
     if mac_address is not None:
         for net_config in multiple_nets.values():
-            network_mac = net_config.get("x-podman.mac_address")
+            network_mac = net_config.get("mac_address", net_config.get("x-podman.mac_address"))
             if network_mac is not None:
                 raise RuntimeError(
                     f"conflicting mac addresses {mac_address} and {network_mac}:"
@@ -983,8 +983,10 @@ def get_net_args_from_networks(compose, cnt):
 
         ipv4 = net_config_.get("ipv4_address")
         ipv6 = net_config_.get("ipv6_address")
-        # custom extension; not supported by docker-compose v3
-        mac = net_config_.get("x-podman.mac_address")
+        # Note: mac_address is supported by compose spec now, and x-podman.mac_address
+        # is only for backward compatibility
+        # https://github.com/compose-spec/compose-spec/blob/main/05-services.md#mac_address
+        mac = net_config_.get("mac_address", net_config_.get("x-podman.mac_address"))
         aliases_on_net = norm_as_list(net_config_.get("aliases", []))
 
         # if a mac_address was specified on the container level, apply it to the first network
