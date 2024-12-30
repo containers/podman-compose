@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio.exceptions
 import asyncio.subprocess
 import getpass
 import glob
@@ -1426,6 +1427,46 @@ class Podman:
 
             raise subprocess.CalledProcessError(p.returncode, " ".join(cmd_ls), stderr_data)
 
+    async def _readchunk(self, reader):
+        try:
+            return await reader.readuntil(b"\n")
+        except asyncio.exceptions.IncompleteReadError as e:
+            return e.partial
+        except asyncio.exceptions.LimitOverrunError as e:
+            return await reader.read(e.consumed)
+
+    async def _format_stream(self, reader, sink, log_formatter):
+        line_ongoing = False
+
+        def _formatted_print_with_nl(s):
+            if line_ongoing:
+                print(s, file=sink, end="\n")
+            else:
+                print(log_formatter, s, file=sink, end="\n")
+
+        def _formatted_print_without_nl(s):
+            if line_ongoing:
+                print(s, file=sink, end="")
+            else:
+                print(log_formatter, s, file=sink, end="")
+
+        while not reader.at_eof():
+            chunk = await self._readchunk(reader)
+            parts = chunk.split(b"\n")
+
+            # Iff parts ends with '', the last part is a incomplete line;
+            # The rest are complete lines
+
+            for i, part in enumerate(parts):
+                if i < len(parts) - 1:
+                    _formatted_print_with_nl(part.decode())
+                    line_ongoing = False
+                elif len(part) > 0:
+                    _formatted_print_without_nl(part.decode())
+                    line_ongoing = True
+        if line_ongoing:
+            print(file=sink, end="\n")  # End the unfinished line
+
     def exec(
         self,
         podman_args,
@@ -1457,26 +1498,21 @@ class Podman:
                 return None
 
             if log_formatter is not None:
-
-                async def format_out(stdout):
-                    while True:
-                        line = await stdout.readline()
-                        if line:
-                            print(log_formatter, line.decode('utf-8'), end='')
-                        if stdout.at_eof():
-                            break
-
                 p = await asyncio.create_subprocess_exec(
                     *cmd_ls, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
                 )  # pylint: disable=consider-using-with
 
                 # This is hacky to make the tasks not get garbage collected
                 # https://github.com/python/cpython/issues/91887
-                out_t = asyncio.create_task(format_out(p.stdout))
+                out_t = asyncio.create_task(
+                    self._format_stream(p.stdout, sys.stdout, log_formatter)
+                )
                 task_reference.add(out_t)
                 out_t.add_done_callback(task_reference.discard)
 
-                err_t = asyncio.create_task(format_out(p.stderr))
+                err_t = asyncio.create_task(
+                    self._format_stream(p.stderr, sys.stdout, log_formatter)
+                )
                 task_reference.add(err_t)
                 err_t.add_done_callback(task_reference.discard)
 
