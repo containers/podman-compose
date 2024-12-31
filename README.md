@@ -83,14 +83,14 @@ sh -c "$(curl -sSL https://raw.githubusercontent.com/containers/podman-compose/m
 ### Manual
 
 ```bash
-curl -o /usr/local/bin/podman-compose https://raw.githubusercontent.com/containers/podman-compose/main/podman_compose.py
+curl -Lo /usr/local/bin/podman-compose https://raw.githubusercontent.com/containers/podman-compose/main/podman_compose.py
 chmod +x /usr/local/bin/podman-compose
 ```
 
 or inside your home
 
 ```bash
-curl -o ~/.local/bin/podman-compose https://raw.githubusercontent.com/containers/podman-compose/main/podman_compose.py
+curl -Lo ~/.local/bin/podman-compose https://raw.githubusercontent.com/containers/podman-compose/main/podman_compose.py
 chmod +x ~/.local/bin/podman-compose
 ```
 
