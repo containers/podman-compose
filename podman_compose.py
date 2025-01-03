@@ -2483,6 +2483,10 @@ def container_to_build_args(compose, cnt, args, path_exists):
             "--build-arg",
             build_arg,
         ))
+    for cache_img in build_desc.get("cache_from", []):
+        build_args.extend(["--cache-from", cache_img])
+    for cache_img in build_desc.get("cache_to", []):
+        build_args.extend(["--cache-to", cache_img])
     build_args.append(ctx)
     return build_args
 
