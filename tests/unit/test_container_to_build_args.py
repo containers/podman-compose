@@ -126,3 +126,33 @@ class TestContainerToBuildArgs(unittest.TestCase):
                 '.',
             ],
         )
+
+    def test_caches(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt['build']['cache_from'] = ['registry/image1', 'registry/image2']
+        cnt['build']['cache_to'] = ['registry/image3', 'registry/image4']
+        args = get_minimal_args()
+
+        args = container_to_build_args(c, cnt, args, lambda path: True)
+        self.assertEqual(
+            args,
+            [
+                '-f',
+                './Containerfile',
+                '-t',
+                'new-image',
+                '--no-cache',
+                '--pull-always',
+                '--cache-from',
+                'registry/image1',
+                '--cache-from',
+                'registry/image2',
+                '--cache-to',
+                'registry/image3',
+                '--cache-to',
+                'registry/image4',
+                '.',
+            ],
+        )
