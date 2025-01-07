@@ -13,3 +13,43 @@ force-single-line = true
 [tool.ruff.format]
 preview = true # needed for quote-style
 quote-style = "preserve"
+
+[tool.towncrier]
+    package = "podman_compose"
+    package_dir = "master"
+    directory = "newsfragments"
+    filename = "docs/Changelog-new.md"
+    template = "scripts/Changelog-template.jinja"
+    title_format = "Version {version} ({project_date})"
+    [[tool.towncrier.section]]
+        path = ""
+
+    [[tool.towncrier.type]]
+        directory = "feature"
+        name = "Features"
+        showcontent = true
+
+    [[tool.towncrier.type]]
+        directory = "change"
+        name = "Changes"
+        showcontent = true
+
+    [[tool.towncrier.type]]
+        directory = "bugfix"
+        name = "Bug fixes"
+        showcontent = true
+
+    [[tool.towncrier.type]]
+        directory = "doc"
+        name = "Improved Documentation"
+        showcontent = true
+
+    [[tool.towncrier.type]]
+        directory = "removal"
+        name = "Deprecations and Removals"
+        showcontent = true
+
+    [[tool.towncrier.type]]
+        directory = "misc"
+        name = "Misc"
+        showcontent = true
