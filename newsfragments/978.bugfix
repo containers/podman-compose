@@ -1,1 +1,0 @@
-Fixed support for de-facto alternative `Dockerfile` names (e.g. `Containerfile`)
