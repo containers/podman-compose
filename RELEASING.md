@@ -35,7 +35,7 @@ Pull the merge commit created on the `main` branch during the step 2.
 Then run:
 
 ```
-./scripts/make_release.sh
+./scripts/make_release.sh $VERSION
 ```
 
 This will create release commit, tag and push everything.
