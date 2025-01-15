@@ -35,6 +35,31 @@ class TestComposeBaseDeps(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
+    def test_run_nodeps(self):
+        try:
+            output, error = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(),
+                "run",
+                "--rm",
+                "--no-deps",
+                "sleep",
+                "/bin/sh",
+                "-c",
+                "wget -O - http://web:8000/hosts || echo Failed to connect",
+            ])
+            self.assertNotIn(b"HTTP request sent, awaiting response... 200 OK", output)
+            self.assertNotIn(b"deps_web_1", output)
+            self.assertIn(b"Failed to connect", output)
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(),
+                "down",
+            ])
+
 
 class TestComposeConditionalDeps(unittest.TestCase, RunSubprocessMixin):
     def test_deps_succeeds(self):

@@ -1020,7 +1020,7 @@ def get_net_args_from_networks(compose, cnt):
     return net_args
 
 
-async def container_to_args(compose, cnt, detached=True):
+async def container_to_args(compose, cnt, detached=True, no_deps=False):
     # TODO: double check -e , --add-host, -v, --read-only
     dirname = compose.dirname
     pod = cnt.get("pod", "")
@@ -1035,7 +1035,7 @@ async def container_to_args(compose, cnt, detached=True):
     deps = []
     for dep_srv in cnt.get("_deps", []):
         deps.extend(compose.container_names_by_service.get(dep_srv.name, []))
-    if deps:
+    if deps and not no_deps:
         deps_csv = ",".join(deps)
         podman_args.append(f"--requires={deps_csv}")
     sec = norm_as_list(cnt.get("security_opt"))
@@ -2915,7 +2915,7 @@ async def compose_run(compose, args):
 
     compose_run_update_container_from_args(compose, cnt, args)
     # run podman
-    podman_args = await container_to_args(compose, cnt, args.detach)
+    podman_args = await container_to_args(compose, cnt, args.detach, args.no_deps)
     if not args.detach:
         podman_args.insert(1, "-i")
         if args.rm:
