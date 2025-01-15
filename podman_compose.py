@@ -270,7 +270,6 @@ def rec_subs(value, subs_dict):
             svc_envs = {k: v for k, v in value['environment'].items() if k not in subs_dict}
             # we need to add `svc_envs` to the `subs_dict` so that it can evaluate the
             # service environment that reference to another service environment.
-            subs_dict.update(svc_envs)
             svc_envs = rec_subs(svc_envs, subs_dict)
             subs_dict.update(svc_envs)
 

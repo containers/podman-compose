@@ -26,6 +26,16 @@ class TestRecSubs(unittest.TestCase):
             {"environment": {"non_var": "$$v1", "vx": "$non_var"}, "image": "abc:$non_var"},
             {"environment": {"non_var": "$v1", "vx": "$v1"}, "image": "abc:$v1"},
         ),
+        (
+            "service environment with unpopulated ${VARIABLE:-default} format",
+            {"environment": {"v100": "${v100:-low priority}", "actual-v100": "$v100"}},
+            {"environment": {"v100": "low priority", "actual-v100": "low priority"}},
+        ),
+        (
+            "service environment with populated ${VARIABLE:-default} format",
+            {"environment": {"v1": "${v1:-low priority}", "actual-v1": "$v1"}},
+            {"environment": {"v1": "high priority", "actual-v1": "high priority"}},
+        ),
         # list
         (
             "Values in list are substituted",

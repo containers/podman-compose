@@ -233,7 +233,7 @@ class TestComposeEnvFile(unittest.TestCase, RunSubprocessMixin):
                 [
                     'ZZVAR1=This value is loaded but should be overwritten\r',
                     'ZZVAR2=This value is loaded from .env in project/ directory\r',
-                    'ZZVAR3=$ZZVAR3\r',
+                    'ZZVAR3=\r',
                     '',
                 ],
             )
