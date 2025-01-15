@@ -1020,7 +1020,7 @@ def get_net_args_from_networks(compose, cnt):
     return net_args
 
 
-async def container_to_args(compose, cnt, detached=True):
+async def container_to_args(compose, cnt, detached=True, no_deps=False):
     # TODO: double check -e , --add-host, -v, --read-only
     dirname = compose.dirname
     pod = cnt.get("pod", "")
@@ -1035,7 +1035,7 @@ async def container_to_args(compose, cnt, detached=True):
     deps = []
     for dep_srv in cnt.get("_deps", []):
         deps.extend(compose.container_names_by_service.get(dep_srv.name, []))
-    if deps:
+    if deps and not no_deps:
         deps_csv = ",".join(deps)
         podman_args.append(f"--requires={deps_csv}")
     sec = norm_as_list(cnt.get("security_opt"))
@@ -2600,7 +2600,8 @@ def get_excluded(compose, args):
     if args.services:
         excluded = set(compose.services)
         for service in args.services:
-            excluded -= set(x.name for x in compose.services[service]["_deps"])
+            if not args.no_deps:
+                excluded -= set(x.name for x in compose.services[service]["_deps"])
             excluded.discard(service)
     log.debug("** excluding: %s", excluded)
     return excluded
@@ -2658,6 +2659,12 @@ async def run_container(
     return await compose.podman.run(*command, log_formatter=log_formatter)
 
 
+def deps_from_container(args, cnt):
+    if args.no_deps:
+        return set()
+    return cnt['_deps']
+
+
 @cmd_run(podman_compose, "up", "Create and start the entire stack or some of its services")
 async def compose_up(compose: PodmanCompose, args):
     excluded = get_excluded(compose, args)
@@ -2699,10 +2706,14 @@ async def compose_up(compose: PodmanCompose, args):
         if cnt["_service"] in excluded:
             log.debug("** skipping: %s", cnt["name"])
             continue
-        podman_args = await container_to_args(compose, cnt, detached=args.detach)
+        podman_args = await container_to_args(
+            compose, cnt, detached=args.detach, no_deps=args.no_deps
+        )
         subproc = await compose.podman.run([], podman_command, podman_args)
         if podman_command == "run" and subproc is not None:
-            await run_container(compose, cnt["name"], cnt["_deps"], ([], "start", [cnt["name"]]))
+            await run_container(
+                compose, cnt["name"], deps_from_container(args, cnt), ([], "start", [cnt["name"]])
+            )
     if args.no_start or args.detach or args.dry_run:
         return
     # TODO: handle already existing
@@ -2737,7 +2748,7 @@ async def compose_up(compose: PodmanCompose, args):
                 run_container(
                     compose,
                     cnt["name"],
-                    cnt["_deps"],
+                    deps_from_container(args, cnt),
                     ([], "start", ["-a", cnt["name"]]),
                     log_formatter=log_formatter,
                 ),
@@ -2915,7 +2926,7 @@ async def compose_run(compose, args):
 
     compose_run_update_container_from_args(compose, cnt, args)
     # run podman
-    podman_args = await container_to_args(compose, cnt, args.detach)
+    podman_args = await container_to_args(compose, cnt, args.detach, args.no_deps)
     if not args.detach:
         podman_args.insert(1, "-i")
         if args.rm:
