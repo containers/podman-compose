@@ -60,6 +60,33 @@ class TestComposeBaseDeps(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
+    def test_up_nodeps(self):
+        try:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(),
+                "up",
+                "--no-deps",
+                "--detach",
+                "sleep",
+            ])
+            output, error = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(),
+                "ps",
+            ])
+            self.assertNotIn(b"deps_web_1", output)
+            self.assertIn(b"deps_sleep_1", output)
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(),
+                "down",
+            ])
+
 
 class TestComposeConditionalDeps(unittest.TestCase, RunSubprocessMixin):
     def test_deps_succeeds(self):
