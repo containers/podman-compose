@@ -27,6 +27,14 @@ services:
 
 For explanations of these extensions, please refer to the [Podman Documentation](https://docs.podman.io/).
 
+## Network management
+
+The following extension keys are available under network configuration:
+
+* `x-podman.disable-dns` - Disable the DNS plugin for the network when set to 'true'.
+
+For explanations of these extensions, please refer to the
+[Podman network create command Documentation](https://docs.podman.io/en/latest/markdown/podman-network-create.1.html).
 
 ## Per-network MAC-addresses
 

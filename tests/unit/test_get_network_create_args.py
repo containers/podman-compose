@@ -201,3 +201,27 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
         ]
         args = get_network_create_args(net_desc, proj_name, net_name)
         self.assertEqual(args, expected_args)
+
+    def test_disable_dns(self):
+        net_desc = {
+            "labels": [],
+            "internal": False,
+            "driver": None,
+            "driver_opts": {},
+            "ipam": {"config": []},
+            "enable_ipv6": False,
+            "x-podman.disable_dns": True,
+        }
+        proj_name = "test_project"
+        net_name = "test_network"
+        expected_args = [
+            "create",
+            "--label",
+            f"io.podman.compose.project={proj_name}",
+            "--label",
+            f"com.docker.compose.project={proj_name}",
+            "--disable-dns",
+            net_name,
+        ]
+        args = get_network_create_args(net_desc, proj_name, net_name)
+        self.assertEqual(args, expected_args)
