@@ -225,3 +225,53 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
         ]
         args = get_network_create_args(net_desc, proj_name, net_name)
         self.assertEqual(args, expected_args)
+
+    def test_dns_string(self):
+        net_desc = {
+            "labels": [],
+            "internal": False,
+            "driver": None,
+            "driver_opts": {},
+            "ipam": {"config": []},
+            "enable_ipv6": False,
+            "x-podman.dns": "192.168.1.2",
+        }
+        proj_name = "test_project"
+        net_name = "test_network"
+        expected_args = [
+            "create",
+            "--label",
+            f"io.podman.compose.project={proj_name}",
+            "--label",
+            f"com.docker.compose.project={proj_name}",
+            "--dns",
+            "192.168.1.2",
+            net_name,
+        ]
+        args = get_network_create_args(net_desc, proj_name, net_name)
+        self.assertEqual(args, expected_args)
+
+    def test_dns_list(self):
+        net_desc = {
+            "labels": [],
+            "internal": False,
+            "driver": None,
+            "driver_opts": {},
+            "ipam": {"config": []},
+            "enable_ipv6": False,
+            "x-podman.dns": ["192.168.1.2", "192.168.1.3"],
+        }
+        proj_name = "test_project"
+        net_name = "test_network"
+        expected_args = [
+            "create",
+            "--label",
+            f"io.podman.compose.project={proj_name}",
+            "--label",
+            f"com.docker.compose.project={proj_name}",
+            "--dns",
+            "192.168.1.2,192.168.1.3",
+            net_name,
+        ]
+        args = get_network_create_args(net_desc, proj_name, net_name)
+        self.assertEqual(args, expected_args)

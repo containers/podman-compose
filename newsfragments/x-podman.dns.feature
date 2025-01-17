@@ -1,0 +1,1 @@
+- Add support for 'x-podman.dns' to allow setting DNS nameservers for defined networks.
