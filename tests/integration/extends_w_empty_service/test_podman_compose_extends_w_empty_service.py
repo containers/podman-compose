@@ -2,6 +2,7 @@
 
 import os
 import unittest
+from pathlib import Path
 
 from tests.integration.test_podman_compose import podman_compose_path
 from tests.integration.test_podman_compose import test_path
@@ -37,3 +38,26 @@ class TestComposeExtendsWithEmptyService(unittest.TestCase, RunSubprocessMixin):
                 compose_yaml_path(),
                 "down",
             ])
+
+    def test_podman_compose_extends_w_empty_service(self):
+        """
+        Test that podman-compose can execute podman-compose -f <file> up with extended File which
+        includes an empty service. (e.g. if the file is used as placeholder for more complex
+        configurations.)
+        """
+        main_path = Path(__file__).parent.parent.parent.parent
+
+        command_up = [
+            "python3",
+            str(main_path.joinpath("podman_compose.py")),
+            "-f",
+            str(
+                main_path.joinpath(
+                    "tests", "integration", "extends_w_empty_service", "docker-compose.yml"
+                )
+            ),
+            "up",
+            "-d",
+        ]
+
+        self.run_subprocess_assert_returncode(command_up)

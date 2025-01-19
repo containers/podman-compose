@@ -86,26 +86,3 @@ class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
         # check container did not exists anymore
         out, _ = self.run_subprocess_assert_returncode(command_check_container)
         self.assertEqual(out, b'')
-
-    def test_extends_w_empty_service(self):
-        """
-        Test that podman-compose can execute podman-compose -f <file> up with extended File which
-        includes an empty service. (e.g. if the file is used as placeholder for more complex
-        configurations.)
-        """
-        main_path = Path(__file__).parent.parent.parent
-
-        command_up = [
-            "python3",
-            str(main_path.joinpath("podman_compose.py")),
-            "-f",
-            str(
-                main_path.joinpath(
-                    "tests", "integration", "extends_w_empty_service", "docker-compose.yml"
-                )
-            ),
-            "up",
-            "-d",
-        ]
-
-        self.run_subprocess_assert_returncode(command_up)
