@@ -832,6 +832,13 @@ def get_network_create_args(net_desc, proj_name, net_name):
     ipam_config_ls = ipam.get("config", [])
     if net_desc.get("enable_ipv6"):
         args.append("--ipv6")
+    if net_desc.get("x-podman.disable_dns"):
+        args.append("--disable-dns")
+    if net_desc.get("x-podman.dns"):
+        args.extend((
+            "--dns",
+            ",".join(norm_as_list(net_desc.get("x-podman.dns"))),
+        ))
 
     if isinstance(ipam_config_ls, dict):
         ipam_config_ls = [ipam_config_ls]
