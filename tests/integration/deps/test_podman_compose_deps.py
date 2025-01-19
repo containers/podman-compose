@@ -87,6 +87,58 @@ class TestComposeBaseDeps(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
+    def test_podman_compose_run(self):
+        """
+        This will test depends_on as well
+        """
+        run_cmd = [
+            "coverage",
+            "run",
+            podman_compose_path(),
+            "-f",
+            os.path.join(test_path(), "deps", "docker-compose.yaml"),
+            "run",
+            "--rm",
+            "sleep",
+            "/bin/sh",
+            "-c",
+            "wget -q -O - http://web:8000/hosts",
+        ]
+
+        out, _ = self.run_subprocess_assert_returncode(run_cmd)
+        self.assertIn(b"127.0.0.1\tlocalhost", out)
+
+        # Run it again to make sure we can run it twice. I saw an issue where a second run, with
+        # the container left up, would fail
+        run_cmd = [
+            "coverage",
+            "run",
+            podman_compose_path(),
+            "-f",
+            os.path.join(test_path(), "deps", "docker-compose.yaml"),
+            "run",
+            "--rm",
+            "sleep",
+            "/bin/sh",
+            "-c",
+            "wget -q -O - http://web:8000/hosts",
+        ]
+
+        out, _ = self.run_subprocess_assert_returncode(run_cmd)
+        self.assertIn(b"127.0.0.1\tlocalhost", out)
+
+        # This leaves a container running. Not sure it's intended, but it matches docker-compose
+        down_cmd = [
+            "coverage",
+            "run",
+            podman_compose_path(),
+            "-f",
+            os.path.join(test_path(), "deps", "docker-compose.yaml"),
+            "down",
+        ]
+
+        self.run_subprocess_assert_returncode(down_cmd)
+
 
 class TestComposeConditionalDeps(unittest.TestCase, RunSubprocessMixin):
     def test_deps_succeeds(self):
