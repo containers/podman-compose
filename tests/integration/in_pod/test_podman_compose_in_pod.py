@@ -8,7 +8,7 @@ from tests.integration.test_utils import RunSubprocessMixin
 
 def base_path():
     """Returns the base path for the project"""
-    return os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 
 def test_path():
