@@ -52,3 +52,16 @@ class TestComposeExitFrom(unittest.TestCase, RunSubprocessMixin):
                 compose_yaml_path(),
                 "down",
             ])
+
+    def test_podman_compose_exit_from(self):
+        up_cmd = [
+            "coverage",
+            "run",
+            podman_compose_path(),
+            "-f",
+            os.path.join(test_path(), "exit-from", "docker-compose.yaml"),
+            "up",
+        ]
+
+        self.run_subprocess_assert_returncode(up_cmd + ["--exit-code-from", "sh1"], 1)
+        self.run_subprocess_assert_returncode(up_cmd + ["--exit-code-from", "sh2"], 2)

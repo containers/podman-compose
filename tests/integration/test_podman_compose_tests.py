@@ -16,19 +16,6 @@ from tests.integration.test_utils import RunSubprocessMixin
 
 
 class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
-    def test_exit_from(self):
-        up_cmd = [
-            "coverage",
-            "run",
-            podman_compose_path(),
-            "-f",
-            os.path.join(test_path(), "exit-from", "docker-compose.yaml"),
-            "up",
-        ]
-
-        self.run_subprocess_assert_returncode(up_cmd + ["--exit-code-from", "sh1"], 1)
-        self.run_subprocess_assert_returncode(up_cmd + ["--exit-code-from", "sh2"], 2)
-
     def test_up_with_ports(self):
         up_cmd = [
             "coverage",
