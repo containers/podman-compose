@@ -54,4 +54,3 @@ class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
             self.run_subprocess(["podman", "volume", "rm", "my-app-data"])
             self.run_subprocess(["podman", "volume", "rm", "actual-name-of-volume"])
             self.assertEqual(return_code, 0)
-
