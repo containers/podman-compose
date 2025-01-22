@@ -25,6 +25,7 @@ import shlex
 import signal
 import subprocess
 import sys
+import tempfile
 from asyncio import Task
 from enum import Enum
 
@@ -2471,27 +2472,45 @@ async def compose_push(compose, args):
         await compose.podman.run([], "push", [cnt["image"]])
 
 
-def container_to_build_args(compose, cnt, args, path_exists):
+def container_to_build_args(compose, cnt, args, path_exists, cleanup_callbacks=None):
     build_desc = cnt["build"]
     if not hasattr(build_desc, "items"):
         build_desc = {"context": build_desc}
     ctx = build_desc.get("context", ".")
     dockerfile = build_desc.get("dockerfile")
-    if dockerfile:
-        dockerfile = os.path.join(ctx, dockerfile)
+    dockerfile_inline = build_desc.get("dockerfile_inline")
+    if dockerfile_inline is not None:
+        dockerfile_inline = str(dockerfile_inline)
+        # Error if both `dockerfile_inline` and `dockerfile` are set
+        if dockerfile and dockerfile_inline:
+            raise OSError("dockerfile_inline and dockerfile can't be used simultaneously")
+        dockerfile = tempfile.NamedTemporaryFile(delete=False, suffix=".containerfile")
+        dockerfile.write(dockerfile_inline.encode())
+        dockerfile.close()
+        dockerfile = dockerfile.name
+
+        def cleanup_temp_dockfile():
+            if os.path.exists(dockerfile):
+                os.remove(dockerfile)
+
+        if cleanup_callbacks is not None:
+            list.append(cleanup_callbacks, cleanup_temp_dockfile)
     else:
-        dockerfile_alts = [
-            "Containerfile",
-            "ContainerFile",
-            "containerfile",
-            "Dockerfile",
-            "DockerFile",
-            "dockerfile",
-        ]
-        for dockerfile in dockerfile_alts:
+        if dockerfile:
             dockerfile = os.path.join(ctx, dockerfile)
-            if path_exists(dockerfile):
-                break
+        else:
+            dockerfile_alts = [
+                "Containerfile",
+                "ContainerFile",
+                "containerfile",
+                "Dockerfile",
+                "DockerFile",
+                "dockerfile",
+            ]
+            for dockerfile in dockerfile_alts:
+                dockerfile = os.path.join(ctx, dockerfile)
+                if path_exists(dockerfile):
+                    break
     if not path_exists(dockerfile):
         raise OSError("Dockerfile not found in " + ctx)
     build_args = ["-f", dockerfile, "-t", cnt["image"]]
@@ -2546,8 +2565,13 @@ async def build_one(compose, args, cnt):
         if img_id:
             return None
 
-    build_args = container_to_build_args(compose, cnt, args, os.path.exists)
+    cleanup_callbacks = []
+    build_args = container_to_build_args(
+        compose, cnt, args, os.path.exists, cleanup_callbacks=cleanup_callbacks
+    )
     status = await compose.podman.run([], "build", build_args)
+    for c in cleanup_callbacks:
+        c()
     return status
 
 
