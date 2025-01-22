@@ -7,8 +7,8 @@ import os
 import subprocess
 import unittest
 
-from tests.integration.test_podman_compose import podman_compose_path
-from tests.integration.test_podman_compose import test_path
+from tests.integration.test_utils import podman_compose_path
+from tests.integration.test_utils import test_path
 
 
 def compose_yaml_path():
