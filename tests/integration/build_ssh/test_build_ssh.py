@@ -9,9 +9,9 @@ import unittest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from tests.integration.test_podman_compose import podman_compose_path
-from tests.integration.test_podman_compose import test_path
 from tests.integration.test_utils import RunSubprocessMixin
+from tests.integration.test_utils import podman_compose_path
+from tests.integration.test_utils import test_path
 
 expected_lines = [
     "default: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFYQvN9a+toIB6jSs4zY7FMapZnHt80EKCUr/WhLwUum",
