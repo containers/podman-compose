@@ -7,7 +7,7 @@
 # https://docs.docker.com/compose/django/
 # https://docs.docker.com/compose/wordpress/
 # TODO: podman pod logs --color -n -f pod_testlogs
-from __future__ import annotations
+from __future__ import annotations  # If you see an error here, use Python 3.7 or greater
 
 import argparse
 import asyncio.exceptions
