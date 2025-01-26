@@ -41,5 +41,5 @@ services:
           aliases:
           - alias21
       volumes:
-        - ./test2.txt:/var/www/html/index.txt:ro,z
+        - ./test3.txt:/var/www/html/index.txt:ro,z
 
