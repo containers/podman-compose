@@ -1,0 +1,9 @@
+---
+version: '3'
+services:
+  dummy:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM alpine
+        RUN echo "hello world"

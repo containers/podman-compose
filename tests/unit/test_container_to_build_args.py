@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
+import os
 import unittest
 from unittest import mock
 
@@ -156,3 +157,26 @@ class TestContainerToBuildArgs(unittest.TestCase):
                 '.',
             ],
         )
+
+    def test_dockerfile_inline(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt['build']['dockerfile_inline'] = "FROM busybox\nRUN echo 'hello world'"
+        args = get_minimal_args()
+
+        cleanup_callbacks = []
+        args = container_to_build_args(
+            c, cnt, args, lambda path: True, cleanup_callbacks=cleanup_callbacks
+        )
+
+        temp_dockerfile = args[args.index("-f") + 1]
+        self.assertTrue(os.path.exists(temp_dockerfile))
+
+        with open(temp_dockerfile, "rt") as file:
+            contents = file.read()
+            self.assertEqual(contents, "FROM busybox\n" + "RUN echo 'hello world'")
+
+        for c in cleanup_callbacks:
+            c()
+        self.assertFalse(os.path.exists(temp_dockerfile))
