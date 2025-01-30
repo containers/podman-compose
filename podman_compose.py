@@ -1925,9 +1925,6 @@ class PodmanCompose:
             dotenv_path = os.path.realpath(args.env_file)
             dotenv_dict.update(dotenv_to_dict(dotenv_path))
 
-        # TODO: remove next line
-        os.chdir(dirname)
-
         os.environ.update({
             key: value for key, value in dotenv_dict.items() if key.startswith("PODMAN_")
         })
@@ -1969,11 +1966,18 @@ class PodmanCompose:
             content = normalize(content)
             # log(filename, json.dumps(content, indent = 2))
             content = rec_subs(content, self.environ)
+            if isinstance(services := content.get('services'), dict):
+                for service in services.values():
+                    if 'extends' in service and (service_file := service['extends'].get('file')):
+                        service['extends']['file'] = os.path.join(
+                            os.path.dirname(filename), service_file
+                        )
+
             rec_merge(compose, content)
             # If `include` is used, append included files to files
             include = compose.get("include")
             if include:
-                files.extend(include)
+                files.extend([os.path.join(os.path.dirname(filename), i) for i in include])
                 # As compose obj is updated and tested with every loop, not deleting `include`
                 # from it, results in it being tested again and again, original values for
                 # `include` be appended to `files`, and, included files be processed for ever.
