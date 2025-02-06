@@ -1875,6 +1875,15 @@ class PodmanCompose:
         # otherwise use `in_pod` value provided by command line
         return self.global_args.in_pod_bool
 
+    def resolve_pod_args(self):
+        # Priorities:
+        # - Command line --pod-args
+        # - docker-compose.yml x-podman.pod_args
+        # - Default value
+        if self.global_args.pod_args is not None:
+            return shlex.split(self.global_args.pod_args)
+        return self.x_podman.get("pod_args", ["--infra=false", "--share="])
+
     def _parse_compose_file(self):
         args = self.global_args
         # cmd = args.command
@@ -2133,6 +2142,7 @@ class PodmanCompose:
         self.x_podman = compose.get("x-podman", {})
 
         args.in_pod_bool = self.resolve_in_pod()
+        args.pod_arg_list = self.resolve_pod_args()
         pods, containers = transform(args, project_name, given_containers)
         self.pods = pods
         self.containers = containers
@@ -2211,7 +2221,7 @@ class PodmanCompose:
             help="custom arguments to be passed to `podman pod`",
             metavar="pod_args",
             type=str,
-            default="--infra=false --share=",
+            default=None,
         )
         parser.add_argument(
             "--env-file",
@@ -2616,9 +2626,7 @@ async def create_pods(compose, args):  # pylint: disable=unused-argument
         podman_args = [
             "create",
             "--name=" + pod["name"],
-        ]
-        if args.pod_args:
-            podman_args.extend(shlex.split(args.pod_args))
+        ] + args.pod_arg_list
         # if compose.podman_version and not strverscmp_lt(compose.podman_version, "3.4.0"):
         #    podman_args.append("--infra-name={}_infra".format(pod["name"]))
         ports = pod.get("ports", [])
