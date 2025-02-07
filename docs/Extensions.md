@@ -174,3 +174,17 @@ services:
 x-podman:
     in_pod: false
 ```
+
+It is also possible to override the default arguments for pod creation that are
+used when --pod-args is not passed on the command line:
+```yml
+version: "3"
+services:
+    cont:
+        image: nopush/podman-compose-test
+        command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-p", "8080"]
+x-podman:
+    pod_args: ["--infra=false", "--share=", "--cpus=1"]
+```
+When not set in docker-compose.yml or on the command line, the pod args default
+to `["--infra=false", "--share="]`.
