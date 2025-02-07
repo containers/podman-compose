@@ -2,11 +2,8 @@ version: "3"
 services:
   web1:
     image: busybox
-    command: httpd -f -p 80 -h /var/www/html
-    volumes:
-    - ./docker-compose.yml:/var/www/html/index.html
-    ports:
-      - "8080:80"
+    command: sh -c "mkdir /tmp_test"
     security_opt:
-      - seccomp:unconfined
-
+      # Currently only absolute path works, like this:
+      # - seccomp:/.../tests/integration/seccomp/default.json
+      - seccomp:./default.json
