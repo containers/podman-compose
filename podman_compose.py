@@ -1464,10 +1464,8 @@ class Podman:
             chunk = await self._readchunk(reader)
             parts = chunk.split(b"\n")
 
-            # Iff parts ends with '', the last part is a incomplete line;
-            # The rest are complete lines
-
             for i, part in enumerate(parts):
+                # Iff part is last and non-empty, we leave an ongoing line to be completed later
                 if i < len(parts) - 1:
                     _formatted_print_with_nl(part.decode())
                     line_ongoing = False
@@ -1475,7 +1473,8 @@ class Podman:
                     _formatted_print_without_nl(part.decode())
                     line_ongoing = True
         if line_ongoing:
-            print(file=sink, end="\n")  # End the unfinished line
+            # Make sure the last line ends with EOL
+            print(file=sink, end="\n")
 
     def exec(
         self,
