@@ -8,10 +8,10 @@ from podman_compose import Podman
 
 
 class DummyReader:
-    def __init__(self, data=[]):
-        self.data = data
+    def __init__(self, data=None):
+        self.data = data or []
 
-    async def readuntil(self, x):
+    async def readuntil(self, _):
         return self.data.pop(0)
 
     def at_eof(self):
@@ -27,6 +27,16 @@ class TestComposeRunLogFormat(unittest.IsolatedAsyncioTestCase):
         reader = DummyReader([b'hello, world\n'])
         await self.p._format_stream(reader, self.buffer, 'LL:')
         self.assertEqual(self.buffer.getvalue(), 'LL: hello, world\n')
+
+    async def test_empty(self):
+        reader = DummyReader([])
+        await self.p._format_stream(reader, self.buffer, 'LL:')
+        self.assertEqual(self.buffer.getvalue(), '')
+
+    async def test_empty2(self):
+        reader = DummyReader([b''])
+        await self.p._format_stream(reader, self.buffer, 'LL:')
+        self.assertEqual(self.buffer.getvalue(), '')
 
     async def test_empty_line(self):
         reader = DummyReader([b'\n'])
