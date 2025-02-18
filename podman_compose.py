@@ -2286,7 +2286,16 @@ class PodmanCompose:
             )  # pylint: disable=protected-access
             for cmd_parser in cmd._parse_args:  # pylint: disable=protected-access
                 cmd_parser(subparser)
+
         self.global_args = parser.parse_args(argv)
+
+        if self.global_args.ansi:
+            if self.global_args.ansi == "never":
+                self.global_args.no_ansi = True
+            # if an option is added but we don't know how to handle it, fail!
+            else:
+                raise ValueError(f"Unsupported --ansi value: {self.global_args.ansi}.")
+
         if (
             self.global_args.in_pod is not None
             and self.global_args.in_pod.lower()
@@ -2388,8 +2397,15 @@ class PodmanCompose:
                 default=[],
             )
         parser.add_argument(
+            "--ansi",
+            help="Controls when to print ANSI control characters.",
+            choices=["never"],
+            type=str,
+            default=None,
+        )
+        parser.add_argument(
             "--no-ansi",
-            help="Do not print ANSI control characters",
+            help="Do not print ANSI control characters. Equivalent to `--ansi=never`.",
             action="store_true",
         )
         parser.add_argument(
