@@ -1506,7 +1506,10 @@ class Podman:
 
             if log_formatter is not None:
                 p = await asyncio.create_subprocess_exec(
-                    *cmd_ls, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+                    *cmd_ls,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    close_fds=False,
                 )  # pylint: disable=consider-using-with
 
                 # This is hacky to make the tasks not get garbage collected
@@ -1524,7 +1527,7 @@ class Podman:
                 err_t.add_done_callback(task_reference.discard)
 
             else:
-                p = await asyncio.create_subprocess_exec(*cmd_ls)  # pylint: disable=consider-using-with
+                p = await asyncio.create_subprocess_exec(*cmd_ls, close_fds=False)  # pylint: disable=consider-using-with
 
             try:
                 exit_code = await p.wait()
