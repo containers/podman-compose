@@ -17,6 +17,11 @@ repos:
     hooks:
       - id: flake8
         types: [python]
+        args:
+          [
+            "--ignore",
+            "E231"
+          ]
   - repo: local
     hooks:
       - id: pylint
