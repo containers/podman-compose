@@ -9,6 +9,9 @@ repos:
     hooks:
       - id: flake8
         types: [python]
+        args: [
+          "--config=.flake8rc"
+        ]
   - repo: local
     hooks:
       - id: pylint
