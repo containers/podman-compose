@@ -20,7 +20,7 @@ repos:
         args:
           [
             "--ignore",
-            "E231"
+            "E222,E231,E272,E713,W503"
           ]
   - repo: local
     hooks:
