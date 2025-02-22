@@ -989,6 +989,7 @@ def get_net_args_from_networks(compose, cnt):
         default_net_name = default_network_name_for_project(compose, net_, is_ext)
         net_name = ext_desc.get("name") or net_desc.get("name") or default_net_name
 
+        interface_name = net_config_.get("x-podman.interface_name")
         ipv4 = net_config_.get("ipv4_address")
         ipv6 = net_config_.get("ipv6_address")
         # Note: mac_address is supported by compose spec now, and x-podman.mac_address
@@ -1006,6 +1007,8 @@ def get_net_args_from_networks(compose, cnt):
             mac_address = None
 
         net_options = []
+        if interface_name:
+            net_options.append(f"interface_name={interface_name}")
         if ipv4:
             net_options.append(f"ip={ipv4}")
         if ipv6:
