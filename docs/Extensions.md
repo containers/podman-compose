@@ -86,7 +86,7 @@ networks:
         - subnet: "192.168.1.0/24"
 
 services:
-  webserver
+  webserver:
     image: "busybox"
     command: ["/bin/busybox", "httpd", "-f", "-h", "/etc", "-p", "8001"]
     networks:
@@ -97,6 +97,10 @@ services:
         ipv4_address: "192.168.1.10"
         mac_address: "02:bb:bb:bb:bb:bb" # mac_address is supported
 ```
+
+## Per-network interface name
+
+Using `x-podman.interface_name` within a containers network config you can specify the interface name inside the container.
 
 ## Podman-specific network modes
 
