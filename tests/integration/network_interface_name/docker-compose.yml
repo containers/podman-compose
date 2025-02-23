@@ -1,0 +1,10 @@
+version: "3"
+networks:
+    mystack:
+services:
+    web:
+      image: busybox
+      command: ["/bin/busybox", "httpd", "-f", "-h", ".", "-p", "8004"]
+      networks:
+        mystack:
+          x-podman.interface_name: customName0
