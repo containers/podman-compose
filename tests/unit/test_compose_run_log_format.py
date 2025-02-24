@@ -28,6 +28,16 @@ class TestComposeRunLogFormat(unittest.IsolatedAsyncioTestCase):
         await self.p._format_stream(reader, self.buffer, 'LL:')
         self.assertEqual(self.buffer.getvalue(), 'LL: hello, world\n')
 
+    async def test_empty(self):
+        reader = DummyReader([])
+        await self.p._format_stream(reader, self.buffer, 'LL:')
+        self.assertEqual(self.buffer.getvalue(), '')
+
+    async def test_empty2(self):
+        reader = DummyReader([b''])
+        await self.p._format_stream(reader, self.buffer, 'LL:')
+        self.assertEqual(self.buffer.getvalue(), '')
+
     async def test_empty_line(self):
         reader = DummyReader([b'\n'])
         await self.p._format_stream(reader, self.buffer, 'LL:')
