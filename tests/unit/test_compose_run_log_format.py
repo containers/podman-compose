@@ -8,10 +8,10 @@ from podman_compose import Podman
 
 
 class DummyReader:
-    def __init__(self, data=[]):
-        self.data = data
+    def __init__(self, data=None):
+        self.data = data or []
 
-    async def readuntil(self, x):
+    async def readuntil(self, _):
         return self.data.pop(0)
 
     def at_eof(self):
