@@ -2776,7 +2776,15 @@ async def compose_up(compose: PodmanCompose, args):
     tasks = set()
 
     loop = asyncio.get_event_loop()
-    loop.add_signal_handler(signal.SIGINT, lambda: [t.cancel("User exit") for t in tasks])
+
+    async def handle_sigint():
+        log.info("Caught SIGINT, shutting down...")
+        down_args = argparse.Namespace(**dict(args.__dict__, volumes=False))
+        await compose.commands["down"](compose, down_args)
+        for task in tasks:
+            task.cancel()
+
+    loop.add_signal_handler(signal.SIGINT, lambda: asyncio.create_task(handle_sigint()))
 
     for i, cnt in enumerate(compose.containers):
         # Add colored service prefix to output by piping output through sed
