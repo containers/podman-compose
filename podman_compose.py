@@ -2778,11 +2778,16 @@ async def compose_up(compose: PodmanCompose, args):
     loop = asyncio.get_event_loop()
 
     async def handle_sigint():
-        log.info("Caught SIGINT, shutting down...")
-        down_args = argparse.Namespace(**dict(args.__dict__, volumes=False))
-        await compose.commands["down"](compose, down_args)
-        for task in tasks:
-            task.cancel()
+        log.info("Caught SIGINT or Ctrl+C, shutting down...")
+        try:
+            log.info("Shutting down gracefully, please wait...")
+            down_args = argparse.Namespace(**dict(args.__dict__, volumes=False))
+            await compose.commands["down"](compose, down_args)
+        except Exception as e:
+            log.error(f"Error during shutdown: {e}")
+        finally:
+            for task in tasks:
+                task.cancel()
 
     loop.add_signal_handler(signal.SIGINT, lambda: asyncio.create_task(handle_sigint()))
 
