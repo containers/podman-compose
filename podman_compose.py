@@ -1299,7 +1299,8 @@ class ServiceDependencyCondition(Enum):
         try:
             return docker_to_podman_cond[value]
         except KeyError:
-            raise ValueError(f"Value '{value}' is not a valid condition for a service dependency")  # pylint: disable=raise-missing-from
+            # pylint: disable-next=raise-missing-from
+            raise ValueError(f"Value '{value}' is not a valid condition for a service dependency")
 
 
 class ServiceDependency:
