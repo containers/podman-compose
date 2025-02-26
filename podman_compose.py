@@ -2648,7 +2648,7 @@ def get_excluded(compose, args):
     if args.services:
         excluded = set(compose.services)
         for service in args.services:
-            if not args.no_deps:
+            if service in compose.services and not getattr(args, "no_deps", False):
                 excluded -= set(x.name for x in compose.services[service]["_deps"])
             excluded.discard(service)
     log.debug("** excluding: %s", excluded)
