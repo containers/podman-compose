@@ -2776,9 +2776,11 @@ async def compose_up(compose: PodmanCompose, args):
         max_service_length = curr_length if curr_length > max_service_length else max_service_length
 
     tasks = set()
-
-    loop = asyncio.get_event_loop()
-    loop.add_signal_handler(signal.SIGINT, lambda: [t.cancel("User exit") for t in tasks])
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    else:
+        loop = asyncio.get_event_loop()
+        loop.add_signal_handler(signal.SIGINT, lambda: [t.cancel("User exit") for t in tasks])
 
     for i, cnt in enumerate(compose.containers):
         # Add colored service prefix to output by piping output through sed
