@@ -3136,9 +3136,11 @@ async def compose_logs(compose, args):
 async def compose_config(compose, args):
     if args.services:
         for service in compose.services:
-            print(service)
+            if not args.quiet:
+                print(service)
         return
-    print(compose.merged_yaml)
+    if not args.quiet:
+        print(compose.merged_yaml)
 
 
 @cmd_run(podman_compose, "port", "Prints the public port for a port binding.")
@@ -3671,6 +3673,12 @@ def compose_config_parse(parser):
     )
     parser.add_argument(
         "--services", help="Print the service names, one per line.", action="store_true"
+    )
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        help="Do not print config, only parse.",
+        action="store_true",
     )
 
 
