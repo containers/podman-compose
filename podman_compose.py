@@ -2786,7 +2786,7 @@ async def compose_up(compose: PodmanCompose, args):
             down_args = argparse.Namespace(**dict(args.__dict__, volumes=False))
             await compose.commands["down"](compose, down_args)
         except Exception as e:
-            log.error(f"Error during shutdown: {e}")
+            log.error("Error during shutdown: %s", e)
         finally:
             for task in tasks:
                 task.cancel()
