@@ -2095,7 +2095,23 @@ class PodmanCompose:
         container_names_by_service = {}
         self.services = services
         for service_name, service_desc in services.items():
-            replicas = try_int(service_desc.get("deploy", {}).get("replicas"), fallback=1)
+            replicas = 1
+            if "scale" in args and args.scale is not None:
+                # Check `--scale` args from CLI command
+                scale_args = args.scale.split('=')
+                if service_name == scale_args[0]:
+                    replicas = try_int(scale_args[1], fallback=1)
+            elif "scale" in service_desc:
+                # Check `scale` value from compose yaml file
+                replicas = try_int(service_desc.get("scale"), fallback=1)
+            elif (
+                "deploy" in service_desc
+                and "replicas" in service_desc.get("deploy", {})
+                and "replicated" == service_desc.get("deploy", {}).get("mode", '')
+            ):
+                # Check `deploy: replicas:` value from compose yaml file
+                # Note: All conditions are necessary to handle case
+                replicas = try_int(service_desc.get("deploy", {}).get("replicas"), fallback=1)
 
             container_names_by_service[service_name] = []
             for num in range(1, replicas + 1):
@@ -2853,12 +2869,30 @@ def get_volume_names(compose, cnt):
 
 @cmd_run(podman_compose, "down", "tear down entire stack")
 async def compose_down(compose: PodmanCompose, args):
+    # get_excluded fails as no-deps is not a supported cli arg
     excluded = get_excluded(compose, args)
     podman_args = []
     timeout_global = getattr(args, "timeout", None)
     containers = list(reversed(compose.containers))
 
-    down_tasks = []
+    # Get list of currently running containers
+    running_cnt_names = (
+        (
+            await compose.podman.output(
+                [],
+                "ps",
+                [
+                    "--filter",
+                    f"label=io.podman.compose.project={compose.project_name}",
+                    "-a",
+                    "--format",
+                    "{{ .Names }}",
+                ],
+            )
+        )
+        .decode("utf-8")
+        .splitlines()
+    )
 
     for cnt in containers:
         if cnt["_service"] in excluded:
@@ -2870,38 +2904,44 @@ async def compose_down(compose: PodmanCompose, args):
             timeout = str_to_seconds(timeout_str)
         if timeout is not None:
             podman_stop_args.extend(["-t", str(timeout)])
-        down_tasks.append(
-            asyncio.create_task(
-                compose.podman.run([], "stop", [*podman_stop_args, cnt["name"]]), name=cnt["name"]
-            )
-        )
-    await asyncio.gather(*down_tasks)
+        await compose.podman.run([], "stop", [*podman_stop_args, cnt["name"]])
+
     for cnt in containers:
         if cnt["_service"] in excluded:
             continue
         await compose.podman.run([], "rm", [cnt["name"]])
+        if cnt["name"] in running_cnt_names:
+            running_cnt_names.remove(cnt["name"])
+
+    # The logic is updated based on docker compose documentation:
+    # `--remove-orphans`: Remove containers for services not defined in the Compose file
+    # Ref: https://docs.docker.com/reference/cli/docker/compose/down/#options
+    orphan_cnt_names = []
+    for cnt in running_cnt_names:
+        if not any(f"{compose.project_name}_{service}_" in cnt for service in compose.all_services):
+            orphan_cnt_names.append(cnt)
+            running_cnt_names.remove(cnt)
+
+    # We list the containers and remove them from running container list
+    # However, we stop them only if provided with CLI arg `--remove-orphans`
     if args.remove_orphans:
-        names = (
-            (
-                await compose.podman.output(
-                    [],
-                    "ps",
-                    [
-                        "--filter",
-                        f"label=io.podman.compose.project={compose.project_name}",
-                        "-a",
-                        "--format",
-                        "{{ .Names }}",
-                    ],
-                )
-            )
-            .decode("utf-8")
-            .splitlines()
-        )
-        for name in names:
+        for name in orphan_cnt_names:
             await compose.podman.run([], "stop", [*podman_args, name])
-        for name in names:
+        for name in orphan_cnt_names:
             await compose.podman.run([], "rm", [name])
+
+    for cnt in running_cnt_names:
+        # This logic goes away if the containers list can be updated accordingly at source
+        # Clear containers not formed out of the current compose file definitions
+        # E.g.: By using CLI `up --scale <APP>=<NUM>` option
+        podman_stop_args = [*podman_args]
+        if timeout_global is not None:
+            podman_stop_args.extend(["-t", str(timeout_global)])
+        await compose.podman.run([], "stop", [*podman_stop_args, cnt])
+
+    for cnt in running_cnt_names:
+        await compose.podman.run([], "rm", [cnt])
+
     if args.volumes:
         vol_names_to_keep = set()
         for cnt in containers:
@@ -3383,12 +3423,13 @@ def compose_up_parse(parser):
         action="store_true",
         help="Remove containers for services not defined in the Compose file.",
     )
+    # `--scale` argument needs to store as single value and not append,
+    # as multiple scale values could be confusing.
     parser.add_argument(
         "--scale",
         metavar="SERVICE=NUM",
-        action="append",
-        help="Scale SERVICE to NUM instances. Overrides the `scale` setting in the Compose file if "
-        "present.",
+        help="Scale SERVICE to NUM instances. "
+        "Overrides the `scale` setting in the Compose file if present.",
     )
     parser.add_argument(
         "--exit-code-from",
