@@ -1,14 +1,18 @@
 version: "3"
 services:
-  web1:
+  container1:
     image: busybox
-    command: httpd -f -p 80 -h /var/www/html
+    command: ["busybox", "sleep", "infinity"]
     volumes:
       - type: bind
-        source: ./docker-compose.yml
-        target: /var/www/html/index.html
+        source: ./host_test_text.txt
+        target: /test_text.txt
         bind:
           selinux: z
-    ports:
-      - "8080:80"
-
+  container2:
+    image: busybox
+    command: ["busybox", "sleep", "infinity"]
+    volumes:
+      - type: bind
+        source: ./host_test_text.txt
+        target: /test_text.txt
