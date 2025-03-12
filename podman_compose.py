@@ -1981,15 +1981,20 @@ class PodmanCompose:
             content = normalize(content)
             # log(filename, json.dumps(content, indent = 2))
 
+            # See also https://docs.docker.com/compose/how-tos/project-name/#set-a-project-name
+            # **project_name** is initialized to the argument of the `-p` command line flag.
             if not project_name:
-                project_name = content.get("name")
-                if project_name is None:
-                    # More strict then actually needed for simplicity:
-                    # podman requires [a-zA-Z0-9][a-zA-Z0-9_.-]*
-                    project_name = self.environ.get("COMPOSE_PROJECT_NAME", dir_basename.lower())
-                    project_name = norm_re.sub("", project_name)
-                    if not project_name:
-                        raise RuntimeError(f"Project name [{dir_basename}] normalized to empty")
+                project_name = self.environ.get("COMPOSE_PROJECT_NAME")
+                if not project_name:
+                    project_name = content.get("name")
+                if not project_name:
+                    project_name = dir_basename.lower()
+                # More strict then actually needed for simplicity:
+                # podman requires [a-zA-Z0-9][a-zA-Z0-9_.-]*
+                project_name_normalized = norm_re.sub("", project_name)
+                if not project_name_normalized:
+                    raise RuntimeError(f"Project name [{project_name}] normalized to empty")
+                project_name = project_name_normalized
 
             self.project_name = project_name
             self.environ.update({"COMPOSE_PROJECT_NAME": self.project_name})
