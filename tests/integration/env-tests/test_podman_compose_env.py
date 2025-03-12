@@ -49,6 +49,7 @@ class TestComposeEnv(unittest.TestCase, RunSubprocessMixin):
     - https://docs.docker.com/compose/how-tos/environment-variables/envvars/
     - https://github.com/compose-spec/compose-spec/blob/main/04-version-and-name.md
     """
+
     def test_project_name(self):
         try:
             output, _ = self.run_subprocess_assert_returncode([
