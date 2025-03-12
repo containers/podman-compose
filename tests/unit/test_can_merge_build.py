@@ -68,6 +68,16 @@ class TestCanMergeBuild(unittest.TestCase):
             {"build": {"dockerfile": "./dockerfile-1", "args": ["ENV2=2"]}},
             {"build": {"dockerfile": "./dockerfile-1", "args": ["ENV1=1", "ENV2=2"]}},
         ),
+        (
+            {"build": {"dockerfile": "./dockerfile-1", "args": {"ENV1": "1"}}},
+            {"build": {"dockerfile": "./dockerfile-2", "args": {"ENV2": "2"}}},
+            {"build": {"dockerfile": "./dockerfile-2", "args": ["ENV1=1", "ENV2=2"]}},
+        ),
+        (
+            {"build": {"dockerfile": "./dockerfile-1", "args": ["ENV1=1"]}},
+            {"build": {"dockerfile": "./dockerfile-2", "args": {"ENV2": "2"}}},
+            {"build": {"dockerfile": "./dockerfile-2", "args": ["ENV1=1", "ENV2=2"]}},
+        ),
     ])
     def test_parse_compose_file_when_multiple_composes(self, input, override, expected):
         compose_test_1 = {"services": {"test-service": input}}
