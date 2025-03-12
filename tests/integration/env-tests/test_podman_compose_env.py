@@ -36,3 +36,34 @@ class TestComposeEnv(unittest.TestCase, RunSubprocessMixin):
                 compose_yaml_path(),
                 "down",
             ])
+
+    """
+    Tests interpolation of COMPOSE_PROJECT_NAME in the podman-compose config,
+    which is different from external environment variables because COMPOSE_PROJECT_NAME
+    is a predefined environment variable generated from the `name` value in the top-level
+    of the compose.yaml.
+
+    See also
+    - https://docs.docker.com/reference/compose-file/interpolation/
+    - https://docs.docker.com/reference/compose-file/version-and-name/#name-top-level-element
+    - https://docs.docker.com/compose/how-tos/environment-variables/envvars/
+    - https://github.com/compose-spec/compose-spec/blob/main/04-version-and-name.md
+    """
+
+    def test_project_name(self):
+        try:
+            output, _ = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(),
+                "run",
+                "project-name-test",
+            ])
+            self.assertIn("my-project-name", str(output))
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(),
+                "down",
+            ])
