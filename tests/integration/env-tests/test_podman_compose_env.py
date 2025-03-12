@@ -67,3 +67,23 @@ class TestComposeEnv(unittest.TestCase, RunSubprocessMixin):
                 compose_yaml_path(),
                 "down",
             ])
+
+    def test_project_name_override(self):
+        try:
+            output, _ = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(),
+                "run",
+                "-e",
+                "COMPOSE_PROJECT_NAME=project-name-override",
+                "project-name-test",
+            ])
+            self.assertIn("project-name-override", str(output))
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(),
+                "down",
+            ])
