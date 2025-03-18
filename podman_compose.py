@@ -2542,6 +2542,8 @@ def container_to_build_args(compose, cnt, args, path_exists, cleanup_callbacks=N
                     break
     if not path_exists(dockerfile):
         raise OSError("Dockerfile not found in " + ctx)
+
+    dockerfile = os.path.normpath(os.path.join(ctx, dockerfile))
     build_args = ["-f", dockerfile, "-t", cnt["image"]]
     if "platform" in cnt:
         build_args.extend(["--platform", cnt["platform"]])

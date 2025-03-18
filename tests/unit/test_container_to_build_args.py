@@ -46,7 +46,7 @@ class TestContainerToBuildArgs(unittest.TestCase):
             args,
             [
                 '-f',
-                './Containerfile',
+                'Containerfile',
                 '-t',
                 'new-image',
                 '--no-cache',
@@ -67,7 +67,7 @@ class TestContainerToBuildArgs(unittest.TestCase):
             args,
             [
                 '-f',
-                './Containerfile',
+                'Containerfile',
                 '-t',
                 'new-image',
                 '--platform',
@@ -90,7 +90,7 @@ class TestContainerToBuildArgs(unittest.TestCase):
             args,
             [
                 '-f',
-                './Containerfile',
+                'Containerfile',
                 '-t',
                 'new-image',
                 '-t',
@@ -115,7 +115,7 @@ class TestContainerToBuildArgs(unittest.TestCase):
             args,
             [
                 '-f',
-                './Containerfile',
+                'Containerfile',
                 '-t',
                 'new-image',
                 '--label',
@@ -141,7 +141,7 @@ class TestContainerToBuildArgs(unittest.TestCase):
             args,
             [
                 '-f',
-                './Containerfile',
+                'Containerfile',
                 '-t',
                 'new-image',
                 '--no-cache',
