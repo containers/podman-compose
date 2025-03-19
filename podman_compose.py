@@ -2613,7 +2613,7 @@ async def compose_build(compose, args):
     status = 0
     for t in asyncio.as_completed(tasks):
         s = await t
-        if s is not None:
+        if s is not None and s != 0:
             status = s
 
     return status
