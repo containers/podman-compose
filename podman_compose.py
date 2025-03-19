@@ -403,7 +403,7 @@ async def assert_volume(compose, mount_dict):
     log.debug("podman volume inspect %s || podman volume create %s", vol_name, vol_name)
     # TODO: might move to using "volume list"
     # podman volume list --format '{{.Name}}\t{{.MountPoint}}' \
-    #     -f 'label=io.podman.compose.project=HERE'
+    #     -f f"label={compose.label_domain}.compose.project=HERE"
     try:
         _ = (await compose.podman.output([], "volume", ["inspect", vol_name])).decode("utf-8")
     except subprocess.CalledProcessError as e:
@@ -413,7 +413,7 @@ async def assert_volume(compose, mount_dict):
         args = [
             "create",
             "--label",
-            f"io.podman.compose.project={compose.project_name}",
+            f"{compose.label_domain}.compose.project={compose.project_name}",
             "--label",
             f"com.docker.compose.project={compose.project_name}",
         ]
@@ -806,11 +806,11 @@ def norm_ports(ports_in):
     return ports_out
 
 
-def get_network_create_args(net_desc, proj_name, net_name):
+def get_network_create_args(net_desc, proj_name, net_name, label_domain='io.podman'):
     args = [
         "create",
         "--label",
-        f"io.podman.compose.project={proj_name}",
+        f"{label_domain}.compose.project={proj_name}",
         "--label",
         f"com.docker.compose.project={proj_name}",
     ]
@@ -881,7 +881,9 @@ async def assert_cnt_nets(compose, cnt):
         except subprocess.CalledProcessError as e:
             if is_ext:
                 raise RuntimeError(f"External network [{net_name}] does not exists") from e
-            args = get_network_create_args(net_desc, compose.project_name, net_name)
+            args = get_network_create_args(
+                net_desc, compose.project_name, net_name, compose.label_domain
+            )
             await compose.podman.output([], "network", args)
             await compose.podman.output([], "network", ["exists", net_name])
 
@@ -1574,7 +1576,7 @@ class Podman:
                     "ls",
                     "--noheading",
                     "--filter",
-                    f"label=io.podman.compose.project={self.compose.project_name}",
+                    f"label={self.compose.label_domain}.compose.project={self.compose.project_name}",
                     "--format",
                     "{{.Name}}",
                 ],
@@ -1794,6 +1796,7 @@ class PodmanCompose:
         self.commands = {}
         self.global_args = argparse.Namespace()
         self.project_name = None
+        self.label_domain = None
         self.dirname = None
         self.pods = None
         self.containers = []
@@ -1920,6 +1923,10 @@ class PodmanCompose:
         relative_files = files
         filename = files[0]
         project_name = args.project_name
+        label_domain = os.environ.get("COMPOSE_LABEL_DOMAIN", "io.podman")
+        if label_domain in args:
+            label_domain = args.label_domain
+
         # no_ansi = args.no_ansi
         # no_cleanup = args.no_cleanup
         # dry_run = args.dry_run
@@ -1957,7 +1964,9 @@ class PodmanCompose:
             env_vars = norm_as_dict(args.env)
             self.environ.update(env_vars)
 
-        compose = {}
+        compose = {
+            label_domain: label_domain,
+        }
         # Iterate over files primitively to allow appending to files in-loop
         files_iter = iter(files)
 
@@ -2023,6 +2032,7 @@ class PodmanCompose:
                     raise RuntimeError(f"Project name [{dir_basename}] normalized to empty")
 
         self.project_name = project_name
+        self.label_domain = label_domain
         self.environ.update({"COMPOSE_PROJECT_NAME": self.project_name})
 
         services = compose.get("services")
@@ -2079,9 +2089,9 @@ class PodmanCompose:
         # volumes: [...]
         self.vols = compose.get("volumes", {})
         podman_compose_labels = [
-            "io.podman.compose.config-hash=" + self.yaml_hash,
-            "io.podman.compose.project=" + project_name,
-            "io.podman.compose.version=" + __version__,
+            label_domain + ".compose.config-hash=" + self.yaml_hash,
+            label_domain + ".compose.project=" + project_name,
+            label_domain + ".compose.version=" + __version__,
             f"PODMAN_SYSTEMD_UNIT=podman-compose@{project_name}.service",
             "com.docker.compose.project=" + project_name,
             "com.docker.compose.project.working_dir=" + dirname,
@@ -2257,6 +2267,12 @@ class PodmanCompose:
             help="Specify an alternate project name (default: directory name)",
             type=str,
             default=None,
+        )
+        parser.add_argument(
+            "--label-domain",
+            help="Specify an alternate root domain for resource labels (default: io.podman)",
+            type=str,
+            default="io.podman",
         )
         parser.add_argument(
             "--podman-path",
@@ -2730,10 +2746,10 @@ async def compose_up(compose: PodmanCompose, args):
                 "ps",
                 [
                     "--filter",
-                    f"label=io.podman.compose.project={compose.project_name}",
+                    f"label={args.label_domain}.compose.project={compose.project_name}",
                     "-a",
                     "--format",
-                    '{{ index .Labels "io.podman.compose.config-hash"}}',
+                    '{{ index .Labels "' + args.label_domain + '.compose.config-hash"}}',
                 ],
             )
         )
@@ -2888,7 +2904,7 @@ async def compose_down(compose: PodmanCompose, args):
                     "ps",
                     [
                         "--filter",
-                        f"label=io.podman.compose.project={compose.project_name}",
+                        f"label={args.label_domain}.compose.project={compose.project_name}",
                         "-a",
                         "--format",
                         "{{ .Names }}",
@@ -2924,7 +2940,11 @@ async def compose_down(compose: PodmanCompose, args):
 
 @cmd_run(podman_compose, "ps", "show status of containers")
 async def compose_ps(compose, args):
-    ps_args = ["-a", "--filter", f"label=io.podman.compose.project={compose.project_name}"]
+    ps_args = [
+        "-a",
+        "--filter",
+        f"label={args.label_domain}.compose.project={compose.project_name}",
+    ]
     if args.quiet is True:
         ps_args.extend(["--format", "{{.ID}}"])
     elif args.format:
