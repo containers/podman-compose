@@ -1980,6 +1980,20 @@ class PodmanCompose:
                 sys.exit(1)
             content = normalize(content)
             # log(filename, json.dumps(content, indent = 2))
+
+            if not project_name:
+                project_name = content.get("name")
+                if project_name is None:
+                    # More strict then actually needed for simplicity:
+                    # podman requires [a-zA-Z0-9][a-zA-Z0-9_.-]*
+                    project_name = self.environ.get("COMPOSE_PROJECT_NAME", dir_basename.lower())
+                    project_name = norm_re.sub("", project_name)
+                    if not project_name:
+                        raise RuntimeError(f"Project name [{dir_basename}] normalized to empty")
+
+            self.project_name = project_name
+            self.environ.update({"COMPOSE_PROJECT_NAME": self.project_name})
+
             content = rec_subs(content, self.environ)
             if isinstance(services := content.get('services'), dict):
                 for service in services.values():
@@ -2011,19 +2025,6 @@ class PodmanCompose:
         if len(files) > 1:
             log.debug(" ** merged:\n%s", json.dumps(compose, indent=2))
         # ver = compose.get('version')
-
-        if not project_name:
-            project_name = compose.get("name")
-            if project_name is None:
-                # More strict then actually needed for simplicity:
-                # podman requires [a-zA-Z0-9][a-zA-Z0-9_.-]*
-                project_name = self.environ.get("COMPOSE_PROJECT_NAME", dir_basename.lower())
-                project_name = norm_re.sub("", project_name)
-                if not project_name:
-                    raise RuntimeError(f"Project name [{dir_basename}] normalized to empty")
-
-        self.project_name = project_name
-        self.environ.update({"COMPOSE_PROJECT_NAME": self.project_name})
 
         services = compose.get("services")
         if services is None:
