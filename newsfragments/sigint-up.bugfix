@@ -1,0 +1,1 @@
+- Fixed handling SIGINT when running "up" command to shutdown gracefully

@@ -1,0 +1,8 @@
+version: "3"
+services:
+  bad:
+    build:
+      context: bad
+  good:
+    build:
+      context: good

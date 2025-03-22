@@ -1,0 +1,1 @@
+- Fixed interpolation of the environment variable **COMPOSE_PROJECT_NAME** when it is set from the top-level **name** value within the Compose file.

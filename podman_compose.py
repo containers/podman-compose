@@ -1980,6 +1980,25 @@ class PodmanCompose:
                 sys.exit(1)
             content = normalize(content)
             # log(filename, json.dumps(content, indent = 2))
+
+            # See also https://docs.docker.com/compose/how-tos/project-name/#set-a-project-name
+            # **project_name** is initialized to the argument of the `-p` command line flag.
+            if not project_name:
+                project_name = self.environ.get("COMPOSE_PROJECT_NAME")
+                if not project_name:
+                    project_name = content.get("name")
+                if not project_name:
+                    project_name = dir_basename.lower()
+                # More strict then actually needed for simplicity:
+                # podman requires [a-zA-Z0-9][a-zA-Z0-9_.-]*
+                project_name_normalized = norm_re.sub("", project_name)
+                if not project_name_normalized:
+                    raise RuntimeError(f"Project name [{project_name}] normalized to empty")
+                project_name = project_name_normalized
+
+            self.project_name = project_name
+            self.environ.update({"COMPOSE_PROJECT_NAME": self.project_name})
+
             content = rec_subs(content, self.environ)
             if isinstance(services := content.get('services'), dict):
                 for service in services.values():
@@ -2011,19 +2030,6 @@ class PodmanCompose:
         if len(files) > 1:
             log.debug(" ** merged:\n%s", json.dumps(compose, indent=2))
         # ver = compose.get('version')
-
-        if not project_name:
-            project_name = compose.get("name")
-            if project_name is None:
-                # More strict then actually needed for simplicity:
-                # podman requires [a-zA-Z0-9][a-zA-Z0-9_.-]*
-                project_name = self.environ.get("COMPOSE_PROJECT_NAME", dir_basename.lower())
-                project_name = norm_re.sub("", project_name)
-                if not project_name:
-                    raise RuntimeError(f"Project name [{dir_basename}] normalized to empty")
-
-        self.project_name = project_name
-        self.environ.update({"COMPOSE_PROJECT_NAME": self.project_name})
 
         services = compose.get("services")
         if services is None:
@@ -2629,7 +2635,7 @@ async def compose_build(compose, args):
     status = 0
     for t in asyncio.as_completed(tasks):
         s = await t
-        if s is not None:
+        if s is not None and s != 0:
             status = s
 
     return status
@@ -2794,9 +2800,22 @@ async def compose_up(compose: PodmanCompose, args):
         max_service_length = curr_length if curr_length > max_service_length else max_service_length
 
     tasks = set()
+
+    async def handle_sigint():
+        log.info("Caught SIGINT or Ctrl+C, shutting down...")
+        try:
+            log.info("Shutting down gracefully, please wait...")
+            down_args = argparse.Namespace(**dict(args.__dict__, volumes=False))
+            await compose.commands["down"](compose, down_args)
+        except Exception as e:
+            log.error("Error during shutdown: %s", e)
+        finally:
+            for task in tasks:
+                task.cancel()
+
     if sys.platform != 'win32':
         loop = asyncio.get_event_loop()
-        loop.add_signal_handler(signal.SIGINT, lambda: [t.cancel("User exit") for t in tasks])
+        loop.add_signal_handler(signal.SIGINT, lambda: asyncio.create_task(handle_sigint()))
 
     for i, cnt in enumerate(compose.containers):
         # Add colored service prefix to output by piping output through sed
