@@ -1607,6 +1607,9 @@ def normalize_service(service, sub_dir=""):
             for k, v in build["additional_contexts"].items():
                 new_additional_contexts.append(f"{k}={v}")
             build["additional_contexts"] = new_additional_contexts
+    if "build" in service and "args" in service["build"]:
+        if isinstance(build["args"], dict):
+            build["args"] = norm_as_list(build["args"])
     for key in ("command", "entrypoint"):
         if key in service:
             if isinstance(service[key], str):
