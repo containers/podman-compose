@@ -180,3 +180,22 @@ class TestContainerToBuildArgs(unittest.TestCase):
         for c in cleanup_callbacks:
             c()
         self.assertFalse(os.path.exists(temp_dockerfile))
+
+    def test_context_git_url(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt['build']['context'] = "https://github.com/test_repo.git"
+        args = get_minimal_args()
+
+        args = container_to_build_args(c, cnt, args, lambda path: False)
+        self.assertEqual(
+            args,
+            [
+                '-t',
+                'new-image',
+                '--no-cache',
+                '--pull-always',
+                'https://github.com/test_repo.git',
+            ],
+        )
