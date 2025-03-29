@@ -26,6 +26,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import urllib.parse
 from asyncio import Task
 from enum import Enum
 
@@ -1663,7 +1664,15 @@ def normalize_service_final(service: dict, project_dir: str) -> dict:
     if "build" in service:
         build = service["build"]
         context = build if isinstance(build, str) else build.get("context", ".")
-        context = os.path.normpath(os.path.join(project_dir, context))
+
+        is_git_url = False
+        parse_result = urllib.parse.urlparse(context)
+        url_path = parse_result.path
+        if parse_result.scheme == 'git' or '.git' in url_path:
+            is_git_url = True
+
+        if not is_git_url:
+            context = os.path.normpath(os.path.join(project_dir, context))
         if not isinstance(service["build"], dict):
             service["build"] = {}
         service["build"]["context"] = context
@@ -2506,7 +2515,7 @@ def container_to_build_args(compose, cnt, args, path_exists, cleanup_callbacks=N
     if not hasattr(build_desc, "items"):
         build_desc = {"context": build_desc}
     ctx = build_desc.get("context", ".")
-    dockerfile = build_desc.get("dockerfile")
+    dockerfile = build_desc.get("dockerfile", "")
     dockerfile_inline = build_desc.get("dockerfile_inline")
     if dockerfile_inline is not None:
         dockerfile_inline = str(dockerfile_inline)
@@ -2524,25 +2533,41 @@ def container_to_build_args(compose, cnt, args, path_exists, cleanup_callbacks=N
 
         if cleanup_callbacks is not None:
             list.append(cleanup_callbacks, cleanup_temp_dockfile)
-    else:
-        if dockerfile:
+
+    build_args = []
+
+    is_git_url = False
+
+    parse_result = urllib.parse.urlparse(ctx)
+    url_path = parse_result.path
+    if parse_result.scheme == 'git' or '.git' in url_path:
+        is_git_url = True
+
+    if dockerfile and not is_git_url:
+        dockerfile = os.path.join(ctx, dockerfile)
+
+    if not dockerfile and not is_git_url:
+        dockerfile_alts = [
+            "Containerfile",
+            "ContainerFile",
+            "containerfile",
+            "Dockerfile",
+            "DockerFile",
+            "dockerfile",
+        ]
+        for dockerfile in dockerfile_alts:
             dockerfile = os.path.join(ctx, dockerfile)
-        else:
-            dockerfile_alts = [
-                "Containerfile",
-                "ContainerFile",
-                "containerfile",
-                "Dockerfile",
-                "DockerFile",
-                "dockerfile",
-            ]
-            for dockerfile in dockerfile_alts:
-                dockerfile = os.path.join(ctx, dockerfile)
-                if path_exists(dockerfile):
-                    break
-    if not path_exists(dockerfile):
-        raise OSError("Dockerfile not found in " + ctx)
-    build_args = ["-f", dockerfile, "-t", cnt["image"]]
+            if path_exists(dockerfile):
+                break
+        if not path_exists(dockerfile):
+            raise OSError("Dockerfile not found in " + ctx)
+
+    if path_exists(dockerfile):
+        dockerfile = os.path.normpath(os.path.join(ctx, dockerfile))
+        build_args.extend(["-f", dockerfile])
+
+    build_args.extend(["-t", cnt["image"]])
+
     if "platform" in cnt:
         build_args.extend(["--platform", cnt["platform"]])
     for secret in build_desc.get("secrets", []):
