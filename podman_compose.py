@@ -26,6 +26,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import urllib.parse
 from asyncio import Task
 from enum import Enum
 
@@ -1663,7 +1664,9 @@ def normalize_service_final(service: dict, project_dir: str) -> dict:
     if "build" in service:
         build = service["build"]
         context = build if isinstance(build, str) else build.get("context", ".")
-        context = os.path.normpath(os.path.join(project_dir, context))
+
+        if not is_path_git_url(context):
+            context = os.path.normpath(os.path.join(project_dir, context))
         if not isinstance(service["build"], dict):
             service["build"] = {}
         service["build"]["context"] = context
@@ -2501,12 +2504,17 @@ async def compose_push(compose, args):
         await compose.podman.run([], "push", [cnt["image"]])
 
 
+def is_path_git_url(path):
+    r = urllib.parse.urlparse(path)
+    return r.scheme == 'git' or r.path.endswith('.git')
+
+
 def container_to_build_args(compose, cnt, args, path_exists, cleanup_callbacks=None):
     build_desc = cnt["build"]
     if not hasattr(build_desc, "items"):
         build_desc = {"context": build_desc}
     ctx = build_desc.get("context", ".")
-    dockerfile = build_desc.get("dockerfile")
+    dockerfile = build_desc.get("dockerfile", "")
     dockerfile_inline = build_desc.get("dockerfile_inline")
     if dockerfile_inline is not None:
         dockerfile_inline = str(dockerfile_inline)
@@ -2524,7 +2532,10 @@ def container_to_build_args(compose, cnt, args, path_exists, cleanup_callbacks=N
 
         if cleanup_callbacks is not None:
             list.append(cleanup_callbacks, cleanup_temp_dockfile)
-    else:
+
+    build_args = []
+
+    if not is_path_git_url(ctx):
         if dockerfile:
             dockerfile = os.path.join(ctx, dockerfile)
         else:
@@ -2540,9 +2551,16 @@ def container_to_build_args(compose, cnt, args, path_exists, cleanup_callbacks=N
                 dockerfile = os.path.join(ctx, dockerfile)
                 if path_exists(dockerfile):
                     break
-    if not path_exists(dockerfile):
-        raise OSError("Dockerfile not found in " + ctx)
-    build_args = ["-f", dockerfile, "-t", cnt["image"]]
+
+        if path_exists(dockerfile):
+            # normalize dockerfile path, as the user could have provided unpredictable file formats
+            dockerfile = os.path.normpath(os.path.join(ctx, dockerfile))
+            build_args.extend(["-f", dockerfile])
+        else:
+            raise OSError(f"Dockerfile not found in {ctx}")
+
+    build_args.extend(["-t", cnt["image"]])
+
     if "platform" in cnt:
         build_args.extend(["--platform", cnt["platform"]])
     for secret in build_desc.get("secrets", []):

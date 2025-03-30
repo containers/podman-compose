@@ -1,0 +1,9 @@
+version: "3"
+services:
+    test_context:
+      build:
+        context: https://github.com/mokibit/test-git-url-as-context.git
+      image: test-git-url-as-context
+    test_context_inline:
+      build: https://github.com/mokibit/test-git-url-as-context.git
+      image: test-git-url-as-context-inline
