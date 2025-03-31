@@ -2107,7 +2107,23 @@ class PodmanCompose:
         container_names_by_service = {}
         self.services = services
         for service_name, service_desc in services.items():
-            replicas = try_int(service_desc.get("deploy", {}).get("replicas"), fallback=1)
+            replicas = 1
+            if "scale" in args and args.scale is not None:
+                # Check `--scale` args from CLI command
+                scale_args = args.scale.split('=')
+                if service_name == scale_args[0]:
+                    replicas = try_int(scale_args[1], fallback=1)
+            elif "scale" in service_desc:
+                # Check `scale` value from compose yaml file
+                replicas = try_int(service_desc.get("scale"), fallback=1)
+            elif (
+                "deploy" in service_desc
+                and "replicas" in service_desc.get("deploy", {})
+                and "replicated" == service_desc.get("deploy", {}).get("mode", '')
+            ):
+                # Check `deploy: replicas:` value from compose yaml file
+                # Note: All conditions are necessary to handle case
+                replicas = try_int(service_desc.get("deploy", {}).get("replicas"), fallback=1)
 
             container_names_by_service[service_name] = []
             for num in range(1, replicas + 1):
@@ -3423,12 +3439,13 @@ def compose_up_parse(parser):
         action="store_true",
         help="Remove containers for services not defined in the Compose file.",
     )
+    # `--scale` argument needs to store as single value and not append,
+    # as multiple scale values could be confusing.
     parser.add_argument(
         "--scale",
         metavar="SERVICE=NUM",
-        action="append",
-        help="Scale SERVICE to NUM instances. Overrides the `scale` setting in the Compose file if "
-        "present.",
+        help="Scale SERVICE to NUM instances. "
+        "Overrides the `scale` setting in the Compose file if present.",
     )
     parser.add_argument(
         "--exit-code-from",
