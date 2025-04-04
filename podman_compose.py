@@ -15,7 +15,6 @@ import asyncio.subprocess
 import getpass
 import glob
 import hashlib
-import itertools
 import json
 import logging
 import os
@@ -3186,30 +3185,13 @@ async def compose_config(compose, args):
 
 @cmd_run(podman_compose, "port", "Prints the public port for a port binding.")
 async def compose_port(compose, args):
-    # TODO - deal with pod index
     compose.assert_services(args.service)
     containers = compose.container_names_by_service[args.service]
-    container_ports = list(
-        itertools.chain(*(compose.container_by_name[c]["ports"] for c in containers))
-    )
-
-    def _published_target(port_string):
-        published, target = port_string.split(":")[-2:]
-        return int(published), int(target)
-
-    select_udp = args.protocol == "udp"
-    published, target = None, None
-    for p in container_ports:
-        is_udp = p[-4:] == "/udp"
-
-        if select_udp and is_udp:
-            published, target = _published_target(p[-4:])
-        if not select_udp and not is_udp:
-            published, target = _published_target(p)
-
-        if target == args.private_port:
-            print(published)
-            return
+    output = await compose.podman.output([], "inspect", [containers[args.index - 1]])
+    inspect_json = json.loads(output.decode("utf-8"))
+    private_port = str(args.private_port) + "/" + args.protocol
+    host_port = inspect_json[0]["NetworkSettings"]["Ports"][private_port][0]["HostPort"]
+    print(host_port)
 
 
 @cmd_run(podman_compose, "pause", "Pause all running containers")
