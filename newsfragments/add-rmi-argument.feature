@@ -1,0 +1,1 @@
+- Add the `--rmi` argument to the `down` command to remove images.
