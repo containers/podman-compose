@@ -1,0 +1,1 @@
+- Fixed the --scale flag as described in issue #267 [Podman not supporting --scale flag]

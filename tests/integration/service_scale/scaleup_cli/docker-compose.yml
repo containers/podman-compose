@@ -1,0 +1,6 @@
+name: podman-compose
+
+services:
+  service1:
+    image: docker.io/library/busybox:latest
+    tty: true
