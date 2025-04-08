@@ -2760,11 +2760,16 @@ def deps_from_container(args, cnt):
 @cmd_run(podman_compose, "up", "Create and start the entire stack or some of its services")
 async def compose_up(compose: PodmanCompose, args):
     excluded = get_excluded(compose, args)
+    exit_code = 0
+    
     if not args.no_build:
         # `podman build` does not cache, so don't always build
         build_args = argparse.Namespace(if_not_exists=(not args.build), **args.__dict__)
-        if await compose.commands["build"](compose, build_args) != 0:
+        build_result = await compose.commands["build"](compose, build_args)
+        if build_result != 0:
             log.error("Build command failed")
+            if not args.dry_run:
+                return build_result
 
     hashes = (
         (
@@ -2802,12 +2807,21 @@ async def compose_up(compose: PodmanCompose, args):
             compose, cnt, detached=args.detach, no_deps=args.no_deps
         )
         subproc = await compose.podman.run([], podman_command, podman_args)
+        if subproc is not None and subproc != 0:
+            exit_code = subproc
+        
         if podman_command == "run" and subproc is not None:
-            await run_container(
+            container_result = await run_container(
                 compose, cnt["name"], deps_from_container(args, cnt), ([], "start", [cnt["name"]])
             )
-    if args.no_start or args.detach or args.dry_run:
-        return
+            if container_result is not None and container_result != 0:
+                exit_code = container_result
+    
+    if args.dry_run:
+        return None
+    if args.no_start or args.detach:
+        return exit_code
+
     # TODO: handle already existing
     # TODO: if error creating do not enter loop
     # TODO: colors if sys.stdout.isatty()
