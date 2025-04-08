@@ -96,7 +96,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         ]
 
         try:
-            out, err = self.run_subprocess_assert_returncode(command_up)
+            out, err = self.run_subprocess_assert_returncode(command_up, 125)
             self.assertEqual(b"Error: --userns and --pod cannot be set together" in err, True)
 
         finally:
@@ -221,7 +221,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         ]
 
         try:
-            out, err = self.run_subprocess_assert_returncode(command_up)
+            out, err = self.run_subprocess_assert_returncode(command_up, 125)
             self.assertEqual(b"Error: --userns and --pod cannot be set together" in err, True)
 
         finally:
@@ -255,7 +255,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         ]
 
         try:
-            out, err = self.run_subprocess_assert_returncode(command_up)
+            out, err = self.run_subprocess_assert_returncode(command_up, 125)
             self.assertEqual(b"Error: --userns and --pod cannot be set together" in err, True)
 
         finally:
@@ -334,7 +334,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         ]
 
         try:
-            out, err = self.run_subprocess_assert_returncode(command_up)
+            out, err = self.run_subprocess_assert_returncode(command_up, 125)
             self.assertEqual(b"Error: --userns and --pod cannot be set together" in err, True)
 
         finally:
@@ -368,7 +368,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         ]
 
         try:
-            out, err = self.run_subprocess_assert_returncode(command_up)
+            out, err = self.run_subprocess_assert_returncode(command_up, 125)
             self.assertEqual(b"Error: --userns and --pod cannot be set together" in err, True)
 
         finally:
@@ -402,7 +402,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         ]
 
         try:
-            out, err = self.run_subprocess_assert_returncode(command_up)
+            out, err = self.run_subprocess_assert_returncode(command_up, 125)
             self.assertEqual(b"Error: --userns and --pod cannot be set together" in err, True)
 
         finally:
@@ -482,7 +482,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         ]
 
         try:
-            out, err = self.run_subprocess_assert_returncode(command_up)
+            out, err = self.run_subprocess_assert_returncode(command_up, 125)
             self.assertEqual(b"Error: --userns and --pod cannot be set together" in err, True)
 
         finally:
