@@ -738,7 +738,7 @@ def container_to_cpu_res_args(cnt, podman_args):
     mem_res_v2 = cnt.get("mem_reservation")
     # v3: https://docs.docker.com/compose/compose-file/compose-file-v3/#resources
     # spec: https://github.com/compose-spec/compose-spec/blob/master/deploy.md#resources
-    # deploy.resources.{limits,reservations}.{cpus, memory}
+    # deploy.resources.{limits,reservations}.{cpus, memory, pids}
     deploy = cnt.get("deploy", {})
     res = deploy.get("resources", {})
     limits = res.get("limits", {})
@@ -771,6 +771,27 @@ def container_to_cpu_res_args(cnt, podman_args):
             "--memory-reservation",
             str(mem_res).lower(),
         ))
+
+    # Handle pids limit from both container level and deploy section
+    pids_limit = cnt.get("pids_limit")
+    deploy_pids = None
+
+    # Check for pids in deploy.resources.limits section
+    if "pids" in limits:
+        deploy_pids = limits["pids"]
+
+    # Ensure consistency between pids_limit and deploy.resources.limits.pids
+    if pids_limit is not None and deploy_pids is not None:
+        if str(pids_limit) != str(deploy_pids):
+            raise ValueError(
+                f"Inconsistent PIDs limit: pids_limit ({pids_limit}) and "
+                f"deploy.resources.limits.pids ({deploy_pids}) must be the same"
+            )
+
+    # Use whichever value is set (prioritizing pids_limit if both are set)
+    final_pids_limit = pids_limit if pids_limit is not None else deploy_pids
+    if final_pids_limit is not None:
+        podman_args.extend(["--pids-limit", str(final_pids_limit)])
 
 
 def port_dict_to_str(port_desc):
