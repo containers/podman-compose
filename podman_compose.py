@@ -788,7 +788,6 @@ def container_to_cpu_res_args(cnt, podman_args):
                 f"deploy.resources.limits.pids ({deploy_pids}) must be the same"
             )
 
-    # Use whichever value is set (prioritizing pids_limit if both are set)
     final_pids_limit = pids_limit if pids_limit is not None else deploy_pids
     if final_pids_limit is not None:
         podman_args.extend(["--pids-limit", str(final_pids_limit)])
