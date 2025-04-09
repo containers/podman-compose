@@ -774,11 +774,7 @@ def container_to_cpu_res_args(cnt, podman_args):
 
     # Handle pids limit from both container level and deploy section
     pids_limit = cnt.get("pids_limit")
-    deploy_pids = None
-
-    # Check for pids in deploy.resources.limits section
-    if "pids" in limits:
-        deploy_pids = limits["pids"]
+    deploy_pids = limits.get("pids")
 
     # Ensure consistency between pids_limit and deploy.resources.limits.pids
     if pids_limit is not None and deploy_pids is not None:
