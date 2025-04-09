@@ -2761,7 +2761,7 @@ def deps_from_container(args, cnt):
 async def compose_up(compose: PodmanCompose, args):
     excluded = get_excluded(compose, args)
     exit_code = 0
-    
+
     if not args.no_build:
         # `podman build` does not cache, so don't always build
         build_args = argparse.Namespace(if_not_exists=(not args.build), **args.__dict__)
@@ -2809,14 +2809,14 @@ async def compose_up(compose: PodmanCompose, args):
         subproc = await compose.podman.run([], podman_command, podman_args)
         if subproc is not None and subproc != 0:
             exit_code = subproc
-        
+
         if podman_command == "run" and subproc is not None:
             container_result = await run_container(
                 compose, cnt["name"], deps_from_container(args, cnt), ([], "start", [cnt["name"]])
             )
             if container_result is not None and container_result != 0:
                 exit_code = container_result
-    
+
     if args.dry_run:
         return None
     if args.no_start or args.detach:
