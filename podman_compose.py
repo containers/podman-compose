@@ -2760,7 +2760,6 @@ def deps_from_container(args, cnt):
 @cmd_run(podman_compose, "up", "Create and start the entire stack or some of its services")
 async def compose_up(compose: PodmanCompose, args):
     excluded = get_excluded(compose, args)
-    exit_code = 0
 
     if not args.no_build:
         # `podman build` does not cache, so don't always build
@@ -2799,6 +2798,7 @@ async def compose_up(compose: PodmanCompose, args):
     podman_command = "run" if args.detach and not args.no_start else "create"
 
     await create_pods(compose, args)
+    exit_code = 0
     for cnt in compose.containers:
         if cnt["_service"] in excluded:
             log.debug("** skipping: %s", cnt["name"])
