@@ -2765,11 +2765,11 @@ async def compose_up(compose: PodmanCompose, args):
     if not args.no_build:
         # `podman build` does not cache, so don't always build
         build_args = argparse.Namespace(if_not_exists=(not args.build), **args.__dict__)
-        build_result = await compose.commands["build"](compose, build_args)
-        if build_result != 0:
+        build_exit_code = await compose.commands["build"](compose, build_args)
+        if build_exit_code != 0:
             log.error("Build command failed")
             if not args.dry_run:
-                return build_result
+                return build_exit_code
 
     hashes = (
         (
@@ -2806,16 +2806,16 @@ async def compose_up(compose: PodmanCompose, args):
         podman_args = await container_to_args(
             compose, cnt, detached=args.detach, no_deps=args.no_deps
         )
-        subproc = await compose.podman.run([], podman_command, podman_args)
-        if subproc is not None and subproc != 0:
-            exit_code = subproc
+        subproc_exit_code = await compose.podman.run([], podman_command, podman_args)
+        if subproc_exit_code is not None and subproc_exit_code != 0:
+            exit_code = subproc_exit_code
 
-        if podman_command == "run" and subproc is not None:
-            container_result = await run_container(
+        if podman_command == "run" and subproc_exit_code is not None:
+            container_exit_code = await run_container(
                 compose, cnt["name"], deps_from_container(args, cnt), ([], "start", [cnt["name"]])
             )
-            if container_result is not None and container_result != 0:
-                exit_code = container_result
+            if container_exit_code is not None and container_exit_code != 0:
+                exit_code = container_exit_code
 
     if args.dry_run:
         return None
