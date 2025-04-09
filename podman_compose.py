@@ -738,7 +738,7 @@ def container_to_cpu_res_args(cnt, podman_args):
     mem_res_v2 = cnt.get("mem_reservation")
     # v3: https://docs.docker.com/compose/compose-file/compose-file-v3/#resources
     # spec: https://github.com/compose-spec/compose-spec/blob/master/deploy.md#resources
-    # deploy.resources.{limits,reservations}.{cpus, memory, pids}
+    # deploy.resources.{limits,reservations}.{cpus, memory}
     deploy = cnt.get("deploy", {})
     res = deploy.get("resources", {})
     limits = res.get("limits", {})
