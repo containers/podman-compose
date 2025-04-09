@@ -625,7 +625,8 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "--name=project_name_service_name1",
                 "-d",
                 "--network=bridge:alias=service_name",
-                "--pids-limit", "100",
+                "--pids-limit",
+                "100",
                 "busybox",
             ],
         )
@@ -633,13 +634,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
     async def test_pids_limit_deploy_section(self):
         c = create_compose_mock()
         cnt = get_minimal_container()
-        cnt["deploy"] = {
-            "resources": {
-                "limits": {
-                    "pids": 100
-                }
-            }
-        }
+        cnt["deploy"] = {"resources": {"limits": {"pids": 100}}}
 
         args = await container_to_args(c, cnt)
         self.assertEqual(
@@ -648,7 +643,8 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "--name=project_name_service_name1",
                 "-d",
                 "--network=bridge:alias=service_name",
-                "--pids-limit", "100",
+                "--pids-limit",
+                "100",
                 "busybox",
             ],
         )
@@ -657,13 +653,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
         c = create_compose_mock()
         cnt = get_minimal_container()
         cnt["pids_limit"] = 100
-        cnt["deploy"] = {
-            "resources": {
-                "limits": {
-                    "pids": 100
-                }
-            }
-        }
+        cnt["deploy"] = {"resources": {"limits": {"pids": 100}}}
 
         args = await container_to_args(c, cnt)
         self.assertEqual(
@@ -672,7 +662,8 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "--name=project_name_service_name1",
                 "-d",
                 "--network=bridge:alias=service_name",
-                "--pids-limit", "100",
+                "--pids-limit",
+                "100",
                 "busybox",
             ],
         )
@@ -681,13 +672,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
         c = create_compose_mock()
         cnt = get_minimal_container()
         cnt["pids_limit"] = 100
-        cnt["deploy"] = {
-            "resources": {
-                "limits": {
-                    "pids": 200
-                }
-            }
-        }
+        cnt["deploy"] = {"resources": {"limits": {"pids": 200}}}
 
         with self.assertRaises(ValueError):
             await container_to_args(c, cnt)
