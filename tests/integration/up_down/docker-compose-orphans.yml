@@ -1,0 +1,12 @@
+version: "3"
+volumes:
+  web1_vol:
+  web2_vol:
+services:
+  web1:
+    image: podman-compose-up-down-test
+    build: .
+    hostname: web1
+    command: ["dumb-init", "sleep", "infinity"]
+    volumes:
+      - web1_vol:/mnt/test/
