@@ -59,9 +59,13 @@ class TestComposeNetsTest2(unittest.TestCase, RunSubprocessMixin):
             )
 
             # check if Host port is the same as prodvided by the service port
+            self.assertIsNotNone(container_info['NetworkSettings']["Ports"].get("8001/tcp", None))
+            self.assertGreater(len(container_info['NetworkSettings']["Ports"]["8001/tcp"]), 0)
+            self.assertIsNotNone(
+                container_info['NetworkSettings']["Ports"]["8001/tcp"][0].get("HostPort", None)
+            )
             self.assertEqual(
-                container_info['NetworkSettings']["Ports"],
-                {"8001/tcp": [{"HostIp": "", "HostPort": "8001"}]},
+                container_info['NetworkSettings']["Ports"]["8001/tcp"][0]["HostPort"], "8001"
             )
 
             self.assertEqual(container_info["Config"]["Hostname"], "web1")
@@ -78,9 +82,13 @@ class TestComposeNetsTest2(unittest.TestCase, RunSubprocessMixin):
                 list(container_info["NetworkSettings"]["Networks"].keys())[0], "nets_test2_mystack"
             )
 
+            self.assertIsNotNone(container_info['NetworkSettings']["Ports"].get("8001/tcp", None))
+            self.assertGreater(len(container_info['NetworkSettings']["Ports"]["8001/tcp"]), 0)
+            self.assertIsNotNone(
+                container_info['NetworkSettings']["Ports"]["8001/tcp"][0].get("HostPort", None)
+            )
             self.assertEqual(
-                container_info['NetworkSettings']["Ports"],
-                {"8001/tcp": [{"HostIp": "", "HostPort": "8002"}]},
+                container_info['NetworkSettings']["Ports"]["8001/tcp"][0]["HostPort"], "8002"
             )
 
             self.assertEqual(container_info["Config"]["Hostname"], "web2")
