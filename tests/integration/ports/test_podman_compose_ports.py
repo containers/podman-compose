@@ -1,12 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0
 
 """
-test_podman_compose_up_down.py
+test_podman_compose_ports.py
 
-Tests the podman compose up and down commands used to create and remove services.
+Tests the podman compose port command used to show the host port.
 """
 
-# pylint: disable=redefined-outer-name
 import os
 import unittest
 
@@ -35,51 +34,45 @@ class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
             "-f",
             os.path.join(test_path(), "ports", "docker-compose.yml"),
             "down",
-            "--volumes",
         ]
+
+        port_cmd = [
+            podman_compose_path(),
+            "-f",
+            os.path.join(test_path(), "ports", "docker-compose.yml"),
+            "port",
+        ]
+
+        udp_arg = ["--protocol", "udp"]
+
+        tcp_arg = ["--protocol", "tcp"]
 
         try:
             self.run_subprocess_assert_returncode(up_cmd)
 
+            port = self.run_subprocess_assert_returncode(port_cmd + ["web1", "8000"])
+            self.assertEqual(port[0].decode().strip(), "8000")
+
+            port = self.run_subprocess_assert_returncode(port_cmd + ["web1", "8001"])
+            self.assertNotEqual(port[0].decode().strip(), "8001")
+
+            port = self.run_subprocess_assert_returncode(port_cmd + ["web2", "8002"])
+            self.assertEqual(port[0].decode().strip(), "8002")
+
+            port = self.run_subprocess_assert_returncode(port_cmd + udp_arg + ["web2", "8003"])
+            self.assertEqual(port[0].decode().strip(), "8003")
+
+            port = self.run_subprocess_assert_returncode(port_cmd + ["web2", "8004"])
+            self.assertEqual(port[0].decode().strip(), "8004")
+
+            port = self.run_subprocess_assert_returncode(port_cmd + tcp_arg + ["web2", "8005"])
+            self.assertEqual(port[0].decode().strip(), "8005")
+
+            port = self.run_subprocess_assert_returncode(port_cmd + udp_arg + ["web2", "8006"])
+            self.assertNotEqual(port[0].decode().strip(), "8006")
+
+            port = self.run_subprocess_assert_returncode(port_cmd + ["web2", "8007"])
+            self.assertNotEqual(port[0].decode().strip(), "8007")
+
         finally:
             self.run_subprocess_assert_returncode(down_cmd)
-
-    def test_down_with_orphans(self):
-        container_id, _ = self.run_subprocess_assert_returncode([
-            "podman",
-            "run",
-            "--rm",
-            "-d",
-            "nopush/podman-compose-test",
-            "dumb-init",
-            "/bin/busybox",
-            "httpd",
-            "-f",
-            "-h",
-            "/etc/",
-            "-p",
-            "8000",
-        ])
-
-        down_cmd = [
-            "coverage",
-            "run",
-            podman_compose_path(),
-            "-f",
-            os.path.join(test_path(), "ports", "docker-compose.yml"),
-            "down",
-            "--volumes",
-            "--remove-orphans",
-        ]
-
-        self.run_subprocess_assert_returncode(down_cmd)
-
-        self.run_subprocess_assert_returncode(
-            [
-                "podman",
-                "container",
-                "exists",
-                container_id.decode("utf-8"),
-            ],
-            1,
-        )
