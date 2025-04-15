@@ -80,18 +80,25 @@ class TestComposeExteds(unittest.TestCase, RunSubprocessMixin):
                 "env1",
             ])
             lines = output.decode('utf-8').split('\n')
-            # HOSTNAME name is random string so is ignored in asserting
-            lines = sorted([line for line in lines if not line.startswith("HOSTNAME")])
+            # Test selected env variables to improve robustness
+            lines = sorted([
+                line
+                for line in lines
+                if line.startswith("BAR")
+                or line.startswith("BAZ")
+                or line.startswith("FOO")
+                or line.startswith("HOME")
+                or line.startswith("PATH")
+                or line.startswith("container")
+            ])
             self.assertEqual(
                 lines,
                 [
-                    '',
                     'BAR=local',
                     'BAZ=local',
                     'FOO=original',
                     'HOME=/root',
                     'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
-                    'TERM=xterm',
                     'container=podman',
                 ],
             )

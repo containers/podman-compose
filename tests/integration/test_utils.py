@@ -21,6 +21,14 @@ def podman_compose_path():
     return os.path.join(base_path(), "podman_compose.py")
 
 
+def is_systemd_available():
+    try:
+        with open("/proc/1/comm", "r", encoding="utf-8") as fh:
+            return fh.read().strip() == "systemd"
+    except FileNotFoundError:
+        return False
+
+
 class RunSubprocessMixin:
     def is_debug_enabled(self):
         return "TESTS_DEBUG" in os.environ

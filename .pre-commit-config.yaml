@@ -23,6 +23,20 @@ repos:
             "-sn", # Don't display the score
             "--rcfile=.pylintrc", # Link to your config file
           ]
+        files: ^[^/]+\.py$
+      # Hook for test code with different config
+      - id: pylint
+        name: pylint-tests
+        entry: pylint
+        language: system
+        types: [python]
+        args:
+          [
+            "-rn", # Only display messages
+            "-sn", # Don't display the score
+            "--rcfile=tests/.pylintrc" # Relax the lint rules for test code
+          ]
+        files: ^tests/
   - repo: https://github.com/codespell-project/codespell
     rev: v2.2.5
     hooks:
