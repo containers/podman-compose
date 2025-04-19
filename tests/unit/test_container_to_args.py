@@ -612,3 +612,21 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "busybox",
             ],
         )
+
+    async def test_cpuset(self):
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+        cnt["cpuset"] = "0-1"
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge:alias=service_name",
+                "--cpuset-cpus",
+                "0-1",
+                "busybox",
+            ],
+        )
