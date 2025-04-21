@@ -1189,6 +1189,10 @@ async def container_to_args(compose, cnt, detached=True, no_deps=False):
     if cnt.get("runtime"):
         podman_args.extend(["--runtime", cnt["runtime"]])
 
+    cpuset = cnt.get("cpuset")
+    if cpuset is not None:
+        podman_args.extend(["--cpuset-cpus", cpuset])
+
     # WIP: healthchecks are still work in progress
     healthcheck = cnt.get("healthcheck", {})
     if not isinstance(healthcheck, dict):
