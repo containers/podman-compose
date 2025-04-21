@@ -771,6 +771,22 @@ def container_to_cpu_res_args(cnt, podman_args):
             str(mem_res).lower(),
         ))
 
+    # Handle pids limit from both container level and deploy section
+    pids_limit = cnt.get("pids_limit")
+    deploy_pids = limits.get("pids")
+
+    # Ensure consistency between pids_limit and deploy.resources.limits.pids
+    if pids_limit is not None and deploy_pids is not None:
+        if str(pids_limit) != str(deploy_pids):
+            raise ValueError(
+                f"Inconsistent PIDs limit: pids_limit ({pids_limit}) and "
+                f"deploy.resources.limits.pids ({deploy_pids}) must be the same"
+            )
+
+    final_pids_limit = pids_limit if pids_limit is not None else deploy_pids
+    if final_pids_limit is not None:
+        podman_args.extend(["--pids-limit", str(final_pids_limit)])
+
 
 def port_dict_to_str(port_desc):
     # NOTE: `mode: host|ingress` is ignored
