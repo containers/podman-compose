@@ -9,7 +9,7 @@ from tests.integration.test_utils import test_path
 
 
 def compose_yaml_path():
-    return os.path.join(os.path.join(test_path(), "exit-from"), "docker-compose.yaml")
+    return os.path.join(os.path.join(test_path(), "exit_from"), "docker-compose.yaml")
 
 
 class TestComposeExitFrom(unittest.TestCase, RunSubprocessMixin):
@@ -59,7 +59,7 @@ class TestComposeExitFrom(unittest.TestCase, RunSubprocessMixin):
             "run",
             podman_compose_path(),
             "-f",
-            os.path.join(test_path(), "exit-from", "docker-compose.yaml"),
+            compose_yaml_path(),
             "up",
         ]
 

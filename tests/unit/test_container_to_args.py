@@ -262,7 +262,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
         c = create_compose_mock()
 
         cnt = get_minimal_container()
-        env_file = get_test_file_path('tests/integration/env-file-tests/env-files/project-1.env')
+        env_file = get_test_file_path('tests/integration/env_file_tests/env-files/project-1.env')
         cnt['env_file'] = env_file
 
         args = await container_to_args(c, cnt)
@@ -295,7 +295,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
         c = create_compose_mock()
 
         cnt = get_minimal_container()
-        env_file = get_test_file_path('tests/integration/env-file-tests/env-files/project-1.env')
+        env_file = get_test_file_path('tests/integration/env_file_tests/env-files/project-1.env')
         cnt['env_file'] = [env_file]
 
         args = await container_to_args(c, cnt)
@@ -319,8 +319,8 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
         c = create_compose_mock()
 
         cnt = get_minimal_container()
-        env_file = get_test_file_path('tests/integration/env-file-tests/env-files/project-1.env')
-        env_file_2 = get_test_file_path('tests/integration/env-file-tests/env-files/project-2.env')
+        env_file = get_test_file_path('tests/integration/env_file_tests/env-files/project-1.env')
+        env_file_2 = get_test_file_path('tests/integration/env_file_tests/env-files/project-2.env')
         cnt['env_file'] = [env_file, env_file_2]
 
         args = await container_to_args(c, cnt)
@@ -348,7 +348,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
         c = create_compose_mock()
 
         cnt = get_minimal_container()
-        env_file = get_test_file_path('tests/integration/env-file-tests/env-files/project-1.env')
+        env_file = get_test_file_path('tests/integration/env_file_tests/env-files/project-1.env')
         cnt['env_file'] = {'path': env_file, 'required': True}
 
         args = await container_to_args(c, cnt)
