@@ -1,0 +1,6 @@
+version: "3"
+services:
+    app: !reset
+    app2:
+        image: busybox
+        command: ["/bin/busybox", "echo", "One"]
