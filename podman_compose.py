@@ -2978,9 +2978,20 @@ async def compose_up(compose: PodmanCompose, args):
 
     exit_code = 0
     exiting = False
+    first_failed_task = None
+
     while tasks:
         done, tasks = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-        if args.abort_on_container_exit:
+
+        if args.abort_on_container_failure and first_failed_task is None:
+            # Generally a single returned item when using asyncio.FIRST_COMPLETED, but that's not
+            # guaranteed. If multiple tasks finish at the exact same time the choice of which
+            # finished "first" is arbitrary
+            for t in done:
+                if t.result() != 0:
+                    first_failed_task = t
+
+        if args.abort_on_container_exit or first_failed_task:
             if not exiting:
                 # If 2 containers exit at the exact same time, the cancellation of the other ones
                 # cause the status to overwrite. Sleeping for 1 seems to fix this and make it match
@@ -2991,9 +3002,14 @@ async def compose_up(compose: PodmanCompose, args):
                         t.cancel()
             t: Task
             exiting = True
-            for t in done:
-                if t.get_name() == exit_code_from:
-                    exit_code = t.result()
+            if first_failed_task:
+                # Matches docker-compose behaviour, where the exit code of the task that triggered
+                # the cancellation is always propagated when aborting on failure
+                exit_code = first_failed_task.result()
+            else:
+                for t in done:
+                    if t.get_name() == exit_code_from:
+                        exit_code = t.result()
 
     return exit_code
 
@@ -3481,7 +3497,7 @@ def compose_up_parse(parser):
         "--detach",
         action="store_true",
         help="Detached mode: Run container in the background, print new container name. \
-            Incompatible with --abort-on-container-exit.",
+            Incompatible with --abort-on-container-exit and --abort-on-container-failure.",
     )
     parser.add_argument("--no-color", action="store_true", help="Produce monochrome output.")
     parser.add_argument(
@@ -3522,7 +3538,14 @@ def compose_up_parse(parser):
     parser.add_argument(
         "--abort-on-container-exit",
         action="store_true",
-        help="Stops all containers if any container was stopped. Incompatible with -d.",
+        help="Stops all containers if any container was stopped. Incompatible with -d and "
+        "--abort-on-container-failure.",
+    )
+    parser.add_argument(
+        "--abort-on-container-failure",
+        action="store_true",
+        help="Stops all containers if any container stops with a non-zero exit code. Incompatible "
+        "with -d and --abort-on-container-exit.",
     )
     parser.add_argument(
         "-t",
