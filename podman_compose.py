@@ -2928,12 +2928,42 @@ def get_volume_names(compose, cnt):
 
 @cmd_run(podman_compose, "down", "tear down entire stack")
 async def compose_down(compose: PodmanCompose, args):
+    # get_excluded fails as no-deps is not a supported cli arg
     excluded = get_excluded(compose, args)
     podman_args = []
     timeout_global = getattr(args, "timeout", None)
     containers = list(reversed(compose.containers))
 
-    down_tasks = []
+    # Get list of currently running containers
+    running_cnt_names = (
+        (
+            await compose.podman.output(
+                [],
+                "ps",
+                [
+                    "--filter",
+                    f"label=io.podman.compose.project={compose.project_name}",
+                    "-a",
+                    "--format",
+                    "{{ .Names }}",
+                ],
+            )
+        )
+        .decode("utf-8")
+        .splitlines()
+    )
+
+    running_cnt_imgs = [
+        (await compose.podman.output([], "inspect", ["--format", "{{.ImageName}}", cnt]))
+        .decode("utf-8")
+        .strip()  # Decode and strip newline characters
+        for cnt in running_cnt_names
+    ]
+    # Multiple containers can have the same image. Hence, set().
+    running_cnt_imgs = set(running_cnt_imgs)
+    # print(f"running_cnt_imgs: {running_cnt_imgs}")
+
+    stop_tasks = []
     for cnt in containers:
         if cnt["_service"] in excluded:
             continue
@@ -2944,42 +2974,59 @@ async def compose_down(compose: PodmanCompose, args):
             timeout = str_to_seconds(timeout_str)
         if timeout is not None:
             podman_stop_args.extend(["-t", str(timeout)])
-        down_tasks.append(
-            asyncio.create_task(
-                compose.podman.run([], "stop", [*podman_stop_args, cnt["name"]]), name=cnt["name"]
-            )
-        )
-    await asyncio.gather(*down_tasks)
+        stop_tasks.append(compose.podman.run([], "stop", [*podman_stop_args, cnt["name"]]))
+
+    await asyncio.gather(*stop_tasks)
+    stop_tasks.clear()
+
+    rm_tasks = []
     for cnt in containers:
         if cnt["_service"] in excluded:
             continue
-        await compose.podman.run([], "rm", [cnt["name"]])
+        rm_tasks.append(compose.podman.run([], "rm", [cnt["name"]]))
+        if cnt["name"] in running_cnt_names:
+            running_cnt_names.remove(cnt["name"])
+    await asyncio.gather(*rm_tasks)
+    rm_tasks.clear()
 
-    orphaned_images = set()
+    # The logic is updated based on docker compose documentation:
+    # `--remove-orphans`: Remove containers for services not defined in the Compose file
+    # Ref: https://docs.docker.com/reference/cli/docker/compose/down/#options
+    orphan_cnt_names = []
+    for cnt in running_cnt_names:
+        if not any(f"{compose.project_name}_{service}_" in cnt for service in compose.all_services):
+            orphan_cnt_names.append(cnt)
+            running_cnt_names.remove(cnt)
+
+    # We list the containers and remove them from running container list
+    # However, we stop them only if provided with CLI arg `--remove-orphans`
     if args.remove_orphans:
-        orphaned_containers = (
-            (
-                await compose.podman.output(
-                    [],
-                    "ps",
-                    [
-                        "--filter",
-                        f"label=io.podman.compose.project={compose.project_name}",
-                        "-a",
-                        "--format",
-                        "{{ .Image }} {{ .Names }}",
-                    ],
-                )
-            )
-            .decode("utf-8")
-            .splitlines()
-        )
-        orphaned_images = {item.split()[0] for item in orphaned_containers}
-        names = {item.split()[1] for item in orphaned_containers}
-        for name in names:
-            await compose.podman.run([], "stop", [*podman_args, name])
-        for name in names:
-            await compose.podman.run([], "rm", [name])
+        for name in orphan_cnt_names:
+            stop_tasks.append(compose.podman.run([], "stop", [*podman_args, name]))
+        await asyncio.gather(*stop_tasks)
+        stop_tasks.clear()
+
+        for name in orphan_cnt_names:
+            rm_tasks.append(compose.podman.run([], "rm", [name]))
+        await asyncio.gather(*rm_tasks)
+        rm_tasks.clear()
+
+    for cnt in running_cnt_names:
+        # This logic goes away if the containers list can be updated accordingly at source.
+        # Clear containers not formed out of the current compose file definitions.
+        # E.g.: By using CLI `up --scale <APP>=<NUM>` option
+        podman_stop_args = [*podman_args]
+        if timeout_global is not None:
+            podman_stop_args.extend(["-t", str(timeout_global)])
+        stop_tasks.append(compose.podman.run([], "stop", [*podman_stop_args, cnt]))
+    await asyncio.gather(*stop_tasks)
+    stop_tasks.clear()
+
+    for cnt in running_cnt_names:
+        rm_tasks.append(compose.podman.run([], "rm", [cnt]))
+    await asyncio.gather(*rm_tasks)
+    rm_tasks.clear()
+
     if args.volumes:
         vol_names_to_keep = set()
         for cnt in containers:
@@ -2999,7 +3046,7 @@ async def compose_down(compose: PodmanCompose, args):
             if args.rmi == "local" and not is_local(cnt):
                 continue
             images_to_remove.add(cnt["image"])
-        images_to_remove.update(orphaned_images)
+        images_to_remove.update(running_cnt_imgs)
         log.debug("images to remove: %s", images_to_remove)
         await compose.podman.run([], "rmi", ["--ignore", "--force"] + list(images_to_remove))
 
