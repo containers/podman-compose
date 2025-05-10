@@ -2891,7 +2891,7 @@ async def compose_up(compose: PodmanCompose, args):
         .splitlines()
     )
     diff_hashes = [i for i in hashes if i and i != compose.yaml_hash]
-    if args.force_recreate or len(diff_hashes):
+    if (args.force_recreate and len(hashes) > 0) or len(diff_hashes):
         log.info("recreating: ...")
         down_args = argparse.Namespace(**dict(args.__dict__, volumes=False, rmi=None))
         await compose.commands["down"](compose, down_args)
