@@ -1,1 +1,0 @@
-- Fixed NotImplementedError in case script is interrupted on Windows

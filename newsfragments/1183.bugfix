@@ -1,1 +1,0 @@
-- Fixed issue in up command where service_healthy conditions weren't being enforced (#1183)

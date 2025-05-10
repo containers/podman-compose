@@ -1,1 +1,0 @@
-- Fixed KeyError in case podman-compose down was called with an inexistent service

@@ -1,1 +1,0 @@
-- Added --abort-on-container-failure option, to match docker-compose

@@ -1,1 +1,0 @@
-- Add support for `pids_limit` and `deploy.resources.limits.pids`
