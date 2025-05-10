@@ -2815,6 +2815,18 @@ async def check_dep_conditions(compose: PodmanCompose, deps: set) -> None:
         deps_cd = []
         for d in deps:
             if d.condition == condition:
+                if (
+                    d.condition
+                    in (ServiceDependencyCondition.HEALTHY, ServiceDependencyCondition.UNHEALTHY)
+                ) and strverscmp_lt(compose.podman_version, "4.6.0"):
+                    log.warning(
+                        "Ignored %s condition check due to podman %s doesn't support %s!",
+                        d.name,
+                        compose.podman_version,
+                        condition.value,
+                    )
+                    continue
+
                 deps_cd.extend(compose.container_names_by_service[d.name])
 
         if deps_cd:

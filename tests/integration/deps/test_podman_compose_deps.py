@@ -2,7 +2,9 @@
 import os
 import unittest
 
+from tests.integration.test_utils import PodmanAwareRunSubprocessMixin
 from tests.integration.test_utils import RunSubprocessMixin
+from tests.integration.test_utils import is_systemd_available
 from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
@@ -181,5 +183,84 @@ class TestComposeConditionalDeps(unittest.TestCase, RunSubprocessMixin):
                 podman_compose_path(),
                 "-f",
                 compose_yaml_path(suffix),
+                "down",
+            ])
+
+
+class TestComposeConditionalDepsHealthy(unittest.TestCase, PodmanAwareRunSubprocessMixin):
+    def setUp(self):
+        self.podman_version = self.retrieve_podman_version()
+
+    def test_up_deps_healthy(self):
+        suffix = "-conditional-healthy"
+        try:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(suffix),
+                "up",
+                "sleep",
+                "--detach",
+            ])
+
+            # Since the command `podman wait --condition=healthy` is invalid prior to 4.6.0,
+            # we only validate healthy status for podman 4.6.0+, which won't be tested in the
+            # CI pipeline of the podman-compose project where podman 4.3.1 is employed.
+            podman_ver_major, podman_ver_minor, podman_ver_patch = self.podman_version
+            if podman_ver_major >= 4 and podman_ver_minor >= 6 and podman_ver_patch >= 0:
+                self.run_subprocess_assert_returncode([
+                    "podman",
+                    "wait",
+                    "--condition=running",
+                    "deps_web_1",
+                    "deps_sleep_1",
+                ])
+
+            # check both web and sleep are running
+            output, _ = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(),
+                "ps",
+                "--format",
+                "{{.ID}}\t{{.Names}}\t{{.Status}}\t{{.StartedAt}}",
+            ])
+
+            # extract container id of web
+            decoded_out = output.decode('utf-8')
+            lines = decoded_out.split("\n")
+
+            web_lines = [line for line in lines if "web" in line]
+            self.assertTrue(web_lines)
+            self.assertEqual(1, len(web_lines))
+            web_cnt_id, web_cnt_name, web_cnt_status, web_cnt_started = web_lines[0].split("\t")
+            self.assertNotEqual("", web_cnt_id)
+            self.assertEqual("deps_web_1", web_cnt_name)
+
+            sleep_lines = [line for line in lines if "sleep" in line]
+            self.assertTrue(sleep_lines)
+            self.assertEqual(1, len(sleep_lines))
+            sleep_cnt_id, sleep_cnt_name, _, sleep_cnt_started = sleep_lines[0].split("\t")
+            self.assertNotEqual("", sleep_cnt_id)
+            self.assertEqual("deps_sleep_1", sleep_cnt_name)
+
+            # When test case is executed inside container like github actions, the absence of
+            # systemd prevents health check from working properly, resulting in failure to
+            # transit to healthy state. As a result, we only assert the `healthy` state where
+            # systemd is functioning.
+            if (
+                is_systemd_available()
+                and podman_ver_major >= 4
+                and podman_ver_minor >= 6
+                and podman_ver_patch >= 0
+            ):
+                self.assertIn("healthy", web_cnt_status)
+            self.assertGreaterEqual(int(sleep_cnt_started), int(web_cnt_started))
+
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(),
                 "down",
             ])
