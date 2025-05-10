@@ -1,0 +1,1 @@
+- Fixed issue where short-lived containers would execute twice when using the up command in detached mode (#1176)

@@ -35,8 +35,7 @@ class TestFilesystem(unittest.TestCase, RunSubprocessMixin):
                 "container1",
             ])
 
-            # BUG: figure out why cat is called twice
-            self.assertEqual(out, b'data_compose_symlink\ndata_compose_symlink\n')
+            self.assertEqual(out, b'data_compose_symlink\n')
 
         finally:
             out, _ = self.run_subprocess_assert_returncode([

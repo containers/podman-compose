@@ -2898,21 +2898,18 @@ async def compose_up(compose: PodmanCompose, args):
         log.info("recreating: done\n\n")
     # args.no_recreate disables check for changes (which is not implemented)
 
-    podman_command = "run" if args.detach and not args.no_start else "create"
-
     await create_pods(compose, args)
     for cnt in compose.containers:
         if cnt["_service"] in excluded:
             log.debug("** skipping: %s", cnt["name"])
             continue
-        podman_args = await container_to_args(
-            compose, cnt, detached=args.detach, no_deps=args.no_deps
-        )
-        subproc = await compose.podman.run([], podman_command, podman_args)
-        if podman_command == "run" and subproc is not None:
+        podman_args = await container_to_args(compose, cnt, detached=False, no_deps=args.no_deps)
+        subproc = await compose.podman.run([], "create", podman_args)
+        if not args.no_start and args.detach and subproc is not None:
             await run_container(
                 compose, cnt["name"], deps_from_container(args, cnt), ([], "start", [cnt["name"]])
             )
+
     if args.no_start or args.detach or args.dry_run:
         return
     # TODO: handle already existing

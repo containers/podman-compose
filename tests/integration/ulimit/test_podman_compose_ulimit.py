@@ -34,12 +34,9 @@ class TestUlimit(unittest.TestCase, RunSubprocessMixin):
                 for el in split_output
                 if not el.startswith(b"soft process") and not el.startswith(b"hard process")
             ]
-            # BUG: figure out why echo is called twice
             self.assertEqual(
                 output_part,
                 [
-                    b"soft nofile limit 1001",
-                    b"hard nofile limit 1001",
                     b"soft nofile limit 1001",
                     b"hard nofile limit 1001",
                 ],
@@ -53,8 +50,7 @@ class TestUlimit(unittest.TestCase, RunSubprocessMixin):
             self.assertEqual(
                 out,
                 b"soft process limit 1002\nhard process limit 2002\nsoft nofile limit 1002\n"
-                b"hard nofile limit 1002\nsoft process limit 1002\nhard process limit 2002\n"
-                b"soft nofile limit 1002\nhard nofile limit 1002\n",
+                b"hard nofile limit 1002\n",
             )
 
             out, _ = self.run_subprocess_assert_returncode([
@@ -65,8 +61,7 @@ class TestUlimit(unittest.TestCase, RunSubprocessMixin):
             self.assertEqual(
                 out,
                 b"soft process limit 1003\nhard process limit 2003\nsoft nofile limit 1003\n"
-                b"hard nofile limit 1003\nsoft process limit 1003\nhard process limit 2003\n"
-                b"soft nofile limit 1003\nhard nofile limit 1003\n",
+                b"hard nofile limit 1003\n",
             )
         finally:
             self.run_subprocess_assert_returncode([
