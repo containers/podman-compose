@@ -2564,6 +2564,30 @@ you can use podman commands like:
 \t\tpodman pod logs --tail=10 -f 'pod_{proj_name}'
 """
         )
+    elif args.action == "unregister":
+        proj_name = compose.project_name
+        fn = os.path.expanduser(f"~/{stacks_dir}/{proj_name}.env")
+        if os.path.exists(fn):
+            try:
+                log.debug("removing [%s]: ...", fn)
+                os.remove(fn)
+                log.debug("removing [%s]: done.", fn)
+                print(
+                    f"""
+project '{proj_name}' successfully unregistered
+
+you can stop and disable the service with:
+
+\t\tsystemctl --user disable --now 'podman-compose@{proj_name}'
+"""
+                )
+            except OSError as e:
+                log.error("failed to remove file %s: %s", fn, e)
+                print(f"Failed to remove registration file for project '{proj_name}'")
+                return 1
+        else:
+            log.warning("registration file not found: %s", fn)
+            print(f"Project '{proj_name}' is not registered")
     elif args.action in ("list", "ls"):
         ls = glob.glob(os.path.expanduser(f"~/{stacks_dir}/*.env"))
         for i in ls:
@@ -3813,7 +3837,7 @@ def compose_systemd_parse(parser):
     parser.add_argument(
         "-a",
         "--action",
-        choices=["register", "create-unit", "list", "ls"],
+        choices=["register", "unregister", "create-unit", "list", "ls"],
         default="register",
         help="create systemd unit file or register compose stack to it",
     )
