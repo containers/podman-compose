@@ -1,0 +1,11 @@
+version: "3"
+services:
+    sh1:
+      image: nopush/podman-compose-test
+      command: ["dumb-init", "/bin/busybox", "sh", "-c", "sleep 1; exit 0"]
+    sh2:
+      image: nopush/podman-compose-test
+      command: ["dumb-init", "/bin/busybox", "sh", "-c", "sleep 2; exit 1"]
+    sh3:
+      image: nopush/podman-compose-test
+      command: ["dumb-init", "/bin/busybox", "sh", "-c", "sleep 3; exit 0"]
