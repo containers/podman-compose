@@ -1,0 +1,1 @@
+- Return non-zero exit_code on failure when `up -d`

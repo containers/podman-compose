@@ -2879,11 +2879,15 @@ def deps_from_container(args, cnt):
 @cmd_run(podman_compose, "up", "Create and start the entire stack or some of its services")
 async def compose_up(compose: PodmanCompose, args):
     excluded = get_excluded(compose, args)
+
     if not args.no_build:
         # `podman build` does not cache, so don't always build
         build_args = argparse.Namespace(if_not_exists=(not args.build), **args.__dict__)
-        if await compose.commands["build"](compose, build_args) != 0:
+        build_exit_code = await compose.commands["build"](compose, build_args)
+        if build_exit_code != 0:
             log.error("Build command failed")
+            if not args.dry_run:
+                return build_exit_code
 
     hashes = (
         (
@@ -2911,19 +2915,29 @@ async def compose_up(compose: PodmanCompose, args):
     # args.no_recreate disables check for changes (which is not implemented)
 
     await create_pods(compose, args)
+    exit_code = 0
     for cnt in compose.containers:
         if cnt["_service"] in excluded:
             log.debug("** skipping: %s", cnt["name"])
             continue
         podman_args = await container_to_args(compose, cnt, detached=False, no_deps=args.no_deps)
-        subproc = await compose.podman.run([], "create", podman_args)
-        if not args.no_start and args.detach and subproc is not None:
-            await run_container(
+        subproc_exit_code = await compose.podman.run([], "create", podman_args)
+        if subproc_exit_code is not None and subproc_exit_code != 0:
+            exit_code = subproc_exit_code
+
+        if not args.no_start and args.detach and subproc_exit_code is not None:
+            container_exit_code = await run_container(
                 compose, cnt["name"], deps_from_container(args, cnt), ([], "start", [cnt["name"]])
             )
 
-    if args.no_start or args.detach or args.dry_run:
-        return
+            if container_exit_code is not None and container_exit_code != 0:
+                exit_code = container_exit_code
+
+    if args.dry_run:
+        return None
+    if args.no_start or args.detach:
+        return exit_code
+
     # TODO: handle already existing
     # TODO: if error creating do not enter loop
     # TODO: colors if sys.stdout.isatty()
