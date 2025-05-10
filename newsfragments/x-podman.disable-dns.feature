@@ -1,1 +1,0 @@
-- Add support for 'x-podman.disable-dns' to allow disabling DNS plugin on defined networks.

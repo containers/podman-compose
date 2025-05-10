@@ -1,1 +1,0 @@
-- Fixed project name evaluation order to match the order defined in the [compose spec](https://docs.docker.com/compose/how-tos/project-name/#set-a-project-name).
