@@ -16,7 +16,7 @@ def compose_yaml_path(suffix=""):
 class TestComposeBaseDeps(unittest.TestCase, RunSubprocessMixin):
     def test_deps(self):
         try:
-            output, error = self.run_subprocess_assert_returncode([
+            output, _ = self.run_subprocess_assert_returncode([
                 podman_compose_path(),
                 "-f",
                 compose_yaml_path(),
@@ -39,7 +39,7 @@ class TestComposeBaseDeps(unittest.TestCase, RunSubprocessMixin):
 
     def test_run_nodeps(self):
         try:
-            output, error = self.run_subprocess_assert_returncode([
+            output, _ = self.run_subprocess_assert_returncode([
                 podman_compose_path(),
                 "-f",
                 compose_yaml_path(),
@@ -73,7 +73,7 @@ class TestComposeBaseDeps(unittest.TestCase, RunSubprocessMixin):
                 "--detach",
                 "sleep",
             ])
-            output, error = self.run_subprocess_assert_returncode([
+            output, _ = self.run_subprocess_assert_returncode([
                 podman_compose_path(),
                 "-f",
                 compose_yaml_path(),
@@ -146,7 +146,7 @@ class TestComposeConditionalDeps(unittest.TestCase, RunSubprocessMixin):
     def test_deps_succeeds(self):
         suffix = "-conditional-succeeds"
         try:
-            output, error = self.run_subprocess_assert_returncode([
+            output, _ = self.run_subprocess_assert_returncode([
                 podman_compose_path(),
                 "-f",
                 compose_yaml_path(suffix),
@@ -170,7 +170,7 @@ class TestComposeConditionalDeps(unittest.TestCase, RunSubprocessMixin):
     def test_deps_fails(self):
         suffix = "-conditional-fails"
         try:
-            output, error = self.run_subprocess_assert_returncode([
+            output, _ = self.run_subprocess_assert_returncode([
                 podman_compose_path(),
                 "-f",
                 compose_yaml_path(suffix),
