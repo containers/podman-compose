@@ -74,7 +74,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         ]
 
         try:
-            self.run_subprocess_assert_returncode(command_up, failure_exitcode_when_rootful())
+            self.run_subprocess_assert_returncode(command_up)
 
         finally:
             self.run_subprocess_assert_returncode(down_cmd)
@@ -466,6 +466,33 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             command_rm_pod = ["podman", "pod", "rm", "pod_custom_x-podman_not_exists"]
             # can not actually find this pod because it was not created
             self.run_subprocess_assert_returncode(command_rm_pod, 1)
+
+    def test_x_podman_in_pod_custom_name(self):
+        """
+        Test that podman-compose will create a pod with a custom name
+        """
+        command_up = [
+            "python3",
+            os.path.join(base_path(), "podman_compose.py"),
+            "-f",
+            os.path.join(
+                base_path(),
+                "tests",
+                "integration",
+                "in_pod",
+                "custom_x-podman_custom_name",
+                "docker-compose.yml",
+            ),
+            "up",
+            "--no-start",
+        ]
+
+        try:
+            self.run_subprocess_assert_returncode(command_up, failure_exitcode_when_rootful())
+
+        finally:
+            command_rm_pod = ["podman", "pod", "rm", "custom_test_pod_name"]
+            self.run_subprocess_assert_returncode(command_rm_pod)
 
     def test_x_podman_in_pod_not_exists_command_line_in_pod_empty_string(self):
         """
