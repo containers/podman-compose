@@ -74,7 +74,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         ]
 
         try:
-            self.run_subprocess_assert_returncode(command_up)
+            self.run_subprocess_assert_returncode(command_up, failure_exitcode_when_rootful())
 
         finally:
             self.run_subprocess_assert_returncode(down_cmd)
@@ -488,7 +488,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         ]
 
         try:
-            self.run_subprocess_assert_returncode(command_up, failure_exitcode_when_rootful())
+            self.run_subprocess_assert_returncode(command_up)
 
         finally:
             command_rm_pod = ["podman", "pod", "rm", "custom_test_pod_name"]
