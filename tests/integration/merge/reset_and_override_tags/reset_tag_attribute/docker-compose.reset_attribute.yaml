@@ -3,3 +3,4 @@ services:
     app:
         image: busybox
         command: !reset {}
+        depends_on: !reset null

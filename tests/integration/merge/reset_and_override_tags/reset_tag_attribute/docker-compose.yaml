@@ -3,3 +3,5 @@ services:
     app:
         image: busybox
         command: ["/bin/busybox", "echo", "Zero"]
+        depends_on:
+            - db

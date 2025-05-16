@@ -53,6 +53,8 @@ class TestComposeResetTagAttribute(unittest.TestCase, RunSubprocessMixin):
                 "logs",
             ])
             self.assertEqual(output, b"")
+            # depends_on: !reset null testing: if this test works, depends_on is correctly reset.
+            # Otherwise the test would break, since "db" dependency service is not provided
         finally:
             self.run_subprocess_assert_returncode([
                 podman_compose_path(),

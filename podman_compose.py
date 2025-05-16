@@ -1713,6 +1713,8 @@ def normalize_service(service, sub_dir=""):
     if "depends_on" in service:
         # deps should become a dictionary of dependencies
         deps = service["depends_on"]
+        if isinstance(deps, ResetTag):
+            return service
         if isinstance(deps, str):
             deps = {deps: {}}
         elif is_list(deps):
