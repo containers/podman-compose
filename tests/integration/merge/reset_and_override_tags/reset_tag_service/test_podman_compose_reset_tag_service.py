@@ -9,14 +9,17 @@ from tests.integration.test_utils import test_path
 
 
 def compose_yaml_path():
-    return os.path.join(os.path.join(test_path(), "reset_tag_service"), "docker-compose.yaml")
+    return os.path.join(
+        test_path(), "merge/reset_and_override_tags/reset_tag_service/docker-compose.yaml"
+    )
 
 
 class TestComposeResetTagService(unittest.TestCase, RunSubprocessMixin):
     # test if whole service from docker-compose.yaml file is reset
     def test_reset_tag_service(self):
         reset_file = os.path.join(
-            os.path.join(test_path(), "reset_tag_service"), "docker-compose.reset_service.yaml"
+            test_path(),
+            "merge/reset_and_override_tags/reset_tag_service/docker-compose.reset_service.yaml",
         )
         try:
             self.run_subprocess_assert_returncode([

@@ -10,15 +10,18 @@ from tests.integration.test_utils import test_path
 
 
 def compose_yaml_path():
-    return os.path.join(os.path.join(test_path(), "override_tag_attribute"), "docker-compose.yaml")
+    return os.path.join(
+        test_path(),
+        "merge/reset_and_override_tags/override_tag_attribute/docker-compose.yaml",
+    )
 
 
 class TestComposeOverrideTagAttribute(unittest.TestCase, RunSubprocessMixin):
     # test if a service attribute from docker-compose.yaml file is overridden
     def test_override_tag_attribute(self):
         override_file = os.path.join(
-            os.path.join(test_path(), "override_tag_attribute"),
-            "docker-compose.override_attribute.yaml",
+            test_path(),
+            "merge/reset_and_override_tags/override_tag_attribute/docker-compose.override_attribute.yaml",
         )
         try:
             self.run_subprocess_assert_returncode([

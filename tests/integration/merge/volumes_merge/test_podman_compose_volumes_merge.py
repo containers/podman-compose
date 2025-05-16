@@ -11,7 +11,7 @@ from tests.integration.test_utils import test_path
 
 def compose_yaml_path(compose_name):
     """ "Returns the path to the compose file used for this test module"""
-    base_path = os.path.join(test_path(), "volumes_merge/")
+    base_path = os.path.join(test_path(), "merge/volumes_merge/")
     return os.path.join(base_path, compose_name)
 
 
@@ -55,7 +55,7 @@ class TestComposeVolumesMerge(unittest.TestCase, RunSubprocessMixin):
             binds_info = volumes_info["HostConfig"]["Binds"]
             binds_info.sort()
 
-            file_path = os.path.join(test_path(), "volumes_merge/override.txt")
+            file_path = os.path.join(test_path(), "merge/volumes_merge/override.txt")
             expected = [
                 f'{file_path}:/var/www/html/index.html:ro,rprivate,rbind',
                 f'{file_path}:/var/www/html/index2.html:rw,rprivate,rbind',
