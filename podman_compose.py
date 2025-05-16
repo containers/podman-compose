@@ -2343,9 +2343,9 @@ class PodmanCompose:
             "--in-pod",
             help=(
                 "Specify pod usage:\n"
-                "  'true' - create/use a pod named pod_<project name>\n"
-                "  'false'    - do not use a pod"
-                "  '<name>'  - create/use a custom pod with the given name\n"
+                "  'true'   - create/use a pod named pod_<project name>\n"
+                "  'false'  - do not use a pod\n"
+                "  '<name>' - create/use a custom pod with the given name"
             ),
             metavar="in_pod",
             type=str,
