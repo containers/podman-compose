@@ -1,0 +1,8 @@
+version: "3"
+services:
+    cont:
+        image: nopush/podman-compose-test
+        command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-p", "8080"]
+
+x-podman:
+    in_pod: custom_test_pod_name
