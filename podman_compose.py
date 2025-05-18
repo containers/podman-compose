@@ -367,13 +367,18 @@ def default_network_name_for_project(compose, net, is_ext):
 
 
 def transform(args, project_name, given_containers):
-    if not args.in_pod_bool:
-        pod_name = None
-        pods = []
-    else:
+    in_pod = str(args.in_pod).lower()
+    pod_name = None
+    pods = []
+
+    if in_pod in ('true', '1', 'none', ''):
         pod_name = f"pod_{project_name}"
-        pod = {"name": pod_name}
-        pods = [pod]
+    elif in_pod not in ('false', '0'):
+        pod_name = args.in_pod
+
+    if pod_name:
+        pods = [{"name": pod_name}]
+
     containers = []
     for cnt in given_containers:
         containers.append(dict(cnt, pod=pod_name))
@@ -1049,13 +1054,13 @@ def get_net_args_from_networks(compose, cnt):
 async def container_to_args(compose, cnt, detached=True, no_deps=False):
     # TODO: double check -e , --add-host, -v, --read-only
     dirname = compose.dirname
-    pod = cnt.get("pod", "")
     name = cnt["name"]
     podman_args = [f"--name={name}"]
 
     if detached:
         podman_args.append("-d")
 
+    pod = cnt.get("pod", "")
     if pod:
         podman_args.append(f"--pod={pod}")
     deps = []
@@ -1988,10 +1993,10 @@ class PodmanCompose:
             sys.exit(retcode)
 
     def resolve_in_pod(self):
-        if self.global_args.in_pod_bool is None:
-            self.global_args.in_pod_bool = self.x_podman.get("in_pod", True)
+        if self.global_args.in_pod in (None, ''):
+            self.global_args.in_pod = self.x_podman.get("in_pod", "1")
         # otherwise use `in_pod` value provided by command line
-        return self.global_args.in_pod_bool
+        return self.global_args.in_pod
 
     def resolve_pod_args(self):
         # Priorities:
@@ -2284,7 +2289,7 @@ class PodmanCompose:
 
         self.x_podman = compose.get("x-podman", {})
 
-        args.in_pod_bool = self.resolve_in_pod()
+        args.in_pod = self.resolve_in_pod()
         args.pod_arg_list = self.resolve_pod_args()
         pods, containers = transform(args, project_name, given_containers)
         self.pods = pods
@@ -2323,22 +2328,6 @@ class PodmanCompose:
             for cmd_parser in cmd._parse_args:  # pylint: disable=protected-access
                 cmd_parser(subparser)
         self.global_args = parser.parse_args(argv)
-        if self.global_args.in_pod is not None and self.global_args.in_pod.lower() not in (
-            '',
-            'true',
-            '1',
-            'false',
-            '0',
-        ):
-            raise ValueError(
-                f'Invalid --in-pod value: \'{self.global_args.in_pod}\'. '
-                'It must be set to either of: empty value, true, 1, false, 0'
-            )
-
-        if self.global_args.in_pod == '' or self.global_args.in_pod is None:
-            self.global_args.in_pod_bool = None
-        else:
-            self.global_args.in_pod_bool = self.global_args.in_pod.lower() in ('true', '1')
 
         if self.global_args.version:
             self.global_args.command = "version"
@@ -2354,7 +2343,12 @@ class PodmanCompose:
         parser.add_argument("-v", "--version", help="show version", action="store_true")
         parser.add_argument(
             "--in-pod",
-            help="pod creation",
+            help=(
+                "Specify pod usage:\n"
+                "  'true'   - create/use a pod named pod_<project name>\n"
+                "  'false'  - do not use a pod\n"
+                "  '<name>' - create/use a custom pod with the given name"
+            ),
             metavar="in_pod",
             type=str,
             default=None,

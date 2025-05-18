@@ -149,7 +149,7 @@ def set_args(podman_compose: PodmanCompose, file_names: list[str]) -> None:
     podman_compose.global_args.project_name = None
     podman_compose.global_args.env_file = None
     podman_compose.global_args.profile = []
-    podman_compose.global_args.in_pod_bool = True
+    podman_compose.global_args.in_pod = "1"
     podman_compose.global_args.pod_args = None
     podman_compose.global_args.no_normalize = True
 
