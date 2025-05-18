@@ -577,6 +577,7 @@ def get_secret_args(compose, cnt, secret, podman_is_building=False):
     declared_secret = compose.declared_secrets[secret_name]
 
     source_file = declared_secret.get("file")
+    secret_relabel = declared_secret.get("relabel")
     dest_file = ""
     secret_opts = ""
 
@@ -618,7 +619,15 @@ def get_secret_args(compose, cnt, secret, podman_is_building=False):
                 dest_file = f"/run/secrets/{sec}"
             else:
                 dest_file = secret_target
-            volume_ref = ["--volume", f"{source_file}:{dest_file}:ro,rprivate,rbind"]
+
+            mount_options = 'ro,rprivate,rbind'
+            if secret_relabel not in set(("z", "Z", None)):
+                raise ValueError(
+                    f'ERORR: Run secret "{secret_name} has invalid "relabel" option '
+                    + f'"{secret_relabel}". Expected "Z" "z" or nothing.')
+            if secret_relabel:
+                mount_options = f'{mount_options},{secret_relabel}'
+            volume_ref = ["--volume", f"{source_file}:{dest_file}:{mount_options}"]
 
         if secret_uid or secret_gid or secret_mode:
             sec = secret_target if secret_target else secret_name

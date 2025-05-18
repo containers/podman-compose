@@ -303,6 +303,17 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             repo_root() + "/test_dirname/my_secret:/run/secrets/file_secret:ro,rprivate,rbind",
         ),
         (
+            "relabel",
+            {
+                "file_secret": {
+                    "file": "./my_secret",
+                    "relabel": "Z"
+                }
+            },
+            "file_secret",
+            repo_root() + "/test_dirname/my_secret:/run/secrets/file_secret:ro,rprivate,rbind,Z",
+        ),
+        (
             "custom_target_name",
             {
                 "file_secret": {
