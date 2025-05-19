@@ -2674,7 +2674,7 @@ def container_to_build_args(compose, cnt, args, path_exists, cleanup_callbacks=N
                 os.remove(dockerfile)
 
         if cleanup_callbacks is not None:
-            list.append(cleanup_callbacks, cleanup_temp_dockfile)
+            cleanup_callbacks.append(cleanup_temp_dockfile)
 
     build_args = []
 
