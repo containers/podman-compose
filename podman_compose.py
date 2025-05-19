@@ -2156,8 +2156,6 @@ class PodmanCompose:
         service_names = [name for _, name in service_names]
         resolve_extends(services, service_names, self.environ)
         flat_deps(services)
-        service_names = sorted([(len(srv["_deps"]), name) for name, srv in services.items()])
-        service_names = [name for _, name in service_names]
         nets = compose.get("networks", {})
         if not nets:
             nets["default"] = None
