@@ -455,13 +455,13 @@ def mount_desc_to_mount_args(compose, mount_desc, srv_name, cnt_name):  # pylint
         selinux = bind_opts.get("selinux")
         if selinux is not None:
             opts.append(selinux)
-    opts = ",".join(opts)
+    opts_str = ",".join(opts)
     if mount_type == "bind":
-        return f"type=bind,source={source},destination={target},{opts}".rstrip(",")
+        return f"type=bind,source={source},destination={target},{opts_str}".rstrip(",")
     if mount_type == "volume":
-        return f"type=volume,source={source},destination={target},{opts}".rstrip(",")
+        return f"type=volume,source={source},destination={target},{opts_str}".rstrip(",")
     if mount_type == "tmpfs":
-        return f"type=tmpfs,destination={target},{opts}".rstrip(",")
+        return f"type=tmpfs,destination={target},{opts_str}".rstrip(",")
     raise ValueError("unknown mount type:" + mount_type)
 
 
@@ -2002,9 +2002,9 @@ class PodmanCompose:
     def _parse_compose_file(self):
         args = self.global_args
         # cmd = args.command
-        dirname = os.environ.get("COMPOSE_PROJECT_DIR")
-        if dirname and os.path.isdir(dirname):
-            os.chdir(dirname)
+        project_dir = os.environ.get("COMPOSE_PROJECT_DIR")
+        if project_dir and os.path.isdir(project_dir):
+            os.chdir(project_dir)
         pathsep = os.environ.get("COMPOSE_PATH_SEPARATOR", os.pathsep)
         if not args.file:
             default_str = os.environ.get("COMPOSE_FILE")
@@ -3044,17 +3044,16 @@ async def compose_up(compose: PodmanCompose, args):
                 for t in tasks:
                     if not _task_cancelled(t):
                         t.cancel()
-            t: Task
+            t_: Task
             exiting = True
             if first_failed_task:
                 # Matches docker-compose behaviour, where the exit code of the task that triggered
                 # the cancellation is always propagated when aborting on failure
                 exit_code = first_failed_task.result()
             else:
-                for t in done:
-                    if t.get_name() == exit_code_from:
-                        exit_code = t.result()
-
+                for t_ in done:
+                    if t_.get_name() == exit_code_from:
+                        exit_code = t_.result()
     return exit_code
 
 
