@@ -2504,7 +2504,7 @@ async def compose_wait(compose, args):  # pylint: disable=unused-argument
     containers = [cnt["name"] for cnt in compose.containers]
     cmd_args = ["--"]
     cmd_args.extend(containers)
-    await compose.podman.exec([], "wait", cmd_args)
+    compose.podman.exec([], "wait", cmd_args)
 
 
 @cmd_run(podman_compose, "systemd")
