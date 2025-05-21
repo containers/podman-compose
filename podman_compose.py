@@ -29,14 +29,8 @@ import urllib.parse
 from asyncio import Task
 from enum import Enum
 
-try:
-    from shlex import quote as cmd_quote
-except ImportError:
-    from pipes import quote as cmd_quote  # pylint: disable=deprecated-module
-
 # import fnmatch
 # fnmatch.fnmatchcase(env, "*_HOST")
-
 import yaml
 from dotenv import dotenv_values
 
@@ -1228,7 +1222,7 @@ async def container_to_args(compose, cnt, detached=True, no_deps=False):
             # podman does not add shell to handle command with whitespace
             podman_args.extend([
                 "--healthcheck-command",
-                "/bin/sh -c " + cmd_quote(healthcheck_test),
+                json.dumps(["CMD-SHELL", healthcheck_test]),
             ])
         elif is_list(healthcheck_test):
             healthcheck_test = healthcheck_test.copy()
@@ -1237,13 +1231,11 @@ async def container_to_args(compose, cnt, detached=True, no_deps=False):
             if healthcheck_type == "NONE":
                 podman_args.append("--no-healthcheck")
             elif healthcheck_type == "CMD":
-                cmd_q = "' '".join([cmd_quote(i) for i in healthcheck_test])
-                podman_args.extend(["--healthcheck-command", "/bin/sh -c " + cmd_q])
+                podman_args.extend(["--healthcheck-command", json.dumps(healthcheck_test)])
             elif healthcheck_type == "CMD-SHELL":
                 if len(healthcheck_test) != 1:
                     raise ValueError("'CMD_SHELL' takes a single string after it")
-                cmd_q = cmd_quote(healthcheck_test[0])
-                podman_args.extend(["--healthcheck-command", "/bin/sh -c " + cmd_q])
+                podman_args.extend(["--healthcheck-command", json.dumps(healthcheck_test)])
             else:
                 raise ValueError(
                     f"unknown healthcheck test type [{healthcheck_type}],\

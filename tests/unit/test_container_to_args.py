@@ -694,3 +694,73 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
 
         with self.assertRaises(ValueError):
             await container_to_args(c, cnt)
+
+    async def test_heathcheck_string(self):
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+        cnt["healthcheck"] = {
+            "test": "cmd arg1 arg2",
+        }
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge:alias=service_name",
+                "--healthcheck-command",
+                '["CMD-SHELL", "cmd arg1 arg2"]',
+                "busybox",
+            ],
+        )
+
+    async def test_heathcheck_cmd_args(self):
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+        cnt["healthcheck"] = {
+            "test": ["CMD", "cmd", "arg1", "arg2"],
+        }
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge:alias=service_name",
+                "--healthcheck-command",
+                '["cmd", "arg1", "arg2"]',
+                "busybox",
+            ],
+        )
+
+    async def test_heathcheck_cmd_shell(self):
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+        cnt["healthcheck"] = {
+            "test": ["CMD-SHELL", "cmd arg1 arg2"],
+        }
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge:alias=service_name",
+                "--healthcheck-command",
+                '["cmd arg1 arg2"]',
+                "busybox",
+            ],
+        )
+
+    async def test_heathcheck_cmd_shell_error(self):
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+        cnt["healthcheck"] = {
+            "test": ["CMD-SHELL", "cmd arg1", "arg2"],
+        }
+
+        with self.assertRaises(ValueError):
+            await container_to_args(c, cnt)

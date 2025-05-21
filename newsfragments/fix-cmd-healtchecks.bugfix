@@ -1,0 +1,1 @@
+Fixed support for CMD healthchecks to run using the given command directly and not using `/bin/sh -c`.
