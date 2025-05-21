@@ -219,3 +219,146 @@ class TestContainerToBuildArgs(unittest.TestCase):
 
         with self.assertRaises(OSError):
             container_to_build_args(c, cnt, args, lambda path: False)
+
+    def test_build_ssh_absolute_path(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt['build']['ssh'] = ["id1=/test1"]
+        args = get_minimal_args()
+
+        args = container_to_build_args(c, cnt, args, lambda path: True)
+        self.assertEqual(
+            args,
+            [
+                '-f',
+                'Containerfile',
+                '-t',
+                'new-image',
+                '--ssh',
+                'id1=/test1',
+                '--no-cache',
+                '--pull-always',
+                '.',
+            ],
+        )
+
+    def test_build_ssh_relative_path(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt['build']['ssh'] = ["id1=id1/test1"]
+        args = get_minimal_args()
+
+        args = container_to_build_args(c, cnt, args, lambda path: True)
+        self.assertEqual(
+            args,
+            [
+                '-f',
+                'Containerfile',
+                '-t',
+                'new-image',
+                '--ssh',
+                'id1=test_dirname/id1/test1',
+                '--no-cache',
+                '--pull-always',
+                '.',
+            ],
+        )
+
+    def test_build_ssh_working_dir(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt['build']['ssh'] = ["id1=./test1"]
+        args = get_minimal_args()
+
+        args = container_to_build_args(c, cnt, args, lambda path: True)
+        self.assertEqual(
+            args,
+            [
+                '-f',
+                'Containerfile',
+                '-t',
+                'new-image',
+                '--ssh',
+                'id1=test_dirname/./test1',
+                '--no-cache',
+                '--pull-always',
+                '.',
+            ],
+        )
+
+    @mock.patch.dict(os.environ, {"HOME": "/home/user"}, clear=True)
+    def test_build_ssh_path_home_dir(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt['build']['ssh'] = ["id1=~/test1"]
+        args = get_minimal_args()
+
+        args = container_to_build_args(c, cnt, args, lambda path: True)
+        self.assertEqual(
+            args,
+            [
+                '-f',
+                'Containerfile',
+                '-t',
+                'new-image',
+                '--ssh',
+                'id1=/home/user/test1',
+                '--no-cache',
+                '--pull-always',
+                '.',
+            ],
+        )
+
+    def test_build_ssh_map(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt['build']['ssh'] = {"id1": "test1", "id2": "test2"}
+        args = get_minimal_args()
+
+        args = container_to_build_args(c, cnt, args, lambda path: True)
+        self.assertEqual(
+            args,
+            [
+                '-f',
+                'Containerfile',
+                '-t',
+                'new-image',
+                '--ssh',
+                'id1=test_dirname/test1',
+                '--ssh',
+                'id2=test_dirname/test2',
+                '--no-cache',
+                '--pull-always',
+                '.',
+            ],
+        )
+
+    def test_build_ssh_array(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt['build']['ssh'] = ['id1=test1', 'id2=test2']
+        args = get_minimal_args()
+
+        args = container_to_build_args(c, cnt, args, lambda path: True)
+        self.assertEqual(
+            args,
+            [
+                '-f',
+                'Containerfile',
+                '-t',
+                'new-image',
+                '--ssh',
+                'id1=test_dirname/test1',
+                '--ssh',
+                'id2=test_dirname/test2',
+                '--no-cache',
+                '--pull-always',
+                '.',
+            ],
+        )
