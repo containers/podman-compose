@@ -27,6 +27,14 @@ services:
 
 For explanations of these extensions, please refer to the [Podman Documentation](https://docs.podman.io/).
 
+## Secrets
+```yml
+secrets:
+  custom-secret:
+    x-podman.relabel: z
+```
+For explanations of these extensions, please refer to the [PR discussion](https://github.com/containers/podman-compose/pull/1210).
+
 ## Network management
 
 The following extension keys are available under network configuration:

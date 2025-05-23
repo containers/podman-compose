@@ -577,7 +577,7 @@ def get_secret_args(compose, cnt, secret, podman_is_building=False):
     declared_secret = compose.declared_secrets[secret_name]
 
     source_file = declared_secret.get("file")
-    secret_relabel = declared_secret.get("relabel")
+    secret_relabel = declared_secret.get("x-podman.relabel")
     dest_file = ""
     secret_opts = ""
 

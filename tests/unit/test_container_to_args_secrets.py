@@ -307,7 +307,7 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             {
                 "file_secret": {
                     "file": "./my_secret",
-                    "relabel": "Z"
+                    "x-podman:relabel": "Z"
                 }
             },
             "file_secret",
