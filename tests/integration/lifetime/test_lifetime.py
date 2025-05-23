@@ -2,6 +2,7 @@
 
 
 import os
+import time
 import unittest
 
 from parameterized import parameterized
@@ -85,15 +86,14 @@ class TestLifetime(unittest.TestCase, RunSubprocessMixin):
                 "container1",
             ])
 
-            for _ in range(0, 3):
-                self.run_subprocess_assert_returncode([
-                    podman_compose_path(),
-                    "-f",
-                    compose_path,
-                    "up",
-                    "-d",
-                    "container2",
-                ])
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_path,
+                "up",
+                "-d",
+                "container2",
+            ])
 
             out, _ = self.run_subprocess_assert_returncode([
                 podman_compose_path(),
@@ -105,6 +105,7 @@ class TestLifetime(unittest.TestCase, RunSubprocessMixin):
 
             self.assertEqual(out, b"test1\n")
 
+            # "restart: always" keeps restarting container until its removal
             out, _ = self.run_subprocess_assert_returncode([
                 podman_compose_path(),
                 "-f",
@@ -113,13 +114,22 @@ class TestLifetime(unittest.TestCase, RunSubprocessMixin):
                 "container2",
             ])
 
-            # BUG: container should be started 3 times, not 4.
-            self.assertEqual(out, b"test2\n" * 4)
-
+            if not out.startswith(b"test2\ntest2"):
+                time.sleep(1)
+                out, _ = self.run_subprocess_assert_returncode([
+                    podman_compose_path(),
+                    "-f",
+                    compose_path,
+                    "logs",
+                    "container2",
+                ])
+            self.assertTrue(out.startswith(b"test2\ntest2"))
         finally:
             out, _ = self.run_subprocess_assert_returncode([
                 podman_compose_path(),
                 "-f",
                 compose_path,
                 "down",
+                "-t",
+                "0",
             ])
