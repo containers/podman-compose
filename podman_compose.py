@@ -456,9 +456,7 @@ async def assert_volume(compose: PodmanCompose, mount_dict: dict[str, Any]) -> N
         _ = (await compose.podman.output([], "volume", ["inspect", vol_name])).decode("utf-8")
 
 
-def mount_desc_to_mount_args(
-    compose: PodmanCompose, mount_desc: dict[str, Any], srv_name: str, cnt_name: str
-) -> str:  # pylint: disable=unused-argument
+def mount_desc_to_mount_args(mount_desc: dict[str, Any]) -> str:
     mount_type: str | None = mount_desc.get("type")
     assert mount_type is not None
     vol = mount_desc.get("_vol") if mount_type == "volume" else None
@@ -522,9 +520,7 @@ def container_to_ulimit_build_args(cnt: dict[str, Any], podman_args: list[str]) 
         ulimit_to_ulimit_args(build.get("ulimits", []), podman_args)
 
 
-def mount_desc_to_volume_args(
-    compose: PodmanCompose, mount_desc: dict[str, Any], srv_name: str, cnt_name: str
-) -> str:  # pylint: disable=unused-argument
+def mount_desc_to_volume_args(mount_desc: dict[str, Any], srv_name: str) -> str:
     mount_type = mount_desc["type"]
     if mount_type not in ("bind", "volume"):
         raise ValueError("unknown mount type:" + mount_type)
@@ -596,9 +592,9 @@ async def get_mount_args(
             if opts:
                 args += ":" + ",".join(opts)
             return ["--tmpfs", args]
-        args = mount_desc_to_volume_args(compose, volume, srv_name, cnt["name"])
+        args = mount_desc_to_volume_args(volume, srv_name)
         return ["-v", args]
-    args = mount_desc_to_mount_args(compose, volume, srv_name, cnt["name"])
+    args = mount_desc_to_mount_args(volume)
     return ["--mount", args]
 
 
@@ -2568,7 +2564,10 @@ def is_local(container: dict) -> bool:
 
 
 @cmd_run(podman_compose, "wait", "wait running containers to stop")
-async def compose_wait(compose: PodmanCompose, args: argparse.Namespace) -> None:
+async def compose_wait(
+    compose: PodmanCompose,
+    args: argparse.Namespace,  # pylint: disable=unused-argument
+) -> None:
     containers = [cnt["name"] for cnt in compose.containers]
     cmd_args = ["--"]
     cmd_args.extend(containers)
