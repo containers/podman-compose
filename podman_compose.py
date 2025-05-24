@@ -455,13 +455,13 @@ def mount_desc_to_mount_args(compose, mount_desc, srv_name, cnt_name):  # pylint
         selinux = bind_opts.get("selinux")
         if selinux is not None:
             opts.append(selinux)
-    opts = ",".join(opts)
+    opts_str = ",".join(opts)
     if mount_type == "bind":
-        return f"type=bind,source={source},destination={target},{opts}".rstrip(",")
+        return f"type=bind,source={source},destination={target},{opts_str}".rstrip(",")
     if mount_type == "volume":
-        return f"type=volume,source={source},destination={target},{opts}".rstrip(",")
+        return f"type=volume,source={source},destination={target},{opts_str}".rstrip(",")
     if mount_type == "tmpfs":
-        return f"type=tmpfs,destination={target},{opts}".rstrip(",")
+        return f"type=tmpfs,destination={target},{opts_str}".rstrip(",")
     raise ValueError("unknown mount type:" + mount_type)
 
 
@@ -2002,9 +2002,9 @@ class PodmanCompose:
     def _parse_compose_file(self):
         args = self.global_args
         # cmd = args.command
-        dirname = os.environ.get("COMPOSE_PROJECT_DIR")
-        if dirname and os.path.isdir(dirname):
-            os.chdir(dirname)
+        project_dir = os.environ.get("COMPOSE_PROJECT_DIR")
+        if project_dir and os.path.isdir(project_dir):
+            os.chdir(project_dir)
         pathsep = os.environ.get("COMPOSE_PATH_SEPARATOR", os.pathsep)
         if not args.file:
             default_str = os.environ.get("COMPOSE_FILE")
@@ -2156,8 +2156,6 @@ class PodmanCompose:
         service_names = [name for _, name in service_names]
         resolve_extends(services, service_names, self.environ)
         flat_deps(services)
-        service_names = sorted([(len(srv["_deps"]), name) for name, srv in services.items()])
-        service_names = [name for _, name in service_names]
         nets = compose.get("networks", {})
         if not nets:
             nets["default"] = None
@@ -2506,7 +2504,7 @@ async def compose_wait(compose, args):  # pylint: disable=unused-argument
     containers = [cnt["name"] for cnt in compose.containers]
     cmd_args = ["--"]
     cmd_args.extend(containers)
-    await compose.podman.exec([], "wait", cmd_args)
+    compose.podman.exec([], "wait", cmd_args)
 
 
 @cmd_run(podman_compose, "systemd")
@@ -2676,7 +2674,7 @@ def container_to_build_args(compose, cnt, args, path_exists, cleanup_callbacks=N
                 os.remove(dockerfile)
 
         if cleanup_callbacks is not None:
-            list.append(cleanup_callbacks, cleanup_temp_dockfile)
+            cleanup_callbacks.append(cleanup_temp_dockfile)
 
     build_args = []
 
@@ -3046,17 +3044,16 @@ async def compose_up(compose: PodmanCompose, args):
                 for t in tasks:
                     if not _task_cancelled(t):
                         t.cancel()
-            t: Task
+            t_: Task
             exiting = True
             if first_failed_task:
                 # Matches docker-compose behaviour, where the exit code of the task that triggered
                 # the cancellation is always propagated when aborting on failure
                 exit_code = first_failed_task.result()
             else:
-                for t in done:
-                    if t.get_name() == exit_code_from:
-                        exit_code = t.result()
-
+                for t_ in done:
+                    if t_.get_name() == exit_code_from:
+                        exit_code = t_.result()
     return exit_code
 
 
