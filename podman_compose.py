@@ -1838,11 +1838,11 @@ def rec_merge_one(target: dict[str, Any], source: dict[str, Any]) -> dict[str, A
             continue
         if key not in source:
             if isinstance(value, ResetTag):
-                log("INFO: Unneeded !reset found for [{key}]")
+                log.info("Unneeded !reset found for [%s]", key)
                 remove.add(key)
 
             if isinstance(value, OverrideTag):
-                log("INFO: Unneeded !override found for [{key}] with value '{value}'")
+                log.info("Unneeded !override found for [%s] with value '%s'", key, value)
                 target[key] = clone(value.value)
 
             continue
