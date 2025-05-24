@@ -9,6 +9,7 @@ Tests the podman compose up and down commands used to create and remove services
 # pylint: disable=redefined-outer-name
 import os
 import unittest
+from typing import List
 
 from parameterized import parameterized
 
@@ -17,13 +18,13 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def profile_compose_file():
+def profile_compose_file() -> str:
     """ "Returns the path to the `profile` compose file used for this test module"""
     return os.path.join(test_path(), "profile", "docker-compose.yml")
 
 
 class TestUpDown(unittest.TestCase, RunSubprocessMixin):
-    def tearDown(self):
+    def tearDown(self) -> None:
         """
         Ensures that the services within the "profile compose file" are removed between each test
         case.
@@ -60,7 +61,7 @@ class TestUpDown(unittest.TestCase, RunSubprocessMixin):
             ),
         ],
     )
-    def test_up(self, profiles, expected_services):
+    def test_up(self, profiles: List[str], expected_services: dict) -> None:
         up_cmd = [
             "coverage",
             "run",

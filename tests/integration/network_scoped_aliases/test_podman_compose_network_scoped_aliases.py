@@ -11,18 +11,18 @@ from tests.integration.test_utils import test_path
 
 class TestPodmanComposeNetworkScopedAliases(RunSubprocessMixin, unittest.TestCase):
     @staticmethod
-    def compose_file():
+    def compose_file() -> str:
         """Returns the path to the compose file used for this test module"""
         return os.path.join(test_path(), "network_scoped_aliases", "docker-compose.yaml")
 
-    def test_network_scoped_aliases(self):
+    def test_network_scoped_aliases(self) -> None:
         try:
             self.up()
             self.verify()
         finally:
             self.down()
 
-    def up(self):
+    def up(self) -> None:
         up_cmd = [
             "coverage",
             "run",
@@ -36,7 +36,7 @@ class TestPodmanComposeNetworkScopedAliases(RunSubprocessMixin, unittest.TestCas
 
         self.run_subprocess_assert_returncode(up_cmd)
 
-    def down(self):
+    def down(self) -> None:
         down_cmd = [
             "coverage",
             "run",
@@ -48,7 +48,7 @@ class TestPodmanComposeNetworkScopedAliases(RunSubprocessMixin, unittest.TestCas
         ]
         self.run_subprocess(down_cmd)
 
-    def verify(self):
+    def verify(self) -> None:
         expected_results = [
             ("utils-net0", "web1", ["172.19.3.11"]),
             ("utils-net0", "secure-web", ["172.19.3.11"]),
@@ -72,7 +72,7 @@ class TestPodmanComposeNetworkScopedAliases(RunSubprocessMixin, unittest.TestCas
             addresses = self.parse_dnslookup(out.decode())
             self.assertEqual(addresses, expected_result)
 
-    def parse_dnslookup(self, output):
+    def parse_dnslookup(self, output: str) -> list[str]:
         lines = output.splitlines()
         addresses = []
         for line in lines:

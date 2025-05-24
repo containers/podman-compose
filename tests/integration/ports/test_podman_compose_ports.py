@@ -15,7 +15,7 @@ from tests.integration.test_utils import test_path
 
 
 class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
-    def test_up_with_ports(self):
+    def test_up_with_ports(self) -> None:
         up_cmd = [
             "coverage",
             "run",

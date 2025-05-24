@@ -8,12 +8,12 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def compose_yaml_path():
+def compose_yaml_path() -> str:
     return os.path.join(os.path.join(test_path(), "extends"), "docker-compose.yaml")
 
 
 class TestComposeExteds(unittest.TestCase, RunSubprocessMixin):
-    def test_extends_service_launch_echo(self):
+    def test_extends_service_launch_echo(self) -> None:
         try:
             self.run_subprocess_assert_returncode([
                 podman_compose_path(),
@@ -38,7 +38,7 @@ class TestComposeExteds(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
-    def test_extends_service_launch_echo1(self):
+    def test_extends_service_launch_echo1(self) -> None:
         try:
             self.run_subprocess_assert_returncode([
                 podman_compose_path(),
@@ -63,7 +63,7 @@ class TestComposeExteds(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
-    def test_extends_service_launch_env1(self):
+    def test_extends_service_launch_env1(self) -> None:
         try:
             self.run_subprocess_assert_returncode([
                 podman_compose_path(),

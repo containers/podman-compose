@@ -16,7 +16,7 @@ from tests.integration.test_utils import test_path
 
 
 class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
-    def test_down_with_vols(self):
+    def test_down_with_vols(self) -> None:
         up_cmd = [
             "coverage",
             "run",

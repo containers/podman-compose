@@ -7,23 +7,23 @@ import unittest
 from tests.integration.test_utils import RunSubprocessMixin
 
 
-def base_path():
+def base_path() -> str:
     """Returns the base path for the project"""
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 
-def test_path():
+def test_path() -> str:
     """Returns the path to the tests directory"""
     return os.path.join(base_path(), "tests/integration")
 
 
-def podman_compose_path():
+def podman_compose_path() -> str:
     """Returns the path to the podman compose script"""
     return os.path.join(base_path(), "podman_compose.py")
 
 
 class TestPodmanComposePodArgs(unittest.TestCase, RunSubprocessMixin):
-    def load_pod_info(self, pod_name):
+    def load_pod_info(self, pod_name: str) -> dict:
         output, _ = self.run_subprocess_assert_returncode([
             "podman",
             "pod",
@@ -37,7 +37,7 @@ class TestPodmanComposePodArgs(unittest.TestCase, RunSubprocessMixin):
             return pod_info[0]
         return pod_info
 
-    def run_pod_args_test(self, config, args, expected):
+    def run_pod_args_test(self, config: str, args: list, expected: list) -> None:
         """
         Helper to run podman up with a docker-compose.yml config, additional
         (--pod-args) arguments and compare the CreateCommand of the resulting
@@ -78,7 +78,7 @@ class TestPodmanComposePodArgs(unittest.TestCase, RunSubprocessMixin):
             command_rm_pod = ["podman", "pod", "rm", pod_name]
             self.run_subprocess_assert_returncode(command_rm_pod)
 
-    def test_x_podman_pod_args_unset_unset(self):
+    def test_x_podman_pod_args_unset_unset(self) -> None:
         """
         Test that podman-compose will use the default pod-args when unset in
         both docker-compose.yml and command line
@@ -89,7 +89,7 @@ class TestPodmanComposePodArgs(unittest.TestCase, RunSubprocessMixin):
             ["--infra=false", "--share="],
         )
 
-    def test_x_podman_pod_args_unset_empty(self):
+    def test_x_podman_pod_args_unset_empty(self) -> None:
         """
         Test that podman-compose will use empty pod-args when unset in
         docker-compose.yml and passing an empty value on the command line
@@ -100,7 +100,7 @@ class TestPodmanComposePodArgs(unittest.TestCase, RunSubprocessMixin):
             [],
         )
 
-    def test_x_podman_pod_args_unset_set(self):
+    def test_x_podman_pod_args_unset_set(self) -> None:
         """
         Test that podman-compose will use the passed pod-args when unset in
         docker-compose.yml and passing a non-empty value on the command line
@@ -111,7 +111,7 @@ class TestPodmanComposePodArgs(unittest.TestCase, RunSubprocessMixin):
             ["--infra=false", "--share=", "--cpus=1"],
         )
 
-    def test_x_podman_pod_args_empty_unset(self):
+    def test_x_podman_pod_args_empty_unset(self) -> None:
         """
         Test that podman-compose will use empty pod-args when set to an
         empty value in docker-compose.yml and unset on the command line
@@ -122,7 +122,7 @@ class TestPodmanComposePodArgs(unittest.TestCase, RunSubprocessMixin):
             [],
         )
 
-    def test_x_podman_pod_args_empty_empty(self):
+    def test_x_podman_pod_args_empty_empty(self) -> None:
         """
         Test that podman-compose will use empty pod-args when set to an
         empty value in both docker-compose.yml and command line
@@ -133,7 +133,7 @@ class TestPodmanComposePodArgs(unittest.TestCase, RunSubprocessMixin):
             [],
         )
 
-    def test_x_podman_pod_args_empty_set(self):
+    def test_x_podman_pod_args_empty_set(self) -> None:
         """
         Test that podman-compose will use the passed pod-args when set to an
         empty value in docker-compose.yml and passing a non-empty value on the
@@ -145,7 +145,7 @@ class TestPodmanComposePodArgs(unittest.TestCase, RunSubprocessMixin):
             ["--infra=false", "--share=", "--cpus=1"],
         )
 
-    def test_x_podman_pod_args_set_unset(self):
+    def test_x_podman_pod_args_set_unset(self) -> None:
         """
         Test that podman-compose will use the set pod-args when set to a
         non-empty value in docker-compose.yml and unset on the command line
@@ -156,7 +156,7 @@ class TestPodmanComposePodArgs(unittest.TestCase, RunSubprocessMixin):
             ["--infra=false", "--share=", "--cpus=2"],
         )
 
-    def test_x_podman_pod_args_set_empty(self):
+    def test_x_podman_pod_args_set_empty(self) -> None:
         """
         Test that podman-compose will use empty pod-args when set to a
         non-empty value in docker-compose.yml and passing an empty value on
@@ -168,7 +168,7 @@ class TestPodmanComposePodArgs(unittest.TestCase, RunSubprocessMixin):
             [],
         )
 
-    def test_x_podman_pod_args_set_set(self):
+    def test_x_podman_pod_args_set_set(self) -> None:
         """
         Test that podman-compose will use the passed pod-args when set to a
         non-empty value in both docker-compose.yml and command line

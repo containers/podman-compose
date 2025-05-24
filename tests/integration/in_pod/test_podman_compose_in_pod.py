@@ -6,26 +6,26 @@ import unittest
 from tests.integration.test_utils import RunSubprocessMixin
 
 
-def base_path():
+def base_path() -> str:
     """Returns the base path for the project"""
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 
-def test_path():
+def test_path() -> str:
     """Returns the path to the tests directory"""
     return os.path.join(base_path(), "tests/integration")
 
 
-def podman_compose_path():
+def podman_compose_path() -> str:
     """Returns the path to the podman compose script"""
     return os.path.join(base_path(), "podman_compose.py")
 
 
-def is_root():
+def is_root() -> bool:
     return os.geteuid() == 0
 
 
-def failure_exitcode_when_rootful():
+def failure_exitcode_when_rootful() -> int:
     if is_root():
         return 125
     return 0
@@ -37,7 +37,7 @@ def failure_exitcode_when_rootful():
 # Test all combinations of command line argument in_pod and compose file argument in_pod.
 class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
     # compose file provides x-podman in_pod=false
-    def test_x_podman_in_pod_false_command_line_in_pod_not_exists(self):
+    def test_x_podman_in_pod_false_command_line_in_pod_not_exists(self) -> None:
         """
         Test that podman-compose will not create a pod, when x-podman in_pod=false and command line
         does not provide this option
@@ -82,7 +82,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             # throws an error, can not actually find this pod because it was not created
             self.run_subprocess_assert_returncode(command_rm_pod, expected_returncode=1)
 
-    def test_x_podman_in_pod_false_command_line_in_pod_true(self):
+    def test_x_podman_in_pod_false_command_line_in_pod_true(self) -> None:
         """
         Test that podman-compose does not allow pod creating even with command line in_pod=True
         when --userns and --pod are set together: throws an error
@@ -115,7 +115,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             # been created) and have expected_returncode=1 (see FIXME above)
             self.run_subprocess_assert_returncode(command_rm_pod)
 
-    def test_x_podman_in_pod_false_command_line_in_pod_false(self):
+    def test_x_podman_in_pod_false_command_line_in_pod_false(self) -> None:
         """
         Test that podman-compose will not create a pod as command line sets in_pod=False
         """
@@ -160,7 +160,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             # can not actually find this pod because it was not created
             self.run_subprocess_assert_returncode(command_rm_pod, 1)
 
-    def test_x_podman_in_pod_false_command_line_in_pod_empty_string(self):
+    def test_x_podman_in_pod_false_command_line_in_pod_empty_string(self) -> None:
         """
         Test that podman-compose will not create a pod, when x-podman in_pod=false and command line
         command line in_pod=""
@@ -207,7 +207,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             self.run_subprocess_assert_returncode(command_rm_pod, 1)
 
     # compose file provides x-podman in_pod=true
-    def test_x_podman_in_pod_true_command_line_in_pod_not_exists(self):
+    def test_x_podman_in_pod_true_command_line_in_pod_not_exists(self) -> None:
         """
         Test that podman-compose does not allow pod creating when --userns and --pod are set
         together even when x-podman in_pod=true: throws an error
@@ -240,7 +240,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             # created) and have expected_returncode=1 (see FIXME above)
             self.run_subprocess_assert_returncode(command_rm_pod)
 
-    def test_x_podman_in_pod_true_command_line_in_pod_true(self):
+    def test_x_podman_in_pod_true_command_line_in_pod_true(self) -> None:
         """
         Test that podman-compose does not allow pod creating when --userns and --pod are set
         together even when x-podman in_pod=true and and command line in_pod=True: throws an error
@@ -274,7 +274,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             # been created) and have expected_returncode=1 (see FIXME above)
             self.run_subprocess_assert_returncode(command_rm_pod)
 
-    def test_x_podman_in_pod_true_command_line_in_pod_false(self):
+    def test_x_podman_in_pod_true_command_line_in_pod_false(self) -> None:
         """
         Test that podman-compose will not create a pod as command line sets in_pod=False
         """
@@ -319,7 +319,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             # can not actually find this pod because it was not created
             self.run_subprocess_assert_returncode(command_rm_pod, 1)
 
-    def test_x_podman_in_pod_true_command_line_in_pod_empty_string(self):
+    def test_x_podman_in_pod_true_command_line_in_pod_empty_string(self) -> None:
         """
         Test that podman-compose does not allow pod creating when --userns and --pod are set
         together even when x-podman in_pod=true and command line in_pod="": throws an error
@@ -354,7 +354,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             self.run_subprocess_assert_returncode(command_rm_pod)
 
     # compose file does not provide x-podman in_pod
-    def test_x_podman_in_pod_not_exists_command_line_in_pod_not_exists(self):
+    def test_x_podman_in_pod_not_exists_command_line_in_pod_not_exists(self) -> None:
         """
         Test that podman-compose does not allow pod creating when --userns and --pod are set
         together: throws an error
@@ -387,7 +387,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             # created) and have expected_returncode=1 (see FIXME above)
             self.run_subprocess_assert_returncode(command_rm_pod)
 
-    def test_x_podman_in_pod_not_exists_command_line_in_pod_true(self):
+    def test_x_podman_in_pod_not_exists_command_line_in_pod_true(self) -> None:
         """
         Test that podman-compose does not allow pod creating when --userns and --pod are set
         together even when x-podman in_pod=true: throws an error
@@ -421,7 +421,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             # been created) and have expected_returncode=1 (see FIXME above)
             self.run_subprocess_assert_returncode(command_rm_pod)
 
-    def test_x_podman_in_pod_not_exists_command_line_in_pod_false(self):
+    def test_x_podman_in_pod_not_exists_command_line_in_pod_false(self) -> None:
         """
         Test that podman-compose will not create a pod as command line sets in_pod=False
         """
@@ -467,7 +467,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             # can not actually find this pod because it was not created
             self.run_subprocess_assert_returncode(command_rm_pod, 1)
 
-    def test_x_podman_in_pod_custom_name(self):
+    def test_x_podman_in_pod_custom_name(self) -> None:
         """
         Test that podman-compose will create a pod with a custom name
         """
@@ -494,7 +494,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             command_rm_pod = ["podman", "pod", "rm", "custom_test_pod_name"]
             self.run_subprocess_assert_returncode(command_rm_pod)
 
-    def test_x_podman_in_pod_not_exists_command_line_in_pod_empty_string(self):
+    def test_x_podman_in_pod_not_exists_command_line_in_pod_empty_string(self) -> None:
         """
         Test that podman-compose does not allow pod creating when --userns and --pod are set
         together: throws an error

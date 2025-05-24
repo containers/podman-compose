@@ -12,7 +12,7 @@ from tests.integration.test_utils import test_path
 
 
 class TestLifetime(unittest.TestCase, RunSubprocessMixin):
-    def test_up_single_container(self):
+    def test_up_single_container(self) -> None:
         """Podman compose up should be able to start containers one after another"""
 
         compose_path = os.path.join(test_path(), "lifetime/up_single_container/docker-compose.yml")
@@ -68,7 +68,7 @@ class TestLifetime(unittest.TestCase, RunSubprocessMixin):
         ("no_ports", "up_single_container_many_times"),
         ("with_ports", "up_single_container_many_times_with_ports"),
     ])
-    def test_up_single_container_many_times(self, name, subdir):
+    def test_up_single_container_many_times(self, name: str, subdir: str) -> None:
         """Podman compose up should be able to start a container many times after it finishes
         running.
         """

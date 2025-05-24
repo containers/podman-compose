@@ -8,7 +8,7 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def compose_yaml_path():
+def compose_yaml_path() -> str:
     return os.path.join(
         test_path(),
         "merge/reset_and_override_tags/reset_tag_attribute/docker-compose.yaml",
@@ -17,7 +17,7 @@ def compose_yaml_path():
 
 class TestComposeResetTagAttribute(unittest.TestCase, RunSubprocessMixin):
     # test if the attribute of the service is correctly reset
-    def test_reset_tag_attribute(self):
+    def test_reset_tag_attribute(self) -> None:
         reset_file = os.path.join(
             test_path(),
             "merge/reset_and_override_tags/reset_tag_attribute/docker-compose.reset_attribute.yaml",

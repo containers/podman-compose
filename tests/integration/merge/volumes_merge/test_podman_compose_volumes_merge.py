@@ -9,14 +9,14 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def compose_yaml_path(compose_name):
+def compose_yaml_path(compose_name: str) -> str:
     """ "Returns the path to the compose file used for this test module"""
     base_path = os.path.join(test_path(), "merge/volumes_merge/")
     return os.path.join(base_path, compose_name)
 
 
 class TestComposeVolumesMerge(unittest.TestCase, RunSubprocessMixin):
-    def test_volumes_merge(self):
+    def test_volumes_merge(self) -> None:
         # test if additional compose file overrides host path and access mode of a volume
         try:
             self.run_subprocess_assert_returncode([

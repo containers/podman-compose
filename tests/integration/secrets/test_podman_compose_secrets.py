@@ -10,7 +10,7 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def compose_yaml_path():
+def compose_yaml_path() -> str:
     return os.path.join(os.path.join(test_path(), "secrets"), "docker-compose.yaml")
 
 
@@ -22,12 +22,12 @@ class TestComposeNoSecrets(unittest.TestCase, RunSubprocessMixin):
         "podman_compose_test_secret_custom_name",
     ]
 
-    def setUp(self):
+    def setUp(self) -> None:
         for secret in self.created_secrets:
             p = Popen(["podman", "secret", "create", secret, "-"], stdin=PIPE)
             p.communicate(secret.encode('utf-8'))
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         for secret in self.created_secrets:
             self.run_subprocess_assert_returncode([
                 "podman",
@@ -37,7 +37,7 @@ class TestComposeNoSecrets(unittest.TestCase, RunSubprocessMixin):
             ])
 
     # test if secrets are saved and available in respective files of a container
-    def test_secrets(self):
+    def test_secrets(self) -> None:
         try:
             _, error, _ = self.run_subprocess(
                 [

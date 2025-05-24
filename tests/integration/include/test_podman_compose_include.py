@@ -7,7 +7,7 @@ from tests.integration.test_utils import RunSubprocessMixin
 
 
 class TestPodmanComposeInclude(unittest.TestCase, RunSubprocessMixin):
-    def test_podman_compose_include(self):
+    def test_podman_compose_include(self) -> None:
         """
         Test that podman-compose can execute podman-compose -f <file> up with include
         :return:

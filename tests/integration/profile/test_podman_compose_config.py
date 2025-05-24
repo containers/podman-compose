@@ -17,13 +17,13 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def profile_compose_file():
+def profile_compose_file() -> str:
     """ "Returns the path to the `profile` compose file used for this test module"""
     return os.path.join(test_path(), "profile", "docker-compose.yml")
 
 
 class TestComposeConfig(unittest.TestCase, RunSubprocessMixin):
-    def test_config_no_profiles(self):
+    def test_config_no_profiles(self) -> None:
         """
         Tests podman-compose config command without profile enablement.
         """
@@ -59,7 +59,7 @@ class TestComposeConfig(unittest.TestCase, RunSubprocessMixin):
             ),
         ],
     )
-    def test_config_profiles(self, profiles, expected_services):
+    def test_config_profiles(self, profiles: list, expected_services: dict) -> None:
         """
         Tests podman-compose
         :param profiles: The enabled profiles for the parameterized test.
@@ -81,7 +81,7 @@ class TestComposeConfig(unittest.TestCase, RunSubprocessMixin):
 
         self.assertEqual(expected_services, actual_services)
 
-    def test_config_quiet(self):
+    def test_config_quiet(self) -> None:
         """
         Tests podman-compose config command with the --quiet flag.
         """

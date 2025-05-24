@@ -9,12 +9,12 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def compose_yaml_path(suffix=""):
+def compose_yaml_path(suffix: str = "") -> str:
     return os.path.join(os.path.join(test_path(), "deps"), f"docker-compose{suffix}.yaml")
 
 
 class TestComposeBaseDeps(unittest.TestCase, RunSubprocessMixin):
-    def test_deps(self):
+    def test_deps(self) -> None:
         try:
             output, _ = self.run_subprocess_assert_returncode([
                 podman_compose_path(),
@@ -37,7 +37,7 @@ class TestComposeBaseDeps(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
-    def test_run_nodeps(self):
+    def test_run_nodeps(self) -> None:
         try:
             output, _ = self.run_subprocess_assert_returncode([
                 podman_compose_path(),
@@ -62,7 +62,7 @@ class TestComposeBaseDeps(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
-    def test_up_nodeps(self):
+    def test_up_nodeps(self) -> None:
         try:
             self.run_subprocess_assert_returncode([
                 podman_compose_path(),
@@ -89,7 +89,7 @@ class TestComposeBaseDeps(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
-    def test_podman_compose_run(self):
+    def test_podman_compose_run(self) -> None:
         """
         This will test depends_on as well
         """
@@ -143,7 +143,7 @@ class TestComposeBaseDeps(unittest.TestCase, RunSubprocessMixin):
 
 
 class TestComposeConditionalDeps(unittest.TestCase, RunSubprocessMixin):
-    def test_deps_succeeds(self):
+    def test_deps_succeeds(self) -> None:
         suffix = "-conditional-succeeds"
         try:
             output, _ = self.run_subprocess_assert_returncode([
@@ -167,7 +167,7 @@ class TestComposeConditionalDeps(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
-    def test_deps_fails(self):
+    def test_deps_fails(self) -> None:
         suffix = "-conditional-fails"
         try:
             output, _ = self.run_subprocess_assert_returncode([
@@ -188,10 +188,10 @@ class TestComposeConditionalDeps(unittest.TestCase, RunSubprocessMixin):
 
 
 class TestComposeConditionalDepsHealthy(unittest.TestCase, PodmanAwareRunSubprocessMixin):
-    def setUp(self):
+    def setUp(self) -> None:
         self.podman_version = self.retrieve_podman_version()
 
-    def test_up_deps_healthy(self):
+    def test_up_deps_healthy(self) -> None:
         suffix = "-conditional-healthy"
         try:
             self.run_subprocess_assert_returncode([
@@ -261,6 +261,6 @@ class TestComposeConditionalDepsHealthy(unittest.TestCase, PodmanAwareRunSubproc
             self.run_subprocess_assert_returncode([
                 podman_compose_path(),
                 "-f",
-                compose_yaml_path(),
+                compose_yaml_path(suffix),
                 "down",
             ])

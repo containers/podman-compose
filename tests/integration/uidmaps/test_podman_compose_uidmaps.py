@@ -10,7 +10,7 @@ from tests.integration.test_utils import test_path
 
 
 class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
-    def test_uidmaps(self):
+    def test_uidmaps(self) -> None:
         compose_path = os.path.join(test_path(), "uidmaps", "docker-compose.yml")
         try:
             self.run_subprocess_assert_returncode([
