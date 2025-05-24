@@ -10,10 +10,10 @@ from tests.integration.test_utils import test_path
 
 
 class TestPodmanComposeNetworkInterfaceName(RunSubprocessMixin, unittest.TestCase):
-    def compose_file(self):
+    def compose_file(self) -> str:
         return os.path.join(test_path(), "network_interface_name", "docker-compose.yml")
 
-    def up(self):
+    def up(self) -> None:
         up_cmd = [
             "coverage",
             "run",
@@ -26,7 +26,7 @@ class TestPodmanComposeNetworkInterfaceName(RunSubprocessMixin, unittest.TestCas
         ]
         self.run_subprocess_assert_returncode(up_cmd)
 
-    def down(self):
+    def down(self) -> None:
         down_cmd = [
             "coverage",
             "run",
@@ -38,7 +38,7 @@ class TestPodmanComposeNetworkInterfaceName(RunSubprocessMixin, unittest.TestCas
         ]
         self.run_subprocess(down_cmd)
 
-    def test_interface_name(self):
+    def test_interface_name(self) -> None:
         try:
             self.up()
 

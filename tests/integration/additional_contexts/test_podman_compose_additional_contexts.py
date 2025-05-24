@@ -11,13 +11,13 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def compose_yaml_path():
+def compose_yaml_path() -> str:
     """ "Returns the path to the compose file used for this test module"""
     return os.path.join(test_path(), "additional_contexts", "project")
 
 
 class TestComposeBuildAdditionalContexts(unittest.TestCase):
-    def test_build_additional_context(self):
+    def test_build_additional_context(self) -> None:
         """podman build should receive additional contexts as --build-context
 
         See additional_context/project/docker-compose.yaml for context paths

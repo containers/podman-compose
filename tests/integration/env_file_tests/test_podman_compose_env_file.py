@@ -8,12 +8,12 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def compose_base_path():
+def compose_base_path() -> str:
     return os.path.join(test_path(), "env_file_tests")
 
 
 class TestComposeEnvFile(unittest.TestCase, RunSubprocessMixin):
-    def test_path_env_file_inline(self):
+    def test_path_env_file_inline(self) -> None:
         # Test taking env variable value directly from env-file when its path is inline path
         base_path = compose_base_path()
         path_compose_file = os.path.join(base_path, "project/container-compose.yaml")
@@ -42,7 +42,7 @@ class TestComposeEnvFile(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
-    def test_path_env_file_flat_in_compose_file(self):
+    def test_path_env_file_flat_in_compose_file(self) -> None:
         # Test taking env variable value from env-file/project-1.env which was declared in
         # compose file's env_file
         base_path = compose_base_path()
@@ -74,7 +74,7 @@ class TestComposeEnvFile(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
-    def test_path_env_file_obj_in_compose_file(self):
+    def test_path_env_file_obj_in_compose_file(self) -> None:
         # take variable value from env-file project-1.env which was declared in compose
         # file's env_file by -path: ...
         base_path = compose_base_path()
@@ -106,7 +106,7 @@ class TestComposeEnvFile(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
-    def test_exists_optional_env_file_path_in_compose_file(self):
+    def test_exists_optional_env_file_path_in_compose_file(self) -> None:
         # test taking env variable values from several env-files when one of them is optional
         # and exists
         base_path = compose_base_path()
@@ -139,7 +139,7 @@ class TestComposeEnvFile(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
-    def test_missing_optional_env_file_path_in_compose_file(self):
+    def test_missing_optional_env_file_path_in_compose_file(self) -> None:
         # test taking env variable values from several env-files when one of them is optional and
         # is missing (silently skip it)
         base_path = compose_base_path()
@@ -173,7 +173,7 @@ class TestComposeEnvFile(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
-    def test_var_value_inline_overrides_env_file_path_inline(self):
+    def test_var_value_inline_overrides_env_file_path_inline(self) -> None:
         # Test overriding env value when value is declared in inline command
         base_path = compose_base_path()
         path_compose_file = os.path.join(base_path, "project/container-compose.yaml")
@@ -204,7 +204,7 @@ class TestComposeEnvFile(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
-    def test_taking_env_variables_from_env_files_from_different_directories(self):
+    def test_taking_env_variables_from_env_files_from_different_directories(self) -> None:
         # FIXME: It is not clear what this test actually tests, but from README.md it looks like:
         # Test overriding env values by directory env-files-tests/.env file values
         # and only take value from project/.env, when it does not exist in env-files-tests/.env

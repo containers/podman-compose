@@ -8,12 +8,12 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def compose_yaml_path():
+def compose_yaml_path() -> str:
     return os.path.join(os.path.join(test_path(), "exit_from"), "docker-compose.yaml")
 
 
 class TestComposeExitFrom(unittest.TestCase, RunSubprocessMixin):
-    def test_exit_code_sh1(self):
+    def test_exit_code_sh1(self) -> None:
         try:
             self.run_subprocess_assert_returncode(
                 [
@@ -33,7 +33,7 @@ class TestComposeExitFrom(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
-    def test_exit_code_sh2(self):
+    def test_exit_code_sh2(self) -> None:
         try:
             self.run_subprocess_assert_returncode(
                 [
@@ -53,7 +53,7 @@ class TestComposeExitFrom(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
-    def test_podman_compose_exit_from(self):
+    def test_podman_compose_exit_from(self) -> None:
         up_cmd = [
             "coverage",
             "run",

@@ -10,7 +10,7 @@ from tests.integration.test_utils import test_path
 
 
 class TestFilesystem(unittest.TestCase, RunSubprocessMixin):
-    def test_compose_symlink(self):
+    def test_compose_symlink(self) -> None:
         """The context of podman-compose.yml should come from the same directory as the file even
         if it is a symlink
         """

@@ -10,7 +10,7 @@ from tests.integration.test_utils import test_path
 
 
 class TestUlimit(unittest.TestCase, RunSubprocessMixin):
-    def test_ulimit(self):
+    def test_ulimit(self) -> None:
         compose_path = os.path.join(test_path(), "ulimit/docker-compose.yaml")
         try:
             self.run_subprocess_assert_returncode([

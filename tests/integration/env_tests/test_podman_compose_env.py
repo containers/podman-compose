@@ -8,14 +8,14 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def compose_yaml_path():
+def compose_yaml_path() -> str:
     return os.path.join(os.path.join(test_path(), "env_tests"), "container-compose.yml")
 
 
 class TestComposeEnv(unittest.TestCase, RunSubprocessMixin):
     """Test that inline environment variable overrides environment variable from compose file."""
 
-    def test_env(self):
+    def test_env(self) -> None:
         try:
             output, _ = self.run_subprocess_assert_returncode([
                 podman_compose_path(),
@@ -50,7 +50,7 @@ class TestComposeEnv(unittest.TestCase, RunSubprocessMixin):
     - https://github.com/compose-spec/compose-spec/blob/main/04-version-and-name.md
     """
 
-    def test_project_name(self):
+    def test_project_name(self) -> None:
         try:
             output, _ = self.run_subprocess_assert_returncode([
                 podman_compose_path(),
@@ -68,7 +68,7 @@ class TestComposeEnv(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
-    def test_project_name_override(self):
+    def test_project_name_override(self) -> None:
         try:
             output, _ = self.run_subprocess_assert_returncode([
                 podman_compose_path(),

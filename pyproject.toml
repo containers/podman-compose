@@ -53,3 +53,21 @@ quote-style = "preserve"
         directory = "misc"
         name = "Misc"
         showcontent = true
+
+[tool.mypy]
+python_version = "3.9"
+namespace_packages = true
+explicit_package_bases = true
+pretty = true
+warn_redundant_casts = true
+disallow_untyped_calls = false
+disallow_untyped_defs = true
+no_implicit_optional = true
+mypy_path = "$MYPY_CONFIG_FILE_DIR"
+exclude = "build"
+
+[[tool.mypy.overrides]]
+module = [
+    "parameterized.*",
+]
+ignore_missing_imports = true

@@ -10,7 +10,7 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def compose_yaml_path():
+def compose_yaml_path() -> str:
     return os.path.join(os.path.join(test_path(), "nets_test3"), "docker-compose.yml")
 
 
@@ -28,8 +28,12 @@ class TestComposeNetsTest3(unittest.TestCase, RunSubprocessMixin):
         ("nets_test3_web1_1", "alias21", b"", 1),
     ])
     def test_nets_test3(
-        self, container_name, nework_alias_name, expected_text, expected_returncode
-    ):
+        self,
+        container_name: str,
+        nework_alias_name: str,
+        expected_text: bytes,
+        expected_returncode: int,
+    ) -> None:
         try:
             self.run_subprocess_assert_returncode(
                 [

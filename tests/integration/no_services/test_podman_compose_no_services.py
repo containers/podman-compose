@@ -8,13 +8,13 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def compose_yaml_path():
+def compose_yaml_path() -> str:
     return os.path.join(os.path.join(test_path(), "no_services"), "docker-compose.yaml")
 
 
 class TestComposeNoServices(unittest.TestCase, RunSubprocessMixin):
     # test if a network was created, but not the services
-    def test_no_services(self):
+    def test_no_services(self) -> None:
         try:
             output, return_code = self.run_subprocess_assert_returncode(
                 [

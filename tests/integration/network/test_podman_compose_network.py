@@ -9,6 +9,7 @@ Tests the podman networking parameters
 # pylint: disable=redefined-outer-name
 import os
 import unittest
+from typing import Generator
 
 from tests.integration.test_utils import RunSubprocessMixin
 from tests.integration.test_utils import podman_compose_path
@@ -17,11 +18,11 @@ from tests.integration.test_utils import test_path
 
 class TestPodmanComposeNetwork(RunSubprocessMixin, unittest.TestCase):
     @staticmethod
-    def compose_file():
+    def compose_file() -> str:
         """Returns the path to the compose file used for this test module"""
         return os.path.join(test_path(), "nets_test_ip", "docker-compose.yml")
 
-    def teardown(self):
+    def teardown(self) -> Generator[None, None, None]:
         """
         Ensures that the services within the "profile compose file" are removed between
         each test case.
@@ -40,7 +41,7 @@ class TestPodmanComposeNetwork(RunSubprocessMixin, unittest.TestCase):
         ]
         self.run_subprocess(down_cmd)
 
-    def test_networks(self):
+    def test_networks(self) -> None:
         up_cmd = [
             "coverage",
             "run",
@@ -115,7 +116,7 @@ class TestPodmanComposeNetwork(RunSubprocessMixin, unittest.TestCase):
                 self.assertIn(f"ether {mac}", out.decode('utf-8'))
                 self.assertIn(f"inet {ip}/", out.decode('utf-8'))
 
-    def test_down_with_network(self):
+    def test_down_with_network(self) -> None:
         try:
             self.run_subprocess_assert_returncode([
                 "coverage",

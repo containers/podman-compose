@@ -9,12 +9,12 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def compose_yaml_path():
+def compose_yaml_path() -> str:
     return os.path.join(os.path.join(test_path(), "ipam_default"), "docker-compose.yaml")
 
 
 class TestComposeIpamDefault(unittest.TestCase, RunSubprocessMixin):
-    def test_ipam_default(self):
+    def test_ipam_default(self) -> None:
         try:
             self.run_subprocess_assert_returncode(
                 [podman_compose_path(), "-f", compose_yaml_path(), "up", "-d"],

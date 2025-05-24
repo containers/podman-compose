@@ -11,7 +11,7 @@ from tests.integration.test_utils import test_path
 
 
 class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
-    def test_selinux(self):
+    def test_selinux(self) -> None:
         # test if when using volumes type:bind with selinux:z option, container ackquires a
         # respective host:source:z mapping in CreateCommand list
         compose_path = os.path.join(test_path(), "selinux", "docker-compose.yml")

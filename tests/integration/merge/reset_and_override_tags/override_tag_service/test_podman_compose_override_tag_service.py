@@ -9,7 +9,7 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def compose_yaml_path():
+def compose_yaml_path() -> str:
     return os.path.join(
         test_path(),
         "merge/reset_and_override_tags/override_tag_service/docker-compose.yaml",
@@ -18,7 +18,7 @@ def compose_yaml_path():
 
 class TestComposeOverrideTagService(unittest.TestCase, RunSubprocessMixin):
     # test if whole service from docker-compose.yaml file is overridden in another file
-    def test_override_tag_service(self):
+    def test_override_tag_service(self) -> None:
         override_file = os.path.join(
             test_path(),
             "merge/reset_and_override_tags/override_tag_service/docker-compose.override_service.yaml",

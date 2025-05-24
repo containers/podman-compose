@@ -11,13 +11,13 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def compose_yaml_path():
+def compose_yaml_path() -> str:
     return os.path.join(os.path.join(test_path(), "nets_test2"), "docker-compose.yml")
 
 
 class TestComposeNetsTest2(unittest.TestCase, RunSubprocessMixin):
     # test if port mapping works as expected with networks top-level element
-    def test_nets_test2(self):
+    def test_nets_test2(self) -> None:
         try:
             self.run_subprocess_assert_returncode(
                 [

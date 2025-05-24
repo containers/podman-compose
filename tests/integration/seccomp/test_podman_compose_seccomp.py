@@ -8,7 +8,7 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def compose_yaml_path():
+def compose_yaml_path() -> str:
     return os.path.join(os.path.join(test_path(), "seccomp"), "docker-compose.yml")
 
 
@@ -20,7 +20,7 @@ class TestComposeSeccomp(unittest.TestCase, RunSubprocessMixin):
     )
     # test if seccomp uses custom seccomp profile file 'default.json' where command mkdir is not
     # allowed
-    def test_seccomp(self):
+    def test_seccomp(self) -> None:
         try:
             output, _, return_code = self.run_subprocess(
                 [podman_compose_path(), "-f", compose_yaml_path(), "run", "--rm", "web1"],

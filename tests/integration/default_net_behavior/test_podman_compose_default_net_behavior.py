@@ -10,7 +10,7 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def compose_yaml_path(scenario):
+def compose_yaml_path(scenario: str) -> str:
     return os.path.join(
         os.path.join(test_path(), "default_net_behavior"), f"docker-compose_{scenario}.yaml"
     )
@@ -27,13 +27,13 @@ class TestComposeDefaultNetBehavior(unittest.TestCase, RunSubprocessMixin):
         ('two_nets_compat', 'default_net_behavior_default'),
         ('with_default_compat', 'default_net_behavior_default'),
     ])
-    def test_nethost(self, scenario, default_net):
+    def test_nethost(self, scenario: str, default_net: str) -> None:
         try:
             self.run_subprocess_assert_returncode(
                 [podman_compose_path(), "-f", compose_yaml_path(scenario), "up", "-d"],
             )
 
-            container_id, _ = self.run_subprocess_assert_returncode(
+            container_id_out, _ = self.run_subprocess_assert_returncode(
                 [
                     podman_compose_path(),
                     "-f",
@@ -43,7 +43,7 @@ class TestComposeDefaultNetBehavior(unittest.TestCase, RunSubprocessMixin):
                     '{{.ID}}',
                 ],
             )
-            container_id = container_id.decode('utf-8').split('\n')[0]
+            container_id = container_id_out.decode('utf-8').split('\n')[0]
             output, _ = self.run_subprocess_assert_returncode(
                 [
                     "podman",

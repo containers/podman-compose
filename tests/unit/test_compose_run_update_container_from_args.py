@@ -8,7 +8,7 @@ from podman_compose import compose_run_update_container_from_args
 
 
 class TestComposeRunUpdateContainerFromArgs(unittest.TestCase):
-    def test_minimal(self):
+    def test_minimal(self) -> None:
         cnt = get_minimal_container()
         compose = get_minimal_compose()
         args = get_minimal_args()
@@ -18,7 +18,7 @@ class TestComposeRunUpdateContainerFromArgs(unittest.TestCase):
         expected_cnt = {"name": "default_name", "tty": True}
         self.assertEqual(cnt, expected_cnt)
 
-    def test_additional_env_value_equals(self):
+    def test_additional_env_value_equals(self) -> None:
         cnt = get_minimal_container()
         compose = get_minimal_compose()
         args = get_minimal_args()
@@ -35,7 +35,7 @@ class TestComposeRunUpdateContainerFromArgs(unittest.TestCase):
         }
         self.assertEqual(cnt, expected_cnt)
 
-    def test_publish_ports(self):
+    def test_publish_ports(self) -> None:
         cnt = get_minimal_container()
         compose = get_minimal_compose()
         args = get_minimal_args()
@@ -51,15 +51,15 @@ class TestComposeRunUpdateContainerFromArgs(unittest.TestCase):
         self.assertEqual(cnt, expected_cnt)
 
 
-def get_minimal_container():
+def get_minimal_container() -> dict:
     return {}
 
 
-def get_minimal_compose():
+def get_minimal_compose() -> PodmanCompose:
     return PodmanCompose()
 
 
-def get_minimal_args():
+def get_minimal_args() -> argparse.Namespace:
     return argparse.Namespace(
         T=None,
         cnt_command=None,

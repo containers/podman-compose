@@ -2,6 +2,7 @@ import unittest
 
 from parameterized import parameterized
 
+from podman_compose import PodmanCompose
 from podman_compose import get_net_args
 from tests.unit.test_container_to_args import create_compose_mock
 
@@ -10,7 +11,7 @@ SERVICE_NAME = "service_name"
 CONTAINER_NAME = f"{PROJECT_NAME}_{SERVICE_NAME}_1"
 
 
-def get_networked_compose(num_networks=1):
+def get_networked_compose(num_networks: int = 1) -> PodmanCompose:
     compose = create_compose_mock(PROJECT_NAME)
     for network in range(num_networks):
         compose.networks[f"net{network}"] = {
@@ -30,7 +31,7 @@ def get_networked_compose(num_networks=1):
     return compose
 
 
-def get_minimal_container():
+def get_minimal_container() -> dict:
     return {
         "name": CONTAINER_NAME,
         "service_name": SERVICE_NAME,
@@ -39,7 +40,7 @@ def get_minimal_container():
 
 
 class TestGetNetArgs(unittest.TestCase):
-    def test_minimal(self):
+    def test_minimal(self) -> None:
         compose = get_networked_compose()
         container = get_minimal_container()
 
@@ -49,7 +50,7 @@ class TestGetNetArgs(unittest.TestCase):
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
 
-    def test_default_net_is_None(self):
+    def test_default_net_is_None(self) -> None:
         compose = get_networked_compose()
         container = get_minimal_container()
 
@@ -64,7 +65,7 @@ class TestGetNetArgs(unittest.TestCase):
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
 
-    def test_one_net(self):
+    def test_one_net(self) -> None:
         compose = get_networked_compose()
         container = get_minimal_container()
         container["networks"] = {"net0": {}}
@@ -75,7 +76,7 @@ class TestGetNetArgs(unittest.TestCase):
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
 
-    def test_alias(self):
+    def test_alias(self) -> None:
         compose = get_networked_compose()
         container = get_minimal_container()
         container["networks"] = {"net0": {}}
@@ -87,7 +88,7 @@ class TestGetNetArgs(unittest.TestCase):
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
 
-    def test_aliases_on_network_scope(self):
+    def test_aliases_on_network_scope(self) -> None:
         compose = get_networked_compose()
         container = get_minimal_container()
         container["networks"] = {"net0": {"aliases": ["alias1"]}}
@@ -98,7 +99,7 @@ class TestGetNetArgs(unittest.TestCase):
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
 
-    def test_one_ipv4(self):
+    def test_one_ipv4(self) -> None:
         ip = "192.168.0.42"
         compose = get_networked_compose()
         container = get_minimal_container()
@@ -110,7 +111,7 @@ class TestGetNetArgs(unittest.TestCase):
         args = get_net_args(compose, container)
         self.assertEqual(expected_args, args)
 
-    def test_one_ipv6(self):
+    def test_one_ipv6(self) -> None:
         ipv6_address = "fd00:0::42"
         compose = get_networked_compose()
         container = get_minimal_container()
@@ -122,7 +123,7 @@ class TestGetNetArgs(unittest.TestCase):
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
 
-    def test_one_mac(self):
+    def test_one_mac(self) -> None:
         mac = "00:11:22:33:44:55"
         compose = get_networked_compose()
         container = get_minimal_container()
@@ -135,7 +136,7 @@ class TestGetNetArgs(unittest.TestCase):
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
 
-    def test_one_mac_two_nets(self):
+    def test_one_mac_two_nets(self) -> None:
         mac = "00:11:22:33:44:55"
         compose = get_networked_compose(num_networks=6)
         container = get_minimal_container()
@@ -153,7 +154,7 @@ class TestGetNetArgs(unittest.TestCase):
         "mac_address",
         "x-podman.mac_address",
     ])
-    def test_mac_on_network(self, mac_attr):
+    def test_mac_on_network(self, mac_attr: str) -> None:
         mac = "00:11:22:33:44:55"
         compose = get_networked_compose()
         container = get_minimal_container()
@@ -165,7 +166,7 @@ class TestGetNetArgs(unittest.TestCase):
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
 
-    def test_two_nets_as_dict(self):
+    def test_two_nets_as_dict(self) -> None:
         compose = get_networked_compose(num_networks=2)
         container = get_minimal_container()
         container["networks"] = {"net0": {}, "net1": {}}
@@ -177,7 +178,7 @@ class TestGetNetArgs(unittest.TestCase):
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
 
-    def test_two_nets_as_list(self):
+    def test_two_nets_as_list(self) -> None:
         compose = get_networked_compose(num_networks=2)
         container = get_minimal_container()
         container["networks"] = ["net0", "net1"]
@@ -189,7 +190,7 @@ class TestGetNetArgs(unittest.TestCase):
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
 
-    def test_two_ipv4(self):
+    def test_two_ipv4(self) -> None:
         ip0 = "192.168.0.42"
         ip1 = "192.168.1.42"
         compose = get_networked_compose(num_networks=2)
@@ -203,7 +204,7 @@ class TestGetNetArgs(unittest.TestCase):
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
 
-    def test_two_ipv6(self):
+    def test_two_ipv6(self) -> None:
         ip0 = "fd00:0::42"
         ip1 = "fd00:1::42"
         compose = get_networked_compose(num_networks=2)
@@ -218,7 +219,7 @@ class TestGetNetArgs(unittest.TestCase):
         self.assertListEqual(expected_args, args)
 
     # custom extension; not supported by docker-compose
-    def test_two_mac(self):
+    def test_two_mac(self) -> None:
         mac0 = "00:00:00:00:00:01"
         mac1 = "00:00:00:00:00:02"
         compose = get_networked_compose(num_networks=2)
@@ -235,7 +236,7 @@ class TestGetNetArgs(unittest.TestCase):
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
 
-    def test_mixed_mac(self):
+    def test_mixed_mac(self) -> None:
         ip4_0 = "192.168.0.42"
         ip4_1 = "192.168.1.42"
         ip4_2 = "192.168.2.42"
@@ -256,7 +257,7 @@ class TestGetNetArgs(unittest.TestCase):
         )
         self.assertRaisesRegex(RuntimeError, expected_exception, get_net_args, compose, container)
 
-    def test_mixed_config(self):
+    def test_mixed_config(self) -> None:
         ip4_0 = "192.168.0.42"
         ip4_1 = "192.168.1.42"
         ip6_0 = "fd00:0::42"
@@ -297,7 +298,7 @@ class TestGetNetArgs(unittest.TestCase):
         ("ns:my_namespace", ["--network=ns:my_namespace"]),
         ("container:my_container", ["--network=container:my_container"]),
     ])
-    def test_network_modes(self, network_mode, expected_args):
+    def test_network_modes(self, network_mode: str, expected_args: list) -> None:
         compose = get_networked_compose()
         container = get_minimal_container()
         container["network_mode"] = network_mode
@@ -309,7 +310,7 @@ class TestGetNetArgs(unittest.TestCase):
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
 
-    def test_network_mode_invalid(self):
+    def test_network_mode_invalid(self) -> None:
         compose = get_networked_compose()
         container = get_minimal_container()
         container["network_mode"] = "invalid_mode"
@@ -317,7 +318,7 @@ class TestGetNetArgs(unittest.TestCase):
         with self.assertRaises(SystemExit):
             get_net_args(compose, container)
 
-    def test_network__mode_service(self):
+    def test_network__mode_service(self) -> None:
         compose = get_networked_compose()
         compose.container_names_by_service = {
             "service_1": ["container_1"],

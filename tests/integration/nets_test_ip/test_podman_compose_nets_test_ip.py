@@ -8,14 +8,14 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def compose_yaml_path():
+def compose_yaml_path() -> str:
     return os.path.join(os.path.join(test_path(), "nets_test_ip"), "docker-compose.yml")
 
 
 class TestComposeNetsTestIp(unittest.TestCase, RunSubprocessMixin):
     # test if services retain custom ipv4_address and mac_address matching the subnet provided
     # in networks top-level element
-    def test_nets_test_ip(self):
+    def test_nets_test_ip(self) -> None:
         try:
             self.run_subprocess_assert_returncode(
                 [

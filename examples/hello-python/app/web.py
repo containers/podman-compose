@@ -3,8 +3,8 @@
 import asyncio  # noqa: F401
 import os
 
-import aioredis
-from aiohttp import web
+import aioredis  # type: ignore[import-not-found]
+from aiohttp import web  # type: ignore[import-not-found]
 
 REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
@@ -16,13 +16,13 @@ routes = web.RouteTableDef()
 
 
 @routes.get("/")
-async def hello(request):  # pylint: disable=unused-argument
+async def hello(request: web.Request) -> web.Response:  # pylint: disable=unused-argument
     counter = await redis.incr("mycounter")
     return web.Response(text=f"counter={counter}")
 
 
 @routes.get("/hello.json")
-async def hello_json(request):  # pylint: disable=unused-argument
+async def hello_json(request: web.Request) -> web.Response:  # pylint: disable=unused-argument
     counter = await redis.incr("mycounter")
     data = {"counter": counter}
     return web.json_response(data)
@@ -31,7 +31,7 @@ async def hello_json(request):  # pylint: disable=unused-argument
 app.add_routes(routes)
 
 
-def main():
+def main() -> None:
     web.run_app(app, port=8080)
 
 

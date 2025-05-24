@@ -10,7 +10,7 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def compose_yaml_path(failure_order):
+def compose_yaml_path(failure_order: str) -> str:
     return os.path.join(test_path(), "abort", f"docker-compose-fail-{failure_order}.yaml")
 
 
@@ -25,7 +25,7 @@ class TestComposeAbort(unittest.TestCase, RunSubprocessMixin):
         ("exit", "none", 0),
         ("failure", "none", 0),
     ])
-    def test_abort(self, abort_type, failure_order, expected_exit_code):
+    def test_abort(self, abort_type: str, failure_order: str, expected_exit_code: int) -> None:
         try:
             self.run_subprocess_assert_returncode(
                 [

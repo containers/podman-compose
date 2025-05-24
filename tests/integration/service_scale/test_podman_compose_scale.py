@@ -8,13 +8,13 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def compose_yaml_path(test_ref_folder):
+def compose_yaml_path(test_ref_folder: str) -> str:
     return os.path.join(test_path(), "service_scale", test_ref_folder, "docker-compose.yml")
 
 
 class TestComposeScale(unittest.TestCase, RunSubprocessMixin):
     # scale-up using `scale` prarmeter in docker-compose.yml
-    def test_scaleup_scale_parameter(self):
+    def test_scaleup_scale_parameter(self) -> None:
         try:
             output, _, return_code = self.run_subprocess([
                 podman_compose_path(),
@@ -43,7 +43,7 @@ class TestComposeScale(unittest.TestCase, RunSubprocessMixin):
             ])
 
     # scale-up using `deploy => replicas` prarmeter in docker-compose.yml
-    def test_scaleup_deploy_replicas_parameter(self):
+    def test_scaleup_deploy_replicas_parameter(self) -> None:
         try:
             output, _, return_code = self.run_subprocess([
                 podman_compose_path(),
@@ -72,7 +72,7 @@ class TestComposeScale(unittest.TestCase, RunSubprocessMixin):
             ])
 
     # scale-up using `--scale <SERVICE>=<number of replicas>` argument in CLI
-    def test_scaleup_cli(self):
+    def test_scaleup_cli(self) -> None:
         try:
             output, _, return_code = self.run_subprocess([
                 podman_compose_path(),

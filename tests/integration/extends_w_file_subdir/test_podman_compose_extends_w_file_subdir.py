@@ -9,12 +9,12 @@ from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
 
-def compose_yaml_path():
+def compose_yaml_path() -> str:
     return os.path.join(os.path.join(test_path(), "extends_w_file_subdir"), "docker-compose.yml")
 
 
 class TestComposeExtendsWithFileSubdir(unittest.TestCase, RunSubprocessMixin):
-    def test_extends_w_file_subdir(self):  # when file is Dockerfile for building the image
+    def test_extends_w_file_subdir(self) -> None:  # when file is Dockerfile for building the image
         try:
             self.run_subprocess_assert_returncode(
                 [
@@ -39,7 +39,7 @@ class TestComposeExtendsWithFileSubdir(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
-    def test_podman_compose_extends_w_file_subdir(self):
+    def test_podman_compose_extends_w_file_subdir(self) -> None:
         """
         Test that podman-compose can execute podman-compose -f <file> up with extended File which
         includes a build context

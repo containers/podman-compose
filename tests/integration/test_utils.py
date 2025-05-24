@@ -7,22 +7,22 @@ import time
 from pathlib import Path
 
 
-def base_path():
+def base_path() -> Path:
     """Returns the base path for the project"""
     return Path(__file__).parent.parent.parent
 
 
-def test_path():
+def test_path() -> str:
     """Returns the path to the tests directory"""
     return os.path.join(base_path(), "tests/integration")
 
 
-def podman_compose_path():
+def podman_compose_path() -> str:
     """Returns the path to the podman compose script"""
     return os.path.join(base_path(), "podman_compose.py")
 
 
-def is_systemd_available():
+def is_systemd_available() -> bool:
     try:
         with open("/proc/1/comm", "r", encoding="utf-8") as fh:
             return fh.read().strip() == "systemd"
@@ -31,10 +31,10 @@ def is_systemd_available():
 
 
 class RunSubprocessMixin:
-    def is_debug_enabled(self):
+    def is_debug_enabled(self) -> bool:
         return "TESTS_DEBUG" in os.environ
 
-    def run_subprocess(self, args):
+    def run_subprocess(self, args: list[str]) -> tuple[bytes, bytes, int]:
         begin = time.time()
         if self.is_debug_enabled():
             print("TEST_CALL", args)
@@ -50,11 +50,13 @@ class RunSubprocessMixin:
             print("STDERR:", err.decode('utf-8'))
         return out, err, proc.returncode
 
-    def run_subprocess_assert_returncode(self, args, expected_returncode=0):
+    def run_subprocess_assert_returncode(
+        self, args: list[str], expected_returncode: int = 0
+    ) -> tuple[bytes, bytes]:
         out, err, returncode = self.run_subprocess(args)
         decoded_out = out.decode('utf-8')
         decoded_err = err.decode('utf-8')
-        self.assertEqual(
+        self.assertEqual(  # type: ignore[attr-defined]
             returncode,
             expected_returncode,
             f"Invalid return code of process {returncode} != {expected_returncode}\n"
@@ -64,7 +66,7 @@ class RunSubprocessMixin:
 
 
 class PodmanAwareRunSubprocessMixin(RunSubprocessMixin):
-    def retrieve_podman_version(self):
+    def retrieve_podman_version(self) -> tuple[int, int, int]:
         out, _ = self.run_subprocess_assert_returncode(["podman", "--version"])
         matcher = re.match(r"\D*(\d+)\.(\d+)\.(\d+)", out.decode('utf-8'))
         if matcher:

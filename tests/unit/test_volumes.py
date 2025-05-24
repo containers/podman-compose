@@ -6,7 +6,7 @@ from podman_compose import parse_short_mount
 
 
 class ParseShortMountTests(unittest.TestCase):
-    def test_multi_propagation(self):
+    def test_multi_propagation(self) -> None:
         self.assertEqual(
             parse_short_mount("/foo/bar:/baz:U,Z", "/"),
             {

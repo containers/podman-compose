@@ -7,7 +7,7 @@ from podman_compose import compose_exec_args
 
 
 class TestComposeExecArgs(unittest.TestCase):
-    def test_minimal(self):
+    def test_minimal(self) -> None:
         cnt = get_minimal_container()
         args = get_minimal_args()
 
@@ -15,7 +15,7 @@ class TestComposeExecArgs(unittest.TestCase):
         expected = ["--interactive", "--tty", "container_name"]
         self.assertEqual(result, expected)
 
-    def test_additional_env_value_equals(self):
+    def test_additional_env_value_equals(self) -> None:
         cnt = get_minimal_container()
         args = get_minimal_args()
         args.env = ["key=valuepart1=valuepart2"]
@@ -31,11 +31,11 @@ class TestComposeExecArgs(unittest.TestCase):
         self.assertEqual(result, expected)
 
 
-def get_minimal_container():
+def get_minimal_container() -> dict:
     return {}
 
 
-def get_minimal_args():
+def get_minimal_args() -> argparse.Namespace:
     return argparse.Namespace(
         T=None,
         cnt_command=None,
