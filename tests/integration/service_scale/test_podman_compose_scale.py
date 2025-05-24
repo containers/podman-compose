@@ -34,6 +34,15 @@ class TestComposeScale(unittest.TestCase, RunSubprocessMixin):
             self.assertEqual(len(output.splitlines()), 2)
         finally:
             self.run_subprocess_assert_returncode([
+                "podman",
+                "rm",
+                "--force",
+                "-t",
+                "0",
+                "podman-compose_service1_1",
+                "podman-compose_service1_2",
+            ])
+            self.run_subprocess_assert_returncode([
                 podman_compose_path(),
                 "-f",
                 compose_yaml_path("scaleup_scale_parameter"),
@@ -56,12 +65,22 @@ class TestComposeScale(unittest.TestCase, RunSubprocessMixin):
             output, _, return_code = self.run_subprocess([
                 podman_compose_path(),
                 "-f",
-                compose_yaml_path("scaleup_scale_parameter"),
+                compose_yaml_path("scaleup_deploy_replicas_parameter"),
                 "ps",
                 "-q",
             ])
-            self.assertEqual(len(output.splitlines()), 2)
+            self.assertEqual(len(output.splitlines()), 3)
         finally:
+            self.run_subprocess_assert_returncode([
+                "podman",
+                "rm",
+                "--force",
+                "-t",
+                "0",
+                "podman-compose_service1_1",
+                "podman-compose_service1_2",
+                "podman-compose_service1_3",
+            ])
             self.run_subprocess_assert_returncode([
                 podman_compose_path(),
                 "-f",
@@ -89,18 +108,34 @@ class TestComposeScale(unittest.TestCase, RunSubprocessMixin):
                 "up",
                 "-d",
                 "--scale",
-                "service1=2",
+                "service1=4",
             ])
-            self.assertEqual(return_code, 0)
+            # error code 125 is expected as podman-compose complains about already used name
+            # "podman-compose_service1_1" for the 1st container
+            # Nevertheless, following containers are still created to scale as expected
+            # (in test case till 3 containers)
+            self.assertEqual(return_code, 125)
+
             output, _, return_code = self.run_subprocess([
                 podman_compose_path(),
                 "-f",
-                compose_yaml_path("scaleup_scale_parameter"),
+                compose_yaml_path('scaleup_cli'),
                 "ps",
                 "-q",
             ])
-            self.assertEqual(len(output.splitlines()), 2)
+            self.assertEqual(len(output.splitlines()), 4)
         finally:
+            self.run_subprocess_assert_returncode([
+                "podman",
+                "rm",
+                "--force",
+                "-t",
+                "0",
+                "podman-compose_service1_1",
+                "podman-compose_service1_2",
+                "podman-compose_service1_3",
+                "podman-compose_service1_4",
+            ])
             self.run_subprocess_assert_returncode([
                 podman_compose_path(),
                 "-f",
