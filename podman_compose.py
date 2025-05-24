@@ -2638,7 +2638,7 @@ you can stop and disable the service with:
             except OSError as e:
                 log.error("failed to remove file %s: %s", fn, e)
                 print(f"Failed to remove registration file for project '{proj_name}'")
-                return 1
+                sys.exit(1)
         else:
             log.warning("registration file not found: %s", fn)
             print(f"Project '{proj_name}' is not registered")
