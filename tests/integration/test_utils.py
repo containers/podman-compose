@@ -22,7 +22,7 @@ def podman_compose_path() -> str:
     return os.path.join(base_path(), "podman_compose.py")
 
 
-def is_systemd_available():
+def is_systemd_available() -> bool:
     try:
         with open("/proc/1/comm", "r", encoding="utf-8") as fh:
             return fh.read().strip() == "systemd"
@@ -66,7 +66,7 @@ class RunSubprocessMixin:
 
 
 class PodmanAwareRunSubprocessMixin(RunSubprocessMixin):
-    def retrieve_podman_version(self):
+    def retrieve_podman_version(self) -> tuple[int, int, int]:
         out, _ = self.run_subprocess_assert_returncode(["podman", "--version"])
         matcher = re.match(r"\D*(\d+)\.(\d+)\.(\d+)", out.decode('utf-8'))
         if matcher:
