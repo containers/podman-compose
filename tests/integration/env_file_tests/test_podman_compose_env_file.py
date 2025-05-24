@@ -9,7 +9,7 @@ from tests.integration.test_utils import test_path
 
 
 def compose_base_path():
-    return os.path.join(test_path(), "env-file-tests")
+    return os.path.join(test_path(), "env_file_tests")
 
 
 class TestComposeEnvFile(unittest.TestCase, RunSubprocessMixin):

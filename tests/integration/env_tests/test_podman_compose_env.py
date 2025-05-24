@@ -9,7 +9,7 @@ from tests.integration.test_utils import test_path
 
 
 def compose_yaml_path():
-    return os.path.join(os.path.join(test_path(), "env-tests"), "container-compose.yml")
+    return os.path.join(os.path.join(test_path(), "env_tests"), "container-compose.yml")
 
 
 class TestComposeEnv(unittest.TestCase, RunSubprocessMixin):
