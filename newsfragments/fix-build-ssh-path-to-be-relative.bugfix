@@ -1,0 +1,1 @@
+Fixed build ssh path to a local SSH key, to be relative to the directory of compose file.

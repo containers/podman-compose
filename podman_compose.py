@@ -2644,6 +2644,16 @@ def is_path_git_url(path):
     return r.scheme == 'git' or r.path.endswith('.git')
 
 
+def adjust_build_ssh_key_paths(compose, agent_or_key):
+    # when using a custom id for ssh property, path to a local SSH key is provided after "="
+    parts = agent_or_key.split("=", 1)
+    if len(parts) == 1:
+        return agent_or_key
+    name, path = parts
+    path = os.path.expanduser(path)
+    return name + "=" + os.path.join(compose.dirname, path)
+
+
 def container_to_build_args(compose, cnt, args, path_exists, cleanup_callbacks=None):
     build_desc = cnt["build"]
     if not hasattr(build_desc, "items"):
@@ -2712,6 +2722,7 @@ def container_to_build_args(compose, cnt, args, path_exists, cleanup_callbacks=N
     if "target" in build_desc:
         build_args.extend(["--target", build_desc["target"]])
     for agent_or_key in norm_as_list(build_desc.get("ssh", {})):
+        agent_or_key = adjust_build_ssh_key_paths(compose, agent_or_key)
         build_args.extend(["--ssh", agent_or_key])
     container_to_ulimit_build_args(cnt, build_args)
     if getattr(args, "no_cache", None):
