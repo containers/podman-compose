@@ -4,7 +4,7 @@ from podman_compose import get_network_create_args
 
 
 class TestGetNetworkCreateArgs(unittest.TestCase):
-    def test_minimal(self):
+    def test_minimal(self) -> None:
         net_desc = {
             "labels": [],
             "internal": False,
@@ -26,7 +26,7 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
         args = get_network_create_args(net_desc, proj_name, net_name)
         self.assertEqual(args, expected_args)
 
-    def test_ipv6(self):
+    def test_ipv6(self) -> None:
         net_desc = {
             "labels": [],
             "internal": False,
@@ -49,7 +49,7 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
         args = get_network_create_args(net_desc, proj_name, net_name)
         self.assertEqual(args, expected_args)
 
-    def test_bridge(self):
+    def test_bridge(self) -> None:
         net_desc = {
             "labels": [],
             "internal": False,
@@ -77,7 +77,7 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
         args = get_network_create_args(net_desc, proj_name, net_name)
         self.assertEqual(args, expected_args)
 
-    def test_ipam_driver_default(self):
+    def test_ipam_driver_default(self) -> None:
         net_desc = {
             "labels": [],
             "internal": False,
@@ -113,7 +113,7 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
         args = get_network_create_args(net_desc, proj_name, net_name)
         self.assertEqual(args, expected_args)
 
-    def test_ipam_driver(self):
+    def test_ipam_driver(self) -> None:
         net_desc = {
             "labels": [],
             "internal": False,
@@ -151,7 +151,7 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
         args = get_network_create_args(net_desc, proj_name, net_name)
         self.assertEqual(args, expected_args)
 
-    def test_complete(self):
+    def test_complete(self) -> None:
         net_desc = {
             "labels": ["label1", "label2"],
             "internal": True,
@@ -202,7 +202,7 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
         args = get_network_create_args(net_desc, proj_name, net_name)
         self.assertEqual(args, expected_args)
 
-    def test_disable_dns(self):
+    def test_disable_dns(self) -> None:
         net_desc = {
             "labels": [],
             "internal": False,
@@ -226,7 +226,7 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
         args = get_network_create_args(net_desc, proj_name, net_name)
         self.assertEqual(args, expected_args)
 
-    def test_dns_string(self):
+    def test_dns_string(self) -> None:
         net_desc = {
             "labels": [],
             "internal": False,
@@ -251,7 +251,7 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
         args = get_network_create_args(net_desc, proj_name, net_name)
         self.assertEqual(args, expected_args)
 
-    def test_dns_list(self):
+    def test_dns_list(self) -> None:
         net_desc = {
             "labels": [],
             "internal": False,

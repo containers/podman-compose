@@ -18,5 +18,5 @@ class TestIsPathGitUrl(unittest.TestCase):
         ("suffix_and_prefix", "git://host.xz/path/to/repo.git", True),
         ("empty_url_path", "http://#fragment", False),
     ])
-    def test_is_path_git_url(self, test_name, path, result):
+    def test_is_path_git_url(self, test_name: str, path: str, result: bool) -> None:
         self.assertEqual(is_path_git_url(path), result)

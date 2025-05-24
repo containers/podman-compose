@@ -2,6 +2,7 @@
 # pylint: disable=protected-access
 
 import unittest
+from typing import Any
 
 from parameterized import parameterized
 
@@ -66,7 +67,7 @@ class TestRecSubs(unittest.TestCase):
     ]
 
     @parameterized.expand(substitutions)
-    def test_rec_subs(self, desc, input, expected):
+    def test_rec_subs(self, desc: str, input: Any, expected: Any) -> None:
         sub_dict = {"v1": "high priority", "empty": ""}
         result = rec_subs(input, sub_dict)
         self.assertEqual(result, expected, msg=desc)

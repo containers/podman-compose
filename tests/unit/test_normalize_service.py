@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 import unittest
+from typing import Any
+from typing import Union
 
 from parameterized import parameterized
 
@@ -29,7 +31,7 @@ class TestNormalizeService(unittest.TestCase):
             {"build": {"additional_contexts": ["ctx=../ctx", "ctx2=../ctx2"]}},
         ),
     ])
-    def test_simple(self, input, expected):
+    def test_simple(self, input: dict[str, Any], expected: dict[str, Any]) -> None:
         self.assertEqual(normalize_service(input), expected)
 
     @parameterized.expand([
@@ -46,7 +48,9 @@ class TestNormalizeService(unittest.TestCase):
             {"build": {"context": "./sub_dir/dir-1", "dockerfile": "dockerfile-1"}},
         ),
     ])
-    def test_normalize_service_with_sub_dir(self, input, expected):
+    def test_normalize_service_with_sub_dir(
+        self, input: dict[str, Any], expected: dict[str, Any]
+    ) -> None:
         self.assertEqual(normalize_service(input, sub_dir="./sub_dir"), expected)
 
     @parameterized.expand([
@@ -60,7 +64,7 @@ class TestNormalizeService(unittest.TestCase):
             ["bash", "-c", "sleep infinity"],
         ),
     ])
-    def test_command_like(self, input, expected):
+    def test_command_like(self, input: Union[list[str], str], expected: list[str]) -> None:
         for key in ['command', 'entrypoint']:
             input_service = {}
             input_service[key] = input

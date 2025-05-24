@@ -10,12 +10,12 @@ from tests.unit.test_container_to_args import create_compose_mock
 from tests.unit.test_container_to_args import get_minimal_container
 
 
-def repo_root():
+def repo_root() -> str:
     return os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
 
 class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
-    async def test_pass_secret_as_env_variable(self):
+    async def test_pass_secret_as_env_variable(self) -> None:
         c = create_compose_mock()
         c.declared_secrets = {
             "my_secret": {"external": "true"}  # must have external or name value
@@ -43,7 +43,7 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_secret_as_env_external_true_has_no_name(self):
+    async def test_secret_as_env_external_true_has_no_name(self) -> None:
         c = create_compose_mock()
         c.declared_secrets = {
             "my_secret": {
@@ -74,7 +74,7 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_pass_secret_as_env_variable_no_external(self):
+    async def test_pass_secret_as_env_variable_no_external(self) -> None:
         c = create_compose_mock()
         c.declared_secrets = {
             "my_secret": {}  # must have external or name value
@@ -124,7 +124,9 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             },
         ),
     ])
-    async def test_secret_name(self, test_name, declared_secrets, add_to_minimal_container):
+    async def test_secret_name(
+        self, test_name: str, declared_secrets: dict, add_to_minimal_container: dict
+    ) -> None:
         c = create_compose_mock()
         c.declared_secrets = declared_secrets
 
@@ -136,7 +138,7 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             await container_to_args(c, cnt)
         self.assertIn('ERROR: undeclared secret: ', str(context.exception))
 
-    async def test_secret_string_no_external_name_in_declared_secrets(self):
+    async def test_secret_string_no_external_name_in_declared_secrets(self) -> None:
         c = create_compose_mock()
         c.declared_secrets = {"my_secret_name": {"external": "true"}}
         cnt = get_minimal_container()
@@ -157,7 +159,7 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_secret_string_options_external_name_in_declared_secrets(self):
+    async def test_secret_string_options_external_name_in_declared_secrets(self) -> None:
         c = create_compose_mock()
         c.declared_secrets = {
             "my_secret_name": {
@@ -195,7 +197,9 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_secret_string_external_name_in_declared_secrets_does_not_match_secret(self):
+    async def test_secret_string_external_name_in_declared_secrets_does_not_match_secret(
+        self,
+    ) -> None:
         c = create_compose_mock()
         c.declared_secrets = {
             "my_secret_name": {
@@ -213,7 +217,7 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             await container_to_args(c, cnt)
         self.assertIn('ERROR: Custom name/target reference ', str(context.exception))
 
-    async def test_secret_target_does_not_match_secret_name_secret_type_not_env(self):
+    async def test_secret_target_does_not_match_secret_name_secret_type_not_env(self) -> None:
         c = create_compose_mock()
         c.declared_secrets = {
             "my_secret_name": {
@@ -234,7 +238,7 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             await container_to_args(c, cnt)
         self.assertIn('ERROR: Custom name/target reference ', str(context.exception))
 
-    async def test_secret_target_does_not_match_secret_name_secret_type_env(self):
+    async def test_secret_target_does_not_match_secret_name_secret_type_env(self) -> None:
         c = create_compose_mock()
         c.declared_secrets = {
             "my_secret_name": {
@@ -260,7 +264,7 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_secret_target_matches_secret_name_secret_type_not_env(self):
+    async def test_secret_target_matches_secret_name_secret_type_not_env(self) -> None:
         c = create_compose_mock()
         c.declared_secrets = {
             "my_secret_name": {
@@ -342,8 +346,12 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
         ),
     ])
     async def test_file_secret(
-        self, test_name, declared_secrets, add_to_minimal_container, expected_volume_ref
-    ):
+        self,
+        test_name: str,
+        declared_secrets: dict,
+        add_to_minimal_container: dict,
+        expected_volume_ref: str,
+    ) -> None:
         c = create_compose_mock()
         c.declared_secrets = declared_secrets
         cnt = get_minimal_container()
@@ -362,7 +370,7 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_file_secret_unused_params_warning(self):
+    async def test_file_secret_unused_params_warning(self) -> None:
         c = create_compose_mock()
         c.declared_secrets = {
             "file_secret": {

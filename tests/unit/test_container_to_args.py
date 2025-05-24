@@ -2,14 +2,16 @@
 
 import os
 import unittest
+from typing import Any
 from unittest import mock
 
 from parameterized import parameterized
 
+from podman_compose import PodmanCompose
 from podman_compose import container_to_args
 
 
-def create_compose_mock(project_name="test_project_name"):
+def create_compose_mock(project_name: str = "test_project_name") -> PodmanCompose:
     compose = mock.Mock()
     compose.project_name = project_name
     compose.dirname = "test_dirname"
@@ -19,14 +21,14 @@ def create_compose_mock(project_name="test_project_name"):
     compose.networks = {}
     compose.x_podman = {}
 
-    async def podman_output(*args, **kwargs):
+    async def podman_output(*args: Any, **kwargs: Any) -> None:
         pass
 
     compose.podman.output = mock.Mock(side_effect=podman_output)
     return compose
 
 
-def get_minimal_container():
+def get_minimal_container() -> dict[str, Any]:
     return {
         "name": "project_name_service_name1",
         "service_name": "service_name",
@@ -34,13 +36,13 @@ def get_minimal_container():
     }
 
 
-def get_test_file_path(rel_path):
+def get_test_file_path(rel_path: str) -> str:
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     return os.path.realpath(os.path.join(repo_root, rel_path))
 
 
 class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
-    async def test_minimal(self):
+    async def test_minimal(self) -> None:
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -56,7 +58,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_runtime(self):
+    async def test_runtime(self) -> None:
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -75,7 +77,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_sysctl_list(self):
+    async def test_sysctl_list(self) -> None:
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -99,7 +101,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_sysctl_map(self):
+    async def test_sysctl_map(self) -> None:
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -123,7 +125,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_sysctl_wrong_type(self):
+    async def test_sysctl_wrong_type(self) -> None:
         c = create_compose_mock()
         cnt = get_minimal_container()
 
@@ -133,7 +135,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 cnt["sysctls"] = wrong_type
                 await container_to_args(c, cnt)
 
-    async def test_pid(self):
+    async def test_pid(self) -> None:
         c = create_compose_mock()
         cnt = get_minimal_container()
 
@@ -152,7 +154,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_http_proxy(self):
+    async def test_http_proxy(self) -> None:
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -170,7 +172,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_uidmaps_extension_old_path(self):
+    async def test_uidmaps_extension_old_path(self) -> None:
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -179,7 +181,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):
             await container_to_args(c, cnt)
 
-    async def test_uidmaps_extension(self):
+    async def test_uidmaps_extension(self) -> None:
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -200,7 +202,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_gidmaps_extension(self):
+    async def test_gidmaps_extension(self) -> None:
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -221,7 +223,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_rootfs_extension(self):
+    async def test_rootfs_extension(self) -> None:
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -240,7 +242,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_no_hosts_extension(self):
+    async def test_no_hosts_extension(self) -> None:
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -258,7 +260,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_env_file_str(self):
+    async def test_env_file_str(self) -> None:
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -282,7 +284,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_env_file_str_not_exists(self):
+    async def test_env_file_str_not_exists(self) -> None:
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -291,7 +293,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):
             await container_to_args(c, cnt)
 
-    async def test_env_file_str_array_one_path(self):
+    async def test_env_file_str_array_one_path(self) -> None:
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -315,7 +317,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_env_file_str_array_two_paths(self):
+    async def test_env_file_str_array_two_paths(self) -> None:
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -344,7 +346,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_env_file_obj_required(self):
+    async def test_env_file_obj_required(self) -> None:
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -368,7 +370,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_env_file_obj_required_non_existent_path(self):
+    async def test_env_file_obj_required_non_existent_path(self) -> None:
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -377,7 +379,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):
             await container_to_args(c, cnt)
 
-    async def test_env_file_obj_optional(self):
+    async def test_env_file_obj_optional(self) -> None:
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -394,7 +396,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_gpu_count_all(self):
+    async def test_gpu_count_all(self) -> None:
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -422,7 +424,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_gpu_count_specific(self):
+    async def test_gpu_count_specific(self) -> None:
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -458,7 +460,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_gpu_device_ids_all(self):
+    async def test_gpu_device_ids_all(self) -> None:
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -492,7 +494,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_gpu_device_ids_specific(self):
+    async def test_gpu_device_ids_specific(self) -> None:
         c = create_compose_mock()
 
         cnt = get_minimal_container()
@@ -534,7 +536,9 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
         (True, "z", ["-v", "./foo:/mnt:z"]),
         (True, "Z", ["-v", "./foo:/mnt:Z"]),
     ])
-    async def test_selinux_volume(self, prefer_volume, selinux_type, expected_additional_args):
+    async def test_selinux_volume(
+        self, prefer_volume: bool, selinux_type: str, expected_additional_args: list
+    ) -> None:
         c = create_compose_mock()
         c.prefer_volume_over_mount = prefer_volume
 
@@ -572,7 +576,9 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
         ("compat_no_dash", True, "test_project_name", "test_project_name_network1"),
         ("compat_dash", True, "test_project-name", "test_projectname_network1"),
     ])
-    async def test_network_default_name(self, name, is_compat, project_name, expected_network_name):
+    async def test_network_default_name(
+        self, name: str, is_compat: bool, project_name: str, expected_network_name: str
+    ) -> None:
         c = create_compose_mock(project_name)
         c.x_podman = {"default_net_name_compat": is_compat}
         c.networks = {'network1': {}}
@@ -591,7 +597,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_device(self):
+    async def test_device(self) -> None:
         c = create_compose_mock()
         cnt = get_minimal_container()
 
@@ -613,7 +619,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_cpuset(self):
+    async def test_cpuset(self) -> None:
         c = create_compose_mock()
         cnt = get_minimal_container()
         cnt["cpuset"] = "0-1"
@@ -631,7 +637,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_pids_limit_container_level(self):
+    async def test_pids_limit_container_level(self) -> None:
         c = create_compose_mock()
         cnt = get_minimal_container()
         cnt["pids_limit"] = 100
@@ -649,7 +655,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_pids_limit_deploy_section(self):
+    async def test_pids_limit_deploy_section(self) -> None:
         c = create_compose_mock()
         cnt = get_minimal_container()
         cnt["deploy"] = {"resources": {"limits": {"pids": 100}}}
@@ -667,7 +673,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_pids_limit_both_same(self):
+    async def test_pids_limit_both_same(self) -> None:
         c = create_compose_mock()
         cnt = get_minimal_container()
         cnt["pids_limit"] = 100
@@ -686,7 +692,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_pids_limit_both_different(self):
+    async def test_pids_limit_both_different(self) -> None:
         c = create_compose_mock()
         cnt = get_minimal_container()
         cnt["pids_limit"] = 100
@@ -695,7 +701,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):
             await container_to_args(c, cnt)
 
-    async def test_heathcheck_string(self):
+    async def test_healthcheck_string(self) -> None:
         c = create_compose_mock()
         cnt = get_minimal_container()
         cnt["healthcheck"] = {
@@ -715,7 +721,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_heathcheck_cmd_args(self):
+    async def test_healthcheck_cmd_args(self) -> None:
         c = create_compose_mock()
         cnt = get_minimal_container()
         cnt["healthcheck"] = {
@@ -735,7 +741,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_heathcheck_cmd_shell(self):
+    async def test_healthcheck_cmd_shell(self) -> None:
         c = create_compose_mock()
         cnt = get_minimal_container()
         cnt["healthcheck"] = {
@@ -755,7 +761,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_heathcheck_cmd_shell_error(self):
+    async def test_healthcheck_cmd_shell_error(self) -> None:
         c = create_compose_mock()
         cnt = get_minimal_container()
         cnt["healthcheck"] = {
