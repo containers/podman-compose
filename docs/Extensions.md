@@ -27,6 +27,14 @@ services:
 
 For explanations of these extensions, please refer to the [Podman Documentation](https://docs.podman.io/).
 
+## Secrets
+```yml
+secrets:
+  custom-secret:
+    x-podman.relabel: private
+```
+For explanations of these extensions, please refer to the [Linux kernel documentation for shared filesystem subtrees](https://docs.kernel.org/filesystems/sharedsubtree.html)).
+
 ## Network management
 
 The following extension keys are available under network configuration:
