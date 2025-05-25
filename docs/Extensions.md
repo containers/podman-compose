@@ -31,9 +31,9 @@ For explanations of these extensions, please refer to the [Podman Documentation]
 ```yml
 secrets:
   custom-secret:
-    x-podman.relabel: z
+    x-podman.relabel: private
 ```
-For explanations of these extensions, please refer to the [PR discussion](https://github.com/containers/podman-compose/pull/1210).
+For explanations of these extensions, please refer to the [Linux kernel documentation for shared filesystem subtrees](https://docs.kernel.org/filesystems/sharedsubtree.html)).
 
 ## Network management
 

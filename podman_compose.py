@@ -577,7 +577,7 @@ def get_secret_args(compose, cnt, secret, podman_is_building=False):
     declared_secret = compose.declared_secrets[secret_name]
 
     source_file = declared_secret.get("file")
-    secret_relabel = declared_secret.get("x-podman.relabel")
+    x_podman_relabel = declared_secret.get("x-podman.relabel")
     dest_file = ""
     secret_opts = ""
 
@@ -621,12 +621,16 @@ def get_secret_args(compose, cnt, secret, podman_is_building=False):
                 dest_file = secret_target
 
             mount_options = 'ro,rprivate,rbind'
-            if secret_relabel not in set(("z", "Z", None)):
+
+            selinux_relabel_to_mount_option_map = {None: "", "shared": ",z", "private": ",Z"}
+            try:
+                selinux_mount_option = selinux_relabel_to_mount_option_map[x_podman_relabel]
+            except KeyError as exc:
                 raise ValueError(
-                    f'ERORR: Run secret "{secret_name} has invalid "relabel" option '
-                    + f'"{secret_relabel}". Expected "Z" "z" or nothing.')
-            if secret_relabel:
-                mount_options = f'{mount_options},{secret_relabel}'
+                    f'ERORR: Run secret "{secret_name} has invalid "relabel" option related '
+                    + f' to SELinux "{x_podman_relabel}". Expected "shared" "private" or nothing.'
+                ) from exc
+            mount_options = f'{mount_options}{selinux_mount_option}'
             volume_ref = ["--volume", f"{source_file}:{dest_file}:{mount_options}"]
 
         if secret_uid or secret_gid or secret_mode:
