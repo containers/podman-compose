@@ -3,3 +3,12 @@ services:
     test:
       build: ./context
       image: build-fail-img
+    test_no_dockerfile:
+      build:
+        context: ./context_no_file
+      image: busybox
+    test_no_custom_dockerfile:
+      build:
+        context: ./context_no_file
+        dockerfile: Dockerfile-alt
+      image: busybox

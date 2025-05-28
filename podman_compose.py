@@ -2752,8 +2752,10 @@ def container_to_build_args(
     build_args = []
 
     if not is_path_git_url(ctx):
+        custom_dockerfile_given = False
         if dockerfile:
             dockerfile = os.path.join(ctx, dockerfile)
+            custom_dockerfile_given = True
         else:
             dockerfile_alts = [
                 "Containerfile",
@@ -2773,6 +2775,9 @@ def container_to_build_args(
             dockerfile = os.path.normpath(os.path.join(ctx, dockerfile))
             build_args.extend(["-f", dockerfile])
         else:
+            if custom_dockerfile_given:
+                # custom dockerfile name was also not found in the file system
+                raise OSError(f"Dockerfile not found in {dockerfile}")
             raise OSError(f"Dockerfile not found in {ctx}")
 
     build_args.extend(["-t", cnt["image"]])
