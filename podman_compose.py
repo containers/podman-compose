@@ -2315,7 +2315,8 @@ class PodmanCompose:
                 labels.extend(podman_compose_labels)
                 labels.extend([
                     f"com.docker.compose.container-number={num}",
-                    "com.docker.compose.service=" + service_name,
+                    f"io.podman.compose.service={service_name}",
+                    f"com.docker.compose.service={service_name}",
                 ])
                 cnt["labels"] = labels
                 cnt["_service"] = service_name
