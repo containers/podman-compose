@@ -14,12 +14,19 @@ jobs:
       options: --privileged --cgroupns=host
     steps:
     - uses: actions/checkout@v4
-    - name: Analysing the code with ruff
+    - name: Install dependencies
       run: |
         set -e
         pip install -r test-requirements.txt
+    - name: Analysing the code using ruff
+      run: |
+        set -e
         ruff format --check
         ruff check
+    - name: Analysing the code using mypy
+      run: |
+        set -e
+        mypy .
     - name: Analysing the code with pylint
       run: |
         pylint podman_compose.py
