@@ -622,13 +622,13 @@ def get_secret_args(compose, cnt, secret, podman_is_building=False):
 
             mount_options = 'ro,rprivate,rbind'
 
-            selinux_relabel_to_mount_option_map = {None: "", "shared": ",z", "private": ",Z"}
+            selinux_relabel_to_mount_option_map = {None: "", "z": ",z", "Z": ",Z"}
             try:
                 selinux_mount_option = selinux_relabel_to_mount_option_map[x_podman_relabel]
             except KeyError as exc:
                 raise ValueError(
                     f'ERORR: Run secret "{secret_name} has invalid "relabel" option related '
-                    + f' to SELinux "{x_podman_relabel}". Expected "shared" "private" or nothing.'
+                    + f' to SELinux "{x_podman_relabel}". Expected "z" "Z" or nothing.'
                 ) from exc
             mount_options = f'{mount_options}{selinux_mount_option}'
             volume_ref = ["--volume", f"{source_file}:{dest_file}:{mount_options}"]

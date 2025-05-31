@@ -31,9 +31,9 @@ For explanations of these extensions, please refer to the [Podman Documentation]
 ```yml
 secrets:
   custom-secret:
-    x-podman.relabel: private
+    x-podman.relabel: Z
 ```
-For explanations of these extensions, please refer to the [Linux kernel documentation for shared filesystem subtrees](https://docs.kernel.org/filesystems/sharedsubtree.html)).
+For explanations of these extensions, please refer to the [podman-run --volume documentation](https://docs.podman.io/en/latest/markdown/podman-run.1.html#volume-v-source-volume-host-dir-container-dir-options)).
 
 ## Network management
 

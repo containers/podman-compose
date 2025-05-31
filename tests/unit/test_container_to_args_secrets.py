@@ -304,13 +304,13 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
         ),
         (
             "relabel",
-            {"file_secret": {"file": "./my_secret", "x-podman.relabel": "private"}},
+            {"file_secret": {"file": "./my_secret", "x-podman.relabel": "Z"}},
             "file_secret",
             repo_root() + "/test_dirname/my_secret:/run/secrets/file_secret:ro,rprivate,rbind,Z",
         ),
         (
             "relabel",
-            {"file_secret": {"file": "./my_secret", "x-podman.relabel": "shared"}},
+            {"file_secret": {"file": "./my_secret", "x-podman.relabel": "z"}},
             "file_secret",
             repo_root() + "/test_dirname/my_secret:/run/secrets/file_secret:ro,rprivate,rbind,z",
         ),
