@@ -307,6 +307,18 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             repo_root() + "/test_dirname/my_secret:/run/secrets/file_secret:ro,rprivate,rbind",
         ),
         (
+            "relabel",
+            {"file_secret": {"file": "./my_secret", "x-podman.relabel": "Z"}},
+            "file_secret",
+            repo_root() + "/test_dirname/my_secret:/run/secrets/file_secret:ro,rprivate,rbind,Z",
+        ),
+        (
+            "relabel",
+            {"file_secret": {"file": "./my_secret", "x-podman.relabel": "z"}},
+            "file_secret",
+            repo_root() + "/test_dirname/my_secret:/run/secrets/file_secret:ro,rprivate,rbind,z",
+        ),
+        (
             "custom_target_name",
             {
                 "file_secret": {
