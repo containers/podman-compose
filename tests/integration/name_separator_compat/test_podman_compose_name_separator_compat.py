@@ -14,6 +14,7 @@ class TestComposeNameSeparatorCompat(unittest.TestCase, RunSubprocessMixin):
     @parameterized.expand([
         ('default', { }, '_'),
         ('default', { 'PODMANCOMPOSE_NAME_SEPARATOR_COMPAT': '1' }, '-'),
+        ('default', { 'PODMANCOMPOSE_DOCKER_COMPOSE_COMPAT': '1' }, '-'),
         ('compat', { }, '-'),
         ('compat', { 'PODMANCOMPOSE_NAME_SEPARATOR_COMPAT': '1' }, '-'),
         ('compat', { 'PODMANCOMPOSE_NAME_SEPARATOR_COMPAT': '0' }, '_'),

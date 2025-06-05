@@ -467,6 +467,55 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             # can not actually find this pod because it was not created
             self.run_subprocess_assert_returncode(command_rm_pod, 1)
 
+    def test_x_podman_in_pod_not_exists_command_line_in_pod_not_exists_docker_compat(self) -> None:
+        """
+        Test that podman-compose will not create a pod when docker compat is requested.
+        """
+        command_up = [
+            "python3",
+            os.path.join(base_path(), "podman_compose.py"),
+            "-f",
+            os.path.join(
+                base_path(),
+                "tests",
+                "integration",
+                "in_pod",
+                "custom_x-podman_not_exists",
+                "docker-compose.yml",
+            ),
+            "up",
+            "-d",
+        ]
+
+        down_cmd = [
+            "python3",
+            podman_compose_path(),
+            "-f",
+            os.path.join(
+                base_path(),
+                "tests",
+                "integration",
+                "in_pod",
+                "custom_x-podman_not_exists",
+                "docker-compose.yml",
+            ),
+            "down",
+        ]
+
+        env = {
+            "PODMANCOMPOSE_DOCKER_COMPOSE_COMPAT": "1",
+        }
+
+        try:
+            self.run_subprocess_assert_returncode(command_up, failure_exitcode_when_rootful(), env=env)
+
+        finally:
+            self.run_subprocess_assert_returncode(down_cmd, env=env)
+
+            command_rm_pod = ["podman", "pod", "rm", "pod_custom_x-podman_not_exists"]
+            # can not actually find this pod because it was not created
+            self.run_subprocess_assert_returncode(command_rm_pod, 1)
+
     def test_x_podman_in_pod_custom_name(self) -> None:
         """
         Test that podman-compose will create a pod with a custom name

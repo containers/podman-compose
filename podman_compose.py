@@ -2043,13 +2043,17 @@ class PodmanCompose:
         if isinstance(retcode, int):
             sys.exit(retcode)
 
+    def docker_compat_requested(self) -> bool:
+        return try_parse_bool(self.x_podman.get("docker_compose_compat", False)) or False
 
     def resolve_pod_name(self) -> str | None:
         # Priorities:
         # - Command line --in-pod
         # - docker-compose.yml x-podman.in_pod
-        # - Default value of true
-        in_pod_arg = self.global_args.in_pod or self.x_podman.get("in_pod", True)
+        # - based on docker_compat_requested
+        in_pod_arg = self.global_args.in_pod or self.x_podman.get(
+            "in_pod",
+            not self.docker_compat_requested())
 
         match try_parse_bool(in_pod_arg):
             case True:
@@ -2070,7 +2074,7 @@ class PodmanCompose:
         return self.x_podman.get("pod_args", ["--infra=false", "--share="])
 
     def join_name_parts(self, *parts: str) -> str:
-        if try_parse_bool(self.x_podman.get("name_separator_compat", False)):
+        if try_parse_bool(self.x_podman.get("name_separator_compat", self.docker_compat_requested())):
             sep = "-"
         else:
             sep = "_"
