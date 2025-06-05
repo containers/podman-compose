@@ -375,34 +375,38 @@ def default_network_name_for_project(compose: PodmanCompose, net: str, is_ext: A
     return compose.format_name(net)
 
 
-# def tr_identity(project_name, given_containers):
-#    pod_name = f'pod_{project_name}'
-#    pod = dict(name=pod_name)
-#    containers = []
-#    for cnt in given_containers:
-#        containers.append(dict(cnt, pod=pod_name))
-#    return [pod], containers
+def try_parse_bool(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        value = value.lower()
+        if value in ('true', '1'):
+            return True
+        if value in ('false', '0'):
+            return False
+    return None
 
 
 def transform(
     args: Any, project_name: str, given_containers: list[Any]
 ) -> tuple[list[dict], list[dict]]:
-    in_pod = str(args.in_pod).lower()
-    pod_name = None
-    pods = []
 
-    if in_pod in ('true', '1', 'none', ''):
-        pod_name = f"pod_{project_name}"
-    elif in_pod not in ('false', '0'):
-        pod_name = args.in_pod
+    match try_parse_bool(args.in_pod):
+        case True:
+            pod_name = f"pod_{project_name}"
+        case False:
+            pod_name = None
+        case None:
+            if args.in_pod:
+                pod_name = args.in_pod
+            else:
+                pod_name = None
 
     if pod_name:
         pods = [{"name": pod_name}]
-
-    containers = []
-    for cnt in given_containers:
-        containers.append(dict(cnt, pod=pod_name))
-    return pods, containers
+        return pods, [dict(cnt, pod=pod_name) for cnt in given_containers]
+    else:
+        return [], given_containers
 
 
 async def assert_volume(compose: PodmanCompose, mount_dict: dict[str, Any]) -> None:
@@ -2072,7 +2076,7 @@ class PodmanCompose:
         return self.x_podman.get("pod_args", ["--infra=false", "--share="])
 
     def join_name_parts(self, *parts: str) -> str:
-        if self.x_podman.get("name_separator_compat", False):
+        if try_parse_bool(self.x_podman.get("name_separator_compat", False)):
             sep = "-"
         else:
             sep = "_"
