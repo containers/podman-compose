@@ -110,33 +110,6 @@ curl -o ~/.local/bin/podman-compose https://raw.githubusercontent.com/containers
 chmod +x ~/.local/bin/podman-compose
 ```
 
-## Basic Usage
-
-We have included fully functional sample stacks inside `examples/` directory.
-You can get more examples from [awesome-compose](https://github.com/docker/awesome-compose).
-
-A quick example would be
-
-```bash
-cd examples/busybox
-podman-compose --help
-podman-compose up --help
-podman-compose up
-```
-
-A more rich example can be found in [examples/awx3](examples/awx3)
-which have
-
-- A Postgres Database
-- RabbitMQ server
-- MemCached server
-- a django web server
-- a django tasks
-
-
-When testing the `AWX3` example, if you got errors, just wait for db migrations to end.
-There is also AWX 17.1.0
-
 ## Tests
 
 podman-compose is tested via unit and integration tests.
