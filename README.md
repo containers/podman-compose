@@ -139,14 +139,18 @@ There is also AWX 17.1.0
 
 ## Tests
 
-Inside `tests/` directory we have many useless docker-compose stacks
-that are meant to test as many cases as we can to make sure we are compatible
+podman-compose is tested via unit and integration tests.
 
-### Unit tests with unittest
-run a unittest with following command
+Unit tests can be run via the following:
 
 ```shell
 python3 -m unittest discover tests/unit
+```
+
+Integration tests can be run via the following:
+
+```shell
+python3 -m unittest discover tests/integration
 ```
 
 # Contributing guide
