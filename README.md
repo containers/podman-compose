@@ -68,7 +68,23 @@ Or latest development version from GitHub:
 pip3 install https://github.com/containers/podman-compose/archive/main.tar.gz
 ```
 
-### Homebrew
+### Package repositories
+
+podman-compose is available from the following package repositories:
+
+Debian:
+
+```bash
+sudo apt install podman-compose
+```
+
+Fedora (starting from f31) repositories:
+
+```bash
+sudo dnf install podman-compose
+```
+
+Homebrew:
 
 ```bash
 brew install podman-compose
@@ -94,49 +110,20 @@ curl -o ~/.local/bin/podman-compose https://raw.githubusercontent.com/containers
 chmod +x ~/.local/bin/podman-compose
 ```
 
-or install from Fedora (starting from f31) repositories:
-
-```bash
-sudo dnf install podman-compose
-```
-
-## Basic Usage
-
-We have included fully functional sample stacks inside `examples/` directory.
-You can get more examples from [awesome-compose](https://github.com/docker/awesome-compose).
-
-A quick example would be
-
-```bash
-cd examples/busybox
-podman-compose --help
-podman-compose up --help
-podman-compose up
-```
-
-A more rich example can be found in [examples/awx3](examples/awx3)
-which have
-
-- A Postgres Database
-- RabbitMQ server
-- MemCached server
-- a django web server
-- a django tasks
-
-
-When testing the `AWX3` example, if you got errors, just wait for db migrations to end.
-There is also AWX 17.1.0
-
 ## Tests
 
-Inside `tests/` directory we have many useless docker-compose stacks
-that are meant to test as many cases as we can to make sure we are compatible
+podman-compose is tested via unit and integration tests.
 
-### Unit tests with unittest
-run a unittest with following command
+Unit tests can be run via the following:
 
 ```shell
 python3 -m unittest discover tests/unit
+```
+
+Integration tests can be run via the following:
+
+```shell
+python3 -m unittest discover tests/integration
 ```
 
 # Contributing guide
