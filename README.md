@@ -68,7 +68,23 @@ Or latest development version from GitHub:
 pip3 install https://github.com/containers/podman-compose/archive/main.tar.gz
 ```
 
-### Homebrew
+### Package repositories
+
+podman-compose is available from the following package repositories:
+
+Debian:
+
+```bash
+sudo apt install podman-compose
+```
+
+Fedora (starting from f31) repositories:
+
+```bash
+sudo dnf install podman-compose
+```
+
+Homebrew:
 
 ```bash
 brew install podman-compose
@@ -92,18 +108,6 @@ or inside your home
 ```bash
 curl -o ~/.local/bin/podman-compose https://raw.githubusercontent.com/containers/podman-compose/main/podman_compose.py
 chmod +x ~/.local/bin/podman-compose
-```
-
-or install from Debian repositories:
-
-```bash
-sudo apt install podman-compose
-```
-
-or install from Fedora (starting from f31) repositories:
-
-```bash
-sudo dnf install podman-compose
 ```
 
 ## Basic Usage
