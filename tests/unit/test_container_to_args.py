@@ -650,7 +650,7 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
         self, name: str, is_compat: bool, project_name: str, expected_network_name: str
     ) -> None:
         c = create_compose_mock(project_name)
-        c.x_podman = {"default_net_name_compat": is_compat}
+        c.x_podman = {PodmanCompose.XPodmanSettingKey.DEFAULT_NET_NAME_COMPAT: is_compat}
         c.networks = {'network1': {}}
 
         cnt = get_minimal_container()
