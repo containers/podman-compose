@@ -94,6 +94,12 @@ curl -o ~/.local/bin/podman-compose https://raw.githubusercontent.com/containers
 chmod +x ~/.local/bin/podman-compose
 ```
 
+or install from Debian repositories:
+
+```bash
+sudo apt install podman-compose
+```
+
 or install from Fedora (starting from f31) repositories:
 
 ```bash
