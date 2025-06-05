@@ -36,8 +36,9 @@ class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
                 "selinux_container1_1",
             ])
             inspect_out = json.loads(out)
-            create_command_list = inspect_out[0].get("Config", []).get("CreateCommand", {})
-            self.assertIn('./host_test_text.txt:/test_text.txt:z', create_command_list)
+            create_command_list = inspect_out[0].get("Config", []).get("CreateCommand", [])
+            host_path = os.path.join(test_path(), "selinux", "host_test_text.txt")
+            self.assertIn(f'{host_path}:/test_text.txt:z', create_command_list)
 
             out, _ = self.run_subprocess_assert_returncode([
                 "podman",
@@ -45,8 +46,9 @@ class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
                 "selinux_container2_1",
             ])
             inspect_out = json.loads(out)
-            create_command_list = inspect_out[0].get("Config", []).get("CreateCommand", {})
-            self.assertIn('./host_test_text.txt:/test_text.txt', create_command_list)
+            create_command_list = inspect_out[0].get("Config", []).get("CreateCommand", [])
+            host_path = os.path.join(test_path(), "selinux", "host_test_text.txt")
+            self.assertIn(f'{host_path}:/test_text.txt', create_command_list)
         finally:
             out, _ = self.run_subprocess_assert_returncode([
                 podman_compose_path(),

@@ -395,6 +395,7 @@ async def assert_volume(compose, mount_dict):
                 os.makedirs(mount_src, exist_ok=True)
             except OSError:
                 pass
+        mount_dict["source"] = mount_src
         return
     if mount_dict["type"] != "volume" or not vol or not vol.get("name"):
         return
