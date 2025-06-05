@@ -2219,6 +2219,13 @@ class PodmanCompose:
             log.debug(" ** merged:\n%s", json.dumps(compose, indent=2))
         # ver = compose.get('version')
 
+        self.x_podman = compose.get("x-podman", {})
+        self.x_podman.update({
+            key.removeprefix("PODMAN_COMPOSE_").lower(): value  # type: ignore[misc]
+            for key, value in self.environ.items()
+            if key.startswith("PODMAN_COMPOSE_")  # type: ignore[misc]
+        })
+
         services: dict | None = compose.get("services")
         if services is None:
             services = {}
@@ -2236,7 +2243,7 @@ class PodmanCompose:
             nets["default"] = None
 
         self.networks = nets
-        if compose.get("x-podman", {}).get("default_net_behavior_compat", False):
+        if self.x_podman.get("default_net_behavior_compat", False):
             # If there is no network_mode and networks in service,
             # docker-compose will create default network named '<project_name>_default'
             # and add the service to the default network.
@@ -2352,8 +2359,6 @@ class PodmanCompose:
         given_containers = list(container_by_name.values())
         given_containers.sort(key=lambda c: len(c.get("_deps", [])))
         # log("sorted:", [c["name"] for c in given_containers])
-
-        self.x_podman = compose.get("x-podman", {})
 
         args.in_pod = self.resolve_in_pod()
         args.pod_arg_list = self.resolve_pod_args()
