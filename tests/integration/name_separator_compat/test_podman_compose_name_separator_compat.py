@@ -13,10 +13,10 @@ from tests.integration.test_utils import test_path
 class TestComposeNameSeparatorCompat(unittest.TestCase, RunSubprocessMixin):
     @parameterized.expand([
         ('default', { }, '_'),
-        ('default', { 'PODMAN_COMPOSE_NAME_SEPARATOR_COMPAT': '1' }, '-'),
+        ('default', { 'PODMANCOMPOSE_NAME_SEPARATOR_COMPAT': '1' }, '-'),
         ('compat', { }, '-'),
-        ('compat', { 'PODMAN_COMPOSE_NAME_SEPARATOR_COMPAT': '1' }, '-'),
-        ('compat', { 'PODMAN_COMPOSE_NAME_SEPARATOR_COMPAT': '0' }, '_'),
+        ('compat', { 'PODMANCOMPOSE_NAME_SEPARATOR_COMPAT': '1' }, '-'),
+        ('compat', { 'PODMANCOMPOSE_NAME_SEPARATOR_COMPAT': '0' }, '_'),
     ])
     def test_container_name(self, file: str, env: dict[str, str], expected_sep: str) -> None:
         compose_yaml_path = os.path.join(

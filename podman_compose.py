@@ -2229,9 +2229,9 @@ class PodmanCompose:
 
         self.x_podman = compose.get("x-podman", {})
         self.x_podman.update({
-            key.removeprefix("PODMAN_COMPOSE_").lower(): value  # type: ignore[misc]
+            key.removeprefix("PODMANCOMPOSE_").lower(): value  # type: ignore[misc]
             for key, value in self.environ.items()
-            if key.startswith("PODMAN_COMPOSE_")  # type: ignore[misc]
+            if key.startswith("PODMANCOMPOSE_")  # type: ignore[misc]
         })
 
         pod_name = self.resolve_pod_name()
