@@ -371,7 +371,8 @@ def default_network_name_for_project(compose: PodmanCompose, net: str, is_ext: A
     assert compose.project_name is not None
 
     default_net_name_compat = compose.x_podman.get(
-        PodmanCompose.XPodmanSettingKey.DEFAULT_NET_NAME_COMPAT, False)
+        PodmanCompose.XPodmanSettingKey.DEFAULT_NET_NAME_COMPAT, False
+    )
     if default_net_name_compat is True:
         return f"{compose.project_name.replace('-', '')}_{net}"
     return f"{compose.project_name}_{net}"
@@ -2077,7 +2078,9 @@ class PodmanCompose:
         # - Default value
         if self.global_args.pod_args is not None:
             return shlex.split(self.global_args.pod_args)
-        return self.x_podman.get(PodmanCompose.XPodmanSettingKey.POD_ARGS, ["--infra=false", "--share="])
+        return self.x_podman.get(
+            PodmanCompose.XPodmanSettingKey.POD_ARGS, ["--infra=false", "--share="]
+        )
 
     def _parse_x_podman_settings(self, compose: dict[str, Any], environ: dict[str, str]) -> None:
         known_keys = {s.value: s for s in PodmanCompose.XPodmanSettingKey}
@@ -2090,8 +2093,9 @@ class PodmanCompose:
                 self.x_podman[known_key] = v
             else:
                 log.warning(
-                  f"unknown x-podman key [{k}] in compose file, supported keys: "
-                  f"{', '.join(known_keys.keys())}"
+                    "unknown x-podman key [%s] in compose file, supported keys: %s",
+                    k,
+                    ", ".join(known_keys.keys()),
                 )
 
         env = {
@@ -2106,8 +2110,9 @@ class PodmanCompose:
                 self.x_podman[known_key] = v
             else:
                 log.warning(
-                    f"unknown PODMANCOMPOSE_ key [{k}] in environment, supported keys: "
-                    f"{', '.join(known_keys.keys())}"
+                    "unknown PODMANCOMPOSE_ key [%s] in environment, supported keys: %s",
+                    k,
+                    ", ".join(known_keys.keys()),
                 )
 
     def _parse_compose_file(self) -> None:

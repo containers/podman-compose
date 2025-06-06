@@ -508,9 +508,8 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
 
         try:
             self.run_subprocess_assert_returncode(
-                command_up,
-                failure_exitcode_when_rootful(),
-                env=env)
+                command_up, failure_exitcode_when_rootful(), env=env
+            )
 
         finally:
             self.run_subprocess_assert_returncode(down_cmd, env=env)
