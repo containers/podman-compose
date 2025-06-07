@@ -503,7 +503,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
         ]
 
         env = {
-            "PODMANCOMPOSE_IN_POD": "0",
+            "PODMAN_COMPOSE_IN_POD": "0",
         }
 
         try:

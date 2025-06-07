@@ -2099,9 +2099,10 @@ class PodmanCompose:
                 )
 
         env = {
-            key.removeprefix("PODMANCOMPOSE_").lower(): value  # type: ignore[misc]
+            key.removeprefix("PODMAN_COMPOSE_").lower(): value
             for key, value in environ.items()
-            if key.startswith("PODMANCOMPOSE_")  # type: ignore[misc]
+            if key.startswith("PODMAN_COMPOSE_")
+            and key not in {"PODMAN_COMPOSE_PROVIDER", "PODMAN_COMPOSE_WARNING_LOGS"}
         }
 
         for k, v in env.items():
@@ -2110,7 +2111,7 @@ class PodmanCompose:
                 self.x_podman[known_key] = v
             else:
                 log.warning(
-                    "unknown PODMANCOMPOSE_ key [%s] in environment, supported keys: %s",
+                    "unknown PODMAN_COMPOSE_ key [%s] in environment, supported keys: %s",
                     k,
                     ", ".join(known_keys.keys()),
                 )
