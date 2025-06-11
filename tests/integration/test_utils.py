@@ -34,7 +34,7 @@ class RunSubprocessMixin:
     def is_debug_enabled(self) -> bool:
         return "TESTS_DEBUG" in os.environ
 
-    def run_subprocess(self, args: list[str]) -> tuple[bytes, bytes, int]:
+    def run_subprocess(self, args: list[str], env: dict[str, str] = {}) -> tuple[bytes, bytes, int]:
         begin = time.time()
         if self.is_debug_enabled():
             print("TEST_CALL", args)
@@ -42,6 +42,7 @@ class RunSubprocessMixin:
             args,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            env=os.environ | env,
         )
         out, err = proc.communicate()
         if self.is_debug_enabled():
@@ -51,9 +52,9 @@ class RunSubprocessMixin:
         return out, err, proc.returncode
 
     def run_subprocess_assert_returncode(
-        self, args: list[str], expected_returncode: int = 0
+        self, args: list[str], expected_returncode: int = 0, env: dict[str, str] = {}
     ) -> tuple[bytes, bytes]:
-        out, err, returncode = self.run_subprocess(args)
+        out, err, returncode = self.run_subprocess(args, env=env)
         decoded_out = out.decode('utf-8')
         decoded_err = err.decode('utf-8')
         self.assertEqual(  # type: ignore[attr-defined]
