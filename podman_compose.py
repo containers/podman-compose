@@ -376,34 +376,22 @@ def default_network_name_for_project(compose: PodmanCompose, net: str, is_ext: A
         return compose.join_name_parts(compose.project_name.replace('-', ''), net)
     return compose.format_name(net)
 
-# def tr_identity(project_name, given_containers):
-#    pod_name = f'pod_{project_name}'
-#    pod = dict(name=pod_name)
-#    containers = []
-#    for cnt in given_containers:
-#        containers.append(dict(cnt, pod=pod_name))
-#    return [pod], containers
 
-
-def transform(
-    args: Any, project_name: str, given_containers: list[Any]
-) -> tuple[list[dict], list[dict]]:
-    in_pod = str(args.in_pod).lower()
-    pod_name = None
-    pods = []
-
-    if in_pod in ('true', '1', 'none', ''):
-        pod_name = f"pod_{project_name}"
-    elif in_pod not in ('false', '0'):
-        pod_name = args.in_pod
-
-    if pod_name:
-        pods = [{"name": pod_name}]
-
-    containers = []
-    for cnt in given_containers:
-        containers.append(dict(cnt, pod=pod_name))
-    return pods, containers
+def try_parse_bool(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        value = value.lower()
+        if value in ('true', '1'):
+            return True
+        if value in ('false', '0'):
+            return False
+    if isinstance(value, int):
+        if value == 1:
+            return True
+        if value == 0:
+            return False
+    return None
 
 
 async def assert_volume(compose: PodmanCompose, mount_dict: dict[str, Any]) -> None:
@@ -2064,11 +2052,23 @@ class PodmanCompose:
         if isinstance(retcode, int):
             sys.exit(retcode)
 
-    def resolve_in_pod(self) -> bool:
-        if self.global_args.in_pod in (None, ''):
-            self.global_args.in_pod = self.x_podman.get(PodmanCompose.XPodmanSettingKey.IN_POD, "1")
-        # otherwise use `in_pod` value provided by command line
-        return self.global_args.in_pod
+    def resolve_pod_name(self) -> str | None:
+        # Priorities:
+        # - Command line --in-pod
+        # - docker-compose.yml x-podman.in_pod
+        # - Default value of true
+        in_pod_arg = self.global_args.in_pod or self.x_podman.get(
+            PodmanCompose.XPodmanSettingKey.IN_POD, True
+        )
+
+        in_pod_arg_parsed = try_parse_bool(in_pod_arg)
+        if in_pod_arg_parsed is True:
+            return f"pod_{self.project_name}"
+        if in_pod_arg_parsed is False:
+            return None
+
+        assert isinstance(in_pod_arg, str) and in_pod_arg
+        return in_pod_arg
 
     def resolve_pod_args(self) -> list[str]:
         # Priorities:
@@ -2082,14 +2082,15 @@ class PodmanCompose:
         )
 
     def join_name_parts(self, *parts: str) -> str:
-        if self.x_podman.get(PodmanCompose.XPodmanSettingKey.NAME_SEPARATOR_COMPAT, False):
+        setting = self.x_podman.get(PodmanCompose.XPodmanSettingKey.NAME_SEPARATOR_COMPAT, False)
+        if try_parse_bool(setting):
             sep = "-"
         else:
             sep = "_"
-
         return sep.join(parts)
 
     def format_name(self, *parts: str) -> str:
+        assert self.project_name is not None
         return self.join_name_parts(self.project_name, *parts)
 
     def _parse_x_podman_settings(self, compose: dict[str, Any], environ: dict[str, str]) -> None:
@@ -2275,6 +2276,8 @@ class PodmanCompose:
 
         self._parse_x_podman_settings(compose, self.environ)
 
+        pod_name = self.resolve_pod_name()
+
         services: dict | None = compose.get("services")
         if services is None:
             services = {}
@@ -2370,6 +2373,7 @@ class PodmanCompose:
                 container_names_by_service[service_name].append(name)
                 # log(service_name,service_desc)
                 cnt = {
+                    "pod": pod_name,
                     "name": name,
                     "num": num,
                     "service_name": service_name,
@@ -2409,12 +2413,9 @@ class PodmanCompose:
         given_containers.sort(key=lambda c: len(c.get("_deps", [])))
         # log("sorted:", [c["name"] for c in given_containers])
 
-        args.in_pod = self.resolve_in_pod()
-        args.pod_arg_list = self.resolve_pod_args()
-        pods, containers = transform(args, project_name, given_containers)
-        self.pods = pods
-        self.containers = containers
-        self.container_by_name = {c["name"]: c for c in containers}
+        self.pods = [{"name": pod_name}] if pod_name else []
+        self.containers = given_containers
+        self.container_by_name = {c["name"]: c for c in given_containers}
 
     def _resolve_profiles(
         self, defined_services: dict[str, Any], requested_profiles: set[str] | None = None
@@ -2941,7 +2942,7 @@ async def pod_exists(compose: PodmanCompose, name: str) -> bool:
     return exit_code == 0
 
 
-async def create_pods(compose: PodmanCompose, args: argparse.Namespace) -> None:
+async def create_pods(compose: PodmanCompose) -> None:
     for pod in compose.pods:
         if await pod_exists(compose, pod["name"]):
             continue
@@ -2949,9 +2950,8 @@ async def create_pods(compose: PodmanCompose, args: argparse.Namespace) -> None:
         podman_args = [
             "create",
             "--name=" + pod["name"],
-        ] + args.pod_arg_list
-        # if compose.podman_version and not strverscmp_lt(compose.podman_version, "3.4.0"):
-        #    podman_args.append("--infra-name={}_infra".format(pod["name"]))
+        ] + compose.resolve_pod_args()
+
         ports = pod.get("ports", [])
         if isinstance(ports, str):
             ports = [ports]
@@ -3084,7 +3084,7 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
         log.info("recreating: done\n\n")
     # args.no_recreate disables check for changes (which is not implemented)
 
-    await create_pods(compose, args)
+    await create_pods(compose)
     exit_code = 0
     for cnt in compose.containers:
         if cnt["_service"] in excluded:
@@ -3328,7 +3328,7 @@ async def compose_ps(compose: PodmanCompose, args: argparse.Namespace) -> None:
     "create a container similar to a service to run a one-off command",
 )
 async def compose_run(compose: PodmanCompose, args: argparse.Namespace) -> None:
-    await create_pods(compose, args)
+    await create_pods(compose)
     compose.assert_services(args.service)
     container_names = compose.container_names_by_service[args.service]
     container_name = container_names[0]
@@ -3373,7 +3373,7 @@ def compose_run_update_container_from_args(
     compose: PodmanCompose, cnt: dict, args: argparse.Namespace
 ) -> None:
     # adjust one-off container options
-    name0 = compose.format_name(args.service, str(random.randrange(0, 65536)))
+    name0 = compose.format_name(args.service, f'tmp{random.randrange(0, 65536)}')
     cnt["name"] = args.name or name0
     if args.entrypoint:
         cnt["entrypoint"] = args.entrypoint
