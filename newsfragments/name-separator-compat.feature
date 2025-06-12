@@ -1,0 +1,1 @@
+- Add new name_separator_compat x-podman setting to change name separator to hyphen, same as Docker Compose

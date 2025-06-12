@@ -223,11 +223,10 @@ def fix_mount_dict(
         # handle anonymous or implied volume
         if not source:
             # missing source
-            vol["name"] = "_".join([
-                compose.project_name,
+            vol["name"] = compose.format_name(
                 srv_name,
                 hashlib.sha256(mount_dict["target"].encode("utf-8")).hexdigest(),
-            ])
+            )
         elif not name:
             external = vol.get("external")
             if isinstance(external, dict):
@@ -374,9 +373,8 @@ def default_network_name_for_project(compose: PodmanCompose, net: str, is_ext: A
         PodmanCompose.XPodmanSettingKey.DEFAULT_NET_NAME_COMPAT, False
     )
     if default_net_name_compat is True:
-        return f"{compose.project_name.replace('-', '')}_{net}"
-    return f"{compose.project_name}_{net}"
-
+        return compose.join_name_parts(compose.project_name.replace('-', ''), net)
+    return compose.format_name(net)
 
 # def tr_identity(project_name, given_containers):
 #    pod_name = f'pod_{project_name}'
@@ -1973,6 +1971,7 @@ class PodmanCompose:
     class XPodmanSettingKey(Enum):
         DEFAULT_NET_NAME_COMPAT = "default_net_name_compat"
         DEFAULT_NET_BEHAVIOR_COMPAT = "default_net_behavior_compat"
+        NAME_SEPARATOR_COMPAT = "name_separator_compat"
         IN_POD = "in_pod"
         POD_ARGS = "pod_args"
 
@@ -2081,6 +2080,17 @@ class PodmanCompose:
         return self.x_podman.get(
             PodmanCompose.XPodmanSettingKey.POD_ARGS, ["--infra=false", "--share="]
         )
+
+    def join_name_parts(self, *parts: str) -> str:
+        if self.x_podman.get(PodmanCompose.XPodmanSettingKey.NAME_SEPARATOR_COMPAT, False):
+            sep = "-"
+        else:
+            sep = "_"
+
+        return sep.join(parts)
+
+    def format_name(self, *parts: str) -> str:
+        return self.join_name_parts(self.project_name, *parts)
 
     def _parse_x_podman_settings(self, compose: dict[str, Any], environ: dict[str, str]) -> None:
         known_keys = {s.value: s for s in PodmanCompose.XPodmanSettingKey}
@@ -2352,7 +2362,7 @@ class PodmanCompose:
 
             container_names_by_service[service_name] = []
             for num in range(1, replicas + 1):
-                name0 = f"{project_name}_{service_name}_{num}"
+                name0 = self.format_name(service_name, str(num))
                 if num == 1:
                     name = service_desc.get("container_name", name0)
                 else:
@@ -2368,7 +2378,7 @@ class PodmanCompose:
                 x_podman = service_desc.get("x-podman")
                 rootfs_mode = x_podman is not None and x_podman.get("rootfs") is not None
                 if "image" not in cnt and not rootfs_mode:
-                    cnt["image"] = f"{project_name}_{service_name}"
+                    cnt["image"] = self.format_name(service_name)
                 labels = norm_as_list(cnt.get("labels"))
                 cnt["ports"] = norm_ports(cnt.get("ports"))
                 labels.extend(podman_compose_labels)
@@ -3363,7 +3373,7 @@ def compose_run_update_container_from_args(
     compose: PodmanCompose, cnt: dict, args: argparse.Namespace
 ) -> None:
     # adjust one-off container options
-    name0 = "{}_{}_tmp{}".format(compose.project_name, args.service, random.randrange(0, 65536))
+    name0 = compose.format_name(args.service, str(random.randrange(0, 65536)))
     cnt["name"] = args.name or name0
     if args.entrypoint:
         cnt["entrypoint"] = args.entrypoint
