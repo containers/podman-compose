@@ -1,0 +1,4 @@
+services:
+  web:
+    image: busybox
+    command: httpd -f -p 8123 -h /tmp/

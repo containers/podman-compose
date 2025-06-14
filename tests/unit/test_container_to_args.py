@@ -20,6 +20,8 @@ def create_compose_mock(project_name: str = "test_project_name") -> PodmanCompos
     compose.default_net = None
     compose.networks = {}
     compose.x_podman = {}
+    compose.join_name_parts = mock.Mock(side_effect=lambda *args: '_'.join(args))
+    compose.format_name = mock.Mock(side_effect=lambda *args: '_'.join([project_name, *args]))
 
     async def podman_output(*args: Any, **kwargs: Any) -> None:
         pass

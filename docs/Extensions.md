@@ -139,6 +139,26 @@ The options to the network modes are passed to the `--network` option of the `po
 as-is.
 
 
+## Compatibility of name separators between docker-compose and podman-compose
+
+Currently, podman-compose is using underscores (`_` character) as a separator in names of
+containers, images, etc., while docker-compose has switched to hyphens (`-` character). This setting
+allows to switch podman-compose to use hyphens as well.
+
+To enable compatibility between docker-compose and podman-compose, specify
+`name_separator_compat: true` under global `x-podman` key:
+
+```
+x-podman:
+    name_separator_compat: true
+```
+
+By default `name_separator_compat` is `false`. This will change to `true` at some point and the
+setting will be removed.
+
+This setting can also be changed by setting `PODMAN_COMPOSE_NAME_SEPARATOR_COMPAT` environment
+variable.
+
 ## Compatibility of default network names between docker-compose and podman-compose
 
 Current versions of podman-compose may produce different default external network names than
