@@ -56,7 +56,9 @@ def get_minimal_container() -> dict:
 
 
 def get_minimal_compose() -> PodmanCompose:
-    return PodmanCompose()
+    compose = PodmanCompose()
+    compose.project_name = "test_project"
+    return compose
 
 
 def get_minimal_args() -> argparse.Namespace:
@@ -67,7 +69,7 @@ def get_minimal_args() -> argparse.Namespace:
         env=None,
         name="default_name",
         rm=None,
-        service=None,
+        service="test_service",
         publish=None,
         service_ports=None,
         user=None,
