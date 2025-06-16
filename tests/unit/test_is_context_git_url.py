@@ -7,7 +7,7 @@ from parameterized import parameterized
 from podman_compose import is_context_git_url
 
 
-class TestIsPathGitUrl(unittest.TestCase):
+class TestIsContextGitUrl(unittest.TestCase):
     @parameterized.expand([
         ("with_url_fragment", "http://host.xz/path/to/repo.git#fragment", True),
         ("suffix_and_prefix", "git://host.xz/path/to/repo.git", True),
@@ -74,6 +74,7 @@ class TestIsPathGitUrl(unittest.TestCase):
         ("", "file://~/path/to/repo.git/", True),
         ("", "github.com:containers/podman-compose.git", True),
         ("", "github:containers/podman-compose.git", True),
+        ("", "https://github.com/test_repo.git/git_not_suffix", True),
     ])
     def test_is_path_git_url(self, test_name: str, path: str, result: bool) -> None:
         self.assertEqual(is_context_git_url(path), result)
