@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: GPL-2.0
+
+import unittest
+
+from parameterized import parameterized
+
+from podman_compose import is_context_git_url
+
+
+class TestIsContextGitUrl(unittest.TestCase):
+    @parameterized.expand([
+        ("with_url_fragment", "http://host.xz/path/to/repo.git#fragment", True),
+        ("suffix_and_prefix", "git://host.xz/path/to/repo.git", True),
+        ("empty_url_path", "http://#fragment", True),
+        ("no_prefix", "http://host.xz/path/to/repo", True),
+        ("wrong_prefix_git", "gitt://host.xz/path/to/repo", False),
+        ("wrong_prefix_http", "htt://host.xz/path/to/repo.git", False),
+        ("user_path_ending_with_git", "path/to/workdir.git", False),
+        ("", "/path/to/workdir.git", False),
+        ("", "/path/to:workdir.git", False),
+        ("", "/path/to@workdir.git", False),
+        ("", "~/path/to/workdir.git", False),
+        # many of possible ways git url can look like
+        ("", "http://example.com/my-project.git", True),
+        ("", "file:///absolute/path/to/my-project.git", True),
+        ("", "ssh:user@example.com:my-project", True),
+        ("", "git@github.com:user/project.git", True),
+        ("", "https://github.com/user/project.git", True),
+        ("", "http://github.com/user/project.git", True),
+        ("", "git@192.168.101.127:user/project.git", True),
+        ("", "https://192.168.101.127/user/project.git", True),
+        ("", "http://192.168.101.127/user/project.git", True),
+        ("", "ssh://user@host.xz:port/path/to/repo.git/", True),
+        ("", "ssh://user@host.xz/path/to/repo.git/", True),
+        ("", "ssh://host.xz:port/path/to/repo.git/", True),
+        ("", "ssh://host.xz/path/to/repo.git/", True),
+        ("", "ssh://user@host.xz/path/to/repo.git/", True),
+        ("", "ssh://host.xz/path/to/repo.git/", True),
+        ("", "ssh://user@host.xz/~user/path/to/repo.git/", True),
+        ("", "ssh://host.xz/~user/path/to/repo.git/", True),
+        ("", "ssh://user@host.xz/~/path/to/repo.git", True),
+        ("", "ssh://host.xz/~/path/to/repo.git", True),
+        ("", "git://host.xz/path/to/repo.git/", True),
+        ("", "git://host.xz/~user/path/to/repo.git/", True),
+        ("", "http://host.xz/path/to/repo.git/", True),
+        ("", "https://host.xz/path/to/repo.git/", True),
+        ("", "git@custom-gitlab:my-group/myrepo.git", True),
+        ("", "ssh://user@host.xz:port/path/to/repo.git/", True),
+        ("", "ssh://user@host.xz/path/to/repo.git/", True),
+        ("", "ssh://host.xz:port/path/to/repo.git/", True),
+        ("", "ssh://host.xz/path/to/repo.git/", True),
+        ("", "ssh://user@host.xz/path/to/repo.git/", True),
+        ("", "ssh://host.xz/path/to/repo.git/", True),
+        ("", "ssh://user@host.xz/~user/path/to/repo.git/", True),
+        ("", "ssh://host.xz/~user/path/to/repo.git/", True),
+        ("", "ssh://user@host.xz/~/path/to/repo.git", True),
+        ("", "ssh://host.xz/~/path/to/repo.git", True),
+        ("", "git://host.xz/path/to/repo.git/", True),
+        ("", "git://host.xz/~user/path/to/repo.git/", True),
+        ("", "http://host.xz/path/to/repo.git/", True),
+        ("", "https://host.xz/path/to/repo.git/", True),
+        ("", "ssh:user@example.com:my-project", True),
+        ("", "user@host.xz:/path/to/repo.git/", True),
+        ("", "host.xz:/path/to/repo.git/", True),
+        ("", "host:path/to/repo.git", True),
+        ("", "host:path/to/repo", True),
+        ("", "user@host.xz:~user/path/to/repo.git/", True),
+        ("", "host.xz:~user/path/to/repo.git/", True),
+        ("", "user@host.xz:path/to/repo.git", True),
+        ("", "user@path/to/repo", True),
+        ("", "host.xz:path/to/repo.git", True),
+        ("", "rsync://host.xz/path/to/repo.git/", True),
+        ("", "file:///path/to/repo.git/", True),
+        ("", "file://~/path/to/repo.git/", True),
+        ("", "github.com:containers/podman-compose.git", True),
+        ("", "github:containers/podman-compose.git", True),
+        ("", "https://github.com/test_repo.git/git_not_suffix", True),
+    ])
+    def test_is_path_git_url(self, test_name: str, path: str, result: bool) -> None:
+        self.assertEqual(is_context_git_url(path), result)

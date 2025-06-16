@@ -1,0 +1,1 @@
+Fixed regression of dockerfile definition if working directory name ends with ".git".
