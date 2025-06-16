@@ -1957,6 +1957,7 @@ COMPOSE_DEFAULT_LS = [
 
 class PodmanCompose:
     class XPodmanSettingKey(Enum):
+        DOCKER_COMPOSE_COMPAT = "docker_compose_compat"
         DEFAULT_NET_NAME_COMPAT = "default_net_name_compat"
         DEFAULT_NET_BEHAVIOR_COMPAT = "default_net_behavior_compat"
         NAME_SEPARATOR_COMPAT = "name_separator_compat"
@@ -2126,6 +2127,20 @@ class PodmanCompose:
                     k,
                     ", ".join(known_keys.keys()),
                 )
+
+        # If Docker Compose compatibility is enabled, set compatibility settings
+        # that are not explicitly set already.
+        if self.x_podman.get(PodmanCompose.XPodmanSettingKey.DOCKER_COMPOSE_COMPAT, False):
+
+            def set_if_not_already_set(key: PodmanCompose.XPodmanSettingKey, value: bool) -> None:
+                if key not in self.x_podman:
+                    self.x_podman[key] = value
+
+            set_if_not_already_set(
+                PodmanCompose.XPodmanSettingKey.DEFAULT_NET_BEHAVIOR_COMPAT, True
+            )
+            set_if_not_already_set(PodmanCompose.XPodmanSettingKey.NAME_SEPARATOR_COMPAT, True)
+            set_if_not_already_set(PodmanCompose.XPodmanSettingKey.IN_POD, False)
 
     def _parse_compose_file(self) -> None:
         args = self.global_args

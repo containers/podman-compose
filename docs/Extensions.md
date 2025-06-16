@@ -139,6 +139,24 @@ The options to the network modes are passed to the `--network` option of the `po
 as-is.
 
 
+## Docker Compose Compatibility
+
+podman-compose aims to be compatible with docker-compose, but there are some differences in
+behavior and features. The following sections describe how to enable compatibility with docker-compose
+and how to handle some of the differences.
+
+Compatibility settings can either be set explicitly as described below, or by setting the `docker_compose_compat` meta
+settings to `true` under the global `x-podman` key:
+
+```yaml
+x-podman:
+    docker_compose_compat: true
+```
+
+This will enable all compatibility settings described below, and is equivalent to setting each of them to `true`.
+
+This setting can also be changed by setting the `PODMAN_COMPOSE_DOCKER_COMPOSE_COMPAT` environment variable.
+
 ## Compatibility of name separators between docker-compose and podman-compose
 
 Currently, podman-compose is using underscores (`_` character) as a separator in names of
