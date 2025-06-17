@@ -1742,7 +1742,7 @@ def normalize_service_final(service: dict, project_dir: str) -> dict:
         build = service["build"]
         context = build if isinstance(build, str) else build.get("context", ".")
 
-        if not is_path_git_url(context):
+        if not is_context_git_url(context):
             context = os.path.normpath(os.path.join(project_dir, context))
         if not isinstance(service["build"], dict):
             service["build"] = {}
@@ -2628,9 +2628,18 @@ async def compose_push(compose, args):
         await compose.podman.run([], "push", [cnt["image"]])
 
 
-def is_path_git_url(path):
+def is_context_git_url(path: str) -> bool:
     r = urllib.parse.urlparse(path)
-    return r.scheme == 'git' or r.path.endswith('.git')
+    if r.scheme in ('git', 'http', 'https', 'ssh', 'file', 'rsync'):
+        return True
+    # URL contains a ":" character, a hint of a valid URL
+    if r.scheme != "" and r.netloc == "" and r.path != "":
+        return True
+    if r.scheme == "":  # tweak path URL to get username from url parser
+        r = urllib.parse.urlparse("ssh://" + path)
+        if r.username is not None and r.username != "":
+            return True
+    return False
 
 
 def container_to_build_args(compose, cnt, args, path_exists, cleanup_callbacks=None):
@@ -2658,8 +2667,8 @@ def container_to_build_args(compose, cnt, args, path_exists, cleanup_callbacks=N
             list.append(cleanup_callbacks, cleanup_temp_dockfile)
 
     build_args = []
-
-    if not is_path_git_url(ctx):
+    # if givent context was not recognized as git url, try joining paths to get a file locally
+    if not is_context_git_url(ctx):
         if dockerfile:
             dockerfile = os.path.join(ctx, dockerfile)
         else:

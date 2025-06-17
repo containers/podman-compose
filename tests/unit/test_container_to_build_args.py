@@ -209,13 +209,3 @@ class TestContainerToBuildArgs(unittest.TestCase):
 
         with self.assertRaises(OSError):
             container_to_build_args(c, cnt, args, lambda path: False)
-
-    def test_context_invalid_git_url_git_is_not_suffix(self):
-        c = create_compose_mock()
-
-        cnt = get_minimal_container()
-        cnt['build']['context'] = "https://github.com/test_repo.git/not_suffix"
-        args = get_minimal_args()
-
-        with self.assertRaises(OSError):
-            container_to_build_args(c, cnt, args, lambda path: False)
