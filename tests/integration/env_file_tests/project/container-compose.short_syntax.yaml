@@ -1,0 +1,10 @@
+services:
+  app:
+    image: nopush/podman-compose-test
+    command: ["/bin/busybox", "sh", "-c", "env | grep ZZVAR3"]
+    # 'env_file:' section is not used, so .env file is searched in the same directory as compose.yml
+    # file
+    environment:
+        # this is short syntax: podman-compose takes only this variable value from '.env' file and
+        # sends it to container environment
+        - ZZVAR3

@@ -262,6 +262,42 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
+    @parameterized.expand([
+        # short syntax: only take this specific environment variable value from .env file
+        ("use_env_var_from_default_env_file_short_syntax", ["ZZVAR1"], "ZZVAR1=TEST1"),
+        # long syntax: environment variable value from .env file is taken through variable
+        # interpolation
+        # only the value required in 'environment:' compose file is sent to containers
+        # environment
+        ("use_env_var_from_default_env_file_long_syntax", ["ZZVAR1=TEST1"], "ZZVAR1=TEST1"),
+        # "environment:" section in compose file overrides environment variable value from .env file
+        (
+            "use_env_var_from_default_env_file_override_value",
+            ["ZZVAR1=NEW_TEST1"],
+            "ZZVAR1=NEW_TEST1",
+        ),
+    ])
+    async def test_env_file(self, test_name: str, cnt_env: list, expected_var: str) -> None:
+        c = create_compose_mock()
+        # environment variables were set in .env file
+        c.environ = {"ZZVAR1": "TEST1", "ZZVAR2": "TEST2"}
+
+        cnt = get_minimal_container()
+        cnt["environment"] = cnt_env
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "-e",
+                f"{expected_var}",
+                "--network=bridge:alias=service_name",
+                "busybox",
+            ],
+        )
+
     async def test_env_file_str(self) -> None:
         c = create_compose_mock()
 

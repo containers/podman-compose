@@ -1159,7 +1159,14 @@ async def container_to_args(
             podman_args.extend(["-e", e])
     env = norm_as_list(cnt.get("environment", {}))
     for e in env:
-        podman_args.extend(["-e", e])
+        # new environment variable is set
+        if "=" in e:
+            podman_args.extend(["-e", e])
+        else:
+            # environment variable already exists in environment so pass its value
+            if e in compose.environ.keys():
+                podman_args.extend(["-e", f"{e}={compose.environ[e]}"])
+
     tmpfs_ls = cnt.get("tmpfs", [])
     if isinstance(tmpfs_ls, str):
         tmpfs_ls = [tmpfs_ls]
