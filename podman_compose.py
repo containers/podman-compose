@@ -3061,7 +3061,7 @@ async def run_container(
 
     # start the container
     log.debug("Starting task for container %s", name)
-    return await compose.podman.run(*command, log_formatter=log_formatter or "text")  # type: ignore[misc]
+    return await compose.podman.run(*command, log_formatter=log_formatter)  # type: ignore[misc]
 
 
 def deps_from_container(args: argparse.Namespace, cnt: dict) -> set:

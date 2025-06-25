@@ -1,0 +1,1 @@
+Fixed regression of log output including "text" in detached mode.
