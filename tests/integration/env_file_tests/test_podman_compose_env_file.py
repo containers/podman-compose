@@ -233,7 +233,7 @@ class TestComposeEnvFile(unittest.TestCase, RunSubprocessMixin):
                 [
                     'ZZVAR1=This value is loaded but should be overwritten\r',
                     'ZZVAR2=This value is loaded from .env in project/ directory\r',
-                    'ZZVAR3=\r',
+                    'ZZVAR3=TEST\r',
                     '',
                 ],
             )
@@ -242,5 +242,38 @@ class TestComposeEnvFile(unittest.TestCase, RunSubprocessMixin):
                 podman_compose_path(),
                 "-f",
                 path_compose_file,
+                "down",
+            ])
+
+    def test_env_var_value_accessed_in_compose_file_short_syntax(self) -> None:
+        # Test that compose file can access the environment variable set in .env file using
+        # short syntax, that is: only the name of environment variable is used in "environment:" in
+        # compose.yml file and its value is picked up directly from .env file
+        # long syntax of environment variables interpolation is tested in
+        # tests/integration/interpolation
+
+        base_path = compose_base_path()
+        compose_file_path = os.path.join(base_path, "project/container-compose.short_syntax.yaml")
+        try:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_file_path,
+                "up",
+                "-d",
+            ])
+            output, _ = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_file_path,
+                "logs",
+            ])
+            # ZZVAR3 was set in .env file
+            self.assertEqual(output, b"ZZVAR3=TEST\n")
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_file_path,
                 "down",
             ])
