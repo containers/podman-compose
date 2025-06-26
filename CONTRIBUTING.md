@@ -19,11 +19,12 @@ Note: Some steps are OPTIONAL but all are RECOMMENDED.
    $ cd podman-compose
    ```
 
-2. (OPTIONAL) Create a Python virtual environment. Example using
-   [virtualenv wrapper](https://virtualenvwrapper.readthedocs.io/en/latest/):
+2. (OPTIONAL) Create a Python virtual environment. Example using python builtin
+   `venv` module:
 
     ```shell
-    $ mkvirtualenv podman-compose
+    $ python3 -m venv .venv
+    $ . .venv/bin/activate
     ```
 
 3. Install the project runtime and development requirements:
