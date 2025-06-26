@@ -3107,24 +3107,57 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
         .decode("utf-8")
         .splitlines()
     )
+    created_containers = []
     diff_hashes = [i for i in hashes if i and i != compose.yaml_hash]
-    if (args.force_recreate and len(hashes) > 0) or len(diff_hashes):
+    if args.force_recreate and (hashes or diff_hashes):
         log.info("recreating: ...")
         down_args = argparse.Namespace(**dict(args.__dict__, volumes=False, rmi=None))
         await compose.commands["down"](compose, down_args)
         log.info("recreating: done\n\n")
-    # args.no_recreate disables check for changes (which is not implemented)
+    else:
+        # args.no_recreate disables check for changes (which is not implemented)
+        # so let's just check for running containers
+        created_containers = (
+            (
+                await compose.podman.output(
+                    [],
+                    "ps",
+                    [
+                        "--filter",
+                        f"label=io.podman.compose.project={compose.project_name}",
+                        "--filter",
+                        "status=created",
+                        "--filter",
+                        "status=running",
+                        "-a",
+                        "--format",
+                        "{{ .Names }}",
+                    ],
+                )
+            )
+            .decode("utf-8")
+            .splitlines()
+        )
+        log.debug("** Existing containers: %s", created_containers)
 
     await create_pods(compose)
     exit_code = 0
+
     for cnt in compose.containers:
         if cnt["_service"] in excluded:
             log.debug("** skipping: %s", cnt["name"])
             continue
-        podman_args = await container_to_args(compose, cnt, detached=False, no_deps=args.no_deps)
-        subproc_exit_code = await compose.podman.run([], "create", podman_args)
-        if subproc_exit_code is not None and subproc_exit_code != 0:
-            exit_code = subproc_exit_code
+
+        if args.force_recreate or cnt["name"] not in created_containers:
+            podman_args = await container_to_args(
+                compose, cnt, detached=False, no_deps=args.no_deps
+            )
+            subproc_exit_code = await compose.podman.run([], "create", podman_args)
+
+            if subproc_exit_code is not None and subproc_exit_code != 0:
+                exit_code = subproc_exit_code
+        else:
+            subproc_exit_code = 0
 
         if not args.no_start and args.detach and subproc_exit_code is not None:
             container_exit_code = await run_container(
