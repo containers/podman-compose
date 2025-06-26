@@ -19,11 +19,12 @@ Note: Some steps are OPTIONAL but all are RECOMMENDED.
    $ cd podman-compose
    ```
 
-2. (OPTIONAL) Create a Python virtual environment. Example using
-   [virtualenv wrapper](https://virtualenvwrapper.readthedocs.io/en/latest/):
+2. (OPTIONAL) Create a Python virtual environment. Example using python builtin
+   `venv` module:
 
     ```shell
-    $ mkvirtualenv podman-compose
+    $ python3 -m venv .venv
+    $ . .venv/bin/activate
     ```
 
 3. Install the project runtime and development requirements:
@@ -60,9 +61,25 @@ Note: Some steps are OPTIONAL but all are RECOMMENDED.
    - Make sure you include a `Signed-off-by` message in your commits.
      Read [this guide](https://github.com/containers/common/blob/main/CONTRIBUTING.md#sign-your-prs)
      to learn how to sign your commits.
-   - In the commit message, reference the Issue ID that your code fixes and a brief description of
-     the changes.
-     Example: `Fixes #516: Allow empty network`
+   - In the commit message body, reference the Issue ID that your code fixes and a brief description of the changes.
+     Example:
+     ```
+     Allow empty network
+
+     <description, such as links to the compose spec and so on>
+
+     Fixes https://github.com/containers/podman-compose/issues/516
+     ```
+   - If your commit requires a refactoring, first do the refactoring and
+     commit it separately before starting feature work. This makes the
+     pull request easier to review. Additionally, pull request will be
+     less risky, because if it breaks something, it's way easier to
+     isolate the offending code, understand what's broken and fix it.
+     Due to the latter reason it's best to commit in as many independent
+     commits as reasonable.
+
+     This will result in pull requests being merged much faster.
+
 9. Open a pull request to `containers/podman-compose` and wait for a maintainer to review your work.
 
 ## Adding new commands
