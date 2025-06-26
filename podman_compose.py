@@ -4553,9 +4553,13 @@ def compose_format_parse(parser: argparse.ArgumentParser) -> None:
     )
 
 
-async def main() -> None:
+async def async_main() -> None:
     await podman_compose.run()
 
 
+def main() -> None:
+    asyncio.run(async_main())
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
