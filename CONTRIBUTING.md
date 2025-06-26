@@ -61,9 +61,15 @@ Note: Some steps are OPTIONAL but all are RECOMMENDED.
    - Make sure you include a `Signed-off-by` message in your commits.
      Read [this guide](https://github.com/containers/common/blob/main/CONTRIBUTING.md#sign-your-prs)
      to learn how to sign your commits.
-   - In the commit message, reference the Issue ID that your code fixes and a brief description of
-     the changes.
-     Example: `Fixes #516: Allow empty network`
+   - In the commit message body, reference the Issue ID that your code fixes and a brief description of the changes.
+     Example:
+     ```
+     Allow empty network
+
+     <description, such as links to the compose spec and so on>
+
+     Fixes https://github.com/containers/podman-compose/issues/516
+     ```
 9. Open a pull request to `containers/podman-compose` and wait for a maintainer to review your work.
 
 ## Adding new commands
