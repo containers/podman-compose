@@ -70,6 +70,16 @@ Note: Some steps are OPTIONAL but all are RECOMMENDED.
 
      Fixes https://github.com/containers/podman-compose/issues/516
      ```
+   - If your commit requires a refactoring, first do the refactoring and
+     commit it separately before starting feature work. This makes the
+     pull request easier to review. Additionally, pull request will be
+     less risky, because if it breaks something, it's way easier to
+     isolate the offending code, understand what's broken and fix it.
+     Due to the latter reason it's best to commit in as many independent
+     commits as reasonable.
+
+     This will result in pull requests being merged much faster.
+
 9. Open a pull request to `containers/podman-compose` and wait for a maintainer to review your work.
 
 ## Adding new commands
