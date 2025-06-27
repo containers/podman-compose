@@ -2048,9 +2048,7 @@ COMPOSE_DEFAULT_LS = [
 ]
 
 
-def find_compose_files_recursive(
-    start_dir: str | None = None, max_depth: int = 10
-) -> tuple[list[str], str]:
+def find_compose_files_recursive(start_dir: str | None = None, max_depth: int = 10) -> tuple[list[str], str]:
     """
     Search for compose files recursively upward in the directory tree.
     """
@@ -2061,25 +2059,17 @@ def find_compose_files_recursive(
     current_dir = start_dir
 
     main_compose_files = [
-        "compose.yaml",
-        "compose.yml",
-        "docker-compose.yaml",
-        "docker-compose.yml",
-        "podman-compose.yaml",
-        "podman-compose.yml",
-        "container-compose.yaml",
-        "container-compose.yml",
+        "compose.yaml", "compose.yml",
+        "docker-compose.yaml", "docker-compose.yml",
+        "podman-compose.yaml", "podman-compose.yml",
+        "container-compose.yaml", "container-compose.yml",
     ]
 
     override_files = [
-        "compose.override.yaml",
-        "compose.override.yml",
-        "docker-compose.override.yaml",
-        "docker-compose.override.yml",
-        "podman-compose.override.yaml",
-        "podman-compose.override.yml",
-        "container-compose.override.yaml",
-        "container-compose.override.yml",
+        "compose.override.yaml", "compose.override.yml",
+        "docker-compose.override.yaml", "docker-compose.override.yml",
+        "podman-compose.override.yaml", "podman-compose.override.yml",
+        "container-compose.override.yaml", "container-compose.override.yml",
     ]
 
     for depth in range(max_depth):
@@ -2342,8 +2332,7 @@ class PodmanCompose:
             log.fatal(
                 "No compose.yaml, docker-compose.yml or container-compose.yml file found\n"
                 "Search performed from: %s (including parent directories)\n"
-                "Specify files with -f or ensure they exist in the project",
-                current_dir,
+                "Specify files with -f or ensure they exist in the project", current_dir
             )
             sys.exit(-1)
         ex = map(lambda x: x == "-" or os.path.exists(x), files)
