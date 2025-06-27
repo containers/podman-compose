@@ -2662,11 +2662,9 @@ class PodmanCompose:
         parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
         self._init_global_parser(parser)
         subparsers = parser.add_subparsers(title="command", dest="command")
-        subparser = subparsers.add_parser("help", help="show help")
+        _ = subparsers.add_parser("help", help="show help")
         for cmd_name, cmd in self.commands.items():
-            subparser = subparsers.add_parser(
-                cmd_name, help=cmd.desc
-            )  # pylint: disable=protected-access
+            subparser = subparsers.add_parser(cmd_name, help=cmd.help, description=cmd.desc)  # pylint: disable=protected-access
             for cmd_parser in cmd._parse_args:  # pylint: disable=protected-access
                 cmd_parser(subparser)
         self.global_args = parser.parse_args(argv)
@@ -2805,7 +2803,12 @@ class cmd_run:  # pylint: disable=invalid-name,too-few-public-methods
             raise PodmanComposeError("Command must be async")
         wrapped._compose = self.compose  # type: ignore[attr-defined]
         # Trim extra indentation at start of multiline docstrings.
-        wrapped.desc = self.cmd_desc or re.sub(r"^\s+", "", func.__doc__ or "")  # type: ignore[attr-defined]
+        help_desc = self.cmd_desc or re.sub(r"^\s+", "", func.__doc__ or "")  # type: ignore[attr-defined]
+        if "\n" in help_desc:
+            wrapped.help, wrapped.desc = help_desc.split("\n", 1)  # type: ignore[attr-defined]
+        else:
+            wrapped.help = help_desc  # type: ignore[attr-defined]
+            wrapped.desc = None  # type: ignore[attr-defined]
         wrapped._parse_args = []  # type: ignore[attr-defined]
         self.compose.commands[self.cmd_name] = wrapped
         return wrapped
