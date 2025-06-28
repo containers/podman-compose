@@ -3553,9 +3553,10 @@ async def compose_logs(compose: PodmanCompose, args: argparse.Namespace) -> None
         podman_args.append("-t")
     if args.until:
         podman_args.extend(["--until", args.until])
+    # podman logs supports multiple targets,
+    # but will fail completely if any container is missing
     for target in targets:
-        podman_args.append(target)
-    await compose.podman.run([], "logs", podman_args)
+        await compose.podman.run([], "logs", [*podman_args, target])
 
 
 @cmd_run(podman_compose, "config", "displays the compose file")
