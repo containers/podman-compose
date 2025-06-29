@@ -1,3 +1,61 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools"]
+
+[project]
+name = "podman-compose"
+authors = [
+    { email = "alsadi@gmail.com", name = "Muayyad Alsadi" },
+]
+description = "A script to run docker-compose.yml using podman"
+dependencies = [
+    "python-dotenv",
+    "pyyaml",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Build Tools",
+]
+keywords = [
+    "podman",
+    "podman-compose",
+]
+dynamic = ["version", "readme"]
+
+[project.urls]
+homepage = "https://github.com/containers/podman-compose"
+
+[project.license]
+text = "GPL-2.0-only"
+
+[project.optional-dependencies]
+devel = [
+    "coverage",
+    "parameterized",
+    "pre-commit",
+    "ruff",
+]
+
+[project.scripts]
+podman-compose = "podman_compose:main"
+
+[tool.setuptools]
+py-modules = ["podman_compose"]
+
+[tool.setuptools.dynamic]
+readme = {file = ["README.md"], content-type = "text/markdown"}
+version = {attr = "podman_compose.__version__"}
+
 [tool.ruff]
 line-length = 100
 target-version = "py38"
