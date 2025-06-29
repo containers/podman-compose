@@ -9,13 +9,11 @@ from tests.integration.test_utils import test_path
 
 
 def bad_compose_yaml_path() -> str:
-    """ "Returns the path to the bad compose file"""
     base_path = os.path.join(test_path(), "parse-error")
     return os.path.join(base_path, "docker-compose-error.yml")
 
 
 def good_compose_yaml_path() -> str:
-    """ "Returns the path to the good compose file"""
     base_path = os.path.join(test_path(), "parse-error")
     return os.path.join(base_path, "docker-compose.yml")
 
