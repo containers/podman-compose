@@ -1904,6 +1904,15 @@ def rec_merge(target: dict[str, Any], *sources: dict[str, Any]) -> dict[str, Any
     return ret
 
 
+def load_yaml_or_die(file_path: str, stream: Any) -> dict[str, Any]:
+    try:
+        return yaml.safe_load(stream)
+    except yaml.scanner.ScannerError as e:
+        log.fatal("Compose file contains an error:\n%s", e)
+        log.info("Compose file %s contains an error:", file_path, exc_info=e)
+        sys.exit(1)
+
+
 def resolve_extends(
     services: dict[str, Any], service_names: list[str], environ: dict[str, Any]
 ) -> None:
@@ -1920,7 +1929,7 @@ def resolve_extends(
             if filename.startswith("./"):
                 filename = filename[2:]
             with open(filename, "r", encoding="utf-8") as f:
-                content = yaml.safe_load(f) or {}
+                content = load_yaml_or_die(filename, f) or {}
             if "services" in content:
                 content = content["services"]
             subdirectory = os.path.dirname(filename)
@@ -2229,10 +2238,10 @@ class PodmanCompose:
                 break
 
             if filename.strip().split('/')[-1] == '-':
-                content = yaml.safe_load(sys.stdin)
+                content = load_yaml_or_die(filename, sys.stdin)
             else:
                 with open(filename, "r", encoding="utf-8") as f:
-                    content = yaml.safe_load(f)
+                    content = load_yaml_or_die(filename, f)
                 # log(filename, json.dumps(content, indent = 2))
             if not isinstance(content, dict):
                 sys.stderr.write(
