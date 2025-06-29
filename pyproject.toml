@@ -15,7 +15,6 @@ dependencies = [
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
@@ -30,13 +29,11 @@ keywords = [
     "podman",
     "podman-compose",
 ]
+license = "GPL-2.0-only"
 dynamic = ["version", "readme"]
 
 [project.urls]
 homepage = "https://github.com/containers/podman-compose"
-
-[project.license]
-text = "GPL-2.0-only"
 
 [project.optional-dependencies]
 devel = [
