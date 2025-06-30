@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
+import json
 import os
 import unittest
 
@@ -36,6 +37,18 @@ class TestComposeInterpolation(unittest.TestCase, RunSubprocessMixin):
             self.assertIn("EXAMPLE_DOT_ENV='This value is from the .env file'", str(output))
             self.assertIn("EXAMPLE_EMPTY=''", str(output))
             self.assertIn("EXAMPLE_LITERAL='This is a $literal'", str(output))
+
+            output, _ = self.run_subprocess_assert_returncode([
+                "podman",
+                "inspect",
+                "interpolation_labels_test_1",
+            ])
+            inspect_output = json.loads(output)
+            labels_dict = inspect_output[0].get("Config", {}).get("Labels", {})
+            self.assertIn(('TEST', 'test_labels'), labels_dict.items())
+            self.assertIn(('TEST.test2', 'test2(`TEST`)'), labels_dict.items())
+            self.assertIn(('test.TEST', 'TEST'), labels_dict.items())
+
         finally:
             self.run_subprocess_assert_returncode([
                 podman_compose_path(),
