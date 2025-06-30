@@ -71,3 +71,34 @@ class TestRecSubs(unittest.TestCase):
         sub_dict = {"v1": "high priority", "empty": ""}
         result = rec_subs(input, sub_dict)
         self.assertEqual(result, expected, msg=desc)
+
+    def test_env_var_substitution_in_dictionary_keys(self) -> None:
+        sub_dict = {"NAME": "TEST1", "NAME2": "TEST2"}
+        input = {
+            'services': {
+                'test': {
+                    'image': 'busybox',
+                    'labels': {
+                        '$NAME and ${NAME2}': '${NAME2} and $NAME',
+                        'test1.${NAME}': 'test1',
+                        '$NAME': '${NAME2}',
+                        '${NAME}.test2': 'Host(`${NAME2}`)',
+                    },
+                }
+            }
+        }
+        result = rec_subs(input, sub_dict)
+        expected = {
+            'services': {
+                'test': {
+                    'image': 'busybox',
+                    'labels': {
+                        'TEST1 and TEST2': 'TEST2 and TEST1',
+                        'test1.TEST1': 'test1',
+                        'TEST1': 'TEST2',
+                        'TEST1.test2': 'Host(`TEST2`)',
+                    },
+                }
+            }
+        }
+        self.assertEqual(result, expected)

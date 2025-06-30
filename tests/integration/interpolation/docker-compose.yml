@@ -11,4 +11,10 @@ services:
             EXAMPLE_DOT_ENV: $DOT_ENV_VARIABLE
             EXAMPLE_LITERAL: This is a $$literal
             EXAMPLE_EMPTY: $NOT_A_VARIABLE
+    labels_test:
+        image: busybox
+        labels:
+            - "$TEST_LABELS=test_labels"
+            - test.${TEST_LABELS}=${TEST_LABELS}
+            - "${TEST_LABELS}.test2=test2(`${TEST_LABELS}`)"
 

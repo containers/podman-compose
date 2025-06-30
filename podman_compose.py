@@ -290,7 +290,7 @@ def rec_subs(value: dict | str | Iterable, subs_dict: dict[str, Any]) -> dict | 
             svc_envs = rec_subs(svc_envs, subs_dict)
             subs_dict.update(svc_envs)
 
-        value = {k: rec_subs(v, subs_dict) for k, v in value.items()}
+        value = {rec_subs(k, subs_dict): rec_subs(v, subs_dict) for k, v in value.items()}
     elif isinstance(value, str):
 
         def convert(m: re.Match) -> str:
