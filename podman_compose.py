@@ -2799,14 +2799,18 @@ async def compose_pull(compose: PodmanCompose, args: argparse.Namespace) -> None
 
 
 @cmd_run(podman_compose, "push", "push stack images")
-async def compose_push(compose: PodmanCompose, args: argparse.Namespace) -> None:
+async def compose_push(compose: PodmanCompose, args: argparse.Namespace) -> int | None:
     services = set(args.services)
+    status = 0
     for cnt in compose.containers:
         if "build" not in cnt:
             continue
         if services and cnt["_service"] not in services:
             continue
-        await compose.podman.run([], "push", [cnt["image"]])
+        s = await compose.podman.run([], "push", [cnt["image"]])
+        if s is not None and s != 0:
+            status = s
+    return status
 
 
 def is_context_git_url(path: str) -> bool:

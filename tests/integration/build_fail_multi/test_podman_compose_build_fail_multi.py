@@ -29,3 +29,25 @@ class TestComposeBuildFailMulti(unittest.TestCase, RunSubprocessMixin):
         )
         self.assertIn("RUN false", str(output))
         self.assertIn("while running runtime: exit status 1", str(error))
+
+    def test_push_command_fail(self) -> None:
+        # test that push command is able to return other than "0" return code
+        # "push" command fails due to several steps missing before running it (logging, tagging)
+        try:
+            output, error = self.run_subprocess_assert_returncode(
+                [
+                    podman_compose_path(),
+                    "-f",
+                    compose_yaml_path(),
+                    "push",
+                    "good",
+                ],
+                expected_returncode=125,
+            )
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(),
+                "down",
+            ])
