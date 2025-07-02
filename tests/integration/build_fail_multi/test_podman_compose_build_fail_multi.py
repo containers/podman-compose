@@ -51,3 +51,26 @@ class TestComposeBuildFailMulti(unittest.TestCase, RunSubprocessMixin):
                 compose_yaml_path(),
                 "down",
             ])
+
+    def test_run_command_fail(self) -> None:
+        # test that run command is able to return other than "0" return code
+        try:
+            output, error = self.run_subprocess_assert_returncode(
+                [
+                    podman_compose_path(),
+                    "-f",
+                    compose_yaml_path(),
+                    "run",
+                    "bad",
+                ],
+                expected_returncode=125,
+            )
+            self.assertIn("RUN false", str(output))
+            self.assertIn("while running runtime: exit status 1", str(error))
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(),
+                "down",
+            ])
