@@ -1971,6 +1971,54 @@ COMPOSE_DEFAULT_LS = [
 ]
 
 
+def find_compose_files_recursive(start_dir: str | None = None, max_depth: int = 10) -> tuple[list[str], str]:
+    """
+    Search for compose files recursively upward in the directory tree.
+    """
+    if start_dir is None:
+        start_dir = os.getcwd()
+
+    start_dir = os.path.abspath(start_dir)
+    current_dir = start_dir
+
+    main_compose_files = [
+        "compose.yaml", "compose.yml",
+        "docker-compose.yaml", "docker-compose.yml",
+        "podman-compose.yaml", "podman-compose.yml",
+        "container-compose.yaml", "container-compose.yml",
+    ]
+
+    override_files = [
+        "compose.override.yaml", "compose.override.yml",
+        "docker-compose.override.yaml", "docker-compose.override.yml",
+        "podman-compose.override.yaml", "podman-compose.override.yml",
+        "container-compose.override.yaml", "container-compose.override.yml",
+    ]
+
+    for depth in range(max_depth):
+        found_files = []
+
+        for filename in main_compose_files:
+            filepath = os.path.join(current_dir, filename)
+            if os.path.isfile(filepath):
+                found_files.append(filepath)
+                break
+
+        if found_files:
+            for override_file in override_files:
+                override_path = os.path.join(current_dir, override_file)
+                if os.path.isfile(override_path):
+                    found_files.append(override_path)
+            return found_files, current_dir
+
+        parent_dir = os.path.dirname(current_dir)
+        if parent_dir == current_dir:
+            break
+        current_dir = parent_dir
+
+    return [], start_dir
+
+
 class PodmanCompose:
     class XPodmanSettingKey(Enum):
         DOCKER_COMPOSE_COMPAT = "docker_compose_compat"
@@ -2169,14 +2217,33 @@ class PodmanCompose:
             default_str = os.environ.get("COMPOSE_FILE")
             if default_str:
                 default_ls = default_str.split(pathsep)
+                args.file = list(filter(os.path.exists, default_ls))
             else:
-                default_ls = COMPOSE_DEFAULT_LS
-            args.file = list(filter(os.path.exists, default_ls))
+                try:
+                    found_files, compose_dir = find_compose_files_recursive()
+
+                    if found_files:
+                        args.file = found_files
+
+                        current_dir = os.getcwd()
+                        if compose_dir != current_dir:
+                            log.info("Compose files found in: %s", compose_dir)
+                            log.debug("Changing working directory from %s", current_dir)
+                            os.chdir(compose_dir)
+                    else:
+                        args.file = list(filter(os.path.exists, COMPOSE_DEFAULT_LS))
+
+                except Exception as e:
+                    log.warning("Error in recursive search: %s", e)
+                    args.file = list(filter(os.path.exists, COMPOSE_DEFAULT_LS))
+
         files = args.file
         if not files:
+            current_dir = os.getcwd()
             log.fatal(
-                "no compose.yaml, docker-compose.yml or container-compose.yml file found, "
-                "pass files with -f"
+                "No compose.yaml, docker-compose.yml or container-compose.yml file found\n"
+                "Search performed from: %s (including parent directories)\n"
+                "Specify files with -f or ensure they exist in the project", current_dir
             )
             sys.exit(-1)
         ex = map(lambda x: x == '-' or os.path.exists(x), files)
@@ -3546,29 +3613,108 @@ async def compose_logs(compose: PodmanCompose, args: argparse.Namespace) -> None
     if not args.services and not args.latest:
         args.services = container_names_by_service.keys()
     compose.assert_services(args.services)
+
     targets = []
+    service_by_container = {}
+
     for service in args.services:
-        targets.extend(container_names_by_service[service])
-    podman_args = []
-    if args.follow:
-        podman_args.append("-f")
-    if args.latest:
-        podman_args.append("-l")
-    if args.names:
-        podman_args.append("-n")
-    if args.since:
-        podman_args.extend(["--since", args.since])
-    # the default value is to print all logs which is in podman = 0 and not
-    # needed to be passed
-    if args.tail and args.tail != "all":
-        podman_args.extend(["--tail", args.tail])
-    if args.timestamps:
-        podman_args.append("-t")
-    if args.until:
-        podman_args.extend(["--until", args.until])
-    for target in targets:
-        podman_args.append(target)
-    await compose.podman.run([], "logs", podman_args)
+        containers = container_names_by_service[service]
+        targets.extend(containers)
+        for container in containers:
+            service_by_container[container] = service
+
+    should_use_colors = (
+        (len(args.services) > 1 or args.names)
+        and not args.latest
+        and sys.stdout.isatty()
+        and not getattr(args, "no_color", False)
+    )
+
+    if should_use_colors:
+        max_service_length = max(len(s) for s in args.services) if args.services else 0
+
+        tasks = []
+        service_colors = {}
+
+        for target in targets:
+            service_name = service_by_container[target]
+
+            if service_name not in service_colors:
+                color_idx = len(service_colors) % len(compose.console_colors)
+                service_colors[service_name] = compose.console_colors[color_idx]
+
+            color = service_colors[service_name]
+            space_suffix = " " * (max_service_length - len(service_name) + 1)
+            log_formatter = "{}[{}]{}|\x1b[0m".format(color, service_name, space_suffix)
+
+            podman_args = []
+            if args.follow:
+                podman_args.append("-f")
+            if args.names:
+                podman_args.append("-n")
+            if args.since:
+                podman_args.extend(["--since", args.since])
+            if args.tail and args.tail != "all":
+                podman_args.extend(["--tail", args.tail])
+            if args.timestamps:
+                podman_args.append("-t")
+            if args.until:
+                podman_args.extend(["--until", args.until])
+            podman_args.append(target)
+
+            task = asyncio.create_task(
+                compose.podman.run(
+                    [], "logs", podman_args, log_formatter=log_formatter
+                ),
+                name=f"logs-{service_name}-{target}",
+            )
+            tasks.append(task)
+
+        async def handle_sigint() -> None:
+            log.info("Caught SIGINT or Ctrl+C, stopping log streaming...")
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+
+        if sys.platform != 'win32':
+            loop = asyncio.get_event_loop()
+            loop.add_signal_handler(
+                signal.SIGINT, lambda: asyncio.create_task(handle_sigint())
+            )
+
+        try:
+            await asyncio.gather(*tasks)
+        except KeyboardInterrupt:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+        except Exception as e:
+            log.error("Error in logs command: %s", e)
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise
+    else:
+        podman_args = []
+        if args.follow:
+            podman_args.append("-f")
+        if args.latest:
+            podman_args.append("-l")
+        if args.names:
+            podman_args.append("-n")
+        if args.since:
+            podman_args.extend(["--since", args.since])
+        if args.tail and args.tail != "all":
+            podman_args.extend(["--tail", args.tail])
+        if args.timestamps:
+            podman_args.append("-t")
+        if args.until:
+            podman_args.extend(["--until", args.until])
+        for target in targets:
+            podman_args.append(target)
+        await compose.podman.run([], "logs", podman_args)
 
 
 @cmd_run(podman_compose, "config", "displays the compose file")
