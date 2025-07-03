@@ -110,11 +110,7 @@ class TestComposeScale(unittest.TestCase, RunSubprocessMixin):
                 "--scale",
                 "service1=4",
             ])
-            # error code 125 is expected as podman-compose complains about already used name
-            # "podman-compose_service1_1" for the 1st container
-            # Nevertheless, following containers are still created to scale as expected
-            # (in test case till 3 containers)
-            self.assertEqual(return_code, 125)
+            self.assertEqual(return_code, 0)
 
             output, _, return_code = self.run_subprocess([
                 podman_compose_path(),
