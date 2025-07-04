@@ -11,36 +11,36 @@ jobs:
       fail-fast: false
       matrix:
         conf: [
-          {dist: bookworm, python: '3.9', podman: '4.3.1'},
-          {dist: bookworm, python: '3.9', podman: '4.9.5'},
-          {dist: bookworm, python: '3.9', podman: '5.0.3'},
-          {dist: bookworm, python: '3.9', podman: '5.4.2'},
-          {dist: bookworm, python: '3.10', podman: '4.3.1'},
-          {dist: bookworm, python: '3.10', podman: '4.9.5'},
-          {dist: bookworm, python: '3.10', podman: '5.0.3'},
-          {dist: bookworm, python: '3.10', podman: '5.4.2'},
-          {dist: bookworm, python: '3.11', podman: '4.3.1'},
-          {dist: bookworm, python: '3.11', podman: '4.9.5'},
-          {dist: bookworm, python: '3.11', podman: '5.0.3'},
-          {dist: bookworm, python: '3.11', podman: '5.4.2'},
-          {dist: bookworm, python: '3.12', podman: '4.3.1'},
-          {dist: bookworm, python: '3.12', podman: '4.9.5'},
-          {dist: bookworm, python: '3.12', podman: '5.0.3'},
-          {dist: bookworm, python: '3.12', podman: '5.4.2'},
-          {dist: bookworm, python: '3.13', podman: '4.3.1'},
-          {dist: bookworm, python: '3.13', podman: '4.9.5'},
-          {dist: bookworm, python: '3.13', podman: '5.0.3'},
-          {dist: bookworm, python: '3.13', podman: '5.4.2'},
-          {dist: trixie, python: '3.9', podman: '5.7.1'},
-          {dist: trixie, python: '3.9', podman: '5.7.1'},
-          {dist: trixie, python: '3.10', podman: '5.7.1'},
-          {dist: trixie, python: '3.10', podman: '5.7.1'},
-          {dist: trixie, python: '3.11', podman: '5.7.1'},
-          {dist: trixie, python: '3.11', podman: '5.7.1'},
-          {dist: trixie, python: '3.12', podman: '5.7.1'},
-          {dist: trixie, python: '3.12', podman: '5.7.1'},
-          {dist: trixie, python: '3.13', podman: '5.7.1'},
-          {dist: trixie, python: '3.13', podman: '5.7.1'},
+          {dist: bookworm, python: '3.9', podman: '4.3.1', mode: 'root'},
+          {dist: bookworm, python: '3.9', podman: '4.9.5', mode: 'root'},
+          {dist: bookworm, python: '3.9', podman: '5.0.3', mode: 'root'},
+          {dist: bookworm, python: '3.9', podman: '5.4.2', mode: 'root'},
+          {dist: bookworm, python: '3.10', podman: '4.3.1', mode: 'root'},
+          {dist: bookworm, python: '3.10', podman: '4.9.5', mode: 'root'},
+          {dist: bookworm, python: '3.10', podman: '5.0.3', mode: 'root'},
+          {dist: bookworm, python: '3.10', podman: '5.4.2', mode: 'root'},
+          {dist: bookworm, python: '3.11', podman: '4.3.1', mode: 'root'},
+          {dist: bookworm, python: '3.11', podman: '4.9.5', mode: 'root'},
+          {dist: bookworm, python: '3.11', podman: '5.0.3', mode: 'root'},
+          {dist: bookworm, python: '3.11', podman: '5.4.2', mode: 'root'},
+          {dist: bookworm, python: '3.12', podman: '4.3.1', mode: 'root'},
+          {dist: bookworm, python: '3.12', podman: '4.9.5', mode: 'root'},
+          {dist: bookworm, python: '3.12', podman: '5.0.3', mode: 'root'},
+          {dist: bookworm, python: '3.12', podman: '5.4.2', mode: 'root'},
+          {dist: bookworm, python: '3.13', podman: '4.3.1', mode: 'root'},
+          {dist: bookworm, python: '3.13', podman: '4.9.5', mode: 'root'},
+          {dist: bookworm, python: '3.13', podman: '5.0.3', mode: 'root'},
+          {dist: bookworm, python: '3.13', podman: '5.4.2', mode: 'root'},
+          {dist: trixie, python: '3.9', podman: '5.7.1', mode: 'root'},
+          {dist: trixie, python: '3.9', podman: '5.7.1', mode: 'rootless'},
+          {dist: trixie, python: '3.10', podman: '5.7.1', mode: 'root'},
+          {dist: trixie, python: '3.10', podman: '5.7.1', mode: 'rootless'},
+          {dist: trixie, python: '3.11', podman: '5.7.1', mode: 'root'},
+          {dist: trixie, python: '3.11', podman: '5.7.1', mode: 'rootless'},
+          {dist: trixie, python: '3.12', podman: '5.7.1', mode: 'root'},
+          {dist: trixie, python: '3.12', podman: '5.7.1', mode: 'rootless'},
+          {dist: trixie, python: '3.13', podman: '5.7.1', mode: 'root'},
+          {dist: trixie, python: '3.13', podman: '5.7.1', mode: 'rootless'},
         ]
     runs-on: ubuntu-latest
     container:
@@ -131,21 +131,47 @@ jobs:
         curl -fsSLO "$DEB_FILE"
         echo "Installing package ..."
         apt-get install -y ./podman_5.7.1+compose1-1_amd64.deb
-    - name: Install other test dependencies
+    - name: Setup root/rootless
       run: |
         set -e
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r test-requirements.txt
+        if [ "${{ matrix.conf.mode }}" = "rootless" ]; then
+          useradd -m myuser
+          echo "USER_EXEC_CMD=su myuser" >> $GITHUB_ENV
+          chown -R myuser:myuser .
+        else
+          echo "USER_EXEC_CMD=/bin/bash" >> $GITHUB_ENV
+        fi
+    - name: Setup virtualenv, install other test dependencies
+      run: |
+        $USER_EXEC_CMD -c "
+        set -e
+        python3 -m venv .venv
+        . .venv/bin/activate
+        pip install --upgrade pip
+        pip install -r requirements.txt -r test-requirements.txt
+        "
     - name: Run integration tests
       run: |
+        $USER_EXEC_CMD -c "
+        set -e
+        . .venv/bin/activate
         python -m unittest discover -v tests/integration
+        "
       env:
         TESTS_DEBUG: 1
     - name: Run unit tests
       run: |
+        $USER_EXEC_CMD -c "
+        set -e
+        . .venv/bin/activate
         coverage run --source podman_compose -m unittest discover tests/unit
+        "
     - name: Report coverage
       run: |
+        chmod o+w "$GITHUB_STEP_SUMMARY"
+        $USER_EXEC_CMD -c "
+        set -e
+        . .venv/bin/activate
         coverage combine
         coverage report --format=markdown | tee -a $GITHUB_STEP_SUMMARY
+        "
