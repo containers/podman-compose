@@ -1,0 +1,4 @@
+services:
+  web:
+    image: busybox
+    command: ["/bin/busybox", "httpd", "-f", "-h", ".", "-p", "8004"]
