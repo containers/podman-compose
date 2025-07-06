@@ -3099,6 +3099,8 @@ def deps_from_container(args: argparse.Namespace, cnt: dict) -> set:
 async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | None:
     excluded = get_excluded(compose, args)
 
+    log.info("building images: ...")
+
     if not args.no_build:
         # `podman build` does not cache, so don't always build
         build_args = argparse.Namespace(if_not_exists=(not args.build), **args.__dict__)
@@ -3108,8 +3110,11 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
             if not args.dry_run:
                 return build_exit_code
 
-    hashes = (
-        (
+    # if needed, tear down existing containers
+
+    existing_containers: dict[str, str | None] = {
+        c['Names'][0]: c['Labels'].get('io.podman.compose.config-hash')
+        for c in json.loads(
             await compose.podman.output(
                 [],
                 "ps",
@@ -3118,44 +3123,73 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
                     f"label=io.podman.compose.project={compose.project_name}",
                     "-a",
                     "--format",
-                    '{{ index .Labels "io.podman.compose.config-hash"}}',
+                    "json",
                 ],
             )
         )
-        .decode("utf-8")
-        .splitlines()
-    )
-    diff_hashes = [i for i in hashes if i and i != compose.yaml_hash]
-    if (args.force_recreate and len(hashes) > 0) or len(diff_hashes):
-        log.info("recreating: ...")
-        down_args = argparse.Namespace(**dict(args.__dict__, volumes=False, rmi=None))
-        await compose.commands["down"](compose, down_args)
-        log.info("recreating: done\n\n")
-    # args.no_recreate disables check for changes (which is not implemented)
+    }
 
-    await create_pods(compose)
-    exit_code = 0
-    for cnt in compose.containers:
-        if cnt["_service"] in excluded:
-            log.debug("** skipping: %s", cnt["name"])
-            continue
-        podman_args = await container_to_args(compose, cnt, detached=False, no_deps=args.no_deps)
-        subproc_exit_code = await compose.podman.run([], "create", podman_args)
-        if subproc_exit_code is not None and subproc_exit_code != 0:
-            exit_code = subproc_exit_code
+    if len(existing_containers) > 0:
+        if args.force_recreate and args.no_recreate:
+            log.error(
+                "Cannot use --force-recreate and --no-recreate at the same time, "
+                "please remove one of them"
+            )
+            return 1
 
-        if not args.no_start and args.detach and subproc_exit_code is not None:
-            container_exit_code = await run_container(
-                compose, cnt["name"], deps_from_container(args, cnt), ([], "start", [cnt["name"]])
+        if args.force_recreate:
+            teardown_needed = True
+        elif args.no_recreate:
+            teardown_needed = False
+        else:
+            # default is to tear down everything if any container is stale
+            teardown_needed = (
+                len([h for h in existing_containers.values() if h != compose.yaml_hash]) > 0
             )
 
-            if container_exit_code is not None and container_exit_code != 0:
-                exit_code = container_exit_code
+        if teardown_needed:
+            log.info("tearing down existing containers: ...")
+            down_args = argparse.Namespace(**dict(args.__dict__, volumes=False, rmi=None))
+            await compose.commands["down"](compose, down_args)
+            existing_containers = {}
+            log.info("tearing down existing containers: done\n\n")
+
+    await create_pods(compose)
+
+    log.info("creating missing containers: ...")
+
+    create_error_codes: list[int | None] = []
+    for cnt in compose.containers:
+        if cnt["_service"] in excluded or cnt["name"] in existing_containers:
+            log.debug("** skipping create: %s", cnt["name"])
+            continue
+        podman_args = await container_to_args(compose, cnt, detached=False, no_deps=args.no_deps)
+        exit_code = await compose.podman.run([], "create", podman_args)
+        create_error_codes.append(exit_code)
 
     if args.dry_run:
         return None
-    if args.no_start or args.detach:
-        return exit_code
+
+    if args.no_start:
+        # return first error code from create calls, if any
+        return next((code for code in create_error_codes if code is not None and code != 0), 0)
+
+    if args.detach:
+        log.info("starting containers (detached): ...")
+        start_error_codes: list[int | None] = []
+        for cnt in compose.containers:
+            if cnt["_service"] in excluded:
+                log.debug("** skipping start: %s", cnt["name"])
+                continue
+            exit_code = await run_container(
+                compose, cnt["name"], deps_from_container(args, cnt), ([], "start", [cnt["name"]])
+            )
+            start_error_codes.append(exit_code)
+
+        # return first error code from start calls, if any
+        return next((code for code in start_error_codes if code is not None and code != 0), 0)
+
+    log.info("starting containers (attached): ...")
 
     # TODO: handle already existing
     # TODO: if error creating do not enter loop
@@ -3393,6 +3427,7 @@ async def compose_run(compose: PodmanCompose, args: argparse.Namespace) -> None:
                 no_build=False,
                 build=None,
                 force_recreate=False,
+                no_recreate=False,
                 no_start=False,
                 no_cache=False,
                 build_arg=[],
