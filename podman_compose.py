@@ -898,6 +898,10 @@ def get_network_create_args(net_desc: dict[str, Any], proj_name: str, net_name: 
             "--dns",
             ",".join(norm_as_list(net_desc.get("x-podman.dns"))),
         ))
+    if net_desc.get("x-podman.routes"):
+        routes = norm_as_list(net_desc.get("x-podman.routes"))
+        for route in routes:
+            args.extend(["--route", route])
 
     if isinstance(ipam_config_ls, dict):
         ipam_config_ls = [ipam_config_ls]

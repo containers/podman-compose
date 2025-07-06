@@ -61,6 +61,19 @@ network:
       - "10.1.2.4"
 ```
 
+* `x-podman.routes` - Specifies a list of additional routes for the network. This corresponds to
+  `--route` option in `podman network create`.
+
+For example, the following docker-compose.yml blocks network connectivity to specified subnet from
+all containers on the network:
+```yml
+version: "3"
+network:
+  my_network:
+    x-podman.routes:
+      - "10.2.3.4,127.0.0.1"
+```
+
 For explanations of these extensions, please refer to the
 [Podman network create command Documentation](https://docs.podman.io/en/latest/markdown/podman-network-create.1.html).
 

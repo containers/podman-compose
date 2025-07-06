@@ -237,3 +237,41 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
         ]
         args = get_network_create_args(net_desc, proj_name, net_name)
         self.assertEqual(args, expected_args)
+
+    def test_routes_string(self) -> None:
+        net_desc = self.get_minimal_net_desc()
+        net_desc["x-podman.routes"] = "192.168.1.0/24"
+        proj_name = "test_project"
+        net_name = "test_network"
+        expected_args = [
+            "create",
+            "--label",
+            f"io.podman.compose.project={proj_name}",
+            "--label",
+            f"com.docker.compose.project={proj_name}",
+            "--route",
+            "192.168.1.0/24",
+            net_name,
+        ]
+        args = get_network_create_args(net_desc, proj_name, net_name)
+        self.assertEqual(args, expected_args)
+
+    def test_routes_list(self) -> None:
+        net_desc = self.get_minimal_net_desc()
+        net_desc["x-podman.routes"] = ["192.168.1.0/24", "192.168.2.0/24"]
+        proj_name = "test_project"
+        net_name = "test_network"
+        expected_args = [
+            "create",
+            "--label",
+            f"io.podman.compose.project={proj_name}",
+            "--label",
+            f"com.docker.compose.project={proj_name}",
+            "--route",
+            "192.168.1.0/24",
+            "--route",
+            "192.168.2.0/24",
+            net_name,
+        ]
+        args = get_network_create_args(net_desc, proj_name, net_name)
+        self.assertEqual(args, expected_args)
