@@ -47,8 +47,8 @@ For explanations of these extensions, please refer to the [podman-run --volume d
 
 The following extension keys are available under network configuration:
 
-* `x-podman.disable-dns` - Disable the DNS plugin for the network when set to 'true'.
-* `x-podman.dns` - Set nameservers for the network using supplied addresses (cannot be used with x-podman.disable-dns`).
+* `x-podman.disable_dns` - Disable the DNS plugin for the network when set to 'true'.
+* `x-podman.dns` - Specifies a list of nameservers for the network This cannot be used with x-podman.disable_dns`.
 
 For example, the following docker-compose.yml allows all containers on the same network to use the
 specified nameservers:
