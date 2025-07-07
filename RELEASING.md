@@ -45,3 +45,19 @@ Step 5: Create a release on Github
 
 The release notes must be added manually by drafting a release on the GitHub UI at
 https://github.com/containers/podman-compose/releases.
+
+Step 6: Upload to Pypi
+----------------------
+
+Run the following command to build artifacts:
+
+```
+rm -rf build dist
+python3 -m build
+```
+
+Upload to Pypi
+
+```
+python3 -m twine upload dist/*
+```
