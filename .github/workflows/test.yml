@@ -10,6 +10,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [ '3.9', '3.10', '3.11', '3.12', '3.13' ]
+        mode: [ 'root', 'rootless' ]
 
     runs-on: ubuntu-latest
     container:
@@ -19,22 +20,50 @@ jobs:
       options: --privileged --cgroupns=host
     steps:
     - uses: actions/checkout@v4
-    - name: Install dependencies
+    - name: Setup root/rootless
       run: |
         set -e
+        if [ "${{ matrix.mode }}" = "rootless" ]; then
+          useradd -m myuser
+          echo "USER_EXEC_CMD=su myuser" >> $GITHUB_ENV
+          chown -R myuser:myuser .
+        else
+          echo USER_EXEC_CMD="/bin/bash" >> $GITHUB_ENV
+        fi
+    - name: Install dependencies
+      run: |
         apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y podman
-        python -m pip install --upgrade pip
+    - name: Setup virtualenv
+      run: |
+        $USER_EXEC_CMD -c "
+        set -e
+        python3 -m venv .venv
+        . .venv/bin/activate
+        pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r test-requirements.txt
+        "
     - name: Run integration tests
       run: |
+        $USER_EXEC_CMD -c "
+        set -e
+        . .venv/bin/activate
         python -m unittest discover -v tests/integration
+        "
       env:
         TESTS_DEBUG: 1
     - name: Run unit tests
       run: |
+        $USER_EXEC_CMD -c "
+        set -e
+        . .venv/bin/activate
         coverage run --source podman_compose -m unittest discover tests/unit
+        "
     - name: Report coverage
       run: |
+        $USER_EXEC_CMD -c "
+        set -e
+        . .venv/bin/activate
         coverage combine
         coverage report --format=markdown | tee -a $GITHUB_STEP_SUMMARY
+        "
