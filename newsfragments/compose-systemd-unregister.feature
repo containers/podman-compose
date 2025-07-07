@@ -1,1 +1,0 @@
-- Add unregister command to remove systemd service registration (`podman-compose systemd -a unregister`)

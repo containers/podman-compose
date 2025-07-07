@@ -1,1 +1,0 @@
-- Add new docker_compose_compat x-podman meta setting to enable all Docker Compose compatibility settings

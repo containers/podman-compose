@@ -1,1 +1,0 @@
-Implemented short syntax for environment variables set in `.env` for compose.yml "environment:" section.
