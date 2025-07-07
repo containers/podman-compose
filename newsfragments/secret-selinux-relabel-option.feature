@@ -1,1 +1,0 @@
-- Add relabel option to secret to make possible to read the secret file by the contained process.
