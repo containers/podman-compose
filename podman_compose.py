@@ -3215,7 +3215,6 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
 
     max_service_length = 0
     for cnt in compose.containers:
-        # Saltar contenedores excluidos
         if cnt["_service"] in excluded:
             continue
 
@@ -3223,17 +3222,12 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
         container_name = cnt["name"]
 
         if getattr(args, 'names', False):
-            # Con -n: mostrar solo servicio_numero (sin prefijo de proyecto)
             expected_name = compose.format_name(service_name, str(cnt["num"]))
-
             if container_name == expected_name:
-                # Es un nombre generado automÃ¡ticamente, mostrar solo servicio_numero
                 display_name = compose.join_name_parts(service_name, str(cnt["num"]))
             else:
-                # Es un container_name personalizado, usarlo tal como estÃ¡
                 display_name = container_name
         else:
-            # Sin -n: mostrar nombre completo del contenedor (comportamiento por defecto)
             display_name = container_name
 
         curr_length = len(display_name)
@@ -3258,30 +3252,21 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
         loop.add_signal_handler(signal.SIGINT, lambda: asyncio.create_task(handle_sigint()))
 
     for i, cnt in enumerate(compose.containers):
-        # Add colored service prefix to output like docker-compose
         color_idx = i % len(compose.console_colors)
         color = compose.console_colors[color_idx]
 
-        # Determinar el nombre a mostrar
         service_name = cnt["_service"]
         container_name = cnt["name"]
 
         if getattr(args, 'names', False):
-            # Con -n: mostrar solo servicio_numero (sin prefijo de proyecto)
             expected_name = compose.format_name(service_name, str(cnt["num"]))
-
             if container_name == expected_name:
-                # Es un nombre generado automÃ¡ticamente, mostrar solo servicio_numero
                 display_name = compose.join_name_parts(service_name, str(cnt["num"]))
             else:
-                # Es un container_name personalizado, usarlo tal como estÃ¡
                 display_name = container_name
         else:
-            # Sin -n: mostrar nombre completo del contenedor (comportamiento por defecto)
             display_name = container_name
 
-        # Calcular espacios para alinear el | exactamente
-        # max_service_length + 1 espacio, menos la longitud del display_name actual
         space_suffix = " " * (max_service_length + 1 - len(display_name))
         log_formatter = "{}{}{}|\x1b[0m".format(color, display_name, space_suffix)
 
@@ -3657,7 +3642,6 @@ async def compose_logs(compose: PodmanCompose, args: argparse.Namespace) -> None
     )
 
     if should_use_colors:
-        # Calcular la longitud mÃ¡xima para alineaciÃ³n, igual que en compose_up
         max_service_length = 0
         for target in targets:
             cnt = compose.container_by_name[target]
@@ -3665,17 +3649,13 @@ async def compose_logs(compose: PodmanCompose, args: argparse.Namespace) -> None
             container_name = cnt["name"]
 
             if getattr(args, 'names', False):
-                # Con -n: mostrar solo servicio_numero (sin prefijo de proyecto)
                 expected_name = compose.format_name(service_name, str(cnt["num"]))
 
                 if container_name == expected_name:
-                    # Es un nombre generado automÃ¡ticamente, mostrar solo servicio_numero
                     display_name = compose.join_name_parts(service_name, str(cnt["num"]))
                 else:
-                    # Es un container_name personalizado, usarlo tal como estÃ¡
                     display_name = container_name
             else:
-                # Sin -n: mostrar nombre completo del contenedor (comportamiento por defecto)
                 display_name = container_name
 
             curr_length = len(display_name)
@@ -3684,37 +3664,28 @@ async def compose_logs(compose: PodmanCompose, args: argparse.Namespace) -> None
             )
 
         tasks = []
-        service_colors = {}
+        service_colors: dict[str, str] = {}
 
         for target in targets:
             cnt = compose.container_by_name[target]
             service_name = cnt["_service"]
             container_name = cnt["name"]
 
-            # Aplicar la misma lÃ³gica de display_name que en compose_up
             if getattr(args, 'names', False):
-                # Con -n: mostrar solo servicio_numero (sin prefijo de proyecto)
                 expected_name = compose.format_name(service_name, str(cnt["num"]))
-
                 if container_name == expected_name:
-                    # Es un nombre generado automÃ¡ticamente, mostrar solo servicio_numero
                     display_name = compose.join_name_parts(service_name, str(cnt["num"]))
                 else:
-                    # Es un container_name personalizado, usarlo tal como estÃ¡
                     display_name = container_name
             else:
-                # Sin -n: mostrar nombre completo del contenedor (comportamiento por defecto)
                 display_name = container_name
 
-            # Asignar color por servicio (no por contenedor individual)
             if service_name not in service_colors:
                 color_idx = len(service_colors) % len(compose.console_colors)
                 service_colors[service_name] = compose.console_colors[color_idx]
 
             color = service_colors[service_name]
 
-            # Calcular espacios para alinear el | exactamente, igual que en compose_up
-            # max_service_length + 1 espacio, menos la longitud del display_name actual
             space_suffix = " " * (max_service_length + 1 - len(display_name))
             log_formatter = "{}{}{}|\x1b[0m".format(color, display_name, space_suffix)
 
