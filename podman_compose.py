@@ -1975,7 +1975,9 @@ COMPOSE_DEFAULT_LS = [
 ]
 
 
-def find_compose_files_recursively(start_dir: str, compose_files: list[str], max_depth: int = 10) -> tuple[list[str], str] | None:
+def find_compose_files_recursively(
+    start_dir: str, compose_files: list[str], max_depth: int = 10
+) -> tuple[list[str], str] | None:
     """
     Search for compose files recursively up the directory tree.
 
@@ -2215,7 +2217,6 @@ class PodmanCompose:
             else:
                 # Recursive search up the directory tree
                 current_working_dir = os.getcwd()
-                base = dir(self)
                 log.debug("Starting compose file search from directory: %s", current_working_dir)
                 result = find_compose_files_recursively(current_working_dir, COMPOSE_DEFAULT_LS)
 
