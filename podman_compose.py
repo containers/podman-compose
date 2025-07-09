@@ -3215,7 +3215,28 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
 
     max_service_length = 0
     for cnt in compose.containers:
-        curr_length = len(cnt["_service"])
+        # Saltar contenedores excluidos
+        if cnt["_service"] in excluded:
+            continue
+
+        service_name = cnt["_service"]
+        container_name = cnt["name"]
+
+        if getattr(args, 'names', False):
+            # Con -n: mostrar solo servicio_numero (sin prefijo de proyecto)
+            expected_name = compose.format_name(service_name, str(cnt["num"]))
+
+            if container_name == expected_name:
+                # Es un nombre generado automÃ¡ticamente, mostrar solo servicio_numero
+                display_name = compose.join_name_parts(service_name, str(cnt["num"]))
+            else:
+                # Es un container_name personalizado, usarlo tal como estÃ¡
+                display_name = container_name
+        else:
+            # Sin -n: mostrar nombre completo del contenedor (comportamiento por defecto)
+            display_name = container_name
+
+        curr_length = len(display_name)
         max_service_length = curr_length if curr_length > max_service_length else max_service_length
 
     tasks: set[asyncio.Task] = set()
@@ -3237,11 +3258,33 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
         loop.add_signal_handler(signal.SIGINT, lambda: asyncio.create_task(handle_sigint()))
 
     for i, cnt in enumerate(compose.containers):
-        # Add colored service prefix to output by piping output through sed
+        # Add colored service prefix to output like docker-compose
         color_idx = i % len(compose.console_colors)
         color = compose.console_colors[color_idx]
-        space_suffix = " " * (max_service_length - len(cnt["_service"]) + 1)
-        log_formatter = "{}[{}]{}|\x1b[0m".format(color, cnt["_service"], space_suffix)
+
+        # Determinar el nombre a mostrar
+        service_name = cnt["_service"]
+        container_name = cnt["name"]
+
+        if getattr(args, 'names', False):
+            # Con -n: mostrar solo servicio_numero (sin prefijo de proyecto)
+            expected_name = compose.format_name(service_name, str(cnt["num"]))
+
+            if container_name == expected_name:
+                # Es un nombre generado automÃ¡ticamente, mostrar solo servicio_numero
+                display_name = compose.join_name_parts(service_name, str(cnt["num"]))
+            else:
+                # Es un container_name personalizado, usarlo tal como estÃ¡
+                display_name = container_name
+        else:
+            # Sin -n: mostrar nombre completo del contenedor (comportamiento por defecto)
+            display_name = container_name
+
+        # Calcular espacios para alinear el | exactamente
+        # max_service_length + 1 espacio, menos la longitud del display_name actual
+        space_suffix = " " * (max_service_length + 1 - len(display_name))
+        log_formatter = "{}{}{}|\x1b[0m".format(color, display_name, space_suffix)
+
         if cnt["_service"] in excluded:
             log.debug("** skipping: %s", cnt["name"])
             continue
@@ -3596,29 +3639,149 @@ async def compose_logs(compose: PodmanCompose, args: argparse.Namespace) -> None
     if not args.services and not args.latest:
         args.services = container_names_by_service.keys()
     compose.assert_services(args.services)
+
     targets = []
+    service_by_container = {}
+
     for service in args.services:
-        targets.extend(container_names_by_service[service])
-    podman_args = []
-    if args.follow:
-        podman_args.append("-f")
-    if args.latest:
-        podman_args.append("-l")
-    if args.names:
-        podman_args.append("-n")
-    if args.since:
-        podman_args.extend(["--since", args.since])
-    # the default value is to print all logs which is in podman = 0 and not
-    # needed to be passed
-    if args.tail and args.tail != "all":
-        podman_args.extend(["--tail", args.tail])
-    if args.timestamps:
-        podman_args.append("-t")
-    if args.until:
-        podman_args.extend(["--until", args.until])
-    for target in targets:
-        podman_args.append(target)
-    await compose.podman.run([], "logs", podman_args)
+        containers = container_names_by_service[service]
+        targets.extend(containers)
+        for container in containers:
+            service_by_container[container] = service
+
+    should_use_colors = (
+        (len(args.services) > 1 or args.names)
+        and not args.latest
+        and sys.stdout.isatty()
+        and not getattr(args, "no_color", False)
+    )
+
+    if should_use_colors:
+        # Calcular la longitud mÃ¡xima para alineaciÃ³n, igual que en compose_up
+        max_service_length = 0
+        for target in targets:
+            cnt = compose.container_by_name[target]
+            service_name = cnt["_service"]
+            container_name = cnt["name"]
+
+            if getattr(args, 'names', False):
+                # Con -n: mostrar solo servicio_numero (sin prefijo de proyecto)
+                expected_name = compose.format_name(service_name, str(cnt["num"]))
+
+                if container_name == expected_name:
+                    # Es un nombre generado automÃ¡ticamente, mostrar solo servicio_numero
+                    display_name = compose.join_name_parts(service_name, str(cnt["num"]))
+                else:
+                    # Es un container_name personalizado, usarlo tal como estÃ¡
+                    display_name = container_name
+            else:
+                # Sin -n: mostrar nombre completo del contenedor (comportamiento por defecto)
+                display_name = container_name
+
+            curr_length = len(display_name)
+            max_service_length = (
+                curr_length if curr_length > max_service_length else max_service_length
+            )
+
+        tasks = []
+        service_colors = {}
+
+        for target in targets:
+            cnt = compose.container_by_name[target]
+            service_name = cnt["_service"]
+            container_name = cnt["name"]
+
+            # Aplicar la misma lÃ³gica de display_name que en compose_up
+            if getattr(args, 'names', False):
+                # Con -n: mostrar solo servicio_numero (sin prefijo de proyecto)
+                expected_name = compose.format_name(service_name, str(cnt["num"]))
+
+                if container_name == expected_name:
+                    # Es un nombre generado automÃ¡ticamente, mostrar solo servicio_numero
+                    display_name = compose.join_name_parts(service_name, str(cnt["num"]))
+                else:
+                    # Es un container_name personalizado, usarlo tal como estÃ¡
+                    display_name = container_name
+            else:
+                # Sin -n: mostrar nombre completo del contenedor (comportamiento por defecto)
+                display_name = container_name
+
+            # Asignar color por servicio (no por contenedor individual)
+            if service_name not in service_colors:
+                color_idx = len(service_colors) % len(compose.console_colors)
+                service_colors[service_name] = compose.console_colors[color_idx]
+
+            color = service_colors[service_name]
+
+            # Calcular espacios para alinear el | exactamente, igual que en compose_up
+            # max_service_length + 1 espacio, menos la longitud del display_name actual
+            space_suffix = " " * (max_service_length + 1 - len(display_name))
+            log_formatter = "{}{}{}|\x1b[0m".format(color, display_name, space_suffix)
+
+            podman_args = []
+            if args.follow:
+                podman_args.append("-f")
+            if args.names:
+                podman_args.append("-n")
+            if args.since:
+                podman_args.extend(["--since", args.since])
+            if args.tail and args.tail != "all":
+                podman_args.extend(["--tail", args.tail])
+            if args.timestamps:
+                podman_args.append("-t")
+            if args.until:
+                podman_args.extend(["--until", args.until])
+            podman_args.append(target)
+
+            task = asyncio.create_task(
+                compose.podman.run([], "logs", podman_args, log_formatter=log_formatter),
+                name=f"logs-{service_name}-{target}",
+            )
+            tasks.append(task)
+
+        async def handle_sigint() -> None:
+            log.info("Caught SIGINT or Ctrl+C, stopping log streaming...")
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+
+        if sys.platform != 'win32':
+            loop = asyncio.get_event_loop()
+            loop.add_signal_handler(signal.SIGINT, lambda: asyncio.create_task(handle_sigint()))
+
+        try:
+            await asyncio.gather(*tasks)
+        except KeyboardInterrupt:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+        except Exception as e:
+            log.error("Error in logs command: %s", e)
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise
+    else:
+        podman_args = []
+        if args.follow:
+            podman_args.append("-f")
+        if args.latest:
+            podman_args.append("-l")
+        if args.names:
+            podman_args.append("-n")
+        if args.since:
+            podman_args.extend(["--since", args.since])
+        if args.tail and args.tail != "all":
+            podman_args.extend(["--tail", args.tail])
+        if args.timestamps:
+            podman_args.append("-t")
+        if args.until:
+            podman_args.extend(["--until", args.until])
+        for target in targets:
+            podman_args.append(target)
+        await compose.podman.run([], "logs", podman_args)
 
 
 @cmd_run(podman_compose, "config", "displays the compose file")
@@ -3876,6 +4039,12 @@ def compose_up_parse(parser: argparse.ArgumentParser) -> None:
         default=None,
         help="Return the exit code of the selected service container. "
         "Implies --abort-on-container-exit.",
+    )
+    parser.add_argument(
+        "-n",
+        "--names",
+        action="store_true",
+        help="Show short service names instead of full container names in logs",
     )
 
 
