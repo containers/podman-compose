@@ -1,0 +1,11 @@
+version: "3"
+services:
+  test1:
+    image: busybox
+    command: ["echo", "test1"]
+  test2:
+    image: busybox
+    command: ["echo", "test2"]
+  test3:
+    image: busybox
+    command: ["echo", "test3"]
