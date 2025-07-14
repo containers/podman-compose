@@ -10,10 +10,11 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [ '3.9', '3.10', '3.11', '3.12', '3.13' ]
+        image-suffix: ['bookworm', 'trixie']
 
     runs-on: ubuntu-latest
     container:
-      image: "docker.io/library/python:${{ matrix.python-version }}-bookworm"
+      image: "docker.io/library/python:${{ matrix.python-version }}-${{ matrix.image-suffix }}"
       # cgroupns needed to address the following error:
       # write /sys/fs/cgroup/cgroup.subtree_control: operation not supported
       options: --privileged --cgroupns=host
