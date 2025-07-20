@@ -405,6 +405,12 @@ async def assert_volume(compose: PodmanCompose, mount_dict: dict[str, Any]) -> N
         mount_src = mount_dict["source"]
         mount_src = os.path.realpath(os.path.join(basedir, os.path.expanduser(mount_src)))
         if not os.path.exists(mount_src):
+            bind_opts = mount_dict.get("bind", {})
+            if "create_host_path" in bind_opts and not bind_opts["create_host_path"]:
+                raise ValueError(
+                    "invalid mount config for type 'bind': bind source path does not exist: "
+                    f"{mount_src}"
+                )
             try:
                 os.makedirs(mount_src, exist_ok=True)
             except OSError:
