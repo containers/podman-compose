@@ -1,0 +1,27 @@
+version: "3"
+services:
+  create_host_path_default_true: # default is to always create
+    image: nopush/podman-compose-test
+    command: ["/bin/busybox", "mkdir", "cont/test_dir/new_dir"]
+    volumes:
+      - type: bind
+        source: ./test_dir
+        target: /cont/test_dir
+  create_host_path_true:
+    image: nopush/podman-compose-test
+    command: ["/bin/busybox", "mkdir", "cont/test_dir/new_dir"]
+    volumes:
+      - type: bind
+        source: ./test_dir
+        target: /cont/test_dir
+        bind:
+          create_host_path: true
+  create_host_path_false:
+    image: nopush/podman-compose-test
+    command: ["/bin/busybox", "mkdir", "cont/test_dir/new_dir"]
+    volumes:
+      - type: bind
+        source: ./test_dir
+        target: /cont/test_dir
+        bind:
+          create_host_path: false
