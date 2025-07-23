@@ -90,3 +90,71 @@ class TestUpDown(unittest.TestCase, RunSubprocessMixin):
             actual_services[service] = service in actual_output
 
         self.assertEqual(expected_services, actual_services)
+
+    @parameterized.expand(
+        [
+            (
+                ["--profile", "profile-1"],
+                "profile-2",
+                {"default-service": True, "service-1": True, "service-2": True},
+            ),
+            (
+                [],
+                "profile-1,profile-2",
+                {"default-service": True, "service-1": True, "service-2": True},
+            ),
+            (
+                [],
+                "profile-1, profile-2",
+                {"default-service": True, "service-1": True, "service-2": True},
+            ),
+            (
+                [],
+                "",
+                {"default-service": True, "service-1": False, "service-2": False},
+            ),
+            (
+                [],
+                ",",
+                {"default-service": True, "service-1": False, "service-2": False},
+            ),
+        ],
+    )
+    def test_up_with_compose_profiles_env(
+        self, profiles: List[str], compose_profiles: str, expected_services: dict
+    ) -> None:
+        """
+        Tests the `up` command when the `COMPOSE_PROFILES` environment variable is set.
+        """
+        up_cmd = [
+            "coverage",
+            "run",
+            podman_compose_path(),
+            "-f",
+            profile_compose_file(),
+        ]
+        up_cmd.extend(profiles)
+        up_cmd.extend(["up", "-d"])
+
+        env = os.environ.copy()
+        env["COMPOSE_PROFILES"] = compose_profiles
+
+        self.run_subprocess_assert_returncode(up_cmd, env=env)
+
+        check_cmd = [
+            "podman",
+            "container",
+            "ps",
+            "--format",
+            '"{{.Names}}"',
+        ]
+        out, _ = self.run_subprocess_assert_returncode(check_cmd)
+
+        self.assertEqual(len(expected_services), 3)
+        actual_output = out.decode("utf-8")
+
+        actual_services = {}
+        for service, _ in expected_services.items():
+            actual_services[service] = service in actual_output
+
+        self.assertEqual(expected_services, actual_services)
