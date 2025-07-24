@@ -2231,6 +2231,11 @@ class PodmanCompose:
             env_vars = norm_as_dict(args.env)
             self.environ.update(env_vars)  # type: ignore[arg-type]
 
+        profiles_from_env = {
+            p.strip() for p in self.environ.get("COMPOSE_PROFILES", "").split(",") if p.strip()
+        }
+        requested_profiles = set(args.profile).union(profiles_from_env)
+
         compose: dict[str, Any] = {}
         # Iterate over files primitively to allow appending to files in-loop
         files_iter = iter(files)
@@ -2296,7 +2301,7 @@ class PodmanCompose:
                 # Solution is to remove 'include' key from compose obj. This doesn't break
                 # having `include` present and correctly processed in included files
                 del compose["include"]
-        resolved_services = self._resolve_profiles(compose.get("services", {}), set(args.profile))
+        resolved_services = self._resolve_profiles(compose.get("services", {}), requested_profiles)
         compose["services"] = resolved_services
         if not getattr(args, "no_normalize", None):
             compose = normalize_final(compose, self.dirname)
@@ -2318,7 +2323,7 @@ class PodmanCompose:
             services = {}
             log.warning("WARNING: No services defined")
         # include services with no profile defined or the selected profiles
-        services = self._resolve_profiles(services, set(args.profile))
+        services = self._resolve_profiles(services, requested_profiles)
 
         # NOTE: maybe add "extends.service" to _deps at this stage
         flat_deps(services, with_extends=True)
