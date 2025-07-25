@@ -1,0 +1,13 @@
+version: "3"
+services:
+  test1:
+    image: nopush/podman-compose-test
+    #["/bin/busybox", "sh", "-c", "env | grep ZZVAR3"]
+    command: ["/bin/busybox", "mkdir", "cont/test_dir/new_dir"]
+    volumes:
+      - ./test_dir:/cont/test_dir
+  test2:
+    image: nopush/podman-compose-test
+    command: ["/bin/busybox", "mkdir", "cont/test_dir/new_dir"]
+    volumes:
+      - ./test_dir:/cont/test_dir
