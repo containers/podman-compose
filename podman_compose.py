@@ -1991,8 +1991,7 @@ def find_compose_files_recursively(
     """
     current_dir = os.path.abspath(start_dir)
 
-    for depth in range(max_depth):
-        # Search for compose files in current directory
+    for _ in range(max_depth):
         found_files = []
         for compose_file in compose_files:
             file_path = os.path.join(current_dir, compose_file)
