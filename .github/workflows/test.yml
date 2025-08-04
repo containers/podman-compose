@@ -19,10 +19,35 @@ jobs:
       options: --privileged --cgroupns=host
     steps:
     - uses: actions/checkout@v4
-    - name: Install dependencies
+    - name: Download necessary .deb files from man-compose-test-data repository
+      shell: bash
+      run: |
+        BASE_URL="https://raw.githubusercontent.com/mokibit/podman-compose-test-data/tree/main/deb_files/podman-5.4.2"
+
+        FILES=(
+          "podman_5.4.2+composetest-1_amd64.deb"
+          "podman-docker_5.4.2+composetest-1_amd64.deb"
+          "podman-remote_5.4.2+composetest-1_amd64.deb"
+          )
+        for FILE in "${FILES[@]}"; do
+          URL="${BASE_URL}/${FILE}"
+          echo "Downloading: $URL"
+          curl -L -f -O "$URL" || { echo "Failed to download $FILE"; exit 1; }
+        done
+    - name: Install podman v5.4.2 from .deb packages
+      run: |
+        dpkg -i podman_5.4.2+composetest-1_amd64.deb
+        dpkg -i podman-docker_5.4.2+composetest-1_amd64.deb
+        dpkg -i podman-remote_5.4.2+composetest-1_amd64.deb
+        apt-get install -f -y
+    - name: Verify podman installation
+      run: |
+        podman --version
+        podman-remote --version
+        podman-docker version || echo "podman-docker not available"
+    - name: Install other test dependencies
       run: |
         set -e
-        apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y podman
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r test-requirements.txt
