@@ -1433,6 +1433,16 @@ def rec_deps(
     return deps
 
 
+def calc_dependents(services: dict[str, Any]) -> None:
+    for name, srv in services.items():
+        deps: set[ServiceDependency] = srv.get("_deps", set())
+        for dep in deps:
+            if dep.name in services:
+                services[dep.name].setdefault("_dependents", set()).add(
+                    ServiceDependency(name, dep.condition.value)
+                )
+
+
 def flat_deps(services: dict[str, Any], with_extends: bool = False) -> None:
     """
     create dependencies "_deps" or update it recursively for all services
@@ -1469,6 +1479,8 @@ def flat_deps(services: dict[str, Any], with_extends: bool = False) -> None:
     # expand the dependencies on each service
     for name, srv in services.items():
         rec_deps(services, name)
+
+    calc_dependents(services)
 
 
 ###################
@@ -3028,10 +3040,11 @@ def get_excluded(compose: PodmanCompose, args: argparse.Namespace) -> set[str]:
     excluded = set()
     if args.services:
         excluded = set(compose.services)
+        dep_field = "_dependents" if args.command in ["down"] else "_deps"
         for service in args.services:
             # we need 'getattr' as compose_down_parse dose not configure 'no_deps'
             if service in compose.services and not getattr(args, "no_deps", False):
-                excluded -= set(x.name for x in compose.services[service]["_deps"])
+                excluded -= set(x.name for x in compose.services[service].get(dep_field, set()))
             excluded.discard(service)
     log.debug("** excluding: %s", excluded)
     return excluded
