@@ -1564,6 +1564,7 @@ class ExistingContainer:
     id: str
     service_name: str
     config_hash: str
+    exited: bool
     state: str
     status: str
 
@@ -1770,6 +1771,7 @@ class Podman:
                 id=c.get("Id"),
                 service_name=c.get("Labels", {}).get("io.podman.compose.service", ""),
                 config_hash=c.get("Labels", {}).get("io.podman.compose.config-hash", ""),
+                exited=c.get("Exited", False),
                 state=c.get("State", ""),
                 status=c.get("Status", ""),
             )
@@ -3204,6 +3206,7 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
     assert compose.project_name is not None, "Project name must be set before running up command"
     existing_containers = await compose.podman.existing_containers(compose.project_name)
     recreate_services: set[str] = set()
+    running_services = {c.service_name for c in existing_containers.values() if not c.exited}
 
     if existing_containers:
         if args.force_recreate and args.no_recreate:
@@ -3221,13 +3224,30 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
                 ):
                     continue
 
-                if args.force_recreate or c.config_hash != compose.config_hash(
-                    compose.services[c.service_name]
-                ):
+                service = compose.services[c.service_name]
+                if args.force_recreate or c.config_hash != compose.config_hash(service):
                     recreate_services.add(c.service_name)
 
+                    # Running dependents of service are removed by down command
+                    # so we need to recreate and start them too
+                    dependents = {
+                        dep.name
+                        for dep in service.get(DependField.DEPENDENTS, [])
+                        if dep.name in running_services
+                    }
+                    if dependents:
+                        log.debug(
+                            "Service %s's dependents should be recreated and running again: %s",
+                            c.service_name,
+                            dependents,
+                        )
+                        recreate_services.update(dependents)
+                        excluded = excluded - dependents
+
+        log.debug("** excluding update: %s", excluded)
         log.debug("Prepare to recreate services: %s", recreate_services)
-        teardown_needed = True if recreate_services else False
+
+        teardown_needed = bool(recreate_services)
 
         if teardown_needed:
             log.info("tearing down existing containers: ...")
