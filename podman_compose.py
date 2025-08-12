@@ -2834,7 +2834,9 @@ def is_context_git_url(path: str) -> bool:
         return True
     # URL contains a ":" character, a hint of a valid URL
     if r.scheme != "" and r.netloc == "" and r.path != "":
-        return True
+        # On Windows, this could be a drive letter, so we need to check the scheme
+        if not (os.name == "nt" and len(r.scheme) == 1):
+            return True
     if r.scheme == "":  # tweak path URL to get username from url parser
         r = urllib.parse.urlparse("ssh://" + path)
         if r.username is not None and r.username != "":
