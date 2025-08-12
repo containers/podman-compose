@@ -27,6 +27,7 @@ import sys
 import tempfile
 import urllib.parse
 from asyncio import Task
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 from typing import Callable
@@ -1557,6 +1558,16 @@ async def wait_with_timeout(coro: Any, timeout: int | float) -> Any:
 ###################
 
 
+@dataclass
+class ExistingContainer:
+    name: str
+    id: str
+    service_name: str
+    config_hash: str
+    state: str
+    status: str
+
+
 class Podman:
     def __init__(
         self,
@@ -1738,6 +1749,32 @@ class Podman:
         ).decode("utf-8")
         volumes = output.splitlines()
         return volumes
+
+    async def existing_containers(self, project_name: str) -> dict[str, ExistingContainer]:
+        output = await self.output(
+            [],
+            "ps",
+            [
+                "--filter",
+                f"label=io.podman.compose.project={project_name}",
+                "-a",
+                "--format",
+                "json",
+            ],
+        )
+
+        containers = json.loads(output)
+        return {
+            c.get("Names")[0]: ExistingContainer(
+                name=c.get("Names")[0],
+                id=c.get("Id"),
+                service_name=c.get("Labels", {}).get("io.podman.compose.service", ""),
+                config_hash=c.get("Labels", {}).get("io.podman.compose.config-hash", ""),
+                state=c.get("State", ""),
+                status=c.get("Status", ""),
+            )
+            for c in containers
+        }
 
 
 def normalize_service(service: dict[str, Any], sub_dir: str = "") -> dict[str, Any]:
@@ -3164,24 +3201,11 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
 
     # if needed, tear down existing containers
 
-    existing_containers: dict[str, str | None] = {
-        c['Names'][0]: c['Labels'].get('io.podman.compose.config-hash')
-        for c in json.loads(
-            await compose.podman.output(
-                [],
-                "ps",
-                [
-                    "--filter",
-                    f"label=io.podman.compose.project={compose.project_name}",
-                    "-a",
-                    "--format",
-                    "json",
-                ],
-            )
-        )
-    }
+    assert compose.project_name is not None, "Project name must be set before running up command"
+    existing_containers = await compose.podman.existing_containers(compose.project_name)
+    recreate_services: set[str] = set()
 
-    if len(existing_containers) > 0:
+    if existing_containers:
         if args.force_recreate and args.no_recreate:
             log.error(
                 "Cannot use --force-recreate and --no-recreate at the same time, "
@@ -3189,21 +3213,28 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
             )
             return 1
 
-        if args.force_recreate:
-            teardown_needed = True
-        elif args.no_recreate:
-            teardown_needed = False
-        else:
-            # default is to tear down everything if any container is stale
-            teardown_needed = (
-                len([h for h in existing_containers.values() if h != compose.yaml_hash]) > 0
-            )
+        if not args.no_recreate:
+            for c in existing_containers.values():
+                if (
+                    c.service_name in excluded
+                    or c.service_name not in compose.services  # orphaned container
+                ):
+                    continue
+
+                if args.force_recreate or c.config_hash != compose.config_hash(
+                    compose.services[c.service_name]
+                ):
+                    recreate_services.add(c.service_name)
+
+        log.debug("Prepare to recreate services: %s", recreate_services)
+        teardown_needed = True if recreate_services else False
 
         if teardown_needed:
             log.info("tearing down existing containers: ...")
-            down_args = argparse.Namespace(**dict(args.__dict__, volumes=False, rmi=None))
+            down_args = argparse.Namespace(
+                **dict(args.__dict__, volumes=False, rmi=None, services=recreate_services)
+            )
             await compose.commands["down"](compose, down_args)
-            existing_containers = {}
             log.info("tearing down existing containers: done\n\n")
 
     await create_pods(compose)
@@ -3212,7 +3243,9 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
 
     create_error_codes: list[int | None] = []
     for cnt in compose.containers:
-        if cnt["_service"] in excluded or cnt["name"] in existing_containers:
+        if cnt["_service"] in excluded or (
+            cnt["name"] in existing_containers and cnt["_service"] not in recreate_services
+        ):
             log.debug("** skipping create: %s", cnt["name"])
             continue
         podman_args = await container_to_args(compose, cnt, detached=False, no_deps=args.no_deps)
