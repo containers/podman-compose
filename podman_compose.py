@@ -2091,6 +2091,22 @@ class PodmanCompose:
         if isinstance(retcode, int):
             sys.exit(retcode)
 
+    def config_hash(self, service: dict[str, Any]) -> str:
+        """
+        Returns a hash of the service configuration.
+        This is used to detect changes in the service configuration.
+        """
+        if "_config_hash" in service:
+            return service["_config_hash"]
+
+        # Use a stable representation of the service configuration
+        jsonable_servcie = {
+            k: v for k, v in service.items() if isinstance(k, str) and not k.startswith("_")
+        }
+        config_str = json.dumps(jsonable_servcie, sort_keys=True)
+        service["_config_hash"] = hashlib.sha256(config_str.encode('utf-8')).hexdigest()
+        return service["_config_hash"]
+
     def resolve_pod_name(self) -> str | None:
         # Priorities:
         # - Command line --in-pod
@@ -2387,7 +2403,6 @@ class PodmanCompose:
         # volumes: [...]
         self.vols = compose.get("volumes", {})
         podman_compose_labels = [
-            "io.podman.compose.config-hash=" + self.yaml_hash,
             "io.podman.compose.project=" + project_name,
             "io.podman.compose.version=" + __version__,
             f"PODMAN_SYSTEMD_UNIT=podman-compose@{project_name}.service",
@@ -2445,6 +2460,7 @@ class PodmanCompose:
                 cnt["ports"] = norm_ports(cnt.get("ports"))
                 labels.extend(podman_compose_labels)
                 labels.extend([
+                    f"io.podman.compose.config-hash={self.config_hash(service_desc)}",
                     f"com.docker.compose.container-number={num}",
                     f"io.podman.compose.service={service_name}",
                     f"com.docker.compose.service={service_name}",
