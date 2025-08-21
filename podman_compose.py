@@ -1433,6 +1433,16 @@ def rec_deps(
     return deps
 
 
+def calc_dependents(services: dict[str, Any]) -> None:
+    for name, srv in services.items():
+        deps: set[ServiceDependency] = srv.get("_deps", set())
+        for dep in deps:
+            if dep.name in services:
+                services[dep.name].setdefault(DependField.DEPENDENTS, set()).add(
+                    ServiceDependency(name, dep.condition.value)
+                )
+
+
 def flat_deps(services: dict[str, Any], with_extends: bool = False) -> None:
     """
     create dependencies "_deps" or update it recursively for all services
@@ -1469,6 +1479,8 @@ def flat_deps(services: dict[str, Any], with_extends: bool = False) -> None:
     # expand the dependencies on each service
     for name, srv in services.items():
         rec_deps(services, name)
+
+    calc_dependents(services)
 
 
 ###################
@@ -3024,14 +3036,23 @@ async def create_pods(compose: PodmanCompose) -> None:
         await compose.podman.run([], "pod", podman_args)
 
 
-def get_excluded(compose: PodmanCompose, args: argparse.Namespace) -> set[str]:
+class DependField(str, Enum):
+    DEPENDENCIES = "_deps"
+    DEPENDENTS = "_dependents"
+
+
+def get_excluded(
+    compose: PodmanCompose,
+    args: argparse.Namespace,
+    dep_field: DependField = DependField.DEPENDENCIES,
+) -> set[str]:
     excluded = set()
     if args.services:
         excluded = set(compose.services)
         for service in args.services:
             # we need 'getattr' as compose_down_parse dose not configure 'no_deps'
             if service in compose.services and not getattr(args, "no_deps", False):
-                excluded -= set(x.name for x in compose.services[service]["_deps"])
+                excluded -= set(x.name for x in compose.services[service].get(dep_field, set()))
             excluded.discard(service)
     log.debug("** excluding: %s", excluded)
     return excluded
@@ -3322,7 +3343,7 @@ def get_volume_names(compose: PodmanCompose, cnt: dict) -> list[str]:
 
 @cmd_run(podman_compose, "down", "tear down entire stack")
 async def compose_down(compose: PodmanCompose, args: argparse.Namespace) -> None:
-    excluded = get_excluded(compose, args)
+    excluded = get_excluded(compose, args, DependField.DEPENDENTS)
     podman_args: list[str] = []
     timeout_global = getattr(args, "timeout", None)
     containers = list(reversed(compose.containers))
