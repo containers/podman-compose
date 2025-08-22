@@ -2139,12 +2139,17 @@ class PodmanCompose:
             return service["_config_hash"]
 
         # Use a stable representation of the service configuration
-        jsonable_servcie = {
-            k: v for k, v in service.items() if isinstance(k, str) and not k.startswith("_")
-        }
+        jsonable_servcie = self.original_service(service)
         config_str = json.dumps(jsonable_servcie, sort_keys=True)
         service["_config_hash"] = hashlib.sha256(config_str.encode('utf-8')).hexdigest()
         return service["_config_hash"]
+
+    def original_service(self, service: dict[str, Any]) -> dict[str, Any]:
+        """
+        Returns the original service configuration without any overrides or resets.
+        This is used to compare the original service configuration with the current one.
+        """
+        return {k: v for k, v in service.items() if isinstance(k, str) and not k.startswith("_")}
 
     def resolve_pod_name(self) -> str | None:
         # Priorities:
