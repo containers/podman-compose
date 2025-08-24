@@ -2759,11 +2759,8 @@ def is_local(container: dict) -> bool:
     * prefixed with localhost/
     * has a build section and is not prefixed
     """
-    return (
-        "/" not in container["image"]
-        if "build" in container
-        else container["image"].startswith("localhost/")
-    )
+    image = container.get("image", "")
+    return image.startswith("localhost/") or ("build" in container and "/" not in image)
 
 
 @cmd_run(podman_compose, "wait", "wait running containers to stop")
