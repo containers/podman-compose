@@ -31,6 +31,7 @@ from enum import Enum
 from typing import Any
 from typing import Callable
 from typing import Iterable
+from typing import Sequence
 from typing import Union
 from typing import overload
 
@@ -1248,7 +1249,7 @@ async def container_to_args(
         podman_args.extend(["--pid", cnt["pid"]])
     pull_policy = cnt.get("pull_policy")
     if pull_policy is not None and pull_policy != "build":
-        podman_args.extend(["--pull", pull_policy])
+        podman_args.append(f"--pull={pull_policy}")
     if cnt.get("restart") is not None:
         podman_args.extend(["--restart", cnt["restart"]])
     container_to_ulimit_args(cnt, podman_args)
@@ -2948,10 +2949,11 @@ def container_to_build_args(
     container_to_ulimit_build_args(cnt, build_args)
     if getattr(args, "no_cache", None):
         build_args.append("--no-cache")
-    if getattr(args, "pull_always", None):
-        build_args.append("--pull-always")
-    elif getattr(args, "pull", None):
-        build_args.append("--pull")
+
+    pull_policy = getattr(args, "pull", None)
+    if pull_policy:
+        build_args.append(f"--pull={pull_policy}")
+
     args_list = norm_as_list(build_desc.get("args", {}))
     for build_arg in args_list + args.build_arg:
         build_args.extend((
@@ -4138,18 +4140,40 @@ def compose_ps_parse(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("-q", "--quiet", help="Only display container IDs", action="store_true")
 
 
+class PullPolicyAction(argparse.Action):
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: str | Sequence[str] | None,
+        option_string: str | None = None,
+    ) -> None:
+        if option_string == "--pull-always":
+            if values in (None, "true"):
+                namespace.pull = "always"
+
+            return
+
+        namespace.pull = "newer" if values is None else values
+
+
 @cmd_parse(podman_compose, ["build", "up"])
 def compose_build_up_parse(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--pull",
-        help="attempt to pull a newer version of the image",
-        action="store_true",
+        help="Pull image policy (always|missing|never|newer)."
+        " Set to 'newer' if specify --pull without a value."
+        " default (pull_policy in compose file).",
+        action=PullPolicyAction,
+        nargs="?",
+        choices=["always", "missing", "never", "newer"],
     )
     parser.add_argument(
         "--pull-always",
-        help="attempt to pull a newer version of the image, Raise an error even if the image is "
-        "present locally.",
-        action="store_true",
+        help="Deprecated, use --pull=always instead",
+        action=PullPolicyAction,
+        nargs="?",
+        choices=["true", "false"],
     )
     parser.add_argument(
         "--build-arg",
