@@ -57,6 +57,15 @@ def is_list(list_object: Any) -> bool:
     )
 
 
+def is_relative_ref(path: str) -> bool:
+    return (
+        path.startswith("./")
+        or path.startswith(".:")
+        or path.startswith("../")
+        or path.startswith("..:")
+    )
+
+
 # identity filter
 def filteri(a: list[str]) -> list[str]:
     return list(filter(lambda i: i, a))
@@ -1882,6 +1891,19 @@ def normalize_service(service: dict[str, Any], sub_dir: str = "") -> dict[str, A
         for k, v in deps.items():
             v.setdefault('condition', 'service_started')
         service["depends_on"] = deps
+    if "volumes" in service and sub_dir:
+        new_volumes = []
+        for v in service["volumes"]:
+            if isinstance(v, str):
+                if is_relative_ref(v):
+                    v = os.path.join(sub_dir, v)
+            elif isinstance(v, dict):
+                source = v["source"]
+                if is_relative_ref(source):
+                    v["source"] = os.path.join(sub_dir, source)
+
+            new_volumes.append(v)
+        service["volumes"] = new_volumes
     return service
 
 

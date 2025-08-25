@@ -47,6 +47,37 @@ class TestNormalizeService(unittest.TestCase):
             {"build": {"context": "./dir-1", "dockerfile": "dockerfile-1"}},
             {"build": {"context": "./sub_dir/dir-1", "dockerfile": "dockerfile-1"}},
         ),
+        (
+            {"volumes": ["./nested/relative:/mnt", "../dir-in-parent:/mnt", "..:/mnt", ".:/mnt"]},
+            {
+                "volumes": [
+                    "./sub_dir/./nested/relative:/mnt",
+                    "./sub_dir/../dir-in-parent:/mnt",
+                    "./sub_dir/..:/mnt",
+                    "./sub_dir/.:/mnt",
+                ]
+            },
+        ),
+        (
+            {
+                "volumes": [
+                    {
+                        "type": "bind",
+                        "source": "./nested/relative",
+                        "target": "/mnt",
+                    }
+                ]
+            },
+            {
+                "volumes": [
+                    {
+                        "type": "bind",
+                        "source": "./sub_dir/./nested/relative",
+                        "target": "/mnt",
+                    }
+                ]
+            },
+        ),
     ])
     def test_normalize_service_with_sub_dir(
         self, input: dict[str, Any], expected: dict[str, Any]
