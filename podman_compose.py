@@ -3081,7 +3081,7 @@ def container_to_build_args(
 
         if path_exists(dockerfile):
             # normalize dockerfile path, as the user could have provided unpredictable file formats
-            dockerfile = os.path.normpath(os.path.join(ctx, dockerfile))
+            dockerfile = os.path.normpath(dockerfile)
             build_args.extend(["-f", dockerfile])
         else:
             if custom_dockerfile_given:

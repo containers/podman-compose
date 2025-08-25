@@ -361,3 +361,22 @@ class TestContainerToBuildArgs(unittest.TestCase):
                 '.',
             ],
         )
+
+    def test_containerfile_in_context(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt['build']['context'] = "./subdir"
+        args = get_minimal_args()
+        args = container_to_build_args(c, cnt, args, lambda path: True)
+        self.assertEqual(
+            args,
+            [
+                '-f',
+                'subdir/Containerfile',
+                '-t',
+                'new-image',
+                '--no-cache',
+                './subdir',
+            ],
+        )
