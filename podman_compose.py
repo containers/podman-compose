@@ -1769,7 +1769,10 @@ class Podman:
             c.get("Names")[0]: ExistingContainer(
                 name=c.get("Names")[0],
                 id=c.get("Id"),
-                service_name=c.get("Labels", {}).get("io.podman.compose.service", ""),
+                service_name=(
+                    c.get("Labels", {}).get("io.podman.compose.service", "")
+                    or c.get("Labels", {}).get("com.docker.compose.service", "")
+                ),
                 config_hash=c.get("Labels", {}).get("io.podman.compose.config-hash", ""),
                 exited=c.get("Exited", False),
                 state=c.get("State", ""),
