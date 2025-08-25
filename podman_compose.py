@@ -27,6 +27,7 @@ import sys
 import tempfile
 import urllib.parse
 from asyncio import Task
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 from typing import Callable
@@ -1557,6 +1558,17 @@ async def wait_with_timeout(coro: Any, timeout: int | float) -> Any:
 ###################
 
 
+@dataclass
+class ExistingContainer:
+    name: str
+    id: str
+    service_name: str
+    config_hash: str
+    exited: bool
+    state: str
+    status: str
+
+
 class Podman:
     def __init__(
         self,
@@ -1738,6 +1750,36 @@ class Podman:
         ).decode("utf-8")
         volumes = output.splitlines()
         return volumes
+
+    async def existing_containers(self, project_name: str) -> dict[str, ExistingContainer]:
+        output = await self.output(
+            [],
+            "ps",
+            [
+                "--filter",
+                f"label=io.podman.compose.project={project_name}",
+                "-a",
+                "--format",
+                "json",
+            ],
+        )
+
+        containers = json.loads(output)
+        return {
+            c.get("Names")[0]: ExistingContainer(
+                name=c.get("Names")[0],
+                id=c.get("Id"),
+                service_name=(
+                    c.get("Labels", {}).get("io.podman.compose.service", "")
+                    or c.get("Labels", {}).get("com.docker.compose.service", "")
+                ),
+                config_hash=c.get("Labels", {}).get("io.podman.compose.config-hash", ""),
+                exited=c.get("Exited", False),
+                state=c.get("State", ""),
+                status=c.get("Status", ""),
+            )
+            for c in containers
+        }
 
 
 def normalize_service(service: dict[str, Any], sub_dir: str = "") -> dict[str, Any]:
@@ -2091,6 +2133,27 @@ class PodmanCompose:
         if isinstance(retcode, int):
             sys.exit(retcode)
 
+    def config_hash(self, service: dict[str, Any]) -> str:
+        """
+        Returns a hash of the service configuration.
+        This is used to detect changes in the service configuration.
+        """
+        if "_config_hash" in service:
+            return service["_config_hash"]
+
+        # Use a stable representation of the service configuration
+        jsonable_servcie = self.original_service(service)
+        config_str = json.dumps(jsonable_servcie, sort_keys=True)
+        service["_config_hash"] = hashlib.sha256(config_str.encode('utf-8')).hexdigest()
+        return service["_config_hash"]
+
+    def original_service(self, service: dict[str, Any]) -> dict[str, Any]:
+        """
+        Returns the original service configuration without any overrides or resets.
+        This is used to compare the original service configuration with the current one.
+        """
+        return {k: v for k, v in service.items() if isinstance(k, str) and not k.startswith("_")}
+
     def resolve_pod_name(self) -> str | None:
         # Priorities:
         # - Command line --in-pod
@@ -2387,7 +2450,6 @@ class PodmanCompose:
         # volumes: [...]
         self.vols = compose.get("volumes", {})
         podman_compose_labels = [
-            "io.podman.compose.config-hash=" + self.yaml_hash,
             "io.podman.compose.project=" + project_name,
             "io.podman.compose.version=" + __version__,
             f"PODMAN_SYSTEMD_UNIT=podman-compose@{project_name}.service",
@@ -2445,6 +2507,7 @@ class PodmanCompose:
                 cnt["ports"] = norm_ports(cnt.get("ports"))
                 labels.extend(podman_compose_labels)
                 labels.extend([
+                    f"io.podman.compose.config-hash={self.config_hash(service_desc)}",
                     f"com.docker.compose.container-number={num}",
                     f"io.podman.compose.service={service_name}",
                     f"com.docker.compose.service={service_name}",
@@ -3148,24 +3211,12 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
 
     # if needed, tear down existing containers
 
-    existing_containers: dict[str, str | None] = {
-        c['Names'][0]: c['Labels'].get('io.podman.compose.config-hash')
-        for c in json.loads(
-            await compose.podman.output(
-                [],
-                "ps",
-                [
-                    "--filter",
-                    f"label=io.podman.compose.project={compose.project_name}",
-                    "-a",
-                    "--format",
-                    "json",
-                ],
-            )
-        )
-    }
+    assert compose.project_name is not None, "Project name must be set before running up command"
+    existing_containers = await compose.podman.existing_containers(compose.project_name)
+    recreate_services: set[str] = set()
+    running_services = {c.service_name for c in existing_containers.values() if not c.exited}
 
-    if len(existing_containers) > 0:
+    if existing_containers:
         if args.force_recreate and args.no_recreate:
             log.error(
                 "Cannot use --force-recreate and --no-recreate at the same time, "
@@ -3173,21 +3224,45 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
             )
             return 1
 
-        if args.force_recreate:
-            teardown_needed = True
-        elif args.no_recreate:
-            teardown_needed = False
-        else:
-            # default is to tear down everything if any container is stale
-            teardown_needed = (
-                len([h for h in existing_containers.values() if h != compose.yaml_hash]) > 0
-            )
+        if not args.no_recreate:
+            for c in existing_containers.values():
+                if (
+                    c.service_name in excluded
+                    or c.service_name not in compose.services  # orphaned container
+                ):
+                    continue
+
+                service = compose.services[c.service_name]
+                if args.force_recreate or c.config_hash != compose.config_hash(service):
+                    recreate_services.add(c.service_name)
+
+                    # Running dependents of service are removed by down command
+                    # so we need to recreate and start them too
+                    dependents = {
+                        dep.name
+                        for dep in service.get(DependField.DEPENDENTS, [])
+                        if dep.name in running_services
+                    }
+                    if dependents:
+                        log.debug(
+                            "Service %s's dependents should be recreated and running again: %s",
+                            c.service_name,
+                            dependents,
+                        )
+                        recreate_services.update(dependents)
+                        excluded = excluded - dependents
+
+        log.debug("** excluding update: %s", excluded)
+        log.debug("Prepare to recreate services: %s", recreate_services)
+
+        teardown_needed = bool(recreate_services)
 
         if teardown_needed:
             log.info("tearing down existing containers: ...")
-            down_args = argparse.Namespace(**dict(args.__dict__, volumes=False, rmi=None))
+            down_args = argparse.Namespace(
+                **dict(args.__dict__, volumes=False, rmi=None, services=recreate_services)
+            )
             await compose.commands["down"](compose, down_args)
-            existing_containers = {}
             log.info("tearing down existing containers: done\n\n")
 
     await create_pods(compose)
@@ -3196,7 +3271,9 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
 
     create_error_codes: list[int | None] = []
     for cnt in compose.containers:
-        if cnt["_service"] in excluded or cnt["name"] in existing_containers:
+        if cnt["_service"] in excluded or (
+            cnt["name"] in existing_containers and cnt["_service"] not in recreate_services
+        ):
             log.debug("** skipping create: %s", cnt["name"])
             continue
         podman_args = await container_to_args(compose, cnt, detached=False, no_deps=args.no_deps)
