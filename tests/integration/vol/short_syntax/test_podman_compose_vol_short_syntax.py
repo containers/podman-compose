@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
+import json
 import os
 import shutil
 import unittest
@@ -53,3 +54,48 @@ class TestComposeVolShortSyntax(unittest.TestCase, RunSubprocessMixin):
                 "0",
             ])
             shutil.rmtree(os.path.join(project_dir, "test_dir"))
+
+    def test_volume_source_is_symlink(self) -> None:
+        try:
+            base = "/tmp/symlink-test"
+            real_dir = os.path.join(base, "real")
+            link_dir = os.path.join(base, "link")
+
+            os.makedirs(real_dir, exist_ok=True)
+
+            os.symlink(real_dir, link_dir)
+
+            self.run_subprocess_assert_returncode(
+                [
+                    podman_compose_path(),
+                    "-f",
+                    compose_yaml_path("short_syntax"),
+                    "up",
+                    "-d",
+                ],
+                0,
+            )
+
+            out, _ = self.run_subprocess_assert_returncode(
+                [
+                    "podman",
+                    "inspect",
+                    "short_syntax_test3_1",
+                ],
+                0,
+            )
+
+            container_info = json.loads(out)
+            bind_string = container_info[0].get("HostConfig", {}).get("Binds")[0]
+            # podman-compose should not dereference the symlink directory
+            self.assertEqual(bind_string.split(":", 1)[0], link_dir)
+        finally:
+            self.run_subprocess([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path("short_syntax"),
+                "down",
+                "-t",
+                "0",
+            ])
+            shutil.rmtree(base, ignore_errors=True)
