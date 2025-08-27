@@ -2575,6 +2575,15 @@ class PodmanCompose:
         }
         requested_profiles = set(args.profile).union(profiles_from_env)
 
+        target_service = getattr(
+            args, "service", None
+        )  # example: command `run` can only have one service
+        target_services = getattr(
+            args, "services", None
+        )  # example: command `build` can have several services
+
+        target = [target_service] if target_service else target_services or []
+
         compose: dict[str, Any] = {}
         # Iterate over files primitively to allow appending to files in-loop
         files_iter = iter(files)
@@ -2661,7 +2670,7 @@ class PodmanCompose:
                 # having `include` present and correctly processed in included files
                 del compose["include"]
         resolved_services = self._resolve_profiles(
-            compose.get("services") or {}, requested_profiles
+            compose.get("services") or {}, target, requested_profiles
         )
         compose["services"] = resolved_services
         if not getattr(args, "no_normalize", None):
@@ -2685,7 +2694,7 @@ class PodmanCompose:
         if not services:
             log.warning("WARNING: No services defined")
         # include services with no profile defined or the selected profiles
-        services = self._resolve_profiles(services, requested_profiles)
+        services = self._resolve_profiles(services, target, requested_profiles)
 
         # NOTE: maybe add "extends.service" to _deps at this stage
         flat_deps(services, with_extends=True)
@@ -2824,20 +2833,28 @@ class PodmanCompose:
         self.container_by_name = {c["name"]: c for c in given_containers}
 
     def _resolve_profiles(
-        self, defined_services: dict[str, Any], requested_profiles: set[str] | None = None
+        self,
+        defined_services: dict[str, Any],
+        target: list[str],
+        requested_profiles: set[str] | None = None,
     ) -> dict[str, Any]:
         """
         Returns a service dictionary (key = service name, value = service config) compatible with
-        the requested_profiles list.
+        the requested_profiles list and target service or services.
 
         The returned service dictionary contains all services which do not include/reference a
-        profile in addition to services that match the requested_profiles.
+        profile, match the requested_profiles, and match profiles of an explicitly targeted service
+        or services.
 
         :param defined_services: The service dictionary
         :param requested_profiles: The profiles requested using the --profile arg.
+        :param target: Name of service or services targeted by the current command
         """
         if requested_profiles is None:
             requested_profiles = set()
+
+        for service in target:
+            requested_profiles.update(defined_services.get(service, {}).get("profiles", []))
 
         services = {}
 
