@@ -3289,17 +3289,16 @@ async def pull_images(
     return 0
 
 
-@cmd_run(podman_compose, "up", "Create and start the entire stack or some of its services")
-async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | None:
-    excluded = get_excluded(compose, args)
-
+async def prepare_images(
+    compose: PodmanCompose, args: argparse.Namespace, excluded: set[str]
+) -> int | None:
     log.info("pulling images: ...")
+
     pull_services = [v for k, v in compose.services.items() if k not in excluded]
     err = await pull_images(compose.podman, args, pull_services)
     if err:
         log.error("Pull image failed")
-        if not args.dry_run:
-            return err
+        return err
 
     log.info("building images: ...")
 
@@ -3309,8 +3308,20 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
         build_exit_code = await compose.commands["build"](compose, build_args)
         if build_exit_code != 0:
             log.error("Build command failed")
-            if not args.dry_run:
-                return build_exit_code
+            return build_exit_code
+
+    return 0
+
+
+@cmd_run(podman_compose, "up", "Create and start the entire stack or some of its services")
+async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | None:
+    excluded = get_excluded(compose, args)
+
+    exit_code = await prepare_images(compose, args, excluded)
+    if exit_code != 0:
+        log.error("Prepare images failed")
+        if not args.dry_run:
+            return exit_code
 
     # if needed, tear down existing containers
 
