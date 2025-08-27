@@ -3212,12 +3212,12 @@ class PullImage:
 
     def __post_init__(self) -> None:
         if self.policy not in self.POLICY_PRIORITY:
-            log.debug(f"Pull policy {self.policy} is not valid, using 'missing' instead")
+            log.debug("Pull policy %s is not valid, using 'missing' instead", self.policy)
             self.policy = "missing"
 
     def update_policy(self, new_policy: str) -> None:
         if new_policy not in self.POLICY_PRIORITY:
-            log.debug(f"Pull policy {new_policy} is not valid, ignoring it")
+            log.debug("Pull policy %s is not valid, ignoring it", new_policy)
             return
 
         if self.POLICY_PRIORITY[new_policy] > self.POLICY_PRIORITY[self.policy]:
