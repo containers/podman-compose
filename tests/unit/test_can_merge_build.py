@@ -92,8 +92,9 @@ class TestCanMergeBuild(unittest.TestCase):
 
         actual_compose = {}
         if podman_compose.services:
-            podman_compose.services["test-service"].pop("_deps")
-            actual_compose = podman_compose.services["test-service"]
+            actual_compose = podman_compose.original_service(
+                podman_compose.services["test-service"]
+            )
         self.assertEqual(actual_compose, expected)
 
     # $$$ is a placeholder for either command or entrypoint
@@ -138,8 +139,7 @@ class TestCanMergeBuild(unittest.TestCase):
 
             actual = {}
             if podman_compose.services:
-                podman_compose.services["test-service"].pop("_deps")
-                actual = podman_compose.services["test-service"]
+                actual = podman_compose.original_service(podman_compose.services["test-service"])
             self.assertEqual(actual, expected)
 
 
