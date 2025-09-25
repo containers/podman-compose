@@ -151,6 +151,17 @@ In addition, podman-compose supports the following podman-specific values for `n
 The options to the network modes are passed to the `--network` option of the `podman create` command
 as-is.
 
+## Podman-specific mount types
+
+Generic docker-compose supports the following values for mount `type`:
+
+- `volume`
+- `bind`
+- `tmpfs`
+
+In addition, podman-compose supports the following podman-pecific values for mount `type`:
+
+- `glob`
 
 ## Docker Compose Compatibility
 
