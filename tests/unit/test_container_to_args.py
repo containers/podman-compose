@@ -626,6 +626,50 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
 
     @parameterized.expand([
         (
+            "glob_mount",
+            get_test_file_path('test_dirname/foo') + "/*.ext",
+            [
+                "--mount",
+                (
+                    "type=glob,source="
+                    f"{get_test_file_path('test_dirname/foo') + '/*.ext'},"
+                    "destination=/mnt"
+                ),
+            ],
+        ),
+    ])
+    async def test_volumes_glob_mount_soure(  # pylint: disable=unused-argument
+        self, test_name: str, mount_source: str, expected_additional_args: list
+    ) -> None:
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+
+        # This is supposed to happen during `_parse_compose_file`
+        # but that is probably getting skipped during testing
+        cnt["_service"] = cnt["service_name"]
+
+        cnt["volumes"] = [
+            {
+                "type": "glob",
+                "source": f"{mount_source}",
+                "target": "/mnt",
+            }
+        ]
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                *expected_additional_args,
+                "--network=bridge:alias=service_name",
+                "busybox",
+            ],
+        )
+
+    @parameterized.expand([
+        (
             "absolute_path",
             get_test_file_path('test_dirname/foo'),
             [
