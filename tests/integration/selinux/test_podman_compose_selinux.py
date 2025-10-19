@@ -38,7 +38,15 @@ class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
             inspect_out = json.loads(out)
             create_command_list = inspect_out[0].get("Config", []).get("CreateCommand", [])
             host_path = os.path.join(test_path(), "selinux", "host_test_text.txt")
-            self.assertIn(f'{host_path}:/test_text.txt:z', create_command_list)
+            try:
+                # podman-compose.py: prefer_volume_over_mount set to False
+                self.assertIn(
+                    f'type=bind,source={host_path},destination=/test_text.txt,z',
+                    create_command_list,
+                )
+            except AssertionError:
+                # podman-compose.py: prefer_volume_over_mount set to True
+                self.assertIn(f'{host_path}:/test_text.txt:z', create_command_list)
 
             out, _ = self.run_subprocess_assert_returncode([
                 "podman",
@@ -48,7 +56,14 @@ class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
             inspect_out = json.loads(out)
             create_command_list = inspect_out[0].get("Config", []).get("CreateCommand", [])
             host_path = os.path.join(test_path(), "selinux", "host_test_text.txt")
-            self.assertIn(f'{host_path}:/test_text.txt', create_command_list)
+            try:
+                # podman-compose.py: prefer_volume_over_mount set to False
+                self.assertIn(
+                    f'type=bind,source={host_path},destination=/test_text.txt', create_command_list
+                )
+            except AssertionError:
+                # podman-compose.py: prefer_volume_over_mount set to True
+                self.assertIn(f'{host_path}:/test_text.txt', create_command_list)
         finally:
             out, _ = self.run_subprocess_assert_returncode([
                 podman_compose_path(),
