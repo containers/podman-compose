@@ -459,6 +459,7 @@ def mount_desc_to_mount_args(mount_desc: dict[str, Any]) -> str:
     vol = mount_desc.get("_vol") if mount_type == "volume" else None
     source = vol["name"] if vol else mount_desc.get("source")
     target = mount_desc["target"]
+    volume = mount_desc.get("volume") if mount_type == "volume" else None
     opts = []
     if mount_desc.get(mount_type, None):
         # TODO: we might need to add mount_dict[mount_type]["propagation"] = "z"
@@ -480,6 +481,11 @@ def mount_desc_to_mount_args(mount_desc: dict[str, Any]) -> str:
         selinux = bind_opts.get("selinux")
         if selinux is not None:
             opts.append(selinux)
+    else:
+        if volume is not None:
+            subpath = volume.get("subpath")
+            if subpath is not None:
+                opts.append(f"subpath={subpath}")
     opts_str = ",".join(opts)
     if mount_type == "bind":
         return f"type=bind,source={source},destination={target},{opts_str}".rstrip(",")
@@ -1186,7 +1192,6 @@ async def container_to_args(
         podman_args.extend(["--tmpfs", i])
     for volume in cnt.get("volumes", []):
         podman_args.extend(await get_mount_args(compose, cnt, volume))
-
     await assert_cnt_nets(compose, cnt)
     podman_args.extend(get_net_args(compose, cnt))
 
@@ -2064,7 +2069,7 @@ class PodmanCompose:
         self.container_by_name: dict[str, Any]
         self.services: dict[str, Any]
         self.all_services: set[Any] = set()
-        self.prefer_volume_over_mount = True
+        self.prefer_volume_over_mount = False
         self.x_podman: dict[PodmanCompose.XPodmanSettingKey, Any] = {}
         self.merged_yaml: Any
         self.yaml_hash = ""
