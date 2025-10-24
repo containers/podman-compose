@@ -11,7 +11,10 @@ import os
 import unittest
 from typing import Generator
 
+from packaging import version
+
 from tests.integration.test_utils import RunSubprocessMixin
+from tests.integration.test_utils import get_podman_version
 from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
@@ -41,6 +44,7 @@ class TestPodmanComposeNetwork(RunSubprocessMixin, unittest.TestCase):
         ]
         self.run_subprocess(down_cmd)
 
+    @unittest.skipIf(get_podman_version() >= version.parse("5.0.0"), "Breaks as of podman-5.4.2.")
     def test_networks(self) -> None:
         up_cmd = [
             "coverage",

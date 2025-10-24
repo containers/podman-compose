@@ -5,9 +5,11 @@ import os
 import time
 import unittest
 
+from packaging import version
 from parameterized import parameterized
 
 from tests.integration.test_utils import RunSubprocessMixin
+from tests.integration.test_utils import get_podman_version
 from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
@@ -73,6 +75,7 @@ class TestLifetime(unittest.TestCase, RunSubprocessMixin):
         ("no_ports", "up_single_container_many_times"),
         ("with_ports", "up_single_container_many_times_with_ports"),
     ])
+    @unittest.skipIf(get_podman_version() >= version.parse("5.0.0"), "Breaks as of podman-5.4.2.")
     def test_up_single_container_many_times(self, name: str, subdir: str) -> None:
         """Podman compose up should be able to start a container many times after it finishes
         running.

@@ -6,6 +6,30 @@ import subprocess
 import time
 from pathlib import Path
 
+from packaging import version
+
+_podman_version = None
+
+
+def get_podman_version() -> version.Version:
+    """
+    Return the *packaging.version.Version* object for the podman binary
+    found in PATH (cached after the first call). Raise RuntimeError
+    if podman is missing or gives unexpected output.
+    """
+    global _podman_version
+    if _podman_version is None:
+        try:
+            out = subprocess.check_output(
+                ["podman", "--version"], text=True, stderr=subprocess.STDOUT
+            )
+            # ‘podman version 4.5.0’  →  take last token
+            raw = out.strip().split()[-1]
+            _podman_version = version.parse(raw)
+        except Exception as exc:
+            raise RuntimeError("cannot determine podman version") from exc
+    return _podman_version
+
 
 def base_path() -> Path:
     """Returns the base path for the project"""

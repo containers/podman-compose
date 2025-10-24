@@ -4,7 +4,10 @@
 import os
 import unittest
 
+from packaging import version
+
 from tests.integration.test_utils import RunSubprocessMixin
+from tests.integration.test_utils import get_podman_version
 from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
@@ -15,6 +18,7 @@ class TestPodmanComposeNetworkScopedAliases(RunSubprocessMixin, unittest.TestCas
         """Returns the path to the compose file used for this test module"""
         return os.path.join(test_path(), "network_scoped_aliases", "docker-compose.yaml")
 
+    @unittest.skipIf(get_podman_version() >= version.parse("5.0.0"), "Breaks as of podman-5.4.2.")
     def test_network_scoped_aliases(self) -> None:
         try:
             self.up()
