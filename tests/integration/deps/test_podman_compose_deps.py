@@ -6,6 +6,7 @@ from tests.integration.test_utils import PodmanAwareRunSubprocessMixin
 from tests.integration.test_utils import RunSubprocessMixin
 from tests.integration.test_utils import is_systemd_available
 from tests.integration.test_utils import podman_compose_path
+from tests.integration.test_utils import should_skip_podman_version
 from tests.integration.test_utils import test_path
 
 
@@ -14,6 +15,7 @@ def compose_yaml_path(suffix: str = "") -> str:
 
 
 class TestComposeBaseDeps(unittest.TestCase, RunSubprocessMixin):
+    @unittest.skipIf(should_skip_podman_version("5.4.2"), "Breaks after updating podman.")
     def test_deps(self) -> None:
         try:
             output, _ = self.run_subprocess_assert_returncode([
@@ -89,6 +91,7 @@ class TestComposeBaseDeps(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
+    @unittest.skipIf(should_skip_podman_version("5.4.2"), "Breaks after updating podman.")
     def test_podman_compose_run(self) -> None:
         """
         This will test depends_on as well
@@ -143,6 +146,7 @@ class TestComposeBaseDeps(unittest.TestCase, RunSubprocessMixin):
 
 
 class TestComposeConditionalDeps(unittest.TestCase, RunSubprocessMixin):
+    @unittest.skipIf(should_skip_podman_version("5.4.2"), "Breaks after updating podman.")
     def test_deps_succeeds(self) -> None:
         suffix = "-conditional-succeeds"
         try:
@@ -191,6 +195,7 @@ class TestComposeConditionalDepsHealthy(unittest.TestCase, PodmanAwareRunSubproc
     def setUp(self) -> None:
         self.podman_version = self.retrieve_podman_version()
 
+    @unittest.skipIf(should_skip_podman_version("5.4.2"), "Breaks after updating podman.")
     def test_up_deps_healthy(self) -> None:
         suffix = "-conditional-healthy"
         try:

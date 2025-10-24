@@ -4,6 +4,7 @@ import os
 import unittest
 
 from tests.integration.test_utils import RunSubprocessMixin
+from tests.integration.test_utils import should_skip_podman_version
 
 
 def base_path() -> str:
@@ -37,6 +38,7 @@ def failure_exitcode_when_rootful() -> int:
 # Test all combinations of command line argument in_pod and compose file argument in_pod.
 class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
     # compose file provides x-podman in_pod=false
+    @unittest.skipIf(should_skip_podman_version("5.4.2"), "Breaks after updating podman.")
     def test_x_podman_in_pod_false_command_line_in_pod_not_exists(self) -> None:
         """
         Test that podman-compose will not create a pod, when x-podman in_pod=false and command line
@@ -115,6 +117,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             # been created) and have expected_returncode=1 (see FIXME above)
             self.run_subprocess_assert_returncode(command_rm_pod)
 
+    @unittest.skipIf(should_skip_podman_version("5.4.2"), "Breaks after updating podman.")
     def test_x_podman_in_pod_false_command_line_in_pod_false(self) -> None:
         """
         Test that podman-compose will not create a pod as command line sets in_pod=False
@@ -160,6 +163,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             # can not actually find this pod because it was not created
             self.run_subprocess_assert_returncode(command_rm_pod, 1)
 
+    @unittest.skipIf(should_skip_podman_version("5.4.2"), "Breaks after updating podman.")
     def test_x_podman_in_pod_false_command_line_in_pod_empty_string(self) -> None:
         """
         Test that podman-compose will not create a pod, when x-podman in_pod=false and command line
@@ -274,6 +278,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             # been created) and have expected_returncode=1 (see FIXME above)
             self.run_subprocess_assert_returncode(command_rm_pod)
 
+    @unittest.skipIf(should_skip_podman_version("5.4.2"), "Breaks after updating podman.")
     def test_x_podman_in_pod_true_command_line_in_pod_false(self) -> None:
         """
         Test that podman-compose will not create a pod as command line sets in_pod=False
@@ -421,6 +426,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             # been created) and have expected_returncode=1 (see FIXME above)
             self.run_subprocess_assert_returncode(command_rm_pod)
 
+    @unittest.skipIf(should_skip_podman_version("5.4.2"), "Breaks after updating podman.")
     def test_x_podman_in_pod_not_exists_command_line_in_pod_false(self) -> None:
         """
         Test that podman-compose will not create a pod as command line sets in_pod=False
@@ -467,6 +473,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             # can not actually find this pod because it was not created
             self.run_subprocess_assert_returncode(command_rm_pod, 1)
 
+    @unittest.skipIf(should_skip_podman_version("5.4.2"), "Breaks after updating podman.")
     def test_x_podman_in_pod_not_exists_command_line_in_pod_not_exists_docker_compat(self) -> None:
         """
         Test that podman-compose will not create a pod when docker compat is requested.
@@ -518,6 +525,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
             # can not actually find this pod because it was not created
             self.run_subprocess_assert_returncode(command_rm_pod, 1)
 
+    @unittest.skipIf(should_skip_podman_version("5.4.2"), "Breaks after updating podman.")
     def test_x_podman_in_pod_not_exists_command_line_in_pod_not_exists_env_var(self) -> None:
         """
         Test that podman-compose will not create a pod when env var is set.
