@@ -6,14 +6,18 @@ import unittest
 from parameterized import parameterized
 
 from tests.integration.test_utils import RunSubprocessMixin
+from tests.integration.test_utils import get_podman_version
 from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
+
+SKIP_IF = get_podman_version() == get_podman_version().__class__("5.4.2")
 
 
 def compose_yaml_path() -> str:
     return os.path.join(os.path.join(test_path(), "nets_test3"), "docker-compose.yml")
 
 
+@unittest.skipIf(SKIP_IF, "Breaks after updating podman to podman-5.4.2")
 class TestComposeNetsTest3(unittest.TestCase, RunSubprocessMixin):
     # test if services can access the networks of other services using their respective aliases
     @parameterized.expand([

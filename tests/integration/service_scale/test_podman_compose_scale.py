@@ -4,14 +4,18 @@ import os
 import unittest
 
 from tests.integration.test_utils import RunSubprocessMixin
+from tests.integration.test_utils import get_podman_version
 from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
+
+SKIP_IF = get_podman_version() == get_podman_version().__class__("5.4.2")
 
 
 def compose_yaml_path(test_ref_folder: str) -> str:
     return os.path.join(test_path(), "service_scale", test_ref_folder, "docker-compose.yml")
 
 
+@unittest.skipIf(SKIP_IF, "Breaks after updating podman to podman-5.4.2")
 class TestComposeScale(unittest.TestCase, RunSubprocessMixin):
     # scale-up using `scale` prarmeter in docker-compose.yml
     def test_scaleup_scale_parameter(self) -> None:
