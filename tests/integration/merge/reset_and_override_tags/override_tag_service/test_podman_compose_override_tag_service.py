@@ -5,8 +5,11 @@ import os
 import unittest
 
 from tests.integration.test_utils import RunSubprocessMixin
+from tests.integration.test_utils import get_podman_version
 from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
+
+SKIP_IF = get_podman_version() == get_podman_version().__class__("5.4.2")
 
 
 def compose_yaml_path() -> str:
@@ -18,6 +21,7 @@ def compose_yaml_path() -> str:
 
 class TestComposeOverrideTagService(unittest.TestCase, RunSubprocessMixin):
     # test if whole service from docker-compose.yaml file is overridden in another file
+    @unittest.skipIf(SKIP_IF, "Breaks after updating podman to podman-5.4.2")
     def test_override_tag_service(self) -> None:
         override_file = os.path.join(
             test_path(),

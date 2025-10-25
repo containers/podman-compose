@@ -11,6 +11,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [ '3.9', '3.10', '3.11', '3.12', '3.13' ]
+        podman-version: ['4.3.1', '5.4.2']
 
     runs-on: ubuntu-latest
     container:
@@ -20,10 +21,53 @@ jobs:
       options: --privileged --cgroupns=host
     steps:
     - uses: actions/checkout@v5
-    - name: Install dependencies
+    - name: Install podman-4.3.1
+      if: matrix.podman-version == '4.3.1'
       run: |
         set -e
         apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y podman
+    - name: Install dependencies for dpkg
+      if: matrix.podman-version == '5.4.2'
+      shell: bash
+      run: |
+        DEBIAN_FRONTEND=noninteractive apt update -y
+        DEBIAN_FRONTEND=noninteractive apt-get install -y conmon golang-github-containers-common libgpgme11 libsubid4
+        DEBIAN_FRONTEND=noninteractive apt update  -y && apt upgrade  -y buildah
+    - name: Install podman-5.4.2 and required dependencies from .deb files in podman-compose-test-data repository
+      if: matrix.podman-version == '5.4.2'
+      shell: bash
+      run: |
+        BASE_URLS=(
+        "https://raw.githubusercontent.com/mokibit/podman-compose-test-data/main/deb_files/podman-5.4.2"
+        "https://raw.githubusercontent.com/mokibit/podman-compose-test-data/main/deb_files/crun-1.21"
+        "https://raw.githubusercontent.com/mokibit/podman-compose-test-data/main/deb_files/netavark-1.14"
+        "https://raw.githubusercontent.com/mokibit/podman-compose-test-data/main/deb_files/aardvark-dns-1.14"
+        )
+        DEB_FILES=(
+        "podman_5.4.2+composetest-1_amd64.deb"
+        "crun_1.21-1_amd64.deb"
+        "netavark_1.14.0-2_amd64.deb"
+        "aardvark-dns_1.14.0-3_amd64.deb"
+        )
+        TMPDIR=$(mktemp -d)
+        trap 'rm -rf "$TMPDIR"' EXIT
+        for i in "${!BASE_URLS[@]}"; do
+          url="${BASE_URLS[i]}/${DEB_FILES[i]}"
+          echo "Downloading $url ..."
+          curl -fsSL -o "$TMPDIR/${DEB_FILES[i]}" "$url"
+        done
+        echo "Installing packages ..."
+        apt-get update -qq
+        apt-get install -y -qq "$TMPDIR"/*.deb
+    - name: Verify installation of podman-5.4.2, crun-1.21, netavark-1.14, aardvark-dns-1.14
+      run: |
+        podman --version
+        echo "crun version: $(dpkg -l | awk '$2=="crun" {print $3}')"
+        echo "netavark version: $(dpkg -l | awk '$2=="netavark" {print $3}')"
+        echo "aardvark-dns version: $(dpkg -l | awk '$2=="aardvark-dns" {print $3}')"
+    - name: Install other test dependencies
+      run: |
+        set -e
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r test-requirements.txt
