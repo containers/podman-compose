@@ -2631,19 +2631,29 @@ class PodmanCompose:
             rec_merge(compose, content)
             # If `include` is used, append included files to files
             include = compose.get("include")
-            if include:
-                included_files = []
-                for i in include:
-                    if isinstance(i, dict):
-                        rel_path = i.get("path")
-                    elif isinstance(i, str):
-                        rel_path = i
-                    else:
-                        rel_path = None
+            if include is not None:
+                # Validate that `include` is a list. If it were a dict, iterating it
+                # would yield its keys (strings), causing bogus file paths
+                if not isinstance(include, list):
+                    raise RuntimeError("`include` must be a list")
 
-                    if rel_path:
-                        included_files.append(os.path.join(os.path.dirname(filename), rel_path))
-                files.extend(included_files)
+                for item in include:
+                    if isinstance(item, str):
+                        files.append(os.path.join(os.path.dirname(filename), item))
+                    elif isinstance(item, dict):
+                        if "path" not in item:
+                            raise RuntimeError("Missing required 'path' key in `include` block")
+                        path = item["path"]
+                        if isinstance(path, str):
+                            files.append(os.path.join(os.path.dirname(filename), path))
+                        elif isinstance(path, list):
+                            files.extend([os.path.join(os.path.dirname(filename), p) for p in path])
+                        else:
+                            raise RuntimeError("'path' must be a string or a list of strings")
+                    else:
+                        raise RuntimeError(
+                            "Items in `include` must be strings or dictionaries with a 'path' key"
+                        )
                 # As compose obj is updated and tested with every loop, not deleting `include`
                 # from it, results in it being tested again and again, original values for
                 # `include` be appended to `files`, and, included files be processed for ever.
