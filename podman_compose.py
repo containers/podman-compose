@@ -62,9 +62,13 @@ def filteri(a: list[str]) -> list[str]:
 
 
 @overload
-def try_int(i: int | str, fallback: int) -> int: ...
+def try_int(i: int | str, fallback: int) -> int:
+    ...
+
+
 @overload
-def try_int(i: int | str, fallback: None) -> int | None: ...
+def try_int(i: int | str, fallback: None) -> int | None:
+    ...
 
 
 def try_int(i: int | str, fallback: int | None = None) -> int | None:
@@ -271,11 +275,18 @@ var_re = re.compile(
 
 
 @overload
-def rec_subs(value: dict, subs_dict: dict[str, Any]) -> dict: ...
+def rec_subs(value: dict, subs_dict: dict[str, Any]) -> dict:
+    ...
+
+
 @overload
-def rec_subs(value: str, subs_dict: dict[str, Any]) -> str: ...
+def rec_subs(value: str, subs_dict: dict[str, Any]) -> str:
+    ...
+
+
 @overload
-def rec_subs(value: Iterable, subs_dict: dict[str, Any]) -> Iterable: ...
+def rec_subs(value: Iterable, subs_dict: dict[str, Any]) -> Iterable:
+    ...
 
 
 def rec_subs(value: dict | str | Iterable, subs_dict: dict[str, Any]) -> dict | str | Iterable:
@@ -2569,7 +2580,11 @@ class PodmanCompose:
         subparsers = parser.add_subparsers(title="command", dest="command")
         _ = subparsers.add_parser("help", help="show help")
         for cmd_name, cmd in self.commands.items():
-            subparser = subparsers.add_parser(cmd_name, help=cmd.help, description=cmd.desc)  # pylint: disable=protected-access
+            subparser = subparsers.add_parser(
+                cmd_name,
+                help=cmd.help,
+                description=cmd.desc
+            )  # pylint: disable=protected-access
             for cmd_parser in cmd._parse_args:  # pylint: disable=protected-access
                 cmd_parser(subparser)
         self.global_args = parser.parse_args(argv)
@@ -2732,6 +2747,66 @@ class cmd_parse:  # pylint: disable=invalid-name,too-few-public-methods
 ###################
 # actual commands
 ###################
+
+@cmd_run(podman_compose, "ls", "List running compose projects")
+async def list_running_projects(compose: PodmanCompose, args: argparse.Namespace) -> None:
+    img_containers = [cnt for cnt in compose.containers if "image" in cnt]
+    parsed_args = vars(args)
+    _format = parsed_args.get("format", "table")
+    data = []
+    if _format == "table":
+        data.append(["NAME", "STATUS", "CONFIG_FILES"])
+
+    for img in img_containers:
+        try:
+            name = img["name"]
+            output = await compose.podman.output(
+                [],
+                "inspect",
+                [
+                    name,
+                    "--format",
+                    '''
+                    {{ .State.Status }}
+                    {{ .State.Running }}
+                    {{ index .Config.Labels "com.docker.compose.project.working_dir" }}
+                    {{ index .Config.Labels "com.docker.compose.project.config_files" }}
+                    '''
+                ],
+            )
+            output = output.decode().split()
+            running = bool(json.loads(output[1]))
+            status = "{}({})".format(output[0], 1 if running else 0)
+            path = "{}/{}".format(output[2], output[3])
+
+            if _format == "table":
+                if isinstance(output, list):
+                    data.append([name, status, path])
+
+            elif _format == "json":
+                # Replicate how docker compose returns the list
+                json_obj = {
+                    "Name": name,
+                    "Status": status,
+                    "ConfigFiles": path
+                }
+                data.append(json_obj)
+        except Exception:
+            break
+
+    if _format == "table":
+        # Determine the maximum length of each column
+        column_widths = [max(map(len, column)) for column in zip(*data)]
+
+        # Print each row
+        for row in data:
+            # Format each cell using the maximum column width
+            formatted_row = [cell.ljust(width) for cell, width in zip(row, column_widths)]
+            formatted_row[-2:] = ["\t".join(formatted_row[-2:]).strip()]
+            print("\t".join(formatted_row))
+
+    elif _format == "json":
+        print(data)
 
 
 @cmd_run(podman_compose, "version", "show version")
@@ -4378,6 +4453,17 @@ def compose_format_parse(parser: argparse.ArgumentParser) -> None:
         "--format",
         type=str,
         help="Pretty-print container statistics to JSON or using a Go template",
+    )
+
+
+@cmd_parse(podman_compose, "ls")
+def compose_ls_parse(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "-f",
+        "--format",
+        choices=["table", "json"],
+        default="table",
+        help="Format the output",
     )
 
 
