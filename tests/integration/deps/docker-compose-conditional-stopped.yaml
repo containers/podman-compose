@@ -1,0 +1,21 @@
+version: "3.7"
+services:
+  failing_oneshot:
+    image: nopush/podman-compose-test
+    command: ["sh", "-c", "echo 'Task failed!' && exit 1"]
+  should_start_when_fail:
+    image: nopush/podman-compose-test
+    command: ["sh", "-c", "echo 'Starting after oneshot completes' && sleep 3600"]
+    depends_on:
+      failing_oneshot:
+        condition: stopped
+
+  success_oneshot:
+    image: nopush/podman-compose-test
+    command: ["sh", "-c", "echo 'Task completed successfully' && exit 0"]
+  should_start_when_success:
+    image: nopush/podman-compose-test
+    command: ["sh", "-c", "echo 'Starting after oneshot completes' && sleep 3600"]
+    depends_on:
+      success_oneshot:
+        condition: stopped

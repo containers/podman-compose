@@ -1588,6 +1588,7 @@ class ServiceDependencyCondition(Enum):
     STOPPED = "stopped"
     STOPPING = "stopping"
     UNHEALTHY = "unhealthy"
+    SERVICE_COMPLETED_SUCCESSFULLY = "service_completed_successfully"
 
     @classmethod
     def from_value(cls, value: str) -> ServiceDependencyCondition:
@@ -1600,7 +1601,9 @@ class ServiceDependencyCondition(Enum):
         docker_to_podman_cond = {
             "service_healthy": ServiceDependencyCondition.HEALTHY,
             "service_started": ServiceDependencyCondition.RUNNING,
-            "service_completed_successfully": ServiceDependencyCondition.STOPPED,
+            "service_completed_successfully": (
+                ServiceDependencyCondition.SERVICE_COMPLETED_SUCCESSFULLY
+            ),
         }
         try:
             return docker_to_podman_cond[value]
@@ -3664,6 +3667,57 @@ def get_excluded(
     return excluded
 
 
+async def _validate_completed_successfully(
+    compose: PodmanCompose, container_names: list[str]
+) -> None:
+    # Poll until all containers have left the 'created' state
+    # This prevents podman wait from racing against container startup
+    last_log_time = 0.0
+    while True:
+        try:
+            statuses_raw = await compose.podman.output(
+                [], "inspect", ["--format={{.State.Status}}"] + container_names
+            )
+            statuses = statuses_raw.decode().split()
+            if all(s != "created" for s in statuses if s):
+                break
+        except subprocess.CalledProcessError as exc:
+            log.debug(
+                "podman inspect failed while polling for created states: %s",
+                exc,
+            )
+
+        now = asyncio.get_event_loop().time()
+        if now - last_log_time >= 1.0:
+            log.debug(
+                "Waiting for dependency containers to leave 'created' state: %s",
+                ', '.join(container_names),
+            )
+            last_log_time = now
+        await asyncio.sleep(0.05)
+
+    # podman does not actually support value "service_completed_successfully"
+    # default value "stopped" is sent instead
+    await compose.podman.output([], "wait", ["--condition=stopped"] + container_names)
+
+    for container_name in container_names:
+        try:
+            inspect_output = await compose.podman.output([], "inspect", [container_name])
+        except subprocess.CalledProcessError as exc:
+            raise RuntimeError(
+                f"Container {container_name} disappeared after waiting for stop"
+            ) from exc
+        container_info = json.loads(inspect_output)[0]
+
+        exit_code = container_info.get("State", {}).get("ExitCode", -1)
+        if exit_code != 0:
+            error_msg = (
+                f"Container {container_name} didn't complete successfully: exit code {exit_code}"
+            )
+            log.error(error_msg)
+            raise RuntimeError(error_msg)
+
+
 async def check_dep_conditions(compose: PodmanCompose, deps: set) -> None:
     """Enforce that all specified conditions in deps are met"""
     if not deps:
@@ -3694,9 +3748,12 @@ async def check_dep_conditions(compose: PodmanCompose, deps: set) -> None:
             # podman wait will return always with a rc -1.
             while True:
                 try:
-                    await compose.podman.output(
-                        [], "wait", [f"--condition={condition.value}"] + deps_cd
-                    )
+                    if condition == ServiceDependencyCondition.SERVICE_COMPLETED_SUCCESSFULLY:
+                        await _validate_completed_successfully(compose, deps_cd)
+                    else:
+                        await compose.podman.output(
+                            [], "wait", [f"--condition={condition.value}"] + deps_cd
+                        )
                     log.debug(
                         "dependencies for condition %s have been fulfilled on containers %s",
                         condition.value,
