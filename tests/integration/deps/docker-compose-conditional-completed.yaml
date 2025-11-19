@@ -1,0 +1,18 @@
+version: "3.7"
+services:
+  oneshot:
+    image: nopush/podman-compose-test
+    command: ["sh", "-c", "echo 'Task completed successfully' && exit 0"]
+    tmpfs:
+      - /run
+      - /tmp
+
+  longrunning:
+    image: nopush/podman-compose-test
+    command: ["sh", "-c", "echo 'Starting after oneshot completes' && sleep 3600"]
+    depends_on:
+      oneshot:
+        condition: service_completed_successfully
+    tmpfs:
+      - /run
+      - /tmp

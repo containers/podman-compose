@@ -186,6 +186,69 @@ class TestComposeConditionalDeps(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
+    def test_deps_completed_successfully(self) -> None:
+        suffix = "-conditional-completed"
+        try:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(suffix),
+                "up",
+                "-d",
+            ])
+
+            output, _ = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(suffix),
+                "ps",
+            ])
+
+            self.assertIn(b"oneshot", output)
+            self.assertIn(b"Exited (0)", output)
+            self.assertIn(b"longrunning", output)
+            self.assertIn(b"Up", output)
+
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(suffix),
+                "down",
+            ])
+
+    def test_deps_completed_failed(self) -> None:
+        suffix = "-conditional-completed-failed"
+        try:
+            output, stderr, returncode = self.run_subprocess([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(suffix),
+                "up",
+                "-d",
+            ])
+
+            self.assertNotEqual(returncode, 0)
+            self.assertIn(b"didn't complete successfully", stderr)
+
+            output, _ = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(suffix),
+                "ps",
+            ])
+
+            self.assertIn(b"failing_oneshot", output)
+            self.assertIn(b"Exited (1)", output)
+
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(suffix),
+                "down",
+            ])
+
 
 class TestComposeConditionalDepsHealthy(unittest.TestCase, PodmanAwareRunSubprocessMixin):
     def setUp(self) -> None:
