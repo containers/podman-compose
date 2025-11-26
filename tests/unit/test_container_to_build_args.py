@@ -154,6 +154,76 @@ class TestContainerToBuildArgs(unittest.TestCase):
             ],
         )
 
+    def test_dockerfile_with_relative_context_and_dockerfile(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt['build']['context'] = "../"
+        cnt['build']['dockerfile'] = "compose/backend/Containerfile"
+
+        args = get_minimal_args()
+
+        args = container_to_build_args(c, cnt, args, lambda path: True)
+
+        self.assertEqual(
+            [
+                '-f',
+                'compose/backend/Containerfile',
+                '-t',
+                'new-image',
+                '--no-cache',
+                '../',
+            ],
+            args
+        )
+
+    def test_dockerfile_with_relative_context_and_dockerfile_1(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt['build']['context'] = "subdir/"
+        cnt['build']['dockerfile'] = "compose/backend/Containerfile"
+
+        args = get_minimal_args()
+
+        args = container_to_build_args(c, cnt, args, lambda path: True)
+
+        self.assertEqual(
+            [
+                '-f',
+                'compose/backend/Containerfile',
+                '-t',
+                'new-image',
+                '--no-cache',
+                'subdir/',
+            ],
+            args
+        )
+
+    def test_dockerfile_with_absolute_context_and_dockerfile(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt['build']['context'] = "/context/path"
+        cnt['build']['dockerfile'] = "compose/backend/Containerfile"
+
+        args = get_minimal_args()
+
+        args = container_to_build_args(c, cnt, args, lambda path: True)
+
+        self.assertEqual(
+            [
+                '-f',
+                'compose/backend/Containerfile',
+                '-t',
+                'new-image',
+                '--no-cache',
+                '--pull-always',
+                '/context/path',
+            ],
+            args
+        )
+
     def test_dockerfile_inline(self):
         c = create_compose_mock()
 

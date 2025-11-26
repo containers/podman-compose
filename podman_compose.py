@@ -3038,18 +3038,23 @@ def container_to_build_args(
     build_desc = cnt["build"]
     if not hasattr(build_desc, "items"):
         build_desc = {"context": build_desc}
+
     ctx = build_desc.get("context", ".")
-    dockerfile = build_desc.get("dockerfile", "")
-    dockerfile_inline = build_desc.get("dockerfile_inline")
-    if dockerfile_inline is not None:
-        dockerfile_inline = str(dockerfile_inline)
+    custom_dockerfile = build_desc.get("dockerfile", "")
+    custom_dockerfile_inline = build_desc.get("dockerfile_inline")
+
+    build_args = []
+
+    dockerfile = None
+    if custom_dockerfile_inline is not None:
+        dockerfile_inline = str(custom_dockerfile_inline)
         # Error if both `dockerfile_inline` and `dockerfile` are set
-        if dockerfile and dockerfile_inline:
+        if custom_dockerfile and dockerfile_inline:
             raise OSError("dockerfile_inline and dockerfile can't be used simultaneously")
-        dockerfile = tempfile.NamedTemporaryFile(delete=False, suffix=".containerfile")
-        dockerfile.write(dockerfile_inline.encode())
-        dockerfile.close()
-        dockerfile = dockerfile.name
+        dockerfile_tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".containerfile")
+        dockerfile_tmp_file.write(dockerfile_inline.encode())
+        dockerfile_tmp_file.close()
+        dockerfile = dockerfile_tmp_file.name
 
         def cleanup_temp_dockfile() -> None:
             if os.path.exists(dockerfile):
@@ -3058,36 +3063,39 @@ def container_to_build_args(
         if cleanup_callbacks is not None:
             cleanup_callbacks.append(cleanup_temp_dockfile)
 
-    build_args = []
-    # if given context was not recognized as git url, try joining paths to get a file locally
-    if not is_context_git_url(ctx):
-        custom_dockerfile_given = False
-        if dockerfile:
-            dockerfile = os.path.join(ctx, dockerfile)
-            custom_dockerfile_given = True
-        else:
-            dockerfile_alts = [
-                "Containerfile",
-                "ContainerFile",
-                "containerfile",
-                "Dockerfile",
-                "DockerFile",
-                "dockerfile",
-            ]
-            for dockerfile in dockerfile_alts:
-                dockerfile = os.path.join(ctx, dockerfile)
-                if path_exists(dockerfile):
-                    break
+        build_args.extend(["-f", dockerfile])
+    else:
+        # if givent context was not recognized as git url, try joining paths to get a file locally
+        if not is_context_git_url(ctx):
+            dockerfile = None
+            dockerfile_from_cwd = None
+            custom_dockerfile_given = False
+            if custom_dockerfile:
+                dockerfile = custom_dockerfile
+                dockerfile_from_cwd = os.path.join(ctx, custom_dockerfile)
+                custom_dockerfile_given = True
+            else:
+                dockerfile_alts = [
+                    "Containerfile",
+                    "ContainerFile",
+                    "containerfile",
+                    "Dockerfile",
+                    "DockerFile",
+                    "dockerfile",
+                ]
+                for dockerfile in dockerfile_alts:
+                    dockerfile_from_cwd = os.path.join(ctx, dockerfile)
+                    if path_exists(dockerfile_from_cwd):
+                        break
 
-        if path_exists(dockerfile):
-            # normalize dockerfile path, as the user could have provided unpredictable file formats
-            dockerfile = os.path.normpath(os.path.join(ctx, dockerfile))
-            build_args.extend(["-f", dockerfile])
-        else:
-            if custom_dockerfile_given:
-                # custom dockerfile name was also not found in the file system
-                raise OSError(f"Dockerfile not found in {dockerfile}")
-            raise OSError(f"Dockerfile not found in {ctx}")
+            if path_exists(dockerfile_from_cwd):
+                # normalize dockerfile path, as the user could have provided unpredictable file formats
+                build_args.extend(["-f", dockerfile])
+            else:
+                if custom_dockerfile_given:
+                    # custom dockerfile name was also not found in the file system
+                    raise OSError(f"Dockerfile not found at {custom_dockerfile}")
+                raise OSError(f"Dockerfile not found in {ctx}")
 
     build_args.extend(["-t", cnt["image"]])
 
@@ -3127,6 +3135,7 @@ def container_to_build_args(
         build_args.extend(["--cache-from", cache_img])
     for cache_img in build_desc.get("cache_to", []):
         build_args.extend(["--cache-to", cache_img])
+
     build_args.append(ctx)
     return build_args
 
