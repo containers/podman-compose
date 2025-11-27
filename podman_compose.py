@@ -4166,6 +4166,7 @@ def compose_logs_parse(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Output the container name in the log",
     )
+    parser.add_argument("--no-color", action="store_true", help="Produce monochrome output")
     parser.add_argument("--since", help="Show logs since TIMESTAMP", type=str, default=None)
     parser.add_argument("-t", "--timestamps", action="store_true", help="Show timestamps.")
     parser.add_argument(
