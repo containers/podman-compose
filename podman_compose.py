@@ -2876,7 +2876,7 @@ while in your project type `podman-compose systemd -a register`
 
 
 @cmd_run(podman_compose, "pull", "pull stack images")
-async def compose_pull(compose: PodmanCompose, args: argparse.Namespace) -> None:
+async def compose_pull(compose: PodmanCompose, args: argparse.Namespace) -> int | None:
     img_containers = [cnt for cnt in compose.containers if "image" in cnt]
     if args.services:
         services = set(args.services)
@@ -2885,8 +2885,12 @@ async def compose_pull(compose: PodmanCompose, args: argparse.Namespace) -> None
     if not args.force_local:
         local_images = {cnt["image"] for cnt in img_containers if is_local(cnt)}
         images -= local_images
-
-    await asyncio.gather(*[compose.podman.run([], "pull", [image]) for image in images])
+    status = 0
+    statuses = await asyncio.gather(*[compose.podman.run([], "pull", [image]) for image in images])
+    for s in statuses:
+        if s is not None and s != 0:
+            status = s
+    return status
 
 
 @cmd_run(podman_compose, "push", "push stack images")
