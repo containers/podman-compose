@@ -480,6 +480,11 @@ def mount_desc_to_mount_args(mount_desc: dict[str, Any]) -> str:
         selinux = bind_opts.get("selinux")
         if selinux is not None:
             opts.append(selinux)
+    if mount_type == "image":
+        image_opts = mount_desc.get("image", {})
+        subpath = image_opts.get("subpath")
+        if subpath is not None:
+            opts.append(f"subpath={subpath}")
     opts_str = ",".join(opts)
     if mount_type == "bind":
         return f"type=bind,source={source},destination={target},{opts_str}".rstrip(",")
@@ -487,6 +492,8 @@ def mount_desc_to_mount_args(mount_desc: dict[str, Any]) -> str:
         return f"type=volume,source={source},destination={target},{opts_str}".rstrip(",")
     if mount_type == "tmpfs":
         return f"type=tmpfs,destination={target},{opts_str}".rstrip(",")
+    if mount_type == "image":
+        return f"type=image,source={source},destination={target},{opts_str}".rstrip(",")
     raise ValueError("unknown mount type:" + mount_type)
 
 
@@ -574,7 +581,7 @@ async def get_mount_args(
     srv_name = cnt["_service"]
     mount_type = volume["type"]
     await assert_volume(compose, volume)
-    if compose.prefer_volume_over_mount:
+    if compose.prefer_volume_over_mount and mount_type != "image":
         if mount_type == "tmpfs":
             # TODO: --tmpfs /tmp:rw,size=787448k,mode=1777
             args = volume["target"]
