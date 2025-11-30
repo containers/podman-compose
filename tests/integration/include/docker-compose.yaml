@@ -1,5 +1,5 @@
 version: '3.6'
 
 include:
-  - docker-compose.base.yaml
-  - docker-compose.extend.yaml
+  - docker-compose_base.yaml
+  - docker-compose_extend.yaml
