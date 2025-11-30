@@ -62,13 +62,11 @@ def filteri(a: list[str]) -> list[str]:
 
 
 @overload
-def try_int(i: int | str, fallback: int) -> int:
-    ...
+def try_int(i: int | str, fallback: int) -> int: ...
 
 
 @overload
-def try_int(i: int | str, fallback: None) -> int | None:
-    ...
+def try_int(i: int | str, fallback: None) -> int | None: ...
 
 
 def try_int(i: int | str, fallback: int | None = None) -> int | None:
@@ -275,18 +273,15 @@ var_re = re.compile(
 
 
 @overload
-def rec_subs(value: dict, subs_dict: dict[str, Any]) -> dict:
-    ...
+def rec_subs(value: dict, subs_dict: dict[str, Any]) -> dict: ...
 
 
 @overload
-def rec_subs(value: str, subs_dict: dict[str, Any]) -> str:
-    ...
+def rec_subs(value: str, subs_dict: dict[str, Any]) -> str: ...
 
 
 @overload
-def rec_subs(value: Iterable, subs_dict: dict[str, Any]) -> Iterable:
-    ...
+def rec_subs(value: Iterable, subs_dict: dict[str, Any]) -> Iterable: ...
 
 
 def rec_subs(value: dict | str | Iterable, subs_dict: dict[str, Any]) -> dict | str | Iterable:
@@ -2591,11 +2586,7 @@ class PodmanCompose:
         subparsers = parser.add_subparsers(title="command", dest="command")
         _ = subparsers.add_parser("help", help="show help")
         for cmd_name, cmd in self.commands.items():
-            subparser = subparsers.add_parser(
-                cmd_name,
-                help=cmd.help,
-                description=cmd.desc
-            )  # pylint: disable=protected-access
+            subparser = subparsers.add_parser(cmd_name, help=cmd.help, description=cmd.desc)  # pylint: disable=protected-access
             for cmd_parser in cmd._parse_args:  # pylint: disable=protected-access
                 cmd_parser(subparser)
         self.global_args = parser.parse_args(argv)
