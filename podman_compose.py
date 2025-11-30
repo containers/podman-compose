@@ -62,13 +62,11 @@ def filteri(a: list[str]) -> list[str]:
 
 
 @overload
-def try_int(i: int | str, fallback: int) -> int:
-    ...
+def try_int(i: int | str, fallback: int) -> int: ...
 
 
 @overload
-def try_int(i: int | str, fallback: None) -> int | None:
-    ...
+def try_int(i: int | str, fallback: None) -> int | None: ...
 
 
 def try_int(i: int | str, fallback: int | None = None) -> int | None:
@@ -275,18 +273,15 @@ var_re = re.compile(
 
 
 @overload
-def rec_subs(value: dict, subs_dict: dict[str, Any]) -> dict:
-    ...
+def rec_subs(value: dict, subs_dict: dict[str, Any]) -> dict: ...
 
 
 @overload
-def rec_subs(value: str, subs_dict: dict[str, Any]) -> str:
-    ...
+def rec_subs(value: str, subs_dict: dict[str, Any]) -> str: ...
 
 
 @overload
-def rec_subs(value: Iterable, subs_dict: dict[str, Any]) -> Iterable:
-    ...
+def rec_subs(value: Iterable, subs_dict: dict[str, Any]) -> Iterable: ...
 
 
 def rec_subs(value: dict | str | Iterable, subs_dict: dict[str, Any]) -> dict | str | Iterable:
@@ -2580,11 +2575,7 @@ class PodmanCompose:
         subparsers = parser.add_subparsers(title="command", dest="command")
         _ = subparsers.add_parser("help", help="show help")
         for cmd_name, cmd in self.commands.items():
-            subparser = subparsers.add_parser(
-                cmd_name,
-                help=cmd.help,
-                description=cmd.desc
-            )  # pylint: disable=protected-access
+            subparser = subparsers.add_parser(cmd_name, help=cmd.help, description=cmd.desc)  # pylint: disable=protected-access
             for cmd_parser in cmd._parse_args:  # pylint: disable=protected-access
                 cmd_parser(subparser)
         self.global_args = parser.parse_args(argv)
@@ -2748,6 +2739,7 @@ class cmd_parse:  # pylint: disable=invalid-name,too-few-public-methods
 # actual commands
 ###################
 
+
 @cmd_run(podman_compose, "ls", "List running compose projects")
 async def list_running_projects(compose: PodmanCompose, args: argparse.Namespace) -> None:
     img_containers = [cnt for cnt in compose.containers if "image" in cnt]
@@ -2771,7 +2763,7 @@ async def list_running_projects(compose: PodmanCompose, args: argparse.Namespace
                     {{ .State.Running }}
                     {{ index .Config.Labels "com.docker.compose.project.working_dir" }}
                     {{ index .Config.Labels "com.docker.compose.project.config_files" }}
-                    '''
+                    ''',
                 ],
             )
             output = output.decode().split()
@@ -2785,11 +2777,7 @@ async def list_running_projects(compose: PodmanCompose, args: argparse.Namespace
 
             elif _format == "json":
                 # Replicate how docker compose returns the list
-                json_obj = {
-                    "Name": name,
-                    "Status": status,
-                    "ConfigFiles": path
-                }
+                json_obj = {"Name": name, "Status": status, "ConfigFiles": path}
                 data.append(json_obj)
         except Exception:
             break
