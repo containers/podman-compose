@@ -1,0 +1,13 @@
+version: '3.6'
+
+services:
+  service_1:
+    image: nopush/podman-compose-test
+    command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-h", ".", "-p", "8003"]
+  service_2:
+    image: nopush/podman-compose-test
+    command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-h", ".", "-p", "8003"]
+  service_3:
+    image: nopush/podman-compose-test
+    command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-h", ".", "-p", "8003"]
+
