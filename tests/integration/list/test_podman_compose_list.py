@@ -1,6 +1,7 @@
 import ast
 import os
 import unittest
+from typing import Union
 
 from tests.integration.test_utils import RunSubprocessMixin
 from tests.integration.test_utils import podman_compose_path
@@ -52,14 +53,15 @@ class TestPodmanComposeInclude(unittest.TestCase, RunSubprocessMixin):
         ]
 
         command_down = ["podman", "rm", "--force"]
+        service: Union[dict[str, str], str]
 
         running_containers = []
         self.run_subprocess_assert_returncode(command_up)
         out, _ = self.run_subprocess_assert_returncode(command_list)
-        out = out.decode()
+        str_out = out.decode()
 
         # Test for table view
-        services = out.strip().split("\n")
+        services = str_out.strip().split("\n")
         headers = [h.strip() for h in services[0].split("\t")]
 
         for service in services[1:]:
@@ -74,16 +76,17 @@ class TestPodmanComposeInclude(unittest.TestCase, RunSubprocessMixin):
         # Test for json view
         command_list.extend(["--format", "json"])
         out, _ = self.run_subprocess_assert_returncode(command_list)
-        out = out.decode()
-        services = ast.literal_eval(out)
+        str_out = out.decode()
+        json_services: list[dict] = ast.literal_eval(str_out)
+        self.assertIsInstance(json_services, list)
 
-        for service in services:
+        for service in json_services:
             self.assertIsInstance(service, dict)
             self.assertNotEqual(service.get("Name"), None)
             self.assertNotEqual(service.get("Status"), None)
             self.assertNotEqual(service.get("ConfigFiles"), None)
 
-        self.assertEqual(len(services), 3)
+        self.assertEqual(len(json_services), 3)
 
         # Get container ID to remove it
         out, _ = self.run_subprocess_assert_returncode(command_container_id)

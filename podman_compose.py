@@ -2745,7 +2745,7 @@ async def list_running_projects(compose: PodmanCompose, args: argparse.Namespace
     img_containers = [cnt for cnt in compose.containers if "image" in cnt]
     parsed_args = vars(args)
     _format = parsed_args.get("format", "table")
-    data = []
+    data: list[Any] = []
     if _format == "table":
         data.append(["NAME", "STATUS", "CONFIG_FILES"])
 
@@ -2766,13 +2766,13 @@ async def list_running_projects(compose: PodmanCompose, args: argparse.Namespace
                     ''',
                 ],
             )
-            output = output.decode().split()
-            running = bool(json.loads(output[1]))
-            status = "{}({})".format(output[0], 1 if running else 0)
-            path = "{}/{}".format(output[2], output[3])
+            command_output = output.decode().split()
+            running = bool(json.loads(command_output[1]))
+            status = "{}({})".format(command_output[0], 1 if running else 0)
+            path = "{}/{}".format(command_output[2], command_output[3])
 
             if _format == "table":
-                if isinstance(output, list):
+                if isinstance(command_output, list):
                     data.append([name, status, path])
 
             elif _format == "json":
