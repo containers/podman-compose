@@ -508,7 +508,7 @@ def ulimit_to_ulimit_args(ulimit: str | dict[str, Any] | list[Any], podman_args:
         else:
             ulimit = norm_as_dict(ulimit)
             ulimit = [
-                "{}={}".format(ulimit_key, norm_ulimit(inner_value))  # type: ignore[arg-type]
+                f"{ulimit_key}={norm_ulimit(inner_value)}"  # type: ignore[arg-type]
                 for ulimit_key, inner_value in ulimit.items()  # type: ignore[union-attr]
             ]
             for i in ulimit:
@@ -659,7 +659,7 @@ def get_secret_args(
         else:
             # pass file secrets to "podman run" as volumes
             if not secret_target:
-                dest_file = "/run/secrets/{}".format(secret_name)
+                dest_file = f"/run/secrets/{secret_name}"
             elif not secret_target.startswith("/"):
                 sec = secret_target if secret_target else secret_name
                 dest_file = f"/run/secrets/{sec}"
@@ -722,7 +722,7 @@ def get_secret_args(
                 secret_target,
                 secret_name,
             )
-        return ["--secret", "{}{}".format(secret_name, secret_opts)]
+        return ["--secret", f"{secret_name}{secret_opts}"]
 
     raise ValueError(
         'ERROR: unparsable secret: "{}", service: "{}"'.format(secret_name, cnt["_service"])
@@ -1173,7 +1173,7 @@ async def container_to_args(
         if not os.path.exists(i):
             if not required:
                 continue
-            raise ValueError("Env file at {} does not exist".format(i))
+            raise ValueError(f"Env file at {i} does not exist")
         dotenv_dict = {}
         dotenv_dict = dotenv_to_dict(i)
         env = norm_as_list(dotenv_dict)
@@ -1245,7 +1245,7 @@ async def container_to_args(
     if sysctls is not None:
         if isinstance(sysctls, dict):
             for sysctl, value in sysctls.items():
-                podman_args.extend(["--sysctl", "{}={}".format(sysctl, value)])
+                podman_args.extend(["--sysctl", f"{sysctl}={value}"])
         elif isinstance(sysctls, list):
             for i in sysctls:
                 podman_args.extend(["--sysctl", i])
