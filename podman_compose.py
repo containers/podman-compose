@@ -2860,9 +2860,9 @@ Description=%i rootless pod (podman-compose)
 Type=simple
 EnvironmentFile=%h/{stacks_dir}/%i.env
 ExecStartPre=-{script} up --no-start
-ExecStartPre=/usr/bin/podman pod start pod_%i
+ExecStartPre=/usr/bin/env podman pod start pod_%i
 ExecStart={script} wait
-ExecStop=/usr/bin/podman pod stop pod_%i
+ExecStop=/usr/bin/env podman pod stop pod_%i
 
 [Install]
 WantedBy=default.target
