@@ -1,0 +1,6 @@
+version: '3.6'
+
+include:
+  - path:
+    - docker-compose.base.yaml
+    - docker-compose.extend.yaml
