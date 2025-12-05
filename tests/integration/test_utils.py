@@ -24,7 +24,7 @@ def podman_compose_path() -> str:
 
 def is_systemd_available() -> bool:
     try:
-        with open("/proc/1/comm", "r", encoding="utf-8") as fh:
+        with open("/proc/1/comm", encoding="utf-8") as fh:
             return fh.read().strip() == "systemd"
     except FileNotFoundError:
         return False

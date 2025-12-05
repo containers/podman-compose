@@ -44,7 +44,7 @@ class TestComposeIpamDefault(unittest.TestCase, RunSubprocessMixin):
                 "podman",
                 "network",
                 "inspect",
-                "{}".format(network_name),
+                f"{network_name}",
             ])
             network_info = json.loads(output.decode('utf-8'))[0]
             # bridge is the default network driver

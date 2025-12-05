@@ -169,7 +169,7 @@ class TestContainerToBuildArgs(unittest.TestCase):
         temp_dockerfile = args[args.index("-f") + 1]
         self.assertTrue(os.path.exists(temp_dockerfile))
 
-        with open(temp_dockerfile, "rt") as file:
+        with open(temp_dockerfile) as file:
             contents = file.read()
             self.assertEqual(contents, "FROM busybox\n" + "RUN echo 'hello world'")
 

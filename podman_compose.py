@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 # SPDX-License-Identifier: GPL-2.0
 # https://docs.docker.com/compose/compose-file/#service-configuration-reference
 # https://docs.docker.com/samples/
@@ -33,7 +32,6 @@ from typing import Any
 from typing import Callable
 from typing import Iterable
 from typing import Sequence
-from typing import Union
 from typing import overload
 
 # import fnmatch
@@ -508,7 +506,7 @@ def ulimit_to_ulimit_args(ulimit: str | dict[str, Any] | list[Any], podman_args:
         else:
             ulimit = norm_as_dict(ulimit)
             ulimit = [
-                "{}={}".format(ulimit_key, norm_ulimit(inner_value))  # type: ignore[arg-type]
+                f"{ulimit_key}={norm_ulimit(inner_value)}"  # type: ignore[arg-type]
                 for ulimit_key, inner_value in ulimit.items()  # type: ignore[union-attr]
             ]
             for i in ulimit:
@@ -659,7 +657,7 @@ def get_secret_args(
         else:
             # pass file secrets to "podman run" as volumes
             if not secret_target:
-                dest_file = "/run/secrets/{}".format(secret_name)
+                dest_file = f"/run/secrets/{secret_name}"
             elif not secret_target.startswith("/"):
                 sec = secret_target if secret_target else secret_name
                 dest_file = f"/run/secrets/{sec}"
@@ -722,7 +720,7 @@ def get_secret_args(
                 secret_target,
                 secret_name,
             )
-        return ["--secret", "{}{}".format(secret_name, secret_opts)]
+        return ["--secret", f"{secret_name}{secret_opts}"]
 
     raise ValueError(
         'ERROR: unparsable secret: "{}", service: "{}"'.format(secret_name, cnt["_service"])
@@ -1173,7 +1171,7 @@ async def container_to_args(
         if not os.path.exists(i):
             if not required:
                 continue
-            raise ValueError("Env file at {} does not exist".format(i))
+            raise ValueError(f"Env file at {i} does not exist")
         dotenv_dict = {}
         dotenv_dict = dotenv_to_dict(i)
         env = norm_as_list(dotenv_dict)
@@ -1245,7 +1243,7 @@ async def container_to_args(
     if sysctls is not None:
         if isinstance(sysctls, dict):
             for sysctl, value in sysctls.items():
-                podman_args.extend(["--sysctl", "{}={}".format(sysctl, value)])
+                podman_args.extend(["--sysctl", f"{sysctl}={value}"])
         elif isinstance(sysctls, list):
             for i in sysctls:
                 podman_args.extend(["--sysctl", i])
@@ -1378,7 +1376,7 @@ class ServiceDependencyCondition(Enum):
     UNHEALTHY = "unhealthy"
 
     @classmethod
-    def from_value(cls, value: str) -> 'ServiceDependencyCondition':
+    def from_value(cls, value: str) -> ServiceDependencyCondition:
         # Check if the value exists in the enum
         for member in cls:
             if member.value == value:
@@ -1407,7 +1405,7 @@ class ServiceDependency:
         return self._name
 
     @property
-    def condition(self) -> 'ServiceDependencyCondition':
+    def condition(self) -> ServiceDependencyCondition:
         return self._condition
 
     def __hash__(self) -> int:
@@ -1423,7 +1421,7 @@ class ServiceDependency:
 
 def rec_deps(
     services: dict[str, Any], service_name: str, start_point: str | None = None
-) -> set['ServiceDependency']:
+) -> set[ServiceDependency]:
     """
     return all dependencies of service_name recursively
     """
@@ -1506,7 +1504,7 @@ class OverrideTag(yaml.YAMLObject):
     yaml_tag = '!override'
 
     def __init__(self, value: Any) -> None:
-        self.value: Union[dict[Any, Any], list[Any]]  # type: ignore[no-redef]
+        self.value: dict[Any, Any] | list[Any]  # type: ignore[no-redef]
         if len(value) > 0 and isinstance(value[0], tuple):
             self.value = {}
             # item is a tuple representing service's lower level key and value
@@ -1521,11 +1519,11 @@ class OverrideTag(yaml.YAMLObject):
             self.value = [item.value for item in value]  # type: ignore[union-attr]
 
     @classmethod
-    def from_yaml(cls, loader: Any, node: Any) -> 'OverrideTag':
+    def from_yaml(cls, loader: Any, node: Any) -> OverrideTag:
         return OverrideTag(node.value)
 
     @classmethod
-    def to_yaml(cls, dumper: Any, data: 'OverrideTag') -> str:
+    def to_yaml(cls, dumper: Any, data: OverrideTag) -> str:
         return dumper.represent_scalar(cls.yaml_tag, data.value)
 
 
@@ -1539,11 +1537,11 @@ class ResetTag(yaml.YAMLObject):
         return cls.yaml_tag
 
     @classmethod
-    def from_yaml(cls, loader: Any, node: Any) -> 'ResetTag':
+    def from_yaml(cls, loader: Any, node: Any) -> ResetTag:
         return ResetTag()
 
     @classmethod
-    def to_yaml(cls, dumper: Any, data: 'ResetTag') -> str:
+    def to_yaml(cls, dumper: Any, data: ResetTag) -> str:
         return dumper.represent_scalar(cls.yaml_tag, '')
 
 
@@ -2003,7 +2001,7 @@ def resolve_extends(
         if filename:
             if filename.startswith("./"):
                 filename = filename[2:]
-            with open(filename, "r", encoding="utf-8") as f:
+            with open(filename, encoding="utf-8") as f:
                 content = load_yaml_or_die(filename, f) or {}
             if "services" in content:
                 content = content["services"]
@@ -2341,13 +2339,11 @@ class PodmanCompose:
             if filename.strip().split('/')[-1] == '-':
                 content = load_yaml_or_die(filename, sys.stdin)
             else:
-                with open(filename, "r", encoding="utf-8") as f:
+                with open(filename, encoding="utf-8") as f:
                     content = load_yaml_or_die(filename, f)
                 # log(filename, json.dumps(content, indent = 2))
             if not isinstance(content, dict):
-                sys.stderr.write(
-                    "Compose file does not contain a top level object: %s\n" % filename
-                )
+                sys.stderr.write(f"Compose file does not contain a top level object: {filename}\n")
                 sys.exit(1)
             content = normalize(content)
             # log(filename, json.dumps(content, indent = 2))
