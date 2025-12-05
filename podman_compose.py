@@ -2003,7 +2003,7 @@ def resolve_extends(
         if filename:
             if filename.startswith("./"):
                 filename = filename[2:]
-            with open(filename, "r", encoding="utf-8") as f:
+            with open(filename, encoding="utf-8") as f:
                 content = load_yaml_or_die(filename, f) or {}
             if "services" in content:
                 content = content["services"]
@@ -2341,7 +2341,7 @@ class PodmanCompose:
             if filename.strip().split('/')[-1] == '-':
                 content = load_yaml_or_die(filename, sys.stdin)
             else:
-                with open(filename, "r", encoding="utf-8") as f:
+                with open(filename, encoding="utf-8") as f:
                     content = load_yaml_or_die(filename, f)
                 # log(filename, json.dumps(content, indent = 2))
             if not isinstance(content, dict):
