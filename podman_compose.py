@@ -2345,9 +2345,7 @@ class PodmanCompose:
                     content = load_yaml_or_die(filename, f)
                 # log(filename, json.dumps(content, indent = 2))
             if not isinstance(content, dict):
-                sys.stderr.write(
-                    "Compose file does not contain a top level object: %s\n" % filename
-                )
+                sys.stderr.write(f"Compose file does not contain a top level object: {filename}\n")
                 sys.exit(1)
             content = normalize(content)
             # log(filename, json.dumps(content, indent = 2))
