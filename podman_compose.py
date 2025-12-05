@@ -33,7 +33,6 @@ from typing import Any
 from typing import Callable
 from typing import Iterable
 from typing import Sequence
-from typing import Union
 from typing import overload
 
 # import fnmatch
@@ -1506,7 +1505,7 @@ class OverrideTag(yaml.YAMLObject):
     yaml_tag = '!override'
 
     def __init__(self, value: Any) -> None:
-        self.value: Union[dict[Any, Any], list[Any]]  # type: ignore[no-redef]
+        self.value: dict[Any, Any] | list[Any]  # type: ignore[no-redef]
         if len(value) > 0 and isinstance(value[0], tuple):
             self.value = {}
             # item is a tuple representing service's lower level key and value
