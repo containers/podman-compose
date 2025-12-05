@@ -1378,7 +1378,7 @@ class ServiceDependencyCondition(Enum):
     UNHEALTHY = "unhealthy"
 
     @classmethod
-    def from_value(cls, value: str) -> 'ServiceDependencyCondition':
+    def from_value(cls, value: str) -> ServiceDependencyCondition:
         # Check if the value exists in the enum
         for member in cls:
             if member.value == value:
@@ -1407,7 +1407,7 @@ class ServiceDependency:
         return self._name
 
     @property
-    def condition(self) -> 'ServiceDependencyCondition':
+    def condition(self) -> ServiceDependencyCondition:
         return self._condition
 
     def __hash__(self) -> int:
@@ -1423,7 +1423,7 @@ class ServiceDependency:
 
 def rec_deps(
     services: dict[str, Any], service_name: str, start_point: str | None = None
-) -> set['ServiceDependency']:
+) -> set[ServiceDependency]:
     """
     return all dependencies of service_name recursively
     """
@@ -1521,11 +1521,11 @@ class OverrideTag(yaml.YAMLObject):
             self.value = [item.value for item in value]  # type: ignore[union-attr]
 
     @classmethod
-    def from_yaml(cls, loader: Any, node: Any) -> 'OverrideTag':
+    def from_yaml(cls, loader: Any, node: Any) -> OverrideTag:
         return OverrideTag(node.value)
 
     @classmethod
-    def to_yaml(cls, dumper: Any, data: 'OverrideTag') -> str:
+    def to_yaml(cls, dumper: Any, data: OverrideTag) -> str:
         return dumper.represent_scalar(cls.yaml_tag, data.value)
 
 
@@ -1539,11 +1539,11 @@ class ResetTag(yaml.YAMLObject):
         return cls.yaml_tag
 
     @classmethod
-    def from_yaml(cls, loader: Any, node: Any) -> 'ResetTag':
+    def from_yaml(cls, loader: Any, node: Any) -> ResetTag:
         return ResetTag()
 
     @classmethod
-    def to_yaml(cls, dumper: Any, data: 'ResetTag') -> str:
+    def to_yaml(cls, dumper: Any, data: ResetTag) -> str:
         return dumper.represent_scalar(cls.yaml_tag, '')
 
 
