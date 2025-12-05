@@ -488,6 +488,8 @@ def mount_desc_to_mount_args(mount_desc: dict[str, Any]) -> str:
     opts_str = ",".join(opts)
     if mount_type == "bind":
         return f"type=bind,source={source},destination={target},{opts_str}".rstrip(",")
+    if mount_type == "glob":
+        return f"type=glob,source={source},destination={target},{opts_str}".rstrip(",")
     if mount_type == "volume":
         return f"type=volume,source={source},destination={target},{opts_str}".rstrip(",")
     if mount_type == "tmpfs":
@@ -526,7 +528,7 @@ def container_to_ulimit_build_args(cnt: dict[str, Any], podman_args: list[str]) 
 
 def mount_desc_to_volume_args(mount_desc: dict[str, Any], srv_name: str) -> str:
     mount_type = mount_desc["type"]
-    if mount_type not in ("bind", "volume"):
+    if mount_type not in ("bind", "volume", "glob"):
         raise ValueError("unknown mount type:" + mount_type)
     vol = mount_desc.get("_vol") if mount_type == "volume" else None
     source = vol["name"] if vol else mount_desc.get("source")
@@ -580,8 +582,9 @@ async def get_mount_args(
     volume = get_mnt_dict(compose, cnt, volume)
     srv_name = cnt["_service"]
     mount_type = volume["type"]
+    ignore_mount_type = {"image", "glob"}
     await assert_volume(compose, volume)
-    if compose.prefer_volume_over_mount and mount_type != "image":
+    if compose.prefer_volume_over_mount and mount_type not in ignore_mount_type:
         if mount_type == "tmpfs":
             # TODO: --tmpfs /tmp:rw,size=787448k,mode=1777
             args = volume["target"]
