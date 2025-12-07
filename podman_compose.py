@@ -480,11 +480,14 @@ def mount_desc_to_mount_args(mount_desc: dict[str, Any]) -> str:
         selinux = bind_opts.get("selinux")
         if selinux is not None:
             opts.append(selinux)
-    if mount_type == "image":
-        image_opts = mount_desc.get("image", {})
-        subpath = image_opts.get("subpath")
+
+    # According to compose specifications https://docs.docker.com/reference/compose-file/services/#volumes
+    # subpath can be used in image and volume mount type
+    if mount_type in ["volume", "image"] and mount_desc.get(mount_type):
+        subpath = mount_desc.get(mount_type, {}).get("subpath")
         if subpath is not None:
             opts.append(f"subpath={subpath}")
+
     opts_str = ",".join(opts)
     if mount_type == "bind":
         return f"type=bind,source={source},destination={target},{opts_str}".rstrip(",")
@@ -582,9 +585,13 @@ async def get_mount_args(
     volume = get_mnt_dict(compose, cnt, volume)
     srv_name = cnt["_service"]
     mount_type = volume["type"]
-    ignore_mount_type = {"image", "glob"}
+    # By default, mount using -v is actually preferred over --mount.
+    # In some case, options can only be set using --mount.
+    # --mount is forced for type set in mount_over_volume_needed var.
+    #
+    mount_over_volume_needed = {"image", "glob", "volume"}
     await assert_volume(compose, volume)
-    if compose.prefer_volume_over_mount and mount_type not in ignore_mount_type:
+    if compose.prefer_volume_over_mount and mount_type not in mount_over_volume_needed:
         if mount_type == "tmpfs":
             # TODO: --tmpfs /tmp:rw,size=787448k,mode=1777
             args = volume["target"]
