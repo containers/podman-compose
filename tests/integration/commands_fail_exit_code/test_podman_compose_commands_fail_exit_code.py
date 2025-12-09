@@ -52,6 +52,30 @@ class TestComposeCommandsFailExitCodes(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
+    def test_pull_command_fail(self) -> None:
+        # test that pull command is able to return other than "0" return code
+        # "pull" command fails due to missing images or networking errors
+        # failure in pulling any one of the images ends up in error code for "pull" command
+        try:
+            output, error = self.run_subprocess_assert_returncode(
+                [
+                    podman_compose_path(),
+                    "-f",
+                    compose_yaml_path(),
+                    "pull",
+                    "test_pull_bad",
+                    "test_pull_good",
+                ],
+                expected_returncode=125,
+            )
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(),
+                "down",
+            ])
+
     def test_run_command_fail(self) -> None:
         # test that run command is able to return other than "0" return code
         try:

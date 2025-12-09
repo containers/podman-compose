@@ -123,8 +123,9 @@ class TestNormalizeFinalBuild(unittest.TestCase):
 
         actual_compose = {}
         if podman_compose.services:
-            podman_compose.services["test-service"].pop("_deps")
-            actual_compose = podman_compose.services["test-service"]
+            actual_compose = podman_compose.original_service(
+                podman_compose.services["test-service"]
+            )
         self.assertEqual(actual_compose, expected)
 
     @parameterized.expand([
@@ -238,8 +239,9 @@ class TestNormalizeFinalBuild(unittest.TestCase):
 
         actual_compose = {}
         if podman_compose.services:
-            podman_compose.services["test-service"].pop("_deps")
-            actual_compose = podman_compose.services["test-service"]
+            actual_compose = podman_compose.original_service(
+                podman_compose.services["test-service"]
+            )
         self.assertEqual(actual_compose, expected)
 
 

@@ -6,3 +6,7 @@ services:
   good:
     build:
       context: good
+  test_pull_good:
+    image: nopush/podman-compose-test
+  test_pull_bad:
+    image: localhost/does-not-exist

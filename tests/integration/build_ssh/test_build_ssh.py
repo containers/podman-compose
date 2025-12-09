@@ -187,7 +187,7 @@ class MockSSHAgent:
                 response = struct.pack(">I", 1) + struct.pack(">B", SSH_AGENT_FAILURE)
                 client_sock.sendall(response)
 
-        except socket.error:
+        except OSError:
             print("Client socket error.")
             pass  # You can handle specific errors here if needed
         finally:

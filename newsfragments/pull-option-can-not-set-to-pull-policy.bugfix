@@ -1,0 +1,1 @@
+Fixed `--pull` option in `build` and `up` command can not set to pull policy explicitly.

@@ -5,7 +5,7 @@ parameterized==0.9.0
 pytest==8.0.2
 tox==4.13.0
 mypy==1.15.0
-ruff==0.11.11
+ruff==0.14.8
 pylint==3.1.0
 types-PyYAML==6.0.12.20250402
 types-requests==2.32.0.20250328
@@ -20,11 +20,15 @@ types-setuptools==80.7.0.20250516
 
 astroid==3.1.0
 cachetools==5.3.3
+certifi==2025.11.12
+cffi==2.0.0
 chardet==5.2.0
+charset-normalizer==3.4.4
 colorama==0.4.6
 dill==0.3.8
 distlib==0.3.8
 filelock==3.13.1
+idna==3.11
 iniconfig==2.0.0
 isort==5.13.2
 mccabe==0.7.0
@@ -32,10 +36,12 @@ mypy_extensions==1.1.0
 packaging==23.2
 platformdirs==4.2.0
 pluggy==1.4.0
+pycparser==2.23
 pyproject-api==1.6.1
 python-dotenv==1.0.1
 PyYAML==6.0.1
-requests
+requests==2.32.5
 tomlkit==0.12.4
 typing_extensions==4.13.2
+urllib3==2.6.0
 virtualenv==20.26.6
