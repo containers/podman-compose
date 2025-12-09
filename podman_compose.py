@@ -3208,7 +3208,7 @@ def deps_from_container(args: argparse.Namespace, cnt: dict) -> set:
 
 
 @dataclass
-class PullImage:
+class PullImageSettings:
     POLICY_PRIORITY: ClassVar[dict[str, int]] = {
         "always": 3,
         "newer": 2,
@@ -3236,60 +3236,60 @@ class PullImage:
         if self.POLICY_PRIORITY[new_policy] > self.POLICY_PRIORITY[self.policy]:
             self.policy = new_policy
 
-    @property
-    def pull_args(self) -> list[str]:
-        args = ["--policy", self.policy]
-        if self.quiet:
-            args.append("--quiet")
 
-        args.append(self.image)
-        return args
+def settings_to_pull_args(settings: PullImageSettings) -> list[str]:
+    args = ["--policy", settings.policy]
+    if settings.quiet:
+        args.append("--quiet")
 
-    async def pull(self, podman: Podman) -> int | None:
-        if self.policy in ("never", "build"):
-            log.debug("Skipping pull of image %s due to policy %s", self.image, self.policy)
-            return 0
+    args.append(settings.image)
+    return args
 
-        ret = await podman.run([], "pull", self.pull_args)
-        return ret if not self.ignore_pull_error else 0
 
-    @classmethod
-    async def pull_images(
-        cls,
-        podman: Podman,
-        args: argparse.Namespace,
-        services: list[dict[str, Any]],
-    ) -> int | None:
-        pull_tasks = []
-        pull_images: dict[str, PullImage] = {}
-        for pull_service in services:
-            if not is_local(pull_service):
-                image = str(pull_service.get("image", ""))
-                policy = getattr(args, "pull", None) or pull_service.get("pull_policy", "missing")
-
-                if image in pull_images:
-                    pull_images[image].update_policy(policy)
-                else:
-                    pull_images[image] = PullImage(
-                        image, policy, getattr(args, "quiet_pull", False)
-                    )
-
-                if "build" in pull_service:
-                    # From https://github.com/compose-spec/compose-spec/blob/main/build.md#using-build-and-image
-                    # When both image and build are specified,
-                    # we should try to pull the image first,
-                    # and then build it if it does not exist.
-                    # we should not stop here if pull fails.
-                    pull_images[image].ignore_pull_error = True
-
-        for pull_image in pull_images.values():
-            pull_tasks.append(pull_image.pull(podman))
-
-        if pull_tasks:
-            ret = await asyncio.gather(*pull_tasks)
-            return next((r for r in ret if not r), 0)
-
+async def pull_image(podman: Podman, settings: PullImageSettings) -> int | None:
+    if settings.policy in ("never", "build"):
+        log.debug("Skipping pull of image %s due to policy %s", settings.image, settings.policy)
         return 0
+
+    ret = await podman.run([], "pull", settings_to_pull_args(settings))
+    return ret if not settings.ignore_pull_error else 0
+
+
+async def pull_images(
+    podman: Podman,
+    args: argparse.Namespace,
+    services: list[dict[str, Any]],
+) -> int | None:
+    pull_tasks = []
+    settingettings: dict[str, PullImageSettings] = {}
+    for pull_service in services:
+        if not is_local(pull_service):
+            image = str(pull_service.get("image", ""))
+            policy = getattr(args, "pull", None) or pull_service.get("pull_policy", "missing")
+
+            if image in settingettings:
+                settingettings[image].update_policy(policy)
+            else:
+                settingettings[image] = PullImageSettings(
+                    image, policy, getattr(args, "quiet_pull", False)
+                )
+
+            if "build" in pull_service:
+                # From https://github.com/compose-spec/compose-spec/blob/main/build.md#using-build-and-image
+                # When both image and build are specified,
+                # we should try to pull the image first,
+                # and then build it if it does not exist.
+                # we should not stop here if pull fails.
+                settingettings[image].ignore_pull_error = True
+
+    for s in settingettings.values():
+        pull_tasks.append(pull_image(podman, s))
+
+    if pull_tasks:
+        ret = await asyncio.gather(*pull_tasks)
+        return next((r for r in ret if not r), 0)
+
+    return 0
 
 
 @cmd_run(podman_compose, "up", "Create and start the entire stack or some of its services")
@@ -3298,7 +3298,7 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
 
     log.info("pulling images: ...")
     pull_services = [v for k, v in compose.services.items() if k not in excluded]
-    err = await PullImage.pull_images(compose.podman, args, pull_services)
+    err = await pull_images(compose.podman, args, pull_services)
     if err:
         log.error("Pull image failed")
         if not args.dry_run:

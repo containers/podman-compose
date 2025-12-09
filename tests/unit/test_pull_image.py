@@ -1,165 +1,161 @@
 from argparse import Namespace
 from unittest import IsolatedAsyncioTestCase
-from unittest.mock import AsyncMock
-from unittest.mock import Mock
-from unittest.mock import call
-from unittest.mock import patch
+from unittest import mock
 
 from parameterized import parameterized
 
-from podman_compose import PullImage
+from podman_compose import PullImageSettings
+from podman_compose import pull_image
+from podman_compose import pull_images
+from podman_compose import settings_to_pull_args
 
 
-class TestPullImage(IsolatedAsyncioTestCase):
+class TestPullImageSettings(IsolatedAsyncioTestCase):
     def test_unsupported_policy_fallback_to_missing(self) -> None:
-        pull_image = PullImage("localhost/test:1", policy="unsupported")
-        assert pull_image.policy == "missing"
+        settings = PullImageSettings("localhost/test:1", policy="unsupported")
+        assert settings.policy == "missing"
 
     def test_update_policy(self) -> None:
-        pull_image = PullImage("localhost/test:1", policy="never")
-        assert pull_image.policy == "never"
+        settings = PullImageSettings("localhost/test:1", policy="never")
+        assert settings.policy == "never"
 
         # not supported policy
-        pull_image.update_policy("unsupported")
-        assert pull_image.policy == "never"
+        settings.update_policy("unsupported")
+        assert settings.policy == "never"
 
-        pull_image.update_policy("missing")
-        assert pull_image.policy == "missing"
+        settings.update_policy("missing")
+        assert settings.policy == "missing"
 
-        pull_image.update_policy("newer")
-        assert pull_image.policy == "newer"
+        settings.update_policy("newer")
+        assert settings.policy == "newer"
 
-        pull_image.update_policy("always")
-        assert pull_image.policy == "always"
+        settings.update_policy("always")
+        assert settings.policy == "always"
 
         # Ensure policy is not downgraded
-        pull_image.update_policy("build")
-        assert pull_image.policy == "always"
+        settings.update_policy("build")
+        assert settings.policy == "always"
 
     def test_pull_args(self) -> None:
-        pull_image = PullImage("localhost/test:1", policy="always", quiet=True)
-        assert pull_image.pull_args == ["--policy", "always", "--quiet", "localhost/test:1"]
+        settings = PullImageSettings("localhost/test:1", policy="always", quiet=True)
+        assert settings_to_pull_args(settings) == [
+            "--policy",
+            "always",
+            "--quiet",
+            "localhost/test:1",
+        ]
 
-        pull_image.quiet = False
-        assert pull_image.pull_args == ["--policy", "always", "localhost/test:1"]
+        settings.quiet = False
+        assert settings_to_pull_args(settings) == ["--policy", "always", "localhost/test:1"]
 
-    @patch("podman_compose.Podman")
-    async def test_pull_success(self, podman_mock: Mock) -> None:
-        pull_image = PullImage("localhost/test:1", policy="always", quiet=True)
+    @mock.patch("podman_compose.Podman")
+    async def test_pull_success(self, podman_mock: mock.Mock) -> None:
+        settings = PullImageSettings("localhost/test:1", policy="always", quiet=True)
 
-        run_mock = AsyncMock()
-        run_mock.return_value = 0
+        run_mock = mock.AsyncMock(return_value=0)
         podman_mock.run = run_mock
 
-        result = await pull_image.pull(podman_mock)
+        result = await pull_image(podman_mock, settings)
         assert result == 0
         run_mock.assert_called_once_with(
             [], "pull", ["--policy", "always", "--quiet", "localhost/test:1"]
         )
 
-    @patch("podman_compose.Podman")
-    async def test_pull_failed(self, podman_mock: Mock) -> None:
-        pull_image = PullImage(
+    @mock.patch("podman_compose.Podman")
+    async def test_pull_failed(self, podman_mock: mock.Mock) -> None:
+        settings = PullImageSettings(
             "localhost/test:1",
             policy="always",
             quiet=True,
             ignore_pull_error=True,
         )
 
-        run_mock = AsyncMock()
-        run_mock.return_value = 1
-        podman_mock.run = run_mock
+        podman_mock.run = mock.AsyncMock(return_value=1)
 
         # with ignore_pull_error=True, should return 0 even if pull fails
-        result = await pull_image.pull(podman_mock)
+        result = await pull_image(podman_mock, settings)
         assert result == 0
 
         # with ignore_pull_error=False, should return the actual error code
-        pull_image.ignore_pull_error = False
-        result = await pull_image.pull(podman_mock)
+        settings.ignore_pull_error = False
+        result = await pull_image(podman_mock, settings)
         assert result == 1
 
-    @patch("podman_compose.Podman")
-    async def test_pull_with_never_policy(self, podman_mock: Mock) -> None:
-        pull_image = PullImage(
+    @mock.patch("podman_compose.Podman")
+    async def test_pull_with_never_policy(self, podman_mock: mock.Mock) -> None:
+        settings = PullImageSettings(
             "localhost/test:1",
             policy="never",
             quiet=True,
             ignore_pull_error=True,
         )
 
-        run_mock = AsyncMock()
-        run_mock.return_value = 1
+        run_mock = mock.AsyncMock(return_value=1)
         podman_mock.run = run_mock
 
-        result = await pull_image.pull(podman_mock)
+        result = await pull_image(podman_mock, settings)
         assert result == 0
         assert run_mock.call_count == 0
 
     @parameterized.expand([
         (
             "Local image should not pull",
-            Namespace(),
             [{"image": "localhost/a:latest"}],
-            0,
             [],
         ),
         (
             "Remote image should pull",
-            Namespace(),
             [{"image": "ghcr.io/a:latest"}],
-            1,
             [
-                call([], "pull", ["--policy", "missing", "ghcr.io/a:latest"]),
+                mock.call([], "pull", ["--policy", "missing", "ghcr.io/a:latest"]),
             ],
         ),
         (
             "The same image in service should call once",
-            Namespace(),
             [
                 {"image": "ghcr.io/a:latest"},
                 {"image": "ghcr.io/a:latest"},
                 {"image": "ghcr.io/b:latest"},
             ],
-            2,
             [
-                call([], "pull", ["--policy", "missing", "ghcr.io/a:latest"]),
-                call([], "pull", ["--policy", "missing", "ghcr.io/b:latest"]),
+                mock.call([], "pull", ["--policy", "missing", "ghcr.io/a:latest"]),
+                mock.call([], "pull", ["--policy", "missing", "ghcr.io/b:latest"]),
             ],
         ),
     ])
-    @patch("podman_compose.Podman")
-    async def test_pull_images(
+    @mock.patch("podman_compose.Podman")
+    async def test_pull_image(
         self,
         desc: str,
-        args: Namespace,
         services: list[dict],
-        call_count: int,
         calls: list,
-        podman_mock: Mock,
+        podman_mock: mock.Mock,
     ) -> None:
-        run_mock = AsyncMock()
-        run_mock.return_value = 0
+        run_mock = mock.AsyncMock(return_value=1)
         podman_mock.run = run_mock
 
-        assert await PullImage.pull_images(podman_mock, args, services) == 0
-        assert run_mock.call_count == call_count
+        assert await pull_images(podman_mock, Namespace(), services) == 0
+        assert run_mock.call_count == len(calls)
         if calls:
             run_mock.assert_has_calls(calls, any_order=True)
 
-    @patch("podman_compose.Podman")
-    async def test_pull_images_with_build_section(
+    @mock.patch("podman_compose.Podman")
+    async def test_pull_image_with_build_section(
         self,
-        podman_mock: Mock,
+        podman_mock: mock.Mock,
     ) -> None:
-        run_mock = AsyncMock()
-        run_mock.return_value = 1
+        run_mock = mock.AsyncMock(return_value=1)
         podman_mock.run = run_mock
 
-        args: Namespace = Namespace()
-        services: list[dict] = [
-            {"image": "ghcr.io/a:latest", "build": {"context": "."}},
-        ]
-        assert await PullImage.pull_images(podman_mock, args, services) == 0
+        assert (
+            await pull_images(
+                podman_mock,
+                Namespace(),
+                [
+                    {"image": "ghcr.io/a:latest", "build": {"context": "."}},
+                ],
+            )
+            == 0
+        )
         assert run_mock.call_count == 1
         run_mock.assert_called_with([], "pull", ["--policy", "missing", "ghcr.io/a:latest"])
