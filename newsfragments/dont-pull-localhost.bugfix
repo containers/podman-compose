@@ -1,0 +1,2 @@
+Images that have names starting with `localhost/` will no longer be
+pulled when both image and build sections exist.
