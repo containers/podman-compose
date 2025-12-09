@@ -30,6 +30,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 from typing import Callable
+from typing import ClassVar
 from typing import Iterable
 from typing import Sequence
 from typing import overload
@@ -2758,11 +2759,8 @@ def is_local(container: dict) -> bool:
     * prefixed with localhost/
     * has a build section and is not prefixed
     """
-    return (
-        "/" not in container["image"]
-        if "build" in container
-        else container["image"].startswith("localhost/")
-    )
+    image = container.get("image", "")
+    return image.startswith("localhost/") or ("build" in container and "/" not in image)
 
 
 @cmd_run(podman_compose, "wait", "wait running containers to stop")
@@ -3206,9 +3204,101 @@ def deps_from_container(args: argparse.Namespace, cnt: dict) -> set:
     return cnt['_deps']
 
 
-@cmd_run(podman_compose, "up", "Create and start the entire stack or some of its services")
-async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | None:
-    excluded = get_excluded(compose, args)
+@dataclass
+class PullImageSettings:
+    POLICY_PRIORITY: ClassVar[dict[str, int]] = {
+        "always": 3,
+        "newer": 2,
+        "missing": 1,
+        "never": 0,
+        "build": 0,
+    }
+
+    image: str
+    policy: str = "missing"
+    quiet: bool = False
+
+    ignore_pull_error: bool = False
+
+    def __post_init__(self) -> None:
+        if self.policy not in self.POLICY_PRIORITY:
+            log.debug("Pull policy %s is not valid, using 'missing' instead", self.policy)
+            self.policy = "missing"
+
+    def update_policy(self, new_policy: str) -> None:
+        if new_policy not in self.POLICY_PRIORITY:
+            log.debug("Pull policy %s is not valid, ignoring it", new_policy)
+            return
+
+        if self.POLICY_PRIORITY[new_policy] > self.POLICY_PRIORITY[self.policy]:
+            self.policy = new_policy
+
+
+def settings_to_pull_args(settings: PullImageSettings) -> list[str]:
+    args = ["--policy", settings.policy]
+    if settings.quiet:
+        args.append("--quiet")
+
+    args.append(settings.image)
+    return args
+
+
+async def pull_image(podman: Podman, settings: PullImageSettings) -> int | None:
+    if settings.policy in ("never", "build"):
+        log.debug("Skipping pull of image %s due to policy %s", settings.image, settings.policy)
+        return 0
+
+    ret = await podman.run([], "pull", settings_to_pull_args(settings))
+    return ret if not settings.ignore_pull_error else 0
+
+
+async def pull_images(
+    podman: Podman,
+    args: argparse.Namespace,
+    services: list[dict[str, Any]],
+) -> int | None:
+    pull_tasks = []
+    settingettings: dict[str, PullImageSettings] = {}
+    for pull_service in services:
+        if not is_local(pull_service):
+            image = str(pull_service.get("image", ""))
+            policy = getattr(args, "pull", None) or pull_service.get("pull_policy", "missing")
+
+            if image in settingettings:
+                settingettings[image].update_policy(policy)
+            else:
+                settingettings[image] = PullImageSettings(
+                    image, policy, getattr(args, "quiet_pull", False)
+                )
+
+            if "build" in pull_service:
+                # From https://github.com/compose-spec/compose-spec/blob/main/build.md#using-build-and-image
+                # When both image and build are specified,
+                # we should try to pull the image first,
+                # and then build it if it does not exist.
+                # we should not stop here if pull fails.
+                settingettings[image].ignore_pull_error = True
+
+    for s in settingettings.values():
+        pull_tasks.append(pull_image(podman, s))
+
+    if pull_tasks:
+        ret = await asyncio.gather(*pull_tasks)
+        return next((r for r in ret if not r), 0)
+
+    return 0
+
+
+async def prepare_images(
+    compose: PodmanCompose, args: argparse.Namespace, excluded: set[str]
+) -> int | None:
+    log.info("pulling images: ...")
+
+    pull_services = [v for k, v in compose.services.items() if k not in excluded]
+    err = await pull_images(compose.podman, args, pull_services)
+    if err:
+        log.error("Pull image failed")
+        return err
 
     log.info("building images: ...")
 
@@ -3218,8 +3308,20 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
         build_exit_code = await compose.commands["build"](compose, build_args)
         if build_exit_code != 0:
             log.error("Build command failed")
-            if not args.dry_run:
-                return build_exit_code
+            return build_exit_code
+
+    return 0
+
+
+@cmd_run(podman_compose, "up", "Create and start the entire stack or some of its services")
+async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | None:
+    excluded = get_excluded(compose, args)
+
+    exit_code = await prepare_images(compose, args, excluded)
+    if exit_code != 0:
+        log.error("Prepare images failed")
+        if not args.dry_run:
+            return exit_code
 
     # if needed, tear down existing containers
 
