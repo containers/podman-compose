@@ -31,6 +31,7 @@ def get_minimal_container():
 def get_minimal_args():
     args = mock.Mock()
     args.build_arg = []
+    args.pull = None
     return args
 
 
@@ -50,7 +51,6 @@ class TestContainerToBuildArgs(unittest.TestCase):
                 '-t',
                 'new-image',
                 '--no-cache',
-                '--pull-always',
                 '.',
             ],
         )
@@ -73,7 +73,6 @@ class TestContainerToBuildArgs(unittest.TestCase):
                 '--platform',
                 'linux/amd64',
                 '--no-cache',
-                '--pull-always',
                 '.',
             ],
         )
@@ -98,7 +97,6 @@ class TestContainerToBuildArgs(unittest.TestCase):
                 '-t',
                 'some-tag2:2',
                 '--no-cache',
-                '--pull-always',
                 '.',
             ],
         )
@@ -123,7 +121,6 @@ class TestContainerToBuildArgs(unittest.TestCase):
                 '--label',
                 'some-label2.2',
                 '--no-cache',
-                '--pull-always',
                 '.',
             ],
         )
@@ -145,7 +142,6 @@ class TestContainerToBuildArgs(unittest.TestCase):
                 '-t',
                 'new-image',
                 '--no-cache',
-                '--pull-always',
                 '--cache-from',
                 'registry/image1',
                 '--cache-from',
@@ -173,7 +169,7 @@ class TestContainerToBuildArgs(unittest.TestCase):
         temp_dockerfile = args[args.index("-f") + 1]
         self.assertTrue(os.path.exists(temp_dockerfile))
 
-        with open(temp_dockerfile, "rt") as file:
+        with open(temp_dockerfile) as file:
             contents = file.read()
             self.assertEqual(contents, "FROM busybox\n" + "RUN echo 'hello world'")
 
@@ -195,7 +191,6 @@ class TestContainerToBuildArgs(unittest.TestCase):
                 '-t',
                 'new-image',
                 '--no-cache',
-                '--pull-always',
                 'https://github.com/test_repo.git',
             ],
         )
@@ -228,7 +223,6 @@ class TestContainerToBuildArgs(unittest.TestCase):
                 '--ssh',
                 'id1=/test1',
                 '--no-cache',
-                '--pull-always',
                 '.',
             ],
         )
@@ -251,7 +245,6 @@ class TestContainerToBuildArgs(unittest.TestCase):
                 '--ssh',
                 'id1=test_dirname/id1/test1',
                 '--no-cache',
-                '--pull-always',
                 '.',
             ],
         )
@@ -274,7 +267,6 @@ class TestContainerToBuildArgs(unittest.TestCase):
                 '--ssh',
                 'id1=test_dirname/./test1',
                 '--no-cache',
-                '--pull-always',
                 '.',
             ],
         )
@@ -298,7 +290,6 @@ class TestContainerToBuildArgs(unittest.TestCase):
                 '--ssh',
                 'id1=/home/user/test1',
                 '--no-cache',
-                '--pull-always',
                 '.',
             ],
         )
@@ -323,7 +314,6 @@ class TestContainerToBuildArgs(unittest.TestCase):
                 '--ssh',
                 'id2=test_dirname/test2',
                 '--no-cache',
-                '--pull-always',
                 '.',
             ],
         )
@@ -348,7 +338,26 @@ class TestContainerToBuildArgs(unittest.TestCase):
                 '--ssh',
                 'id2=test_dirname/test2',
                 '--no-cache',
-                '--pull-always',
+                '.',
+            ],
+        )
+
+    def test_pull_always(self):
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+        args = get_minimal_args()
+        args.pull = 'always'
+
+        args = container_to_build_args(c, cnt, args, lambda path: True)
+        self.assertEqual(
+            args,
+            [
+                '-f',
+                'Containerfile',
+                '-t',
+                'new-image',
+                '--no-cache',
+                '--pull=always',
                 '.',
             ],
         )

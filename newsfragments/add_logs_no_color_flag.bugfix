@@ -1,0 +1,1 @@
+Add `--no-color` flag for `podman-compose logs` command.

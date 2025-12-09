@@ -1,6 +1,7 @@
 name: Tests
 
 on:
+  workflow_dispatch:
   push:
   pull_request:
 
@@ -18,7 +19,7 @@ jobs:
       # write /sys/fs/cgroup/cgroup.subtree_control: operation not supported
       options: --privileged --cgroupns=host
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Install dependencies
       run: |
         set -e

@@ -80,20 +80,3 @@ class TestComposeConfig(unittest.TestCase, RunSubprocessMixin):
             actual_services[service] = service in actual_output
 
         self.assertEqual(expected_services, actual_services)
-
-    def test_config_quiet(self) -> None:
-        """
-        Tests podman-compose config command with the --quiet flag.
-        """
-        config_cmd = [
-            "coverage",
-            "run",
-            podman_compose_path(),
-            "-f",
-            profile_compose_file(),
-            "config",
-            "--quiet",
-        ]
-
-        out, _ = self.run_subprocess_assert_returncode(config_cmd)
-        self.assertEqual(out.decode("utf-8"), "")

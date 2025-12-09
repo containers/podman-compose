@@ -59,7 +59,7 @@ line-length = 100
 target-version = "py38"
 
 [tool.ruff.lint]
-select = ["W", "E", "F", "I"]
+select = ["W", "E", "F", "I", "U"]
 ignore = [
 ]
 

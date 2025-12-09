@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 import os
+import shutil
 import unittest
 from typing import Any
 from unittest import mock
@@ -623,6 +624,41 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
+    async def test_volumes_glob_mount_source(self) -> None:
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+
+        # This is supposed to happen during `_parse_compose_file`
+        # but that is probably getting skipped during testing
+        cnt["_service"] = cnt["service_name"]
+
+        cnt["volumes"] = [
+            {
+                "type": "glob",
+                "source": f"{get_test_file_path('test_dirname/foo')}/*.ext",
+                "target": "/mnt",
+            }
+        ]
+        expected_additional_args = [
+            "--mount",
+            (
+                "type=glob,source="
+                f"{get_test_file_path('test_dirname/foo') + '/*.ext'},"
+                "destination=/mnt"
+            ),
+        ]
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                *expected_additional_args,
+                "--network=bridge:alias=service_name",
+                "busybox",
+            ],
+        )
+
     @parameterized.expand([
         (
             "absolute_path",
@@ -678,6 +714,112 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "busybox",
             ],
         )
+
+    @parameterized.expand([
+        (
+            "without_subpath",
+            {},
+            "type=image,source=example:latest,destination=/mnt/example",
+        ),
+        (
+            "with_subpath",
+            {"image": {"subpath": "path/to/image/folder"}},
+            "type=image,source=example:latest,destination=/mnt/example,subpath=path/to/image/folder",
+        ),
+    ])
+    async def test_volumes_image_mount(
+        self, test_name: str, image_opts: dict, expected_mount_arg: str
+    ) -> None:
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+        cnt["_service"] = cnt["service_name"]
+
+        cnt["volumes"] = [
+            {
+                "type": "image",
+                "source": "example:latest",
+                "target": "/mnt/example",
+                **image_opts,
+            },
+        ]
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--mount",
+                expected_mount_arg,
+                "--network=bridge:alias=service_name",
+                "busybox",
+            ],
+        )
+
+    @parameterized.expand([
+        (
+            "create_host_path_set_to_true",
+            {"bind": {"create_host_path": True}},
+        ),
+        (
+            "create_host_path_default_true",
+            {},
+        ),
+    ])
+    async def test_volumes_bind_mount_create_source_dir(self, test_name: str, bind: dict) -> None:
+        # creates a missing source dir
+        c = create_compose_mock()
+        c.prefer_volume_over_mount = True
+        cnt = get_minimal_container()
+
+        cnt["_service"] = cnt["service_name"]
+
+        volume_info = {
+            "type": "bind",
+            "source": "./not_exists/foo",
+            "target": "/mnt",
+        }
+        volume_info.update(bind)
+        cnt["volumes"] = [
+            volume_info,
+        ]
+
+        args = await container_to_args(c, cnt)
+
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "-v",
+                f"{get_test_file_path('./test_dirname/not_exists/foo')}:/mnt",
+                "--network=bridge:alias=service_name",
+                "busybox",
+            ],
+        )
+        dir_path = get_test_file_path('./test_dirname/not_exists/foo')
+        shutil.rmtree(dir_path)
+
+    # throws an error as the source path does not exist and its creation was suppressed with the
+    # create_host_path = False option
+    async def test_volumes_bind_mount_source_does_not_exist(self) -> None:
+        c = create_compose_mock()
+        c.prefer_volume_over_mount = True
+        cnt = get_minimal_container()
+
+        cnt["_service"] = cnt["service_name"]
+
+        cnt["volumes"] = [
+            {
+                "type": "bind",
+                "source": "./not_exists/foo",
+                "target": "/mnt",
+                "bind": {"create_host_path": False},
+            }
+        ]
+
+        with self.assertRaises(ValueError):
+            await container_to_args(c, cnt)
 
     @parameterized.expand([
         ("not_compat", False, "test_project_name", "test_project_name_network1"),
