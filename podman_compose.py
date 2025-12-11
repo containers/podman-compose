@@ -11,6 +11,7 @@ from __future__ import annotations  # If you see an error here, use Python 3.7 o
 import argparse
 import asyncio.exceptions
 import asyncio.subprocess
+import codecs
 import getpass
 import glob
 import hashlib
@@ -1645,6 +1646,8 @@ class Podman:
             else:
                 print(log_formatter, s, file=sink, end="")
 
+        decoder = codecs.getincrementaldecoder("utf-8")()
+
         while not reader.at_eof():
             chunk = await self._readchunk(reader)
             parts = chunk.split(b"\n")
@@ -1652,14 +1655,16 @@ class Podman:
             for i, part in enumerate(parts):
                 # Iff part is last and non-empty, we leave an ongoing line to be completed later
                 if i < len(parts) - 1:
-                    _formatted_print_with_nl(part.decode())
+                    _formatted_print_with_nl(decoder.decode(part))
                     line_ongoing = False
                 elif len(part) > 0:
-                    _formatted_print_without_nl(part.decode())
+                    _formatted_print_without_nl(decoder.decode(part))
                     line_ongoing = True
         if line_ongoing:
             # Make sure the last line ends with EOL
             print(file=sink, end="\n")
+
+        print(decoder.decode(b"", final=True))
 
     def exec(
         self,
