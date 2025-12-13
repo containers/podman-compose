@@ -758,6 +758,49 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
 
     @parameterized.expand([
         (
+            "without_subpath",
+            {},
+            "type=volume,source=volname,destination=/mnt/example",
+        ),
+        (
+            "with_subpath",
+            {"volume": {"subpath": "path/to/image/folder"}},
+            "type=volume,source=volname,destination=/mnt/example,subpath=path/to/image/folder",
+        ),
+    ])
+    async def test_volumes_mount(
+        self, test_name: str, volume_opts: dict, expected_mount_arg: str
+    ) -> None:
+        c = create_compose_mock()
+        c.vols = {"volname": {"name": "volname"}}
+
+        cnt = get_minimal_container()
+        cnt["_service"] = cnt["service_name"]
+
+        cnt["volumes"] = [
+            {
+                "type": "volume",
+                "source": "volname",
+                "target": "/mnt/example",
+                **volume_opts,
+            },
+        ]
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--mount",
+                expected_mount_arg,
+                "--network=bridge:alias=service_name",
+                "busybox",
+            ],
+        )
+
+    @parameterized.expand([
+        (
             "create_host_path_set_to_true",
             {"bind": {"create_host_path": True}},
         ),
