@@ -428,7 +428,8 @@ async def assert_volume(compose: PodmanCompose, mount_dict: dict[str, Any]) -> N
     # podman volume list --format '{{.Name}}\t{{.MountPoint}}' \
     #     -f 'label=io.podman.compose.project=HERE'
     try:
-        _ = (await compose.podman.output([], "volume", ["inspect", vol_name])).decode("utf-8")
+        await compose.podman.output([], "volume", ["inspect", vol_name])
+
     except subprocess.CalledProcessError as e:
         if is_ext:
             raise RuntimeError(f"External volume [{vol_name}] does not exist") from e
@@ -450,7 +451,7 @@ async def assert_volume(compose: PodmanCompose, mount_dict: dict[str, Any]) -> N
             args.extend(["--opt", f"{opt}={value}"])
         args.append(vol_name)
         await compose.podman.output([], "volume", args)
-        _ = (await compose.podman.output([], "volume", ["inspect", vol_name])).decode("utf-8")
+        await compose.podman.output([], "volume", ["inspect", vol_name])
 
 
 def mount_desc_to_mount_args(mount_desc: dict[str, Any]) -> str:
