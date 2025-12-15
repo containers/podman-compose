@@ -139,7 +139,9 @@ class TestCanMergeBuild(unittest.TestCase):
 
             actual = {}
             if podman_compose.services:
-                actual = podman_compose.original_configuration(podman_compose.services["test-service"])
+                actual = podman_compose.original_configuration(
+                    podman_compose.services["test-service"]
+                )
             self.assertEqual(actual, expected)
 
 

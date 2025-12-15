@@ -2160,12 +2160,12 @@ class PodmanCompose:
     def original_configuration(self, configuration: dict[Any, Any]) -> dict[str, Any]:
         """
         Returns the original configuration without any overrides or resets.
-        This is used to get a stable representation of the configuration (can be converted to a JSON string).
+        This is used to get a stable representation of the configuration.
+        (can be converted to a JSON string)
         """
         return {
             # recurse if the value is also a dictionary
             key: self.original_configuration(value) if isinstance(value, dict) else value
-
             # iterate over the configuration items
             for key, value in configuration.items()
             # filter
@@ -2412,7 +2412,9 @@ class PodmanCompose:
         if not getattr(args, "no_normalize", None):
             compose = normalize_final(compose, self.dirname)
         self.merged_yaml = yaml.safe_dump(compose)
-        merged_json_b = json.dumps(self.original_configuration(compose), separators=(",", ":")).encode("utf-8")
+        merged_json_b = json.dumps(
+            self.original_configuration(compose), separators=(",", ":")
+        ).encode("utf-8")
         self.yaml_hash = hashlib.sha256(merged_json_b).hexdigest()
         compose["_dirname"] = dirname
         # debug mode

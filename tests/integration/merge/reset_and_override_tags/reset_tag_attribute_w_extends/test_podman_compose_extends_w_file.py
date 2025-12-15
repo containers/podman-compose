@@ -5,11 +5,18 @@ import os
 import unittest
 from io import BytesIO
 
-from tests.integration.test_utils import RunSubprocessMixin, podman_compose_path, test_path
+from tests.integration.test_utils import RunSubprocessMixin
+from tests.integration.test_utils import podman_compose_path
+from tests.integration.test_utils import test_path
 
 
 def compose_yaml_path() -> str:
-    return os.path.join(os.path.join(test_path(), "merge", "reset_and_override_tags", "reset_tag_attribute_w_extends"), "docker-compose.yml")
+    return os.path.join(
+        os.path.join(
+            test_path(), "merge", "reset_and_override_tags", "reset_tag_attribute_w_extends"
+        ),
+        "docker-compose.yml",
+    )
 
 
 class TestComposeResetTagAttributeWithExtends(unittest.TestCase, RunSubprocessMixin):
@@ -34,7 +41,7 @@ class TestComposeResetTagAttributeWithExtends(unittest.TestCase, RunSubprocessMi
             output, _ = self.run_subprocess_assert_returncode([
                 "podman",
                 "inspect",
-                "reset_tag_attribute_w_extends_web_1"
+                "reset_tag_attribute_w_extends_web_1",
             ])
             inspect = json.load(BytesIO(output))
 
