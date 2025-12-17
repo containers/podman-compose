@@ -3719,6 +3719,42 @@ def compose_run_update_container_from_args(
     if args.rm and "restart" in cnt:
         del cnt["restart"]
 
+@cmd_run(podman_compose, "cp", "copy files/folders between a service container and the local filesystem")
+async def compose_cp(compose: PodmanCompose, args: argparse.Namespace) -> None:
+    service = {
+        s.split(':', 1)[0] for s in args.cpy_from_to if ':' in s
+    }
+    service = next(iter(service))
+    compose.assert_services(service)
+    container_names = compose.container_names_by_service[service]
+    container_name = container_names[0]
+    podman_args = compose_cp_args(container_name, args)
+    p = await compose.podman.run([], "cp", podman_args)
+    sys.exit(p)
+
+
+def compose_cp_args(container_name: str, args: argparse.Namespace) -> list[str]:
+    podman_args = []
+    cnt_path = [item.split(":", 1)[1] for item in args.cpy_from_to if ":" in item][0]
+    local_path = [item for item in args.cpy_from_to if ":" not in item]
+
+    if args.archive:
+        podman_args += ["--archive"]
+    if args.overwrite:
+        podman_args += ["--overwrite"]
+
+    # need to determine which argument came first so we know the transfer direction
+    args_position = next((i for i, item in enumerate(args.cpy_from_to) if ":" in item), 1)
+    if args_position == 0:
+        # container -> local
+        podman_args += [container_name+':'+cnt_path]
+        podman_args += local_path
+    else:
+        # local -> container
+        podman_args += local_path
+        podman_args += [container_name+':'+cnt_path]
+    return podman_args
+
 
 @cmd_run(podman_compose, "exec", "execute a command in a running container")
 async def compose_exec(compose: PodmanCompose, args: argparse.Namespace) -> None:
@@ -4244,6 +4280,28 @@ def compose_exec_parse(parser: argparse.ArgumentParser) -> None:
         metavar="command",
         nargs=argparse.REMAINDER,
         help="command and its arguments",
+    )
+
+
+@cmd_parse(podman_compose, "cp")
+def compose_parse_cp(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "-a",
+        "--archive",
+        help="Chown copied files to the primary uid/gid of the destination container. (default true)",
+        default=True,
+    )
+    parser.add_argument(
+        "--overwrite",
+        help="Allow to overwrite directories with non-directories and vice versa",
+        default=None
+    )
+    parser.add_argument(
+        "cpy_from_to",
+        metavar="src_path destination_path",
+        nargs="*",
+        default=None,
+        help="service:src_path destination_path | src_path service:destination_path"
     )
 
 
