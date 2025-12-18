@@ -1016,6 +1016,13 @@ def get_net_args_from_network_mode(compose: PodmanCompose, cnt: dict[str, Any]) 
 
 
 def get_net_args(compose: PodmanCompose, cnt: dict[str, Any]) -> list[str]:
+    # If container should inherit network from pod, skip network args
+    # This allows podman to automatically set NetNS=FromPod when --pod is
+    # passed without --network, enabling pod network inheritance for
+    # macvlan, external networks, or other pod-level network configurations.
+    if compose.should_inherit_net_from_pod(cnt):
+        return []
+
     net = cnt.get("network_mode")
     if net:
         return get_net_args_from_network_mode(compose, cnt)
@@ -2053,6 +2060,7 @@ class PodmanCompose:
         NAME_SEPARATOR_COMPAT = "name_separator_compat"
         IN_POD = "in_pod"
         POD_ARGS = "pod_args"
+        POD_NETWORK = "pod_network"
 
     def __init__(self) -> None:
         self.podman: Podman
@@ -2192,6 +2200,33 @@ class PodmanCompose:
         return self.x_podman.get(
             PodmanCompose.XPodmanSettingKey.POD_ARGS, ["--infra=false", "--share="]
         )
+
+    def resolve_pod_network(self) -> str | None:
+        """
+        Returns the network name for the pod if pod_network is configured.
+        This enables pod network inheritance where containers join the pod's
+        network namespace instead of having their own network configuration.
+        """
+        return self.x_podman.get(PodmanCompose.XPodmanSettingKey.POD_NETWORK)
+
+    def should_inherit_net_from_pod(self, cnt: dict[str, Any]) -> bool:
+        """
+        Determines if a container should inherit its network from the pod.
+        This is true when:
+        1. The container is assigned to a pod
+        2. pod_network is configured (indicating the pod has network settings)
+        3. The container doesn't have explicit network_mode or networks set
+        """
+        pod_network = self.resolve_pod_network()
+        if not pod_network:
+            return False
+        pod = cnt.get("pod", "")
+        if not pod:
+            return False
+        # If container has explicit network configuration, don't inherit from pod
+        if cnt.get("network_mode") or cnt.get("networks"):
+            return False
+        return True
 
     def join_name_parts(self, *parts: str) -> str:
         setting = self.x_podman.get(PodmanCompose.XPodmanSettingKey.NAME_SEPARATOR_COMPAT, False)
@@ -3100,6 +3135,14 @@ async def create_pods(compose: PodmanCompose) -> None:
             "create",
             "--name=" + pod["name"],
         ] + compose.resolve_pod_args()
+
+        # Add network to pod if pod_network is configured
+        # This enables pod network inheritance where containers join the pod's
+        # network namespace (via --pod without --network) instead of having
+        # their own network configuration.
+        pod_network = compose.resolve_pod_network()
+        if pod_network:
+            podman_args.append(f"--network={pod_network}")
 
         ports = pod.get("ports", [])
         if isinstance(ports, str):

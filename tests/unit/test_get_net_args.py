@@ -331,3 +331,103 @@ class TestGetNetArgs(unittest.TestCase):
         expected_args = ["--network=container:container_2"]
         args = get_net_args(compose, container)
         self.assertListEqual(expected_args, args)
+
+    def test_pod_network_inheritance_enabled(self) -> None:
+        """
+        Test that when pod_network is configured and container is in a pod,
+        get_net_args returns empty list to allow pod network inheritance.
+        """
+        from podman_compose import PodmanCompose
+
+        compose = get_networked_compose()
+        # Set up pod_network via x_podman
+        compose.x_podman = {PodmanCompose.XPodmanSettingKey.POD_NETWORK: "external_macvlan"}
+        # Mock the methods that use x_podman
+        compose.resolve_pod_network = lambda: "external_macvlan"
+        compose.should_inherit_net_from_pod = lambda cnt: (
+            compose.resolve_pod_network() is not None
+            and cnt.get("pod")
+            and not cnt.get("network_mode")
+            and not cnt.get("networks")
+        )
+
+        container = get_minimal_container()
+        container["pod"] = "pod_test_project_name"
+
+        expected_args: list = []
+        args = get_net_args(compose, container)
+        self.assertListEqual(expected_args, args)
+
+    def test_pod_network_inheritance_disabled_no_pod(self) -> None:
+        """
+        Test that when pod_network is configured but container is not in a pod,
+        get_net_args returns normal network args.
+        """
+        from podman_compose import PodmanCompose
+
+        compose = get_networked_compose()
+        compose.x_podman = {PodmanCompose.XPodmanSettingKey.POD_NETWORK: "external_macvlan"}
+        compose.resolve_pod_network = lambda: "external_macvlan"
+        compose.should_inherit_net_from_pod = lambda cnt: (
+            compose.resolve_pod_network() is not None
+            and cnt.get("pod")
+            and not cnt.get("network_mode")
+            and not cnt.get("networks")
+        )
+
+        container = get_minimal_container()
+        # No pod assigned
+
+        expected_args = [f"--network={PROJECT_NAME}_net0:alias={SERVICE_NAME}"]
+        args = get_net_args(compose, container)
+        self.assertListEqual(expected_args, args)
+
+    def test_pod_network_inheritance_disabled_explicit_networks(self) -> None:
+        """
+        Test that when container has explicit networks config,
+        pod network inheritance is skipped even if pod_network is set.
+        """
+        from podman_compose import PodmanCompose
+
+        compose = get_networked_compose()
+        compose.x_podman = {PodmanCompose.XPodmanSettingKey.POD_NETWORK: "external_macvlan"}
+        compose.resolve_pod_network = lambda: "external_macvlan"
+        compose.should_inherit_net_from_pod = lambda cnt: (
+            compose.resolve_pod_network() is not None
+            and cnt.get("pod")
+            and not cnt.get("network_mode")
+            and not cnt.get("networks")
+        )
+
+        container = get_minimal_container()
+        container["pod"] = "pod_test_project_name"
+        container["networks"] = {"net0": {}}  # Explicit networks config
+
+        expected_args = [f"--network={PROJECT_NAME}_net0:alias={SERVICE_NAME}"]
+        args = get_net_args(compose, container)
+        self.assertListEqual(expected_args, args)
+
+    def test_pod_network_inheritance_disabled_network_mode(self) -> None:
+        """
+        Test that when container has explicit network_mode,
+        pod network inheritance is skipped even if pod_network is set.
+        """
+        from podman_compose import PodmanCompose
+
+        compose = get_networked_compose()
+        compose.x_podman = {PodmanCompose.XPodmanSettingKey.POD_NETWORK: "external_macvlan"}
+        compose.resolve_pod_network = lambda: "external_macvlan"
+        compose.should_inherit_net_from_pod = lambda cnt: (
+            compose.resolve_pod_network() is not None
+            and cnt.get("pod")
+            and not cnt.get("network_mode")
+            and not cnt.get("networks")
+        )
+
+        container = get_minimal_container()
+        container["pod"] = "pod_test_project_name"
+        container["network_mode"] = "host"  # Explicit network_mode
+
+        expected_args = ["--network=host"]
+        args = get_net_args(compose, container)
+        self.assertListEqual(expected_args, args)
