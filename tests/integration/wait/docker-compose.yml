@@ -1,0 +1,13 @@
+services:
+  app_health:
+    image: podman-compose-wait-test
+    build: .
+    healthcheck:
+        test: "test -f /healthy"
+        interval: 1s
+        retries: 5
+
+  app:
+    image: podman-compose-wait-test
+    build: .
+    entrypoint: ["dumb-init", "sleep", "infinity"]
