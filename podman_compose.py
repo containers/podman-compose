@@ -3316,6 +3316,10 @@ async def prepare_images(
 async def wait_for_container_running_healthy(
     compose: PodmanCompose, args: argparse.Namespace
 ) -> None:
+    if compose.podman_version is not None and strverscmp_lt(compose.podman_version, "4.6.0"):
+        log.warning("Ignore --wait due to podman %s doesn't support it!", compose.podman_version)
+        return
+
     log.info("waiting for all containers to be running|healthy")
 
     # distinguish between containers that have a healthcheck and those that don't

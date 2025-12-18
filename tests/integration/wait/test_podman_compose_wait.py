@@ -9,7 +9,9 @@ from io import BytesIO
 from typing import Any
 from typing import Optional
 
+from podman_compose import strverscmp_lt
 from tests.integration.test_utils import RunSubprocessMixin
+from tests.integration.test_utils import get_podman_version
 from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
@@ -45,6 +47,7 @@ class ExecutionTime:
             assert execution_time <= self.__max_execution_time
 
 
+@unittest.skipIf(strverscmp_lt(get_podman_version(), "4.6.0"), "feature not supported")
 class TestComposeWait(unittest.TestCase, RunSubprocessMixin):
     def __get_health_status(self, container_name: str) -> str:
         output, _ = self.run_subprocess_assert_returncode([
