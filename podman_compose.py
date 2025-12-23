@@ -405,18 +405,28 @@ async def assert_volume(compose: PodmanCompose, mount_dict: dict[str, Any]) -> N
     if mount_dict["type"] == "bind":
         basedir = os.path.realpath(compose.dirname)
         mount_src = mount_dict["source"]
-        mount_src = os.path.realpath(os.path.join(basedir, os.path.expanduser(mount_src)))
-        if not os.path.exists(mount_src):
-            bind_opts = mount_dict.get("bind", {})
-            if "create_host_path" in bind_opts and not bind_opts["create_host_path"]:
-                raise ValueError(
-                    "invalid mount config for type 'bind': bind source path does not exist: "
-                    f"{mount_src}"
-                )
-            try:
-                os.makedirs(mount_src, exist_ok=True)
-            except OSError:
-                pass
+        is_darwin = os.uname().sysname == "Darwin"
+        if is_darwin and os.path.isabs(mount_src) and mount_src.endswith(".sock"):
+            # This is a hack to allow forwarding of "/var/run/docker.sock" on macOS using
+            # the Podman Desktop. This file normally resolves to something like
+            # "/private/var/folders/ph/3afd..../T/podman/podman-machine-default-api.sock".
+            # Podman Desktop doesn't support socket forwarding, but if we leave the path
+            # as unresolved, it will use the "/var/run/docker.sock" file from inside the
+            # Linux virtual machine.
+            mount_src = os.path.normpath(mount_src)
+        else:
+            mount_src = os.path.realpath(os.path.join(basedir, os.path.expanduser(mount_src)))
+            if not os.path.exists(mount_src):
+                bind_opts = mount_dict.get("bind", {})
+                if "create_host_path" in bind_opts and not bind_opts["create_host_path"]:
+                    raise ValueError(
+                        "invalid mount config for type 'bind': bind source path does not exist: "
+                        f"{mount_src}"
+                    )
+                try:
+                    os.makedirs(mount_src, exist_ok=True)
+                except OSError:
+                    pass
         mount_dict["source"] = mount_src
         return
     if mount_dict["type"] != "volume" or not vol or not vol.get("name"):
