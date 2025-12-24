@@ -1941,6 +1941,14 @@ def rec_merge_one(target: dict[str, Any], source: dict[str, Any]) -> dict[str, A
             target[key] = clone(value2)
             continue
 
+        # We can merge dicts into an empty tag. E.g.:
+        # vol_1:
+        # and
+        # vol_1:
+        #   driver: "abcdef"
+        if value is None and isinstance(value2, dict):
+            target[key] = value = {}
+
         if not isinstance(value2, type(value)):
             value_type = type(value)
             value2_type = type(value2)
