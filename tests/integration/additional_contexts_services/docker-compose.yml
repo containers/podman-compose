@@ -1,0 +1,49 @@
+# A complicated build-time dependency graph:
+# service_a -> service_c, service_d
+# service_b -> service_a, service_d, service_e
+#
+# The images will be built in this order:
+# Step 1: service_c, service_d, service_e
+# Step 2: service_a
+# Step 3: service_b
+
+services:
+  service_a:
+    build:
+      dockerfile_inline: |
+        FROM busybox
+        COPY --from=basic_c /flag_c /
+        COPY --from=basic_d /flag_d /
+        RUN touch /flag_a
+      additional_contexts:
+        basic_c: service:service_c
+        basic_d: service:service_d
+
+  service_b:
+    build:
+      dockerfile_inline: |
+        FROM basic_a
+        COPY --from=basic_e /flag_e /
+        RUN sh -c "[ -f /flag_a ] && [ -f /flag_c ] && [ -f /flag_d ] && [ -f /flag_e ]"
+      additional_contexts:
+        basic_a: service:service_a
+        basic_d: service:service_d
+        basic_e: service:service_e
+
+  service_c:
+    build:
+      dockerfile_inline: |
+        FROM busybox
+        RUN touch /flag_c
+
+  service_d:
+    build:
+      dockerfile_inline: |
+        FROM busybox
+        RUN touch /flag_d
+
+  service_e:
+    build:
+      dockerfile_inline: |
+        FROM busybox
+        RUN touch /flag_e
