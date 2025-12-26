@@ -97,6 +97,27 @@ class TestCanMergeBuild(unittest.TestCase):
             )
         self.assertEqual(actual_compose, expected)
 
+    def test_parse_with_map_merge_into_none(self):
+        compose_test_1 = {"volumes": {"vol_a": None}}
+        compose_test_2 = {
+            "volumes": {
+                "vol_a": {
+                    "driver_opts": {"type": "none", "device": "/dev/some", "o": "bind"},
+                }
+            }
+        }
+        expected = {"driver_opts": {"device": "/dev/some", "o": "bind", "type": "none"}}
+        dump_yaml(compose_test_1, "test-compose-1.yaml")
+        dump_yaml(compose_test_2, "test-compose-2.yaml")
+
+        podman_compose = PodmanCompose()
+        set_args(podman_compose, ["test-compose-1.yaml", "test-compose-2.yaml"])
+
+        podman_compose._parse_compose_file()  # pylint: disable=protected-access
+
+        actual_compose = podman_compose.vols["vol_a"]
+        self.assertEqual(actual_compose, expected)
+
     # $$$ is a placeholder for either command or entrypoint
     @parameterized.expand([
         ({}, {"$$$": []}, {"$$$": []}),
