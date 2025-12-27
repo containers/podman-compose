@@ -3923,6 +3923,8 @@ async def compose_logs(compose: PodmanCompose, args: argparse.Namespace) -> None
         podman_args.append("-l")
     if args.names:
         podman_args.append("-n")
+    if not args.no_color:
+        podman_args.append("--color")
     if args.since:
         podman_args.extend(["--since", args.since])
     # the default value is to print all logs which is in podman = 0 and not
