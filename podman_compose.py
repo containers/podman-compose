@@ -3724,8 +3724,10 @@ def compose_run_update_container_from_args(
     podman_compose, "cp", "copy files/folders between a service container and the local filesystem"
 )
 async def compose_cp(compose: PodmanCompose, args: argparse.Namespace) -> None:
-    service = {s.split(':', 1)[0] for s in args.cpy_from_to if ':' in s}
-    service = next(iter(service))
+    if ':' in args.src:
+        service = args.src.split(':', 1)[0]
+    elif ':' in args.dst:
+        service = args.dst.split(':', 1)[0]
     compose.assert_services(service)
     container_names = compose.container_names_by_service[service]
     container_name = container_names[0]
@@ -3736,24 +3738,21 @@ async def compose_cp(compose: PodmanCompose, args: argparse.Namespace) -> None:
 
 def compose_cp_args(container_name: str, args: argparse.Namespace) -> list[str]:
     podman_args = []
-    cnt_path = [item.split(":", 1)[1] for item in args.cpy_from_to if ":" in item][0]
-    local_path = [item for item in args.cpy_from_to if ":" not in item]
-
     if args.archive:
         podman_args += ["--archive"]
     if args.overwrite:
         podman_args += ["--overwrite"]
 
-    # need to determine which argument came first so we know the transfer direction
-    args_position = next((i for i, item in enumerate(args.cpy_from_to) if ":" in item), 1)
-    if args_position == 0:
+    # Determine which argument has the colon so we know the direction
+    if ':' in args.src:
         # container -> local
-        podman_args += [container_name + ':' + cnt_path]
-        podman_args += local_path
-    else:
+        cnt_path = args.src.split(":", 1)[1]
+        podman_args += [container_name + ':' + cnt_path, args.dst]
+    elif ':' in args.dst:
         # local -> container
-        podman_args += local_path
-        podman_args += [container_name + ':' + cnt_path]
+        cnt_path = args.dst.split(":", 1)[1]
+        podman_args += [args.src, container_name + ':' + cnt_path]
+
     return podman_args
 
 
@@ -4298,11 +4297,16 @@ def compose_parse_cp(parser: argparse.ArgumentParser) -> None:
         default=None,
     )
     parser.add_argument(
-        "cpy_from_to",
-        metavar="src_path destination_path",
-        nargs="*",
+        "src",
+        metavar="SOURCE",
+        help="Source path. Use SERVICE:PATH for container paths, or just PATH for local paths",
         default=None,
-        help="service:src_path destination_path | src_path service:destination_path",
+    )
+    parser.add_argument(
+        "dst",
+        metavar="DESTINATION",
+        help="Destination path. Use SERVICE:PATH for container paths, or just PATH for local paths",
+        default=None,
     )
 
 
