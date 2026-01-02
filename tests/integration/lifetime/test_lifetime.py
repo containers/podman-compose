@@ -42,6 +42,8 @@ class TestLifetime(unittest.TestCase, RunSubprocessMixin):
                 "-f",
                 compose_path,
                 "logs",
+                "--no-log-prefix",
+                "--no-color",
                 "container1",
             ])
 
@@ -52,6 +54,8 @@ class TestLifetime(unittest.TestCase, RunSubprocessMixin):
                 "-f",
                 compose_path,
                 "logs",
+                "--no-log-prefix",
+                "--no-color",
                 "container2",
             ])
 
@@ -100,6 +104,8 @@ class TestLifetime(unittest.TestCase, RunSubprocessMixin):
                 "-f",
                 compose_path,
                 "logs",
+                "--no-log-prefix",
+                "--no-color",
                 "container1",
             ])
 
@@ -111,6 +117,8 @@ class TestLifetime(unittest.TestCase, RunSubprocessMixin):
                 "-f",
                 compose_path,
                 "logs",
+                "--no-log-prefix",
+                "--no-color",
                 "container2",
             ])
 
@@ -121,6 +129,8 @@ class TestLifetime(unittest.TestCase, RunSubprocessMixin):
                     "-f",
                     compose_path,
                     "logs",
+                    "--no-log-prefix",
+                    "--no-color",
                     "container2",
                 ])
             self.assertTrue(out.startswith(b"test2\ntest2"))
