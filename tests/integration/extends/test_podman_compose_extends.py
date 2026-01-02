@@ -27,6 +27,8 @@ class TestComposeExteds(unittest.TestCase, RunSubprocessMixin):
                 "-f",
                 compose_yaml_path(),
                 "logs",
+                "--no-log-prefix",
+                "--no-color",
                 "echo",
             ])
             self.assertEqual(output, b"Zero\n")
@@ -52,6 +54,8 @@ class TestComposeExteds(unittest.TestCase, RunSubprocessMixin):
                 "-f",
                 compose_yaml_path(),
                 "logs",
+                "--no-log-prefix",
+                "--no-color",
                 "echo1",
             ])
             self.assertEqual(output, b"One\n")
@@ -77,6 +81,8 @@ class TestComposeExteds(unittest.TestCase, RunSubprocessMixin):
                 "-f",
                 compose_yaml_path(),
                 "logs",
+                "--no-log-prefix",
+                "--no-color",
                 "env1",
             ])
             lines = output.decode('utf-8').split('\n')
