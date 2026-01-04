@@ -1500,7 +1500,7 @@ def flat_deps(services: dict[str, Any], with_extends: bool = False) -> None:
 
 
 class OverrideTag(yaml.YAMLObject):
-    yaml_dumper = yaml.Dumper
+    yaml_dumper = yaml.SafeDumper
     yaml_loader = yaml.SafeLoader
     yaml_tag = '!override'
 
@@ -1529,7 +1529,7 @@ class OverrideTag(yaml.YAMLObject):
 
 
 class ResetTag(yaml.YAMLObject):
-    yaml_dumper = yaml.Dumper
+    yaml_dumper = yaml.SafeDumper
     yaml_loader = yaml.SafeLoader
     yaml_tag = '!reset'
 
@@ -2160,17 +2160,34 @@ class PodmanCompose:
             return service["_config_hash"]
 
         # Use a stable representation of the service configuration
-        jsonable_servcie = self.original_service(service)
+        jsonable_servcie = self.original_configuration(service)
         config_str = json.dumps(jsonable_servcie, sort_keys=True)
         service["_config_hash"] = hashlib.sha256(config_str.encode('utf-8')).hexdigest()
         return service["_config_hash"]
 
-    def original_service(self, service: dict[str, Any]) -> dict[str, Any]:
+    def original_configuration(self, configuration: dict[Any, Any]) -> dict[str, Any]:
         """
-        Returns the original service configuration without any overrides or resets.
-        This is used to compare the original service configuration with the current one.
+        Returns the original configuration without any overrides or resets.
+        This is used to get a stable representation of the configuration.
+        (can be converted to a JSON string)
         """
-        return {k: v for k, v in service.items() if isinstance(k, str) and not k.startswith("_")}
+        return {
+            # recurse if the value is also a dictionary
+            key: self.original_configuration(value) if isinstance(value, dict) else value
+            # iterate over the configuration items
+            for key, value in configuration.items()
+            # filter
+            if (
+                # only string keys
+                isinstance(key, str)
+                # which do not start with an underscore
+                and not key.startswith("_")
+                # also exclude !override
+                and not isinstance(value, OverrideTag)
+                # and !reset tags
+                and not isinstance(value, ResetTag)
+            )
+        }
 
     def resolve_pod_name(self) -> str | None:
         # Priorities:
@@ -2403,12 +2420,14 @@ class PodmanCompose:
         if not getattr(args, "no_normalize", None):
             compose = normalize_final(compose, self.dirname)
         self.merged_yaml = yaml.safe_dump(compose)
-        merged_json_b = json.dumps(compose, separators=(",", ":")).encode("utf-8")
+        merged_json_b = json.dumps(
+            self.original_configuration(compose), separators=(",", ":")
+        ).encode("utf-8")
         self.yaml_hash = hashlib.sha256(merged_json_b).hexdigest()
         compose["_dirname"] = dirname
         # debug mode
         if len(files) > 1:
-            log.debug(" ** merged:\n%s", json.dumps(compose, indent=2))
+            log.debug(" ** merged:\n%s", json.dumps(self.original_configuration(compose), indent=2))
         # ver = compose.get('version')
 
         self._parse_x_podman_settings(compose, self.environ)

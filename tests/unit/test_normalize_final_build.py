@@ -123,7 +123,7 @@ class TestNormalizeFinalBuild(unittest.TestCase):
 
         actual_compose = {}
         if podman_compose.services:
-            actual_compose = podman_compose.original_service(
+            actual_compose = podman_compose.original_configuration(
                 podman_compose.services["test-service"]
             )
         self.assertEqual(actual_compose, expected)
@@ -239,7 +239,7 @@ class TestNormalizeFinalBuild(unittest.TestCase):
 
         actual_compose = {}
         if podman_compose.services:
-            actual_compose = podman_compose.original_service(
+            actual_compose = podman_compose.original_configuration(
                 podman_compose.services["test-service"]
             )
         self.assertEqual(actual_compose, expected)
