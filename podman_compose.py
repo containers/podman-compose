@@ -2134,7 +2134,7 @@ class PodmanCompose:
                     "utf-8"
                 ).strip() or ""
                 self.podman_version = (self.podman_version.split() or [""])[-1]
-            except subprocess.CalledProcessError:
+            except (subprocess.CalledProcessError, FileNotFoundError):
                 self.podman_version = None
             if not self.podman_version:
                 log.fatal("it seems that you do not have `podman` installed")
@@ -2352,7 +2352,7 @@ class PodmanCompose:
                     content = load_yaml_or_die(filename, f)
                 # log(filename, json.dumps(content, indent = 2))
             if not isinstance(content, dict):
-                sys.stderr.write(f"Compose file does not contain a top level object: {filename}\n")
+                log.fatal(f"Compose file does not contain a top level object: {filename}\n")
                 sys.exit(1)
             content = normalize(content)
             # log(filename, json.dumps(content, indent = 2))
