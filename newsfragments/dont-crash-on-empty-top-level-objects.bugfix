@@ -1,0 +1,1 @@
+Fix crash on parsing empty top-level objects in compose file
