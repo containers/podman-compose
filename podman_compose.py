@@ -34,6 +34,7 @@ from typing import ClassVar
 from typing import Iterable
 from typing import Sequence
 from typing import overload
+from urllib.parse import quote
 
 # import fnmatch
 # fnmatch.fnmatchcase(env, "*_HOST")
@@ -2160,8 +2161,8 @@ class PodmanCompose:
             return service["_config_hash"]
 
         # Use a stable representation of the service configuration
-        jsonable_servcie = self.original_service(service)
-        config_str = json.dumps(jsonable_servcie, sort_keys=True)
+        jsonable_service = self.original_service(service)
+        config_str = json.dumps(jsonable_service, sort_keys=True)
         service["_config_hash"] = hashlib.sha256(config_str.encode('utf-8')).hexdigest()
         return service["_config_hash"]
 
@@ -2431,6 +2432,9 @@ class PodmanCompose:
         if not nets:
             nets["default"] = None
 
+        # Resolve the inter-service build dependencies in additional contexts
+        self._resolve_context_dependencies(services)
+
         self.networks = nets
         if self.x_podman.get(PodmanCompose.XPodmanSettingKey.DEFAULT_NET_BEHAVIOR_COMPAT, False):
             # If there is no network_mode and networks in service,
@@ -2577,6 +2581,65 @@ class PodmanCompose:
             if not service_profiles or requested_profiles.intersection(service_profiles):
                 services[name] = config
         return services
+
+    # Docker Compose specifies that services can have build-time dependencies on each other
+    # through the "additional_contexts" that can refer to the other services' images.
+    def _resolve_context_dependencies(self, services: dict[str, Any]) -> None:
+        for name, service in services.items():
+            additional_build_contexts = service.get("build", {}).get("additional_contexts")
+            if not additional_build_contexts:
+                continue
+
+            deps = set()
+            processed = []
+            for context in additional_build_contexts:
+                parts = str(context).split("=", 1)
+                if len(parts) != 2:
+                    processed.append(context)  # Something unknown. Just ignore.
+                    continue
+
+                context_name, val = parts
+                if not val.startswith("service:"):
+                    processed.append(context)  # Not a service reference
+                    continue
+                # This is a reference in the form of "service:target_service"
+                target_service_name = val.removeprefix("service:")
+                target_service = services[target_service_name]
+                if target_service is None:
+                    raise ValueError(
+                        f"Service '{name}' references non-existent service "
+                        f"'{val.removeprefix('service:')}' in the "
+                        f"additional context '{context_name}'"
+                    )
+                # Get the image name for that service
+                target_image = target_service.get("image")
+                if not target_image:
+                    target_image = "localhost/" + self.format_name(target_service_name)
+
+                # Replace the context with the docker image reference
+                image_url = "docker://" + quote(target_image)
+                processed.append(f"{context_name}={image_url}")
+                deps.add(target_service_name)
+
+            service["build"]["additional_contexts"] = processed
+            service["build"]["build_deps"] = sorted(list(deps))
+
+        # Verify that there are no (possibly recursive) circular dependencies between services
+        def check_circular(current: str, path: list[str]) -> None:
+            if current in path:
+                cycle = " -> ".join(path + [current])
+                raise ValueError(f"Circular dependency in additional build contexts: {cycle}")
+            path.append(current)
+
+            # Retrieve dependencies stored during the resolution phase
+            service_deps = services[current].get("build", {}).get("build_deps", [])
+            for dep in service_deps:
+                check_circular(dep, path)
+
+            path.pop()
+
+        for service_name in services:
+            check_circular(service_name, [])
 
     def _parse_args(self, argv: list[str] | None = None) -> argparse.Namespace:
         parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
@@ -3072,26 +3135,58 @@ async def build_one(compose: PodmanCompose, args: argparse.Namespace, cnt: dict)
 
 @cmd_run(podman_compose, "build", "build stack images")
 async def compose_build(compose: PodmanCompose, args: argparse.Namespace) -> int:
-    tasks = []
+    pending_builds: dict[str, list[Any]] = {}
+
+    def _add_build(cnt: dict[str, Any]) -> None:
+        cur_builds = pending_builds.get(cnt["service_name"])
+        if cur_builds:
+            cur_builds.append(cnt)
+        else:
+            pending_builds[cnt["service_name"]] = [cnt]
 
     if args.services:
         container_names_by_service = compose.container_names_by_service
         compose.assert_services(args.services)
         for service in args.services:
             cnt = compose.container_by_name[container_names_by_service[service][0]]
-            tasks.append(asyncio.create_task(build_one(compose, args, cnt)))
-
+            _add_build(cnt)
     else:
         for cnt in compose.containers:
-            tasks.append(asyncio.create_task(build_one(compose, args, cnt)))
+            _add_build(cnt)
 
-    status = 0
-    for t in asyncio.as_completed(tasks):
-        s = await t
-        if s is not None and s != 0:
-            status = s
+    # Continue building until there are no more pending tasks
+    while pending_builds:
+        # Find the tasks that are not waiting for any dependencies
+        current_builds = []
+        currently_built_services = []
+        for service_name, containers in pending_builds.items():
+            cur_srv = compose.services[service_name]
+            build_deps = cur_srv.get("build", {}).get("build_deps", [])
+            # Check if the task depends on any pending builds
+            if set(build_deps).isdisjoint(pending_builds):
+                for c in containers:
+                    current_builds.append(asyncio.create_task(build_one(compose, args, c)))
+                currently_built_services.append(service_name)
 
-    return status
+        # This should not happen because we check for circular references during the compose
+        # file parsing. But just in case...
+        if not current_builds:
+            log.error("Found no buildable services due to additional_context dependencies")
+            return 1
+
+        status = 0
+        for t in asyncio.as_completed(current_builds):
+            s = await t
+            if s is not None and s != 0:
+                status = s
+        if status != 0:
+            return status
+
+        for service_name in currently_built_services:
+            # noinspection PyAsyncCall
+            pending_builds.pop(service_name)
+
+    return 0
 
 
 async def pod_exists(compose: PodmanCompose, name: str) -> bool:
