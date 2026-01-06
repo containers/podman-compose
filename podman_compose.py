@@ -1870,7 +1870,7 @@ def normalize(compose: dict[str, Any]) -> dict[str, Any]:
     """
     convert compose dict of some keys from string or dicts into arrays
     """
-    services = compose.get("services", {})
+    services = compose.get("services", {}) or {}
     for service in services.values():
         normalize_service(service)
     return compose
@@ -2135,7 +2135,7 @@ class PodmanCompose:
                     "utf-8"
                 ).strip() or ""
                 self.podman_version = (self.podman_version.split() or [""])[-1]
-            except subprocess.CalledProcessError:
+            except (subprocess.CalledProcessError, FileNotFoundError):
                 self.podman_version = None
             if not self.podman_version:
                 log.fatal("it seems that you do not have `podman` installed")
@@ -2353,7 +2353,7 @@ class PodmanCompose:
                     content = load_yaml_or_die(filename, f)
                 # log(filename, json.dumps(content, indent = 2))
             if not isinstance(content, dict):
-                sys.stderr.write(f"Compose file does not contain a top level object: {filename}\n")
+                log.fatal("Compose file does not contain a top level object: %s", filename)
                 sys.exit(1)
             content = normalize(content)
             # log(filename, json.dumps(content, indent = 2))
@@ -2399,7 +2399,9 @@ class PodmanCompose:
                 # Solution is to remove 'include' key from compose obj. This doesn't break
                 # having `include` present and correctly processed in included files
                 del compose["include"]
-        resolved_services = self._resolve_profiles(compose.get("services", {}), requested_profiles)
+        resolved_services = self._resolve_profiles(
+            compose.get("services") or {}, requested_profiles
+        )
         compose["services"] = resolved_services
         if not getattr(args, "no_normalize", None):
             compose = normalize_final(compose, self.dirname)
@@ -2416,9 +2418,8 @@ class PodmanCompose:
 
         pod_name = self.resolve_pod_name()
 
-        services: dict | None = compose.get("services")
-        if services is None:
-            services = {}
+        services: dict = compose.get("services", {})
+        if not services:
             log.warning("WARNING: No services defined")
         # include services with no profile defined or the selected profiles
         services = self._resolve_profiles(services, requested_profiles)
@@ -2428,7 +2429,9 @@ class PodmanCompose:
         service_names = sorted([(len(srv["_deps"]), name) for name, srv in services.items()])
         resolve_extends(services, [name for _, name in service_names], self.environ)
         flat_deps(services)
-        nets = compose.get("networks", {})
+
+        # networks: [...]
+        nets = compose.get("networks") or {}
         if not nets:
             nets["default"] = None
 
@@ -2468,7 +2471,7 @@ class PodmanCompose:
             missing_nets_str = ",".join(missing_nets)
             raise RuntimeError(f"missing networks: {missing_nets_str}")
         # volumes: [...]
-        self.vols = compose.get("volumes", {})
+        self.vols = compose.get("volumes", {}) or {}
         podman_compose_labels = [
             "io.podman.compose.project=" + project_name,
             "io.podman.compose.version=" + __version__,
@@ -2478,7 +2481,6 @@ class PodmanCompose:
             "com.docker.compose.project.config_files=" + ",".join(relative_files),
         ]
         # other top-levels:
-        # networks: {driver: ...}
         # configs: {...}
         self.declared_secrets = compose.get("secrets", {})
         given_containers = []
