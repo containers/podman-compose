@@ -1,0 +1,1 @@
+Fixes the issue with compose logs for multiple targets when any container is missing
