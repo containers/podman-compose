@@ -305,7 +305,7 @@ def rec_subs(value: dict | str | Iterable, subs_dict: dict[str, Any]) -> dict | 
             if value is not None:
                 return str(value)
             if m.group("err") is not None:
-                raise RuntimeError(m.group("err"))
+                raise RuntimeError(f"Variable '{name}' missing: {m.group('err')}")
             return m.group("default") or ""
 
         value = var_re.sub(convert, value)
