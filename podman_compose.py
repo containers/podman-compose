@@ -3016,11 +3016,15 @@ def container_to_build_args(
     path_exists: Callable[[str], bool],
     cleanup_callbacks: list[Callable] | None = None,
 ) -> list[str]:
+    build_args = []
     build_desc = cnt["build"]
     if not hasattr(build_desc, "items"):
         build_desc = {"context": build_desc}
     ctx = build_desc.get("context", ".")
     dockerfile = build_desc.get("dockerfile", "")
+    if dockerfile is not None:
+        dockerfile = os.path.join(ctx, dockerfile)
+        build_args.extend(["-f", dockerfile])
     dockerfile_inline = build_desc.get("dockerfile_inline")
     if dockerfile_inline is not None:
         dockerfile_inline = str(dockerfile_inline)
@@ -3031,7 +3035,8 @@ def container_to_build_args(
         dockerfile.write(dockerfile_inline.encode())
         dockerfile.close()
         dockerfile = dockerfile.name
-
+        build_args.extend(["-f", dockerfile])
+        
         def cleanup_temp_dockfile() -> None:
             if os.path.exists(dockerfile):
                 os.remove(dockerfile)
@@ -3039,7 +3044,6 @@ def container_to_build_args(
         if cleanup_callbacks is not None:
             cleanup_callbacks.append(cleanup_temp_dockfile)
 
-    build_args = []
     # if givent context was not recognized as git url, try joining paths to get a file locally
     if not is_context_git_url(ctx):
         custom_dockerfile_given = False
