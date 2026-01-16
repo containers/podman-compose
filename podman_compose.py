@@ -4487,6 +4487,14 @@ def compose_build_up_parse(parser: argparse.ArgumentParser) -> None:
 @cmd_parse(podman_compose, ["build", "up", "down", "start", "stop", "restart"])
 def compose_build_parse(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
+        "-f",
+        "--file",
+        help="Specify an compose file (default: docker-compose.yml) or '-' to read from stdin.",
+        metavar="file",
+        action="append",
+        default=[],
+    )
+    parser.add_argument(
         "services",
         metavar="services",
         nargs="*",
