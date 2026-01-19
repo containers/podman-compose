@@ -3908,14 +3908,14 @@ async def compose_restart(compose: PodmanCompose, args: argparse.Namespace) -> N
 
 
 @cmd_run(podman_compose, "logs", "show logs from services")
-async def compose_logs(compose: PodmanCompose, args: argparse.Namespace) -> None:
+async def compose_logs(
+    compose: PodmanCompose, args: argparse.Namespace, log_formatter: str | None = None
+) -> None:
     container_names_by_service = compose.container_names_by_service
     if not args.services and not args.latest:
         args.services = container_names_by_service.keys()
     compose.assert_services(args.services)
-    targets = []
-    for service in args.services:
-        targets.extend(container_names_by_service[service])
+
     podman_args = []
     if args.follow:
         podman_args.append("-f")
@@ -3923,6 +3923,8 @@ async def compose_logs(compose: PodmanCompose, args: argparse.Namespace) -> None
         podman_args.append("-l")
     if args.names:
         podman_args.append("-n")
+    if not args.no_color:
+        podman_args.append("--color")
     if args.since:
         podman_args.extend(["--since", args.since])
     # the default value is to print all logs which is in podman = 0 and not
@@ -3933,9 +3935,30 @@ async def compose_logs(compose: PodmanCompose, args: argparse.Namespace) -> None
         podman_args.append("-t")
     if args.until:
         podman_args.extend(["--until", args.until])
-    for target in targets:
-        podman_args.append(target)
-    await compose.podman.run([], "logs", podman_args)
+
+    max_service_length = 0
+    tasks = []
+    max_service_length = max(len(service) for service in args.services)
+    for i, service in enumerate(args.services):
+        # Add colored service prefix to output by piping output through sed
+        if args.no_log_prefix:
+            log_formatter = None
+        else:
+            color_idx = i % len(compose.console_colors)
+            if args.no_color:  # monochrome output
+                color = '\x1b[0m'
+            else:
+                color = compose.console_colors[color_idx]
+            space_suffix = " " * (max_service_length - len(service) + 1)
+            log_formatter = f"{color}[{service}]{space_suffix}|\x1b[0m"
+
+        podman_args_with_target = podman_args + container_names_by_service[service]
+        tasks.append(
+            asyncio.create_task(
+                compose.podman.run([], "logs", podman_args_with_target, log_formatter=log_formatter)
+            )
+        )
+    await asyncio.gather(*tasks)
 
 
 @cmd_run(podman_compose, "config", "displays the compose file")
@@ -4384,6 +4407,11 @@ def compose_logs_parse(parser: argparse.ArgumentParser) -> None:
         help="Output the container name in the log",
     )
     parser.add_argument("--no-color", action="store_true", help="Produce monochrome output")
+    parser.add_argument(
+        "--no-log-prefix",
+        action="store_true",
+        help="Don't print prefix with container identifier in logs",
+    )
     parser.add_argument("--since", help="Show logs since TIMESTAMP", type=str, default=None)
     parser.add_argument("-t", "--timestamps", action="store_true", help="Show timestamps.")
     parser.add_argument(

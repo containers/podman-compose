@@ -40,6 +40,8 @@ class TestComposeOverrideTagAttribute(unittest.TestCase, RunSubprocessMixin):
                 "-f",
                 override_file,
                 "logs",
+                "--no-log-prefix",
+                "--no-color",
             ])
             self.assertEqual(output, b"One\n")
 

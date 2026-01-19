@@ -51,6 +51,8 @@ class TestComposeResetTagService(unittest.TestCase, RunSubprocessMixin):
                 "-f",
                 reset_file,
                 "logs",
+                "--no-log-prefix",
+                "--no-color",
             ])
             self.assertEqual(output, b"One\n")
         finally:

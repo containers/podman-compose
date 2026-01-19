@@ -32,6 +32,8 @@ class TestFilesystem(unittest.TestCase, RunSubprocessMixin):
                 "-f",
                 compose_path,
                 "logs",
+                "--no-log-prefix",
+                "--no-color",
                 "container1",
             ])
 
