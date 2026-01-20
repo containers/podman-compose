@@ -64,6 +64,8 @@ class TestComposeEnvFile(unittest.TestCase, RunSubprocessMixin):
                 "-f",
                 path_compose_file,
                 "logs",
+                "--no-log-prefix",
+                "--no-color",
             ])
             # takes only value ZZVAR1 as container-compose.yaml file requires
             self.assertEqual(output, b"ZZVAR1=podman-rocks-223\nZZVAR3=podman-rocks-125\n")
