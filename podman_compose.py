@@ -2302,7 +2302,7 @@ class PodmanCompose:
 
         # env-file is relative to the CWD
         dotenv_dict = {}
-        if len(args.env_file) == 0:
+        if args.env_file is None or len(args.env_file) == 0:
             # Load .env from the Compose file's directory to preserve
             # behavior prior to 1.1.0 and to match with Docker Compose (v2).
             project_dotenv_file = os.path.realpath(os.path.join(dirname, ".env"))
