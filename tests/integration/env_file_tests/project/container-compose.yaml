@@ -7,3 +7,4 @@ services:
       - /tmp
     environment:
       ZZVAR1: $ZZVAR1
+      ZZVAR4: $ZZVAR4
