@@ -30,6 +30,20 @@ def is_systemd_available() -> bool:
         return False
 
 
+def get_podman_version() -> str:
+    version = (
+        subprocess.run(
+            ["podman", "--version"],
+            stdout=subprocess.PIPE,
+            text=True,
+            check=False,
+        ).stdout.strip()
+        or ""
+    )
+
+    return (version.split() or [""])[-1]
+
+
 class RunSubprocessMixin:
     def is_debug_enabled(self) -> bool:
         return "TESTS_DEBUG" in os.environ
