@@ -1633,6 +1633,7 @@ class Podman:
         self, reader: asyncio.StreamReader, sink: Any, log_formatter: str
     ) -> None:
         line_ongoing = False
+        decoder = codecs.getincrementaldecoder("utf-8")()
 
         def _formatted_print_with_nl(s: str) -> None:
             if line_ongoing:
@@ -1646,8 +1647,6 @@ class Podman:
             else:
                 print(log_formatter, s, file=sink, end="")
 
-        decoder = codecs.getincrementaldecoder("utf-8")()
-
         while not reader.at_eof():
             chunk = await self._readchunk(reader)
             parts = chunk.split(b"\n")
@@ -1660,11 +1659,18 @@ class Podman:
                 elif len(part) > 0:
                     _formatted_print_without_nl(decoder.decode(part))
                     line_ongoing = True
+                else:
+                    # When we have an empty string as the last part:
+                    # Do nothing if it's the only part (=the chunk is empty).
+                    # If it's 2nd or later part, an empty new line will be redundant.
+                    pass
+
+        buf, _ = decoder.getstate()
+        if len(buf) > 0:
+            log.error("Incomplete multibyte character ignored in log output: %s", buf)
         if line_ongoing:
             # Make sure the last line ends with EOL
             print(file=sink, end="\n")
-
-        print(decoder.decode(b"", final=True))
 
     def exec(
         self,
