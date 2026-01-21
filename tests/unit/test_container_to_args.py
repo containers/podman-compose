@@ -23,6 +23,8 @@ def create_compose_mock(project_name: str = "test_project_name") -> PodmanCompos
     compose.x_podman = {}
     compose.join_name_parts = mock.Mock(side_effect=lambda *args: '_'.join(args))
     compose.format_name = mock.Mock(side_effect=lambda *args: '_'.join([project_name, *args]))
+    # Default behavior: don't inherit network from pod (backwards compatible)
+    compose.should_inherit_net_from_pod = mock.Mock(return_value=False)
 
     async def podman_output(*args: Any, **kwargs: Any) -> None:
         pass
