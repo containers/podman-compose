@@ -36,6 +36,14 @@ from typing import Sequence
 from typing import overload
 from urllib.parse import quote
 
+import time
+from rich.console import Console, Group
+from rich.live import Live
+from rich.spinner import Spinner
+from rich.text import Text
+from rich.padding import Padding
+
+
 # import fnmatch
 # fnmatch.fnmatchcase(env, "*_HOST")
 import yaml
@@ -1674,6 +1682,7 @@ class Podman:
         *,
         # Intentionally mutable default argument to hold references to tasks
         task_reference: set[asyncio.Task] = set(),
+        printer = None
     ) -> int | None:
         async with self.semaphore:
             cmd_args = list(map(str, cmd_args or []))
@@ -1709,7 +1718,19 @@ class Podman:
                 err_t.add_done_callback(task_reference.discard)
 
             else:
-                p = await asyncio.create_subprocess_exec(*cmd_ls, close_fds=False)  # pylint: disable=consider-using-with
+                kwargs = {}
+                if printer:
+                    kwargs = {
+                        "stdout": subprocess.PIPE,
+                        "stderr":subprocess.PIPE,
+                    }
+                p = await asyncio.create_subprocess_exec(
+                    *cmd_ls,
+                    close_fds=False,
+                    **kwargs,
+                )  # pylint: disable=consider-using-with
+                if printer:
+                    await printer(p)
 
             try:
                 exit_code = await p.wait()
@@ -3888,9 +3909,43 @@ async def transfer_service_status(
                 timeout = str_to_seconds(timeout_str)
             if timeout is not None:
                 podman_args.extend(["-t", str(timeout)])
-        tasks.append(asyncio.create_task(compose.podman.run([], action, podman_args + [target])))
-    await asyncio.gather(*tasks)
 
+        # TODO hardcoded value for my docker-compose.yaml
+        container = "copr_builder_1"
+
+        items = {
+            "heading": Text.from_markup("[+] Restarting 0/1"),
+            container: Padding(
+                Spinner(
+                    "dots",
+                    text=Text("Container {0} Restarting".format(container)),
+                ),
+                (0, 0, 0, 1),
+            ),
+        }
+        group = Group(*items.values())
+
+        console = Console()
+        live = Live(group, refresh_per_second=10, console=console)
+        live.start()
+
+        async def printer(proc, action=action, live=live, items=items):
+            time.sleep(1)
+            container = (await proc.stdout.read()).decode("utf-8").strip()
+            exit_code = await proc.wait()
+            if action == "restart":
+                if exit_code:
+                    items[container].renderable = Text.from_markup(f" [red]:x:[/red]Container {container} [red]Failed[/red]")
+                else:
+                    items[container].renderable = Text.from_markup(f" [green]✔[/green] Container {container} [green]Started[/green]")
+            live.update(Group(*items.values()))
+
+        tasks.append(asyncio.create_task(compose.podman.run([], action, podman_args + [target], printer=printer)))
+
+    await asyncio.gather(*tasks)
+    items["heading"] = Text.from_markup("[blue][+] Restarting 1/1[/blue]")
+    live.update(Group(*items.values()))
+    live.stop()
 
 @cmd_run(podman_compose, "start", "start specific services")
 async def compose_start(compose: PodmanCompose, args: argparse.Namespace) -> None:
