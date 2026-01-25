@@ -226,6 +226,28 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
+    async def test_cgroup_conf_extension(self) -> None:
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt['x-podman.cgroup_conf'] = ['memory.high=1000M', 'memory.min=200M']
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge:alias=service_name",
+                '--cgroup-conf',
+                'memory.high=1000M',
+                '--cgroup-conf',
+                'memory.min=200M',
+                "busybox",
+            ],
+        )
+
+
     async def test_rootfs_extension(self) -> None:
         c = create_compose_mock()
 
