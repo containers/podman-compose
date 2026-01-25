@@ -1,0 +1,8 @@
+version: "3.7"
+services:
+  cgroupconf:
+    image: nopush/podman-compose-test
+    command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-h", "/var/www/html", "-p", "8000"]
+    x-podman.cgroup_conf:
+      - memory.high=712M
+      - memory.max=800M
