@@ -25,6 +25,19 @@ services:
         x-podman.rootfs: "/path/to/rootfs"
 ```
 
+* `x-podman.cgroup_conf` - Run the container with list of cgroup v2 configuration entries passed to Podman via `--cgroup-conf`.
+
+Example:
+```yaml
+version: "3"
+services:
+    my_service:
+        command: ["/bin/busybox"]
+        x-podman.cgroup_conf:
+            - memory.high=1000M
+            - memory.min=200M
+```
+
 For explanations of these extensions, please refer to the [Podman Documentation](https://docs.podman.io/).
 
 ## Secrets
