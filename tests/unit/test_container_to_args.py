@@ -272,7 +272,6 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-
     async def test_rootfs_extension(self) -> None:
         c = create_compose_mock()
 
