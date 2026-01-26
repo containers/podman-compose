@@ -1,0 +1,19 @@
+version: "3.7"
+services:
+    variables:
+        image: busybox
+        command: ["/bin/busybox", "sh", "-c", "export | grep EXAMPLE"]
+        environment:
+            EXAMPLE_COLON_DASH_DEFAULT_WITH_INTERPOLATION: ${EMPTY:-My default is ${DEFAULT}}
+            EXAMPLE_DASH_DEFAULT_WITH_INTERPOLATION: ${NOT_SET-My default is ${DEFAULT}}
+            EXAMPLE_DOTENV_INTERPOLATION: ${DOT_ENV_VARIABLE_INTERPOLATION}
+    labels_test:
+        image: busybox
+        labels:
+            - "${EMPTY:-empty_${TEST_LABELS}}=test_labels"
+            - "${NOT_SET-notset_${TEST_LABELS}}=test_labels"
+            - test.${EMPTY:-empty_${TEST_LABELS}}=${EMPTY:-empty_${TEST_LABELS}}
+            - test.${NOT_SET-notset_${TEST_LABELS}}=${NOT_SET-notset_${TEST_LABELS}}
+            - "${EMPTY:-empty_${TEST_LABELS}}.test2=test2(`${EMPTY:-empty_${TEST_LABELS}}`)"
+            - "${NOT_SET-notset_${TEST_LABELS}}.test2=test2(`${NOT_SET-notset_${TEST_LABELS}}`)"
+
