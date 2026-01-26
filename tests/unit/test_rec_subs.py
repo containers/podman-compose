@@ -9,6 +9,15 @@ from parameterized import parameterized
 from podman_compose import rec_subs
 
 
+def from_pairs(pairs: list[list[str]]) -> tuple[list[str], list[str]]:
+    keys = []
+    values = []
+    for key, value in pairs:
+        keys.append(key)
+        values.append(value)
+    return keys, values
+
+
 class TestRecSubs(unittest.TestCase):
     substitutions = [
         # dict with environment variables
@@ -63,6 +72,38 @@ class TestRecSubs(unittest.TestCase):
             "Value $$ means $",
             "$$v1",
             "$v1",
+        ),
+        (
+            "Nested interpolation",
+            *from_pairs([
+                ["${v1:-${v1}}", "high priority"],
+                ["${v1:-${v1:-default}}", "high priority"],
+                ["${v1:-${v1-default}}", "high priority"],
+                ["${v1:-${empty}}", "high priority"],
+                ["${v1:-${empty:-default}}", "high priority"],
+                ["${v1:-${empty-default}}", "high priority"],
+                ["${v1:-${not_exits}}", "high priority"],
+                ["${v1:-${not_exits:-default}}", "high priority"],
+                ["${v1:-${not_exits-default}}", "high priority"],
+                ["${empty:-${v1}}", "high priority"],
+                ["${empty:-${v1:-default}}", "high priority"],
+                ["${empty:-${v1-default}}", "high priority"],
+                ["${empty:-${empty}}", ""],
+                ["${empty:-${empty:-default}}", "default"],
+                ["${empty:-${empty-default}}", ""],
+                ["${empty:-${not_exits}}", ""],
+                ["${empty:-${not_exits:-default}}", "default"],
+                ["${empty:-${not_exits-default}}", "default"],
+                ["${not_exits:-${v1}}", "high priority"],
+                ["${not_exits:-${v1:-default}}", "high priority"],
+                ["${not_exits:-${v1-default}}", "high priority"],
+                ["${not_exits:-${empty}}", ""],
+                ["${not_exits:-${empty:-default}}", "default"],
+                ["${not_exits:-${empty-default}}", ""],
+                ["${not_exits:-${not_exits}}", ""],
+                ["${not_exits:-${not_exits:-default}}", "default"],
+                ["${not_exits:-${not_exits-default}}", "default"],
+            ]),
         ),
     ]
 
