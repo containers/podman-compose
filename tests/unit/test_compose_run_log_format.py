@@ -23,6 +23,7 @@ class TestComposeRunLogFormat(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         self.p = get_minimal_podman()
         self.buffer = io.StringIO()
+        self.unicode_sample = b'\xe3\x81\x82\xe3\x81\x84\n'  # result of 'あい\n'.encode('utf-8')
 
     async def test_single_line_single_chunk(self) -> None:
         reader = DummyReader([b'hello, world\n'])
@@ -63,6 +64,27 @@ class TestComposeRunLogFormat(unittest.IsolatedAsyncioTestCase):
         reader = DummyReader([b'hello\nbye'])
         await self.p._format_stream(reader, self.buffer, 'LL:')  # type: ignore[arg-type]
         self.assertEqual(self.buffer.getvalue(), 'LL: hello\nLL: bye\n')
+
+    async def test_split_multibyte(self) -> None:
+        string = self.unicode_sample
+        mid = 4
+        reader = DummyReader([string[:mid], string[mid:]])
+        await self.p._format_stream(reader, self.buffer, 'LL:')  # type: ignore[arg-type]
+        self.assertEqual(self.buffer.getvalue(), 'LL: あい\n')
+
+    async def test_incomplete_multibyte_at_end(self) -> None:
+        string = self.unicode_sample
+        mid = 4
+        reader = DummyReader([string[:mid]])
+        await self.p._format_stream(reader, self.buffer, 'LL:')  # type: ignore[arg-type]
+        self.assertEqual(self.buffer.getvalue(), 'LL: あ\n')
+
+    async def test_incomplete_multibyte_at_beginning(self) -> None:
+        string = self.unicode_sample
+        mid = 4
+        reader = DummyReader([string[mid:]])
+        with self.assertRaises(UnicodeDecodeError):
+            await self.p._format_stream(reader, self.buffer, 'LL:')  # type: ignore[arg-type]
 
 
 def get_minimal_podman() -> Podman:
