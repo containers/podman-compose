@@ -2312,10 +2312,12 @@ class PodmanCompose:
             dotenv_path = os.path.realpath(args.env_file)
             dotenv_dict.update(dotenv_to_dict(dotenv_path))
 
+        # Match Regex for env_file directive
+        dotenv_dict = rec_subs(dotenv_dict, dict(os.environ))
         os.environ.update({
             key: value  # type: ignore[misc]
             for key, value in dotenv_dict.items()
-            if key.startswith("PODMAN_")  # type: ignore[misc]
+            # if key.startswith("PODMAN_")  # type: ignore[misc]
         })
         self.environ = dotenv_dict  # type: ignore[assignment]
         self.environ.update(dict(os.environ))
