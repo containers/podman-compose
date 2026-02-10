@@ -1644,10 +1644,10 @@ class Podman:
             for i, part in enumerate(parts):
                 # Iff part is last and non-empty, we leave an ongoing line to be completed later
                 if i < len(parts) - 1:
-                    _formatted_print_with_nl(part.decode())
+                    _formatted_print_with_nl(part.decode(errors='ignore'))
                     line_ongoing = False
                 elif len(part) > 0:
-                    _formatted_print_without_nl(part.decode())
+                    _formatted_print_without_nl(part.decode(errors='ignore'))
                     line_ongoing = True
         if line_ongoing:
             # Make sure the last line ends with EOL
