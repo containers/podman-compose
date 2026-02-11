@@ -1,6 +1,6 @@
 -e .
 coverage==7.4.3
-cryptography==44.0.3
+cryptography==46.0.5
 parameterized==0.9.0
 pytest==8.0.2
 tox==4.13.0
