@@ -3,10 +3,14 @@
 import unittest
 from pathlib import Path
 
+from packaging import version
+
 from tests.integration.test_utils import RunSubprocessMixin
+from tests.integration.test_utils import get_podman_version
 
 
 class TestPodmanComposeInclude(unittest.TestCase, RunSubprocessMixin):
+    @unittest.skipIf(get_podman_version() >= version.parse("5.0.0"), "Breaks as of podman-5.4.2.")
     def test_podman_compose_include(self) -> None:
         """
         Test that podman-compose can execute podman-compose -f <file> up with include

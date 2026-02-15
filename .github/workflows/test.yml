@@ -11,6 +11,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [ '3.9', '3.10', '3.11', '3.12', '3.13' ]
+        podman-version: ['4.3.1', '5.4.2']
 
     runs-on: ubuntu-latest
     container:
@@ -20,10 +21,37 @@ jobs:
       options: --privileged --cgroupns=host
     steps:
     - uses: actions/checkout@v6
-    - name: Install dependencies
+    - name: Install podman-4.3.1
+      if: matrix.podman-version == '4.3.1'
       run: |
         set -e
         apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y podman
+    - name: Install dependencies for podman-5.4.2
+      if: matrix.podman-version == '5.4.2'
+      shell: bash
+      run: |
+        DEBIAN_FRONTEND=noninteractive apt update -y && apt install -y buildah
+        BASE_URL="https://github.com/p12tic/podman-compose-test-data/raw/refs/heads/master/deb_files"
+        DEB_FILES=(
+          "${BASE_URL}/deb-files-podman-5.4.2/podman_5.4.2+composetest-1_amd64.deb"
+          "${BASE_URL}/deb-files-crun-1-21/crun_1.21-1_amd64.deb"
+          "${BASE_URL}/deb-files-netavark-1-14/netavark_1.14.0-1_amd64.deb"
+          "${BASE_URL}/deb-files-aardvark-dns-1-14/aardvark-dns_1.14.0-1_amd64.deb"
+        )
+        TMPDIR=$(mktemp -d)
+        trap 'rm -rf "$TMPDIR"' EXIT
+        for url in "${DEB_FILES[@]}"; do
+          # strip everything up to the last slash
+          filename=${url##*/}
+          echo "Downloading $url ..."
+          curl -fsSL -o "$TMPDIR/$filename" "$url"
+        done
+        echo "Installing packages ..."
+        apt-get update -qq
+        apt-get install -y -qq "$TMPDIR"/*.deb
+    - name: Install other test dependencies
+      run: |
+        set -e
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r test-requirements.txt
