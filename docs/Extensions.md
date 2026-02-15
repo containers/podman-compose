@@ -1,6 +1,6 @@
 # Podman specific extensions to the docker-compose format
 
-Podman-compose supports the following extension to the docker-compose format. These extensions
+Podman-compose supports the following extensions to the docker-compose format. These extensions
 are generally specified under fields with "x-podman" prefix in the compose file.
 
 ## Container management
@@ -48,7 +48,7 @@ For explanations of these extensions, please refer to the [podman-run --volume d
 The following extension keys are available under network configuration:
 
 * `x-podman.disable_dns` - Disable the DNS plugin for the network when set to 'true'.
-* `x-podman.dns` - Specifies a list of nameservers for the network This cannot be used with x-podman.disable_dns`.
+* `x-podman.dns` - Specifies a list of nameservers for the network. This cannot be used with x-podman.disable_dns`.
 
 For example, the following docker-compose.yml allows all containers on the same network to use the
 specified nameservers:
@@ -129,7 +129,7 @@ services:
 
 ## Per-network interface name
 
-Using `x-podman.interface_name` within a containers network config you can specify the interface name inside the container.
+Using `x-podman.interface_name` within a container's network config you can specify the interface name inside the container.
 
 ## Podman-specific network modes
 
@@ -159,7 +159,7 @@ Generic docker-compose supports the following values for mount `type`:
 - `bind`
 - `tmpfs`
 
-In addition, podman-compose supports the following podman-pecific values for mount `type`:
+In addition, podman-compose supports the following podman-specific values for mount `type`:
 
 - `glob`
 
@@ -185,7 +185,7 @@ This setting can also be changed by setting the `PODMAN_COMPOSE_DOCKER_COMPOSE_C
 
 Currently, podman-compose is using underscores (`_` character) as a separator in names of
 containers, images, etc., while docker-compose has switched to hyphens (`-` character). This setting
-allows to switch podman-compose to use hyphens as well.
+allows you to switch podman-compose to use hyphens as well.
 
 To enable compatibility between docker-compose and podman-compose, specify
 `name_separator_compat: true` under global `x-podman` key:
@@ -224,7 +224,7 @@ variable.
 ## Compatibility of default network behavior between docker-compose and podman-compose
 
 When there is no network defined (neither network-mode nor networks) in service,
-The behavior of default network in docker-compose and podman-compose are different.
+The behavior of default network in docker-compose and podman-compose is different.
 
 | Top-level networks             | podman-compose             | docker-compose |
 | ------------------------------ | -------------------------- | -------------- |
@@ -246,8 +246,8 @@ variable.
 
 ## Custom pods management
 
-Podman-compose can have containers in pods. This can be controlled by extension key x-podman in_pod.
-It allows providing custom value for --in-pod and is especially relevant when --userns has to be set.
+Podman-compose can have containers in pods. This can be controlled by the extension key x-podman in_pod.
+It allows providing a custom value for --in-pod and is especially relevant when --userns has to be set.
 
 For example, the following docker-compose.yml allows using userns_mode by overriding the default
 value of --in-pod (unless it was specifically provided by "--in-pod=True" in command line interface).

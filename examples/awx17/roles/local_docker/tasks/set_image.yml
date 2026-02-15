@@ -1,7 +1,7 @@
 ---
 - name: Manage AWX Container Images
   block:
-    - name: Export Docker awx image if it isn't local and there isn't a registry defined
+    - name: Export Docker AWX image if it isn't local and there isn't a registry defined
       docker_image:
         name: "{{ awx_image }}"
         tag: "{{ awx_version }}"

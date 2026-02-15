@@ -30,7 +30,7 @@ Features
 - Added support for removing networks in `podman-compose down`.
 - Added support for network scoped service aliases.
 - Added support for network level `mac_address` attribute.
-- Added ability to substitute variables with the environment of the service.
+- Added the ability to substitute variables with the environment of the service.
 
 Misc
 ----

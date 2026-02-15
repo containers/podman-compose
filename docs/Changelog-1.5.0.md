@@ -23,7 +23,7 @@ Features
 - Added support for environment variable interpolation for YAML keys.
 - Added `io.podman.compose.service` label to created containers. It contains the same value as
   `com.docker.compose.service`.
-- Added relabel option to secret to make possible to read the secret file by the contained process.
+- Added relabel option to secret to make possible to read the secret file by the container process.
 - Added support for setting x-podman values using PODMAN_COMPOSE_* environment variables.
 - Added support to set `--route` option to `podman network create` via
   `x-podman.routes` key on network configuration.

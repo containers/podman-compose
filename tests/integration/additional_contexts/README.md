@@ -6,7 +6,7 @@ podman-compose up
 podman-compose down
 ```
 
-expected output would be
+The expected output is
 
 ```
 [dict] | Data for dict

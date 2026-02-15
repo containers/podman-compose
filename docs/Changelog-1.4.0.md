@@ -30,7 +30,7 @@ Features
 - Added `--rmi` argument to `down` command for image removal
 - Added support for `x-podman.disable-dns` to disable DNS plugin on defined networks
 - Added support for `x-podman.dns` to set DNS nameservers for defined networks
-- Improved file descriptor handling - no longer closes externally created descriptors.
+- Improved file descriptor handling by no longer closing externally created descriptors.
   This allows descriptors created e.g. via systemd socket activation to be passed to
   containers.
 - Added support for `cpuset` configuration

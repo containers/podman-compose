@@ -4,7 +4,7 @@
 podman-compose up
 ```
 
-Test the service with `curl like this`
+Test the service with curl like this:
 
 ```
 $ curl -X POST -d "foobar" http://localhost:8080/; echo

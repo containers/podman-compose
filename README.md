@@ -60,7 +60,7 @@ Install the latest stable version from PyPI:
 pip3 install podman-compose
 ```
 
-pass `--user` to install inside regular user home without being root.
+pass `--user` to install inside a regular user's home without being root.
 
 Or latest development version from GitHub:
 

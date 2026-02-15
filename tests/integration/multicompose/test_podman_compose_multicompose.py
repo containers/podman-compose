@@ -50,7 +50,7 @@ class TestComposeMulticompose(unittest.TestCase, RunSubprocessMixin):
                 "-c",
                 "set",
             ])
-            # checks if `enf_file` was appended, not replaced
+            # checks if `env_file` was appended, not replaced
             # (which means that we normalize to array before merge)
             self.assertIn(b"var12='d1/12.env'", output)
 

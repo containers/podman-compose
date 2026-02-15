@@ -1,5 +1,5 @@
 [MESSAGES CONTROL]
-# C0111 missing-docstring: missing-class-docstring, missing-function-docstring, missing-method-docstring, missing-module-docstrin
+# C0111 missing-docstring: missing-class-docstring, missing-function-docstring, missing-method-docstring, missing-module-docstring
 # consider-using-with: we need it for color formatter pipe
 disable=too-many-lines,too-many-branches,too-many-locals,too-many-statements,too-many-arguments,too-many-instance-attributes,fixme,multiple-statements,missing-docstring,line-too-long,consider-using-f-string,consider-using-with,unnecessary-lambda-assignment,broad-exception-caught
 # allow _ for ignored variables

@@ -63,6 +63,6 @@ class TestPodmanComposeInclude(unittest.TestCase, RunSubprocessMixin):
         out, _ = self.run_subprocess_assert_returncode(command_down)
         # cleanup test image(tags)
         self.assertNotEqual(out, b"")
-        # check container did not exists anymore
+        # check container did not exist anymore
         out, _ = self.run_subprocess_assert_returncode(command_check_container)
         self.assertEqual(out, b"")
