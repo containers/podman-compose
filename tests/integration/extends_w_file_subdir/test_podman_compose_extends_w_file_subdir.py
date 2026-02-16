@@ -99,6 +99,6 @@ class TestComposeExtendsWithFileSubdir(unittest.TestCase, RunSubprocessMixin):
             "localhost/subdir_test:me",
         ])
 
-        # check container did not exists anymore
+        # check container did not exist anymore
         out, _ = self.run_subprocess_assert_returncode(command_check_container)
         self.assertEqual(out, b'')

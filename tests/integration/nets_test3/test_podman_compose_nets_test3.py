@@ -33,7 +33,7 @@ class TestComposeNetsTest3(unittest.TestCase, RunSubprocessMixin):
     def test_nets_test3(
         self,
         container_name: str,
-        nework_alias_name: str,
+        network_alias_name: str,
         expected_text: bytes,
         expected_returncode: int,
     ) -> None:
@@ -59,7 +59,7 @@ class TestComposeNetsTest3(unittest.TestCase, RunSubprocessMixin):
                 "-",
                 "-o",
                 "/dev/null",
-                f"http://{nework_alias_name}:8001/index.txt",
+                f"http://{network_alias_name}:8001/index.txt",
             ]
             out, _, returncode = self.run_subprocess(cmd)
             self.assertEqual(expected_returncode, returncode)

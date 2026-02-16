@@ -249,7 +249,7 @@ class TestPodmanComposeInPod(unittest.TestCase, RunSubprocessMixin):
     def test_x_podman_in_pod_true_command_line_in_pod_true(self) -> None:
         """
         Test that podman-compose does not allow pod creating when --userns and --pod are set
-        together even when x-podman in_pod=true and and command line in_pod=True: throws an error
+        together even when x-podman in_pod=true and command line in_pod=True: throws an error
         """
         # FIXME: creates a pod anyway, although it should not
         # Container is not created, so command 'down' is not needed

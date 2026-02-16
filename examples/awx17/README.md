@@ -1,6 +1,6 @@
 # AWX Compose
 
-the directory roles is taken from [here](https://github.com/ansible/awx/tree/17.1.0/installer/roles/local_docker)
+The directory roles is taken from [here](https://github.com/ansible/awx/tree/17.1.0/installer/roles/local_docker)
 
 also look at https://github.com/ansible/awx/tree/17.1.0/tools/docker-compose
 

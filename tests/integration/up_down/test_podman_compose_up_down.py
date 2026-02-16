@@ -28,7 +28,7 @@ class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
 
     def setUp(self) -> None:
         """
-        Retag the debian image before each test to no mess with the other integration tests when
+        Retag the debian image before each test to not mess with the other integration tests when
         testing the `--rmi` argument
         """
         tag_cmd = [

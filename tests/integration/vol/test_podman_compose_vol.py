@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 
 """
-test_podman_compose_up_down.py
+test_podman_compose_vol.py
 
-Tests the podman compose up and down commands used to create and remove services.
+Tests the podman compose up and down commands used to create and remove services with volumes.
 """
 
 # pylint: disable=redefined-outer-name

@@ -9,7 +9,7 @@ from tests.integration.test_utils import test_path
 
 
 def compose_yaml_path():
-    """ "Returns the path to the compose file used for this test module"""
+    """Returns the path to the compose file used for this test module"""
     base_path = os.path.join(test_path(), "build_fail")
     return os.path.join(base_path, "docker-compose.yml")
 

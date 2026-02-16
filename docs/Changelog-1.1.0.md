@@ -8,7 +8,7 @@ Bug fixes
 - Fixed duplicate arguments being emitted in `stop` and `restart` commands.
 - Removed extraneous debug output. `--verbose` flag has been added to preserve verbose output.
 - Links aliases are now added to service aliases.
-- Fixed image build process to use defined environmental variables.
+- Fixed image build process to use defined environment variables.
 - Empty list is now allowed to be `COMMAND` and `ENTRYPOINT`.
 - Environment files are now resolved relative to current working directory.
 - Exit code of container build is now preserved as return code of `build` command.

@@ -145,7 +145,7 @@ def parse_short_mount(mount_str: str, basedir: str) -> dict[str, Any]:
     mount_opt_dict: dict[str, Any] = {}
     mount_opt = None
     if len(mount_a) == 1:
-        # Anonymous: Just specify a path and let the engine creates the volume
+        # Anonymous: Just specify a path and let the engine create the volume
         # - /var/lib/mysql
         mount_src, mount_dst = None, mount_str
     elif len(mount_a) == 2:
@@ -211,7 +211,7 @@ def fix_mount_dict(
     - if name is missing it would be source prefixed with project
     - if no source it would be generated
     """
-    # if already applied nothing todo
+    # if already applied nothing to do
     assert compose.project_name is not None
 
     if "_vol" in mount_dict:
@@ -288,7 +288,7 @@ def rec_subs(value: dict | str | Iterable, subs_dict: dict[str, Any]) -> dict | 
             subs_dict = subs_dict.copy()
             svc_envs = {k: v for k, v in value['environment'].items() if k not in subs_dict}
             # we need to add `svc_envs` to the `subs_dict` so that it can evaluate the
-            # service environment that reference to another service environment.
+            # service environment that references another service environment.
             svc_envs = rec_subs(svc_envs, subs_dict)
             subs_dict.update(svc_envs)
 
@@ -431,7 +431,7 @@ async def assert_volume(compose: PodmanCompose, mount_dict: dict[str, Any]) -> N
         _ = (await compose.podman.output([], "volume", ["inspect", vol_name])).decode("utf-8")
     except subprocess.CalledProcessError as e:
         if is_ext:
-            raise RuntimeError(f"External volume [{vol_name}] does not exists") from e
+            raise RuntimeError(f"External volume [{vol_name}] does not exist") from e
         labels = vol.get("labels", [])
         args = [
             "create",
@@ -673,7 +673,7 @@ def get_secret_args(
                 mount_options += selinux_relabel_to_mount_option_map[x_podman_relabel]
             except KeyError as exc:
                 raise ValueError(
-                    f'ERROR: Run secret "{secret_name} has invalid "relabel" option related '
+                    f'ERROR: Run secret "{secret_name}" has invalid "relabel" option related '
                     + f' to SELinux "{x_podman_relabel}". Expected "z" "Z" or nothing.'
                 ) from exc
             volume_ref = ["--volume", f"{source_file}:{dest_file}:{mount_options}"]
@@ -962,7 +962,7 @@ async def assert_cnt_nets(compose: PodmanCompose, cnt: dict[str, Any]) -> None:
             await compose.podman.output([], "network", ["exists", net_name])
         except subprocess.CalledProcessError as e:
             if is_ext:
-                raise RuntimeError(f"External network [{net_name}] does not exists") from e
+                raise RuntimeError(f"External network [{net_name}] does not exist") from e
             args = get_network_create_args(net_desc, compose.project_name, net_name)
             await compose.podman.output([], "network", args)
             await compose.podman.output([], "network", ["exists", net_name])
@@ -1311,7 +1311,7 @@ async def container_to_args(
                 podman_args.extend(["--healthcheck-command", json.dumps(healthcheck_test)])
             elif healthcheck_type == "CMD-SHELL":
                 if len(healthcheck_test) != 1:
-                    raise ValueError("'CMD_SHELL' takes a single string after it")
+                    raise ValueError("'CMD-SHELL' takes a single string after it")
                 podman_args.extend(["--healthcheck-command", json.dumps(healthcheck_test)])
             else:
                 raise ValueError(
@@ -1384,7 +1384,7 @@ class ServiceDependencyCondition(Enum):
             if member.value == value:
                 return member
 
-        # Check if this is a value coming from  reference
+        # Check if this is a value coming from a reference
         docker_to_podman_cond = {
             "service_healthy": ServiceDependencyCondition.HEALTHY,
             "service_started": ServiceDependencyCondition.RUNNING,
@@ -1431,7 +1431,7 @@ def rec_deps(
         start_point = service_name
     deps = services[service_name]["_deps"]
     for dep_name in deps.copy():
-        # avoid A depens on A
+        # avoid A depends on A
         if dep_name.name == service_name:
             continue
         dep_srv = services.get(dep_name.name)
@@ -3040,7 +3040,7 @@ def container_to_build_args(
             cleanup_callbacks.append(cleanup_temp_dockfile)
 
     build_args = []
-    # if givent context was not recognized as git url, try joining paths to get a file locally
+    # if given context was not recognized as git url, try joining paths to get a file locally
     if not is_context_git_url(ctx):
         custom_dockerfile_given = False
         if dockerfile:
@@ -3228,7 +3228,7 @@ def get_excluded(
     if args.services:
         excluded = set(compose.services)
         for service in args.services:
-            # we need 'getattr' as compose_down_parse dose not configure 'no_deps'
+            # we need 'getattr' as compose_down_parse does not configure 'no_deps'
             if service in compose.services and not getattr(args, "no_deps", False):
                 excluded -= set(x.name for x in compose.services[service].get(dep_field, set()))
             excluded.discard(service)
@@ -3363,16 +3363,16 @@ async def pull_images(
     services: list[dict[str, Any]],
 ) -> int | None:
     pull_tasks = []
-    settingettings: dict[str, PullImageSettings] = {}
+    settings: dict[str, PullImageSettings] = {}
     for pull_service in services:
         if not is_local(pull_service):
             image = str(pull_service.get("image", ""))
             policy = getattr(args, "pull", None) or pull_service.get("pull_policy", "missing")
 
-            if image in settingettings:
-                settingettings[image].update_policy(policy)
+            if image in settings:
+                settings[image].update_policy(policy)
             else:
-                settingettings[image] = PullImageSettings(
+                settings[image] = PullImageSettings(
                     image, policy, getattr(args, "quiet_pull", False)
                 )
 
@@ -3382,9 +3382,9 @@ async def pull_images(
                 # we should try to pull the image first,
                 # and then build it if it does not exist.
                 # we should not stop here if pull fails.
-                settingettings[image].ignore_pull_error = True
+                settings[image].ignore_pull_error = True
 
-    for s in settingettings.values():
+    for s in settings.values():
         pull_tasks.append(pull_image(podman, s))
 
     if pull_tasks:

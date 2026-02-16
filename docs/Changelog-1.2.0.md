@@ -31,7 +31,7 @@ New features
 - Added support for multi-line environment files.
 - Added support for passing contents of `podman-compose.yml` via stdin.
 - Added support for specifying the value for `--in-pod` setting in `podman-compose.yml` file.
-- Added support for environmental secrets.
+- Added support for environment secrets.
 
 Documentation
 -------------

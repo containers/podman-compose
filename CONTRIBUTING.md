@@ -87,7 +87,7 @@ Note: Some steps are OPTIONAL but all are RECOMMENDED.
 To add a command, you need to add a function that is decorated with `@cmd_run`.
 
 The decorated function must be declared `async` and should accept two arguments: The compose
-instance and the command-specific arguments (resulted from the Python's `argparse` package).
+instance and the command-specific arguments (resulting from Python's `argparse` package).
 
 In this function, you can run Podman (e.g. `await compose.podman.run(['inspect', 'something'])`),
 access `compose.pods`, `compose.containers` etc.
