@@ -29,7 +29,11 @@ class TestGetPodmanArgsTlsVerify(unittest.TestCase):
         compose = compose_with_tls_verify("true")
         for cmd in ("pull", "push", "build"):
             xargs = compose.get_podman_args(cmd)
-            self.assertNotIn("--tls-verify=false", xargs, f"cmd={cmd} should not get --tls-verify=false when tls_verify=true")
+            self.assertNotIn(
+                "--tls-verify=false",
+                xargs,
+                f"cmd={cmd} should not get --tls-verify=false when tls_verify=true",
+            )
 
     def test_tls_verify_false_pull_injects_flag(self) -> None:
         compose = compose_with_tls_verify("false")
@@ -53,7 +57,9 @@ class TestGetPodmanArgsTlsVerify(unittest.TestCase):
         compose = compose_with_tls_verify("false")
         for cmd in ("run", "start", "stop", "rm", "inspect", "volume"):
             xargs = compose.get_podman_args(cmd)
-            self.assertNotIn("--tls-verify=false", xargs, f"cmd={cmd} must not get --tls-verify=false")
+            self.assertNotIn(
+                "--tls-verify=false", xargs, f"cmd={cmd} must not get --tls-verify=false"
+            )
 
     def test_tls_verify_false_with_podman_pull_args(self) -> None:
         compose = compose_with_tls_verify("false")
