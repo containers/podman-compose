@@ -63,6 +63,8 @@ def filteri(a: list[str]) -> list[str]:
 
 @overload
 def try_int(i: int | str, fallback: int) -> int: ...
+
+
 @overload
 def try_int(i: int | str, fallback: None) -> int | None: ...
 
@@ -272,8 +274,12 @@ var_re = re.compile(
 
 @overload
 def rec_subs(value: dict, subs_dict: dict[str, Any]) -> dict: ...
+
+
 @overload
 def rec_subs(value: str, subs_dict: dict[str, Any]) -> str: ...
+
+
 @overload
 def rec_subs(value: Iterable, subs_dict: dict[str, Any]) -> Iterable: ...
 
@@ -2112,6 +2118,12 @@ class PodmanCompose:
         cmd_args = self.global_args.__dict__.get(f"podman_{cmd_norm}_args", [])
         for args in cmd_args:
             xargs.extend(shlex.split(args))
+        if getattr(self.global_args, "tls_verify", "true") == "false" and cmd in (
+            "pull",
+            "push",
+            "build",
+        ):
+            xargs.insert(0, "--tls-verify=false")
         return xargs
 
     async def run(self, argv: list[str] | None = None) -> None:
@@ -2735,6 +2747,22 @@ class PodmanCompose:
                 action="append",
                 default=[],
             )
+        tls_verify_env = (
+            "false"
+            if os.environ.get("PODMAN_COMPOSE_TLS_VERIFY", "true").strip().lower() == "false"
+            else "true"
+        )
+        parser.add_argument(
+            "--tls-verify",
+            help=(
+                "require TLS verification for registry (pull/push/build). "
+                "Use false for self-signed or corporate registries "
+                "(default: true, or PODMAN_COMPOSE_TLS_VERIFY env)"
+            ),
+            metavar="true|false",
+            choices=("true", "false"),
+            default=tls_verify_env,
+        )
         parser.add_argument(
             "--no-ansi",
             help="Do not print ANSI control characters",
