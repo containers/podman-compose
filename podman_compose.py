@@ -2112,6 +2112,8 @@ class PodmanCompose:
         cmd_args = self.global_args.__dict__.get(f"podman_{cmd_norm}_args", [])
         for args in cmd_args:
             xargs.extend(shlex.split(args))
+        if getattr(self.global_args, "tls_verify", "true") == "false" and cmd in ("pull", "push", "build"):
+            xargs.insert(0, "--tls-verify=false")
         return xargs
 
     async def run(self, argv: list[str] | None = None) -> None:
@@ -2735,6 +2737,14 @@ class PodmanCompose:
                 action="append",
                 default=[],
             )
+        tls_verify_env = (os.environ.get("PODMAN_COMPOSE_TLS_VERIFY", "true").strip().lower() == "false") and "false" or "true"
+        parser.add_argument(
+            "--tls-verify",
+            help="require TLS verification for registry (pull/push/build). Use false for self-signed or corporate registries (default: true, or PODMAN_COMPOSE_TLS_VERIFY env)",
+            metavar="true|false",
+            choices=("true", "false"),
+            default=tls_verify_env,
+        )
         parser.add_argument(
             "--no-ansi",
             help="Do not print ANSI control characters",
