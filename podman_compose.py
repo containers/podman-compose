@@ -2748,9 +2748,9 @@ class PodmanCompose:
                 default=[],
             )
         tls_verify_env = (
-            (os.environ.get("PODMAN_COMPOSE_TLS_VERIFY", "true").strip().lower() == "false")
-            and "false"
-            or "true"
+            "false"
+            if os.environ.get("PODMAN_COMPOSE_TLS_VERIFY", "true").strip().lower() == "false"
+            else "true"
         )
         parser.add_argument(
             "--tls-verify",
