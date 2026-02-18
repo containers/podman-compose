@@ -197,7 +197,9 @@ class TestComposeConditionalDepsHealthy(unittest.TestCase, PodmanAwareRunSubproc
     def setUp(self) -> None:
         self.podman_version = self.retrieve_podman_version()
 
-    @unittest.skipIf(get_podman_version() >= version.parse("5.0.0"), "Breaks as of podman-5.4.2.")
+    @unittest.skipIf(
+        get_podman_version() > version.parse("4.4.0"), "Breaks as of podman-4.9.5 and podman-5.4.2."
+    )
     def test_up_deps_healthy(self) -> None:
         suffix = "-conditional-healthy"
         try:
