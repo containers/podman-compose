@@ -1,0 +1,14 @@
+version: '3'
+
+# The Podman socket is forwarded into the container's context
+services:
+  test-docker-in-docker:
+    build:
+      dockerfile_inline: |
+        FROM nopush/podman-compose-test
+        RUN apt install -y curl
+    security_opt:
+      - label=disable
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: ["curl", "-s", "--unix-socket", "/var/run/docker.sock", "http://v1.41/info"]
