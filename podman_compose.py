@@ -3236,6 +3236,21 @@ def get_excluded(
     return excluded
 
 
+async def _validate_completed_successfully(compose: PodmanCompose, container_names: list) -> None:
+    """Validate that containers exited with code 0 for service_completed_successfully"""
+    for container_name in container_names:
+        inspect_output = await compose.podman.output([], "inspect", [container_name])
+        container_info = json.loads(inspect_output)[0]
+
+        exit_code = container_info.get("State", {}).get("ExitCode", -1)
+        if exit_code != 0:
+            error_msg = (
+                f"Container {container_name} didn't complete successfully: exit code {exit_code}"
+            )
+            log.error(error_msg)
+            raise RuntimeError(error_msg)
+
+
 async def check_dep_conditions(compose: PodmanCompose, deps: set) -> None:
     """Enforce that all specified conditions in deps are met"""
     if not deps:
@@ -3269,6 +3284,11 @@ async def check_dep_conditions(compose: PodmanCompose, deps: set) -> None:
                     await compose.podman.output(
                         [], "wait", [f"--condition={condition.value}"] + deps_cd
                     )
+
+                    # service_completed_successfully requires exit code 0
+                    if condition == ServiceDependencyCondition.STOPPED:
+                        await _validate_completed_successfully(compose, deps_cd)
+
                     log.debug(
                         "dependencies for condition %s have been fulfilled on containers %s",
                         condition.value,
