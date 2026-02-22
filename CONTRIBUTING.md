@@ -43,8 +43,6 @@ a release note should look like.
 
 ## Development environment setup
 
-Note: Some steps are OPTIONAL but all are RECOMMENDED.
-
 1. Fork the project repository and clone it:
 
    ```shell
@@ -52,21 +50,16 @@ Note: Some steps are OPTIONAL but all are RECOMMENDED.
    $ cd podman-compose
    ```
 
-2. (OPTIONAL) Create a Python virtual environment. Example using python builtin
-   `venv` module:
+2. Create a Python virtual environment and install project requirements.
+   Example using python builtin `venv` module:
 
     ```shell
     $ python3 -m venv .venv
     $ . .venv/bin/activate
+    $ pip install '.[devel]'
     ```
 
-3. Install the project runtime and development requirements:
-
-   ```shell
-   $ pip install '.[devel]'
-   ```
-
-4. (OPTIONAL) Install `pre-commit` git hook scripts
+3. (OPTIONAL) Install `pre-commit` git hook scripts
    (https://pre-commit.com/#3-install-the-git-hook-scripts):
 
    ```shell
