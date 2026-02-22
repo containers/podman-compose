@@ -15,7 +15,7 @@ This project only depends on:
   by default and you need to install them. This allows containers to be able to resolve
   each other if they are on the same CNI network. This is not necessary when podman is using
   netavark as a network backend.
-* Python3
+* Python 3.9 or newer
 * [PyYAML](https://pyyaml.org/)
 * [python-dotenv](https://pypi.org/project/python-dotenv/)
 
