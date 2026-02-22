@@ -11,7 +11,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [ '3.9', '3.10', '3.11', '3.12', '3.13' ]
-        podman-version: ['4.3.1', '4.9.5', '5.4.2']
+        podman-version: ['4.3.1', '4.9.5', '5.0.3', '5.4.2']
 
     runs-on: ubuntu-latest
     container:
@@ -34,6 +34,27 @@ jobs:
         BASE_URL="https://github.com/p12tic/podman-compose-test-data/raw/refs/heads/master/deb_files"
         DEB_FILES=(
           "${BASE_URL}/deb-files-podman-4.9.5/podman_4.9.5+compose1-1_amd64.deb"
+          "${BASE_URL}/deb-files-crun-1-21/crun_1.21-1_amd64.deb"
+        )
+        TMPDIR=$(mktemp -d)
+        trap 'rm -rf "$TMPDIR"' EXIT
+        for url in "${DEB_FILES[@]}"; do
+          # strip everything up to the last slash
+          filename=${url##*/}
+          echo "Downloading $url ..."
+          curl -fsSL -o "$TMPDIR/$filename" "$url"
+        done
+        echo "Installing packages ..."
+        apt-get update -qq
+        apt-get install -y -qq "$TMPDIR"/*.deb
+    - name: Install dependencies for podman-5.0.3
+      if: matrix.podman-version == '5.0.3'
+      shell: bash
+      run: |
+        DEBIAN_FRONTEND=noninteractive apt update -y && apt install -y buildah
+        BASE_URL="https://github.com/p12tic/podman-compose-test-data/raw/refs/heads/master/deb_files"
+        DEB_FILES=(
+          "${BASE_URL}/deb-files-podman-5.0.3/podman_5.0.3+compose1-1_amd64.deb"
           "${BASE_URL}/deb-files-crun-1-21/crun_1.21-1_amd64.deb"
         )
         TMPDIR=$(mktemp -d)
