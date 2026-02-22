@@ -1,13 +1,5 @@
 # Contributing to podman-compose
 
-## Who can contribute?
-
-- Users that found a bug,
-- Users that want to propose new functionalities or enhancements,
-- Users that want to help other users to troubleshoot their environments,
-- Developers that want to fix bugs,
-- Developers that want to implement new functionalities or enhancements.
-
 ## Development environment setup
 
 Note: Some steps are OPTIONAL but all are RECOMMENDED.
