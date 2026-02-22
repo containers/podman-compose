@@ -5,24 +5,6 @@ repos:
     hooks:
       - id: ruff
         types: [python]
-  - repo: https://github.com/pycqa/flake8
-    rev: 6.0.0
-    hooks:
-      - id: flake8
-        types: [python]
-  - repo: local
-    hooks:
-      - id: pylint
-        name: pylint
-        entry: pylint
-        language: system
-        types: [python]
-        args:
-          [
-            "-rn", # Only display messages
-            "-sn", # Don't display the score
-            "--rcfile=.pylintrc", # Link to your config file
-          ]
   - repo: https://github.com/codespell-project/codespell
     rev: v2.2.5
     hooks:
