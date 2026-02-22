@@ -29,6 +29,7 @@ squashed together. Otherwise they just confuse the reviewer.
 Do not add `feat:` or `fix:` prefixes to commit messages.
 
 Commits require a `Signed-off-by` message ([guide](https://github.com/containers/common/blob/main/CONTRIBUTING.md#sign-your-prs)).
+If you forget to add this message, run `git rebase main --signoff`.
 
 ### PR description
 
