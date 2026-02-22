@@ -11,6 +11,8 @@ types-PyYAML==6.0.12.20250402
 types-requests==2.32.0.20250328
 types-setuptools==80.7.0.20250516
 
+# NOTE: when upgrading the above packages, also upgrade .pre-commit-config.yaml
+
 # The packages below are transitive dependencies of the packages above and are included here
 # to make testing reproducible.
 # To refresh, create a new virtualenv and do:
