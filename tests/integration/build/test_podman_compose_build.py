@@ -5,9 +5,9 @@ import unittest
 
 import requests
 
+from tests.integration.test_utils import RunSubprocessMixin
 from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
-from tests.integration.test_utils import RunSubprocessMixin
 
 
 def compose_yaml_path():
