@@ -5,6 +5,7 @@ import re
 import subprocess
 import time
 from pathlib import Path
+from typing import Optional
 
 from packaging import version
 
@@ -58,7 +59,12 @@ class RunSubprocessMixin:
     def is_debug_enabled(self) -> bool:
         return "TESTS_DEBUG" in os.environ
 
-    def run_subprocess(self, args: list[str], env: dict[str, str] = {}) -> tuple[bytes, bytes, int]:
+    def run_subprocess(
+        self,
+        args: list[str],
+        env: dict[str, str] = {},
+        timeout: Optional[float] = None,
+    ) -> tuple[bytes, bytes, int]:
         begin = time.time()
         if self.is_debug_enabled():
             print("TEST_CALL", args)
@@ -68,7 +74,7 @@ class RunSubprocessMixin:
             stderr=subprocess.PIPE,
             env=os.environ | env,
         )
-        out, err = proc.communicate()
+        out, err = proc.communicate(timeout=timeout)
         if self.is_debug_enabled():
             print("TEST_CALL completed", time.time() - begin)
             print("STDOUT:", out.decode('utf-8'))
@@ -76,9 +82,13 @@ class RunSubprocessMixin:
         return out, err, proc.returncode
 
     def run_subprocess_assert_returncode(
-        self, args: list[str], expected_returncode: int = 0, env: dict[str, str] = {}
+        self,
+        args: list[str],
+        expected_returncode: int = 0,
+        env: dict[str, str] = {},
+        timeout: Optional[float] = None,
     ) -> tuple[bytes, bytes]:
-        out, err, returncode = self.run_subprocess(args, env=env)
+        out, err, returncode = self.run_subprocess(args, env=env, timeout=timeout)
         decoded_out = out.decode('utf-8')
         decoded_err = err.decode('utf-8')
         self.assertEqual(  # type: ignore[attr-defined]

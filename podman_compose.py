@@ -11,6 +11,7 @@ from __future__ import annotations  # If you see an error here, use Python 3.7 o
 import argparse
 import asyncio.exceptions
 import asyncio.subprocess
+import codecs
 import getpass
 import glob
 import hashlib
@@ -1632,6 +1633,7 @@ class Podman:
         self, reader: asyncio.StreamReader, sink: Any, log_formatter: str
     ) -> None:
         line_ongoing = False
+        decoder = codecs.getincrementaldecoder("utf-8")()
 
         def _formatted_print_with_nl(s: str) -> None:
             if line_ongoing:
@@ -1652,11 +1654,20 @@ class Podman:
             for i, part in enumerate(parts):
                 # Iff part is last and non-empty, we leave an ongoing line to be completed later
                 if i < len(parts) - 1:
-                    _formatted_print_with_nl(part.decode())
+                    _formatted_print_with_nl(decoder.decode(part))
                     line_ongoing = False
                 elif len(part) > 0:
-                    _formatted_print_without_nl(part.decode())
+                    _formatted_print_without_nl(decoder.decode(part))
                     line_ongoing = True
+                else:
+                    # When we have an empty string as the last part:
+                    # Do nothing if it's the only part (=the chunk is empty).
+                    # If it's 2nd or later part, an empty new line will be redundant.
+                    pass
+
+        buf, _ = decoder.getstate()
+        if len(buf) > 0:
+            log.error("Incomplete multibyte character ignored in log output: %s", buf)
         if line_ongoing:
             # Make sure the last line ends with EOL
             print(file=sink, end="\n")

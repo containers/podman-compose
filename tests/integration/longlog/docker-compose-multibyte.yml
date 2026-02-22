@@ -1,0 +1,4 @@
+services:
+  s1:
+    image: docker.io/python:3.11-slim
+    command: env LANG=ja_JP.utf8 python -c'print("あ" * 10000000 + " end", end="")'
