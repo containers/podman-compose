@@ -3787,6 +3787,7 @@ async def compose_run(compose: PodmanCompose, args: argparse.Namespace) -> None:
             )
         )
         await compose.commands["up"](compose, up_args)
+        await check_dep_conditions(compose, deps_from_container(up_args, cnt))
 
     build_args = argparse.Namespace(
         services=[args.service], if_not_exists=(not args.build), build_arg=[], **args.__dict__
