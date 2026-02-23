@@ -2062,7 +2062,12 @@ def resolve_extends(
             normalize_service(from_service, subdirectory)
         else:
             from_service = services.get(from_service_name, {}).copy()
-            del from_service["_deps"]
+            try:
+                del from_service["_deps"]
+            except KeyError as e:
+                raise KeyError(
+                    f"{from_service_name} not found at services.{name}.extends definition"
+                ) from e
             try:
                 del from_service["extends"]
             except KeyError:
