@@ -20,47 +20,20 @@ def good_compose_yaml_path() -> str:
 
 class TestComposeBuildParseError(unittest.TestCase, RunSubprocessMixin):
     def test_no_error(self) -> None:
-        try:
-            _, err = self.run_subprocess_assert_returncode(
-                [podman_compose_path(), "-f", good_compose_yaml_path(), "config"], 0
-            )
-            self.assertEqual(b"", err)
-
-        finally:
-            self.run_subprocess([
-                podman_compose_path(),
-                "-f",
-                bad_compose_yaml_path(),
-                "down",
-            ])
+        _, err = self.run_subprocess_assert_returncode(
+            [podman_compose_path(), "-f", good_compose_yaml_path(), "config"], 0
+        )
+        self.assertEqual(b"", err)
 
     def test_simple_parse_error(self) -> None:
-        try:
-            _, err = self.run_subprocess_assert_returncode(
-                [podman_compose_path(), "-f", bad_compose_yaml_path(), "config"], 1
-            )
-            self.assertIn(b"could not find expected ':'", err)
-            self.assertNotIn(b"\nTraceback (most recent call last):\n", err)
-
-        finally:
-            self.run_subprocess([
-                podman_compose_path(),
-                "-f",
-                bad_compose_yaml_path(),
-                "down",
-            ])
+        _, err = self.run_subprocess_assert_returncode(
+            [podman_compose_path(), "-f", bad_compose_yaml_path(), "config"], 1
+        )
+        self.assertIn(b"could not find expected ':'", err)
+        self.assertNotIn(b"\nTraceback (most recent call last):\n", err)
 
     def test_verbose_parse_error_contains_stack_trace(self) -> None:
-        try:
-            _, err = self.run_subprocess_assert_returncode(
-                [podman_compose_path(), "--verbose", "-f", bad_compose_yaml_path(), "config"], 1
-            )
-            self.assertIn(b"\nTraceback (most recent call last):\n", err)
-
-        finally:
-            self.run_subprocess([
-                podman_compose_path(),
-                "-f",
-                bad_compose_yaml_path(),
-                "down",
-            ])
+        _, err = self.run_subprocess_assert_returncode(
+            [podman_compose_path(), "--verbose", "-f", bad_compose_yaml_path(), "config"], 1
+        )
+        self.assertIn(b"\nTraceback (most recent call last):\n", err)
