@@ -2100,6 +2100,44 @@ COMPOSE_DEFAULT_LS = [
 ]
 
 
+def find_compose_files_recursively(
+    start_dir: str, compose_files: list[str], max_depth: int = 10
+) -> tuple[list[str], str] | None:
+    """
+    Search for compose files recursively up the directory tree.
+
+    Args:
+        start_dir: Directory to start searching from
+        compose_files: List of compose file names to search for
+        max_depth: Maximum depth
+
+    Returns:
+        A tuple (found_files, base_directory) or None if no files found
+    """
+    current_dir = os.path.abspath(start_dir)
+
+    for _ in range(max_depth):
+        found_files = []
+        for compose_file in compose_files:
+            file_path = os.path.join(current_dir, compose_file)
+            if os.path.exists(file_path):
+                found_files.append(file_path)
+
+        if found_files:
+            log.debug("Found compose files in %s: %s", current_dir, found_files)
+            return found_files, current_dir
+
+        parent_dir = os.path.dirname(current_dir)
+
+        # If we've reached the root directory, stop searching
+        if parent_dir == current_dir:
+            break
+
+        current_dir = parent_dir
+
+    return None
+
+
 class PodmanCompose:
     class XPodmanSettingKey(Enum):
         DOCKER_COMPOSE_COMPAT = "docker_compose_compat"
@@ -2315,13 +2353,30 @@ class PodmanCompose:
         if project_dir and os.path.isdir(project_dir):
             os.chdir(project_dir)
         pathsep = os.environ.get("COMPOSE_PATH_SEPARATOR", os.pathsep)
+
         if not args.file:
             default_str = os.environ.get("COMPOSE_FILE")
             if default_str:
                 default_ls = default_str.split(pathsep)
+                args.file = list(filter(os.path.exists, default_ls))
             else:
-                default_ls = COMPOSE_DEFAULT_LS
-            args.file = list(filter(os.path.exists, default_ls))
+                # Recursive search up the directory tree
+                current_working_dir = os.getcwd()
+                log.debug("Starting compose file search from directory: %s", current_working_dir)
+                result = find_compose_files_recursively(current_working_dir, COMPOSE_DEFAULT_LS)
+
+                if result:
+                    found_files, base_dir = result
+                    args.file = found_files
+                    # Change to the directory where compose files were found
+                    log.info("Found compose files in: %s", base_dir)
+                    log.info("Changing working directory to: %s", base_dir)
+                    os.chdir(base_dir)
+                else:
+                    # Fallback to original behavior if no files found
+                    default_ls = COMPOSE_DEFAULT_LS
+                    args.file = list(filter(os.path.exists, default_ls))
+
         files = args.file
         if not files:
             log.fatal(
