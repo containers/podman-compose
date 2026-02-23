@@ -3089,7 +3089,8 @@ def container_to_build_args(
                         break
 
             if path_exists(dockerfile_from_cwd):
-                # normalize dockerfile path, as the user could have provided unpredictable file formats
+                # normalize dockerfile path, as the user could have provided unpredictable
+                # file formats
                 build_args.extend(["-f", dockerfile])
             else:
                 if custom_dockerfile_given:
