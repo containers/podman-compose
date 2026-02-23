@@ -174,7 +174,7 @@ class TestContainerToBuildArgs(unittest.TestCase):
                 '--no-cache',
                 '../',
             ],
-            args
+            args,
         )
 
     def test_dockerfile_with_relative_context_and_dockerfile_1(self):
@@ -197,7 +197,7 @@ class TestContainerToBuildArgs(unittest.TestCase):
                 '--no-cache',
                 'subdir/',
             ],
-            args
+            args,
         )
 
     def test_dockerfile_with_absolute_context_and_dockerfile(self):
@@ -221,7 +221,7 @@ class TestContainerToBuildArgs(unittest.TestCase):
                 '--pull-always',
                 '/context/path',
             ],
-            args
+            args,
         )
 
     def test_dockerfile_inline(self):
