@@ -63,8 +63,6 @@ def filteri(a: list[str]) -> list[str]:
 
 @overload
 def try_int(i: int | str, fallback: int) -> int: ...
-
-
 @overload
 def try_int(i: int | str, fallback: None) -> int | None: ...
 
@@ -274,12 +272,8 @@ var_re = re.compile(
 
 @overload
 def rec_subs(value: dict, subs_dict: dict[str, Any]) -> dict: ...
-
-
 @overload
 def rec_subs(value: str, subs_dict: dict[str, Any]) -> str: ...
-
-
 @overload
 def rec_subs(value: Iterable, subs_dict: dict[str, Any]) -> Iterable: ...
 
