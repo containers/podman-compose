@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: GPL-2.0
 
 import os
-from parameterized import parameterized
 import unittest
 
+from parameterized import parameterized
+
+from tests.integration.test_utils import RunSubprocessMixin
 from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
-from tests.integration.test_utils import RunSubprocessMixin
 
 
 def compose_yaml_path():
