@@ -3871,6 +3871,42 @@ def compose_run_update_container_from_args(
         del cnt["restart"]
 
 
+@cmd_run(
+    podman_compose, "cp", "copy files/folders between a service container and the local filesystem"
+)
+async def compose_cp(compose: PodmanCompose, args: argparse.Namespace) -> None:
+    if ':' in args.src:
+        service = args.src.split(':', 1)[0]
+    elif ':' in args.dst:
+        service = args.dst.split(':', 1)[0]
+    compose.assert_services(service)
+    container_names = compose.container_names_by_service[service]
+    container_name = container_names[0]
+    podman_args = compose_cp_args(container_name, args)
+    p = await compose.podman.run([], "cp", podman_args)
+    sys.exit(p)
+
+
+def compose_cp_args(container_name: str, args: argparse.Namespace) -> list[str]:
+    podman_args = []
+    if args.archive:
+        podman_args += ["--archive"]
+    if args.overwrite:
+        podman_args += ["--overwrite"]
+
+    # Determine which argument has the colon so we know the direction
+    if ':' in args.src:
+        # container -> local
+        cnt_path = args.src.split(":", 1)[1]
+        podman_args += [container_name + ':' + cnt_path, args.dst]
+    elif ':' in args.dst:
+        # local -> container
+        cnt_path = args.dst.split(":", 1)[1]
+        podman_args += [args.src, container_name + ':' + cnt_path]
+
+    return podman_args
+
+
 @cmd_run(podman_compose, "exec", "execute a command in a running container")
 async def compose_exec(compose: PodmanCompose, args: argparse.Namespace) -> None:
     compose.assert_services(args.service)
@@ -4418,6 +4454,33 @@ def compose_exec_parse(parser: argparse.ArgumentParser) -> None:
         metavar="command",
         nargs=argparse.REMAINDER,
         help="command and its arguments",
+    )
+
+
+@cmd_parse(podman_compose, "cp")
+def compose_parse_cp(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "-a",
+        "--archive",
+        help="Chown copied files to the primary uid/gid of the destination container. (default true)",
+        default=True,
+    )
+    parser.add_argument(
+        "--overwrite",
+        help="Allow to overwrite directories with non-directories and vice versa",
+        default=None,
+    )
+    parser.add_argument(
+        "src",
+        metavar="SOURCE",
+        help="Source path. Use SERVICE:PATH for container paths, or just PATH for local paths",
+        default=None,
+    )
+    parser.add_argument(
+        "dst",
+        metavar="DESTINATION",
+        help="Destination path. Use SERVICE:PATH for container paths, or just PATH for local paths",
+        default=None,
     )
 
 
