@@ -1,16 +1,48 @@
 # Contributing to podman-compose
 
-## Who can contribute?
+## Development guidelines
 
-- Users that found a bug,
-- Users that want to propose new functionalities or enhancements,
-- Users that want to help other users to troubleshoot their environments,
-- Developers that want to fix bugs,
-- Developers that want to implement new functionalities or enhancements.
+### Always run tests
+
+All tests must pass on each commit to help bisecting. If you're doing TDD, commit
+the test afterwards.
+
+The following is the set of tests to run:
+```
+ruff format
+ruff check --fix
+mypy .
+pylint podman_compose.py
+python -m unittest discover tests/unit
+python -m unittest discover -v tests/integration  # takes a while to run
+```
+
+### Committing guidelines
+
+Add one change per commit. If you're refactoring and adding functionality, this should be at least 2
+commits. If you want to add `and` to commit message - this is good indication that commits needed
+splitting.
+
+Commits must be complete. If there are commits that only fix previous commits, they should be
+squashed together. Otherwise they just confuse the reviewer.
+
+Do not add `feat:` or `fix:` prefixes to commit messages.
+
+Commits require a `Signed-off-by` message ([guide](https://github.com/containers/common/blob/main/CONTRIBUTING.md#sign-your-prs)).
+If you forget to add this message, run `git rebase main --signoff`.
+
+### PR description
+
+If PR adds a new feature that improves compatibility with docker-compose, please add a link
+to the exact part of compose spec that the PR touches.
+
+### Release notes
+
+If your change is user-facing - fixing a bug or adding a new feature, then a release note must
+be added to newsfragment/ directory. Check out docs/Changelog-1.4.0.md for examples of how
+a release note should look like.
 
 ## Development environment setup
-
-Note: Some steps are OPTIONAL but all are RECOMMENDED.
 
 1. Fork the project repository and clone it:
 
@@ -19,68 +51,21 @@ Note: Some steps are OPTIONAL but all are RECOMMENDED.
    $ cd podman-compose
    ```
 
-2. (OPTIONAL) Create a Python virtual environment. Example using python builtin
-   `venv` module:
+2. Create a Python virtual environment and install project requirements.
+   Example using python builtin `venv` module:
 
     ```shell
     $ python3 -m venv .venv
     $ . .venv/bin/activate
+    $ pip install '.[devel]'
     ```
 
-3. Install the project runtime and development requirements:
-
-   ```shell
-   $ pip install '.[devel]'
-   ```
-
-4. (OPTIONAL) Install `pre-commit` git hook scripts
+3. (OPTIONAL) Install `pre-commit` git hook scripts
    (https://pre-commit.com/#3-install-the-git-hook-scripts):
 
    ```shell
    $ pre-commit install
    ```
-
-5. Create a new branch, develop and add tests when possible.
-6. Run linting and testing before committing code. Ensure all the hooks are passing.
-
-   ```shell
-   $ pre-commit run --all-files
-   ```
-
-7. Run code coverage:
-
-    ```shell
-    $ coverage run --source podman_compose -m unittest discover tests/unit
-    $ python3 -m unittest discover tests/integration
-    $ coverage combine
-    $ coverage report
-    $ coverage html
-    ```
-
-8. Commit your code to your fork's branch.
-   - Make sure you include a `Signed-off-by` message in your commits.
-     Read [this guide](https://github.com/containers/common/blob/main/CONTRIBUTING.md#sign-your-prs)
-     to learn how to sign your commits.
-   - In the commit message body, reference the Issue ID that your code fixes and a brief description of the changes.
-     Example:
-     ```
-     Allow empty network
-
-     <description, such as links to the compose spec and so on>
-
-     Fixes https://github.com/containers/podman-compose/issues/516
-     ```
-   - If your commit requires a refactoring, first do the refactoring and
-     commit it separately before starting feature work. This makes the
-     pull request easier to review. Additionally, pull request will be
-     less risky, because if it breaks something, it's way easier to
-     isolate the offending code, understand what's broken and fix it.
-     Due to the latter reason it's best to commit in as many independent
-     commits as reasonable.
-
-     This will result in pull requests being merged much faster.
-
-9. Open a pull request to `containers/podman-compose` and wait for a maintainer to review your work.
 
 ## Adding new commands
 
