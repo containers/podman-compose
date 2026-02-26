@@ -1,0 +1,14 @@
+version: "3"
+services:
+    web:
+      image: nopush/podman-compose-test
+      command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-h", "/var/www/html", "-p", "8000"]
+      working_dir: /var/www/html
+      restart: always
+      volumes:
+        - /var/www/html
+        - /var/run/docker.sock:/var/run/docker.sock
+      tmpfs:
+        - /run
+        - /tmp
+

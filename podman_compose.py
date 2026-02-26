@@ -415,7 +415,7 @@ async def assert_volume(compose: PodmanCompose, mount_dict: dict[str, Any]) -> N
     if mount_dict["type"] == "bind":
         basedir = os.path.realpath(compose.dirname)
         mount_src = mount_dict["source"]
-        mount_src = os.path.realpath(os.path.join(basedir, os.path.expanduser(mount_src)))
+        mount_src = os.path.abspath(os.path.join(basedir, os.path.expanduser(mount_src)))
         if not os.path.exists(mount_src):
             bind_opts = mount_dict.get("bind", {})
             if "create_host_path" in bind_opts and not bind_opts["create_host_path"]:
