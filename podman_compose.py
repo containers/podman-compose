@@ -3122,6 +3122,8 @@ def container_to_build_args(
         build_args.extend(["--platform", cnt["platform"]])
     for secret in build_desc.get("secrets", []):
         build_args.extend(get_secret_args(compose, cnt, secret, podman_is_building=True))
+    for i in build_desc.get("extra_hosts", []):
+        build_args.extend(["--add-host", i])
     for tag in build_desc.get("tags", []):
         build_args.extend(["-t", tag])
     labels = build_desc.get("labels", [])

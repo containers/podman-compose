@@ -1,0 +1,1 @@
+Fix the bug in parsing to add identify `extra-hosts` field in build parameters.
