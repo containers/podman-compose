@@ -2365,6 +2365,9 @@ class PodmanCompose:
         })
         self.environ = dotenv_dict  # type: ignore[assignment]
         self.environ.update(dict(os.environ))
+
+        # Match Regex for env_file directive
+        self.environ = rec_subs(dotenv_dict, dict(os.environ))
         # see: https://docs.docker.com/compose/reference/envvars/
         # see: https://docs.docker.com/compose/env-file/
         self.environ.update({
