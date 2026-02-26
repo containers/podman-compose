@@ -2438,7 +2438,18 @@ class PodmanCompose:
             # If `include` is used, append included files to files
             include = compose.get("include")
             if include:
-                files.extend([os.path.join(os.path.dirname(filename), i) for i in include])
+                # Check if 'include' block is dict or list of strings
+                for i in include:
+                    if isinstance(i, str):
+                        files.append(os.path.join(os.path.dirname(filename), i))
+                    elif isinstance(i, dict):
+                        path = i.get("path")
+                        if path:
+                            # Extend files list with values from path key
+                            files.extend([os.path.join(os.path.dirname(filename), p) for p in path])
+                        elif not path:
+                            # Raise error if path is missing
+                            raise RuntimeError("Please use 'path' as key in include block")
                 # As compose obj is updated and tested with every loop, not deleting `include`
                 # from it, results in it being tested again and again, original values for
                 # `include` be appended to `files`, and, included files be processed for ever.
