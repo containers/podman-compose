@@ -42,6 +42,13 @@ If your change is user-facing - fixing a bug or adding a new feature, then a rel
 be added to newsfragment/ directory. Check out docs/Changelog-1.4.0.md for examples of how
 a release note should look like.
 
+### Tests
+
+All changes require tests.
+
+Use `nopush/podman-compose-test` image in integration test dockerfiles. This is to reduce the
+number of pulls Github CI does during a test run.
+
 ## Development environment setup
 
 1. Fork the project repository and clone it:
