@@ -3466,6 +3466,54 @@ async def prepare_images(
     return 0
 
 
+async def wait_for_container_running_healthy(
+    compose: PodmanCompose, args: argparse.Namespace
+) -> None:
+    if compose.podman_version is not None and strverscmp_lt(compose.podman_version, "4.6.0"):
+        log.warning("Ignore --wait due to podman %s doesn't support it!", compose.podman_version)
+        return
+
+    log.info("waiting for all containers to be running|healthy")
+
+    # distinguish between containers that have a healthcheck and those that don't
+    cnt_with_healthcheck = []
+    cnt_without_healthcheck = []
+    for cnt in compose.containers:
+        if "healthcheck" in cnt:
+            cnt_with_healthcheck.append(cnt["name"])
+        else:
+            cnt_without_healthcheck.append(cnt["name"])
+
+    async def run_podman_wait() -> None:
+        # wait for running state of containers without a healthcheck
+        if cnt_without_healthcheck:
+            await compose.podman.run(
+                [],
+                "wait",
+                [
+                    "--condition=running",
+                    "--ignore",
+                    *cnt_without_healthcheck,
+                ],
+            )
+        # wait for healthy state of containers with a healthcheck
+        if cnt_with_healthcheck:
+            await compose.podman.run(
+                [],
+                "wait",
+                [
+                    "--condition=healthy",
+                    "--ignore",
+                    *cnt_with_healthcheck,
+                ],
+            )
+
+    # if --wait-timeout is not set None is used, which means no timeout
+    # https://docs.python.org/3/library/asyncio-task.html#asyncio.wait_for
+    # the CancelledError is handled in the compose.podman.run() method
+    await wait_with_timeout(run_podman_wait(), timeout=args.wait_timeout)
+
+
 @cmd_run(podman_compose, "up", "Create and start the entire stack or some of its services")
 async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | None:
     excluded = get_excluded(compose, args)
@@ -3565,6 +3613,9 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
                 compose, cnt["name"], deps_from_container(args, cnt), ([], "start", [cnt["name"]])
             )
             start_error_codes.append(exit_code)
+
+        if args.wait:
+            await wait_for_container_running_healthy(compose, args)
 
         # return first error code from start calls, if any
         return next((code for code in start_error_codes if code is not None and code != 0), 0)
@@ -3813,6 +3864,7 @@ async def compose_run(compose: PodmanCompose, args: argparse.Namespace) -> None:
                 build_arg=[],
                 parallel=1,
                 remove_orphans=True,
+                wait=False,
             )
         )
         await compose.commands["up"](compose, up_args)
@@ -3943,6 +3995,9 @@ async def transfer_service_status(
 @cmd_run(podman_compose, "start", "start specific services")
 async def compose_start(compose: PodmanCompose, args: argparse.Namespace) -> None:
     await transfer_service_status(compose, args, "start")
+
+    if args.wait:
+        await wait_for_container_running_healthy(compose, args)
 
 
 @cmd_run(podman_compose, "stop", "stop specific services")
@@ -4568,6 +4623,21 @@ def compose_build_parse(parser: argparse.ArgumentParser) -> None:
         nargs="*",
         default=None,
         help="affected services",
+    )
+
+
+@cmd_parse(podman_compose, ["up", "start"])
+def compose_up_start_parse(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--wait",
+        action="store_true",
+        help="Wait for services to be running|healthy. Implies detached mode.",
+    )
+    parser.add_argument(
+        "--wait-timeout",
+        type=int,
+        default=None,
+        help="Maximum duration in seconds to wait for the project to be running|healthy",
     )
 
 
