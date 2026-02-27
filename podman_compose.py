@@ -2348,15 +2348,16 @@ class PodmanCompose:
 
         # env-file is relative to the CWD
         dotenv_dict = {}
-        if args.env_file:
+        if args.env_file is None or len(args.env_file) == 0:
             # Load .env from the Compose file's directory to preserve
             # behavior prior to 1.1.0 and to match with Docker Compose (v2).
-            if ".env" == args.env_file:
-                project_dotenv_file = os.path.realpath(os.path.join(dirname, ".env"))
-                if os.path.exists(project_dotenv_file):
-                    dotenv_dict.update(dotenv_to_dict(project_dotenv_file))
-            dotenv_path = os.path.realpath(args.env_file)
-            dotenv_dict.update(dotenv_to_dict(dotenv_path))
+            project_dotenv_file = os.path.realpath(os.path.join(dirname, ".env"))
+            if os.path.exists(project_dotenv_file):
+                dotenv_dict.update(dotenv_to_dict(project_dotenv_file))
+        else:
+            for env_file in args.env_file:
+                dotenv_path = os.path.realpath(env_file)
+                dotenv_dict.update(dotenv_to_dict(dotenv_path))
 
         os.environ.update({
             key: value  # type: ignore[misc]
@@ -2735,8 +2736,8 @@ class PodmanCompose:
             "--env-file",
             help="Specify an alternate environment file",
             metavar="env_file",
-            type=str,
-            default=".env",
+            action="append",
+            default=[],
         )
         parser.add_argument(
             "-f",
