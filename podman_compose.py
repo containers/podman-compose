@@ -270,8 +270,8 @@ var_re = re.compile(
         (?:{
             (?P<braced>[_a-zA-Z][_a-zA-Z0-9]*)
             (?:(?P<empty>:)?(?:
-                (?:-(?P<default>[^}]*)) |
-                (?:\?(?P<err>[^}]*))
+                (?:-(?P<default>.*)) |
+                (?:\?(?P<err>.*))
             ))?
         })
     )
@@ -315,8 +315,8 @@ def rec_subs(value: dict | str | Iterable, subs_dict: dict[str, Any]) -> dict | 
             if value is not None:
                 return str(value)
             if m.group("err") is not None:
-                raise RuntimeError(m.group("err"))
-            return m.group("default") or ""
+                raise RuntimeError(rec_subs(m.group("err"), subs_dict))
+            return rec_subs(m.group("default") or "", subs_dict)
 
         value = var_re.sub(convert, value)
     elif hasattr(value, "__iter__"):
