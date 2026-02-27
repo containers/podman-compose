@@ -1363,6 +1363,8 @@ async def container_to_args(
         podman_args.extend(["--uidmap", uidmap])
     for gidmap in cnt.get('x-podman.gidmaps', []):
         podman_args.extend(["--gidmap", gidmap])
+    for conf in cnt.get('x-podman.cgroup_conf', []):
+        podman_args.extend(["--cgroup-conf", conf])
     if cnt.get("x-podman.no_hosts", False):
         podman_args.extend(["--no-hosts"])
     rootfs = cnt.get('x-podman.rootfs')
