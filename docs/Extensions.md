@@ -282,3 +282,21 @@ to `["--infra=false", "--share="]`.
 
 This setting can also be changed by setting `PODMAN_COMPOSE_POD_ARGS` environment
 variable.
+
+## TLS verification for registry operations
+
+By default, podman-compose requires TLS verification when contacting a registry
+for `pull`, `push`, and `build` operations. Use the `--tls-verify` flag to
+override this:
+
+```
+podman-compose --tls-verify=false up
+```
+
+Valid values are `true` (default) and `false`. Setting it to `false` passes
+`--tls-verify=false` to every `podman pull`, `podman push`, and `podman build`
+invocation, which is useful when using self-signed certificates or registries
+behind a corporate VPN.
+
+Refer to the [podman-pull documentation](https://docs.podman.io/en/latest/markdown/podman-pull.1.html)
+for details on TLS verification in Podman.
