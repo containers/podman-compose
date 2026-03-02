@@ -2181,10 +2181,17 @@ class PodmanCompose:
                     "utf-8"
                 ).strip() or ""
                 self.podman_version = (self.podman_version.split() or [""])[-1]
-            except (subprocess.CalledProcessError, FileNotFoundError):
+            except (subprocess.CalledProcessError, FileNotFoundError) as e:
+                msg = str(e)
+                if isinstance(e, subprocess.CalledProcessError) and e.output:
+                    msg += f": {e.output.decode('utf-8')}"
+                log.error("failed to check if podman is installed: %s", msg)
                 self.podman_version = None
             if not self.podman_version:
-                log.fatal("it seems that you do not have `podman` installed")
+                log.fatal(
+                    "It seems that you either do not have `podman` installed "
+                    "or the `podman version` command failed."
+                )
                 sys.exit(1)
             log.info("using podman version: %s", self.podman_version)
         cmd_name = args.command
