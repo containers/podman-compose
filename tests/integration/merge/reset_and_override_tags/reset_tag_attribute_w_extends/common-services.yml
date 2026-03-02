@@ -1,4 +1,4 @@
 webapp:
-  build: .
+  image: nopush/podman-compose-test
   ports:
     - "8000:8000"
