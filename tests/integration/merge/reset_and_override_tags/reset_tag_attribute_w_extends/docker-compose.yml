@@ -1,0 +1,7 @@
+version: "3"
+services:
+  web:
+    extends:
+      file: common-services.yml
+      service: webapp
+    ports: !reset []
