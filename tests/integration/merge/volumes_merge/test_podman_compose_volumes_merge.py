@@ -4,7 +4,10 @@ import json
 import os
 import unittest
 
+from packaging import version
+
 from tests.integration.test_utils import RunSubprocessMixin
+from tests.integration.test_utils import get_podman_version
 from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
@@ -16,6 +19,7 @@ def compose_yaml_path(compose_name: str) -> str:
 
 
 class TestComposeVolumesMerge(unittest.TestCase, RunSubprocessMixin):
+    @unittest.skipIf(get_podman_version() >= version.parse("5.7.0"), "Breaks as of podman-5.7.1.")
     def test_volumes_merge(self) -> None:
         # test if additional compose file overrides host path and access mode of a volume
         try:
