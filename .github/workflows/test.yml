@@ -109,3 +109,41 @@ jobs:
       run: |
         coverage combine
         coverage report --format=markdown | tee -a $GITHUB_STEP_SUMMARY
+  test-trixie:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.9','3.10','3.11','3.12','3.13']
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/library/python:${{ matrix.python-version }}-trixie
+      options: --privileged --cgroupns=host
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install dependencies for podman-5.7.1
+      run: |
+        DEBIAN_FRONTEND=noninteractive apt update -y && apt install -y crun netavark aardvark-dns
+        BASE_URL="https://github.com/p12tic/podman-compose-test-data/raw/refs/heads/master/deb_files"
+        DEB_FILE="${BASE_URL}/deb-files-podman-5.7.1/podman_5.7.1+compose1-1_amd64.deb"
+        echo "Downloading ${DEB_FILE##*/} ..."
+        curl -fsSLO "$DEB_FILE"
+        echo "Installing package ..."
+        apt-get install -y ./podman_5.7.1+compose1-1_amd64.deb
+    - name: Install other test dependencies
+      run: |
+        set -e
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r test-requirements.txt
+    - name: Run integration tests
+      run: |
+        python -m unittest discover -v tests/integration
+      env:
+        TESTS_DEBUG: 1
+    - name: Run unit tests
+      run: |
+        coverage run --source podman_compose -m unittest discover tests/unit
+    - name: Report coverage
+      run: |
+        coverage combine
+        coverage report --format=markdown | tee -a $GITHUB_STEP_SUMMARY
