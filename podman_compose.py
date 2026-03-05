@@ -15,6 +15,7 @@ import codecs
 import getpass
 import glob
 import hashlib
+import inspect
 import json
 import logging
 import os
@@ -2852,7 +2853,7 @@ class cmd_run:  # pylint: disable=invalid-name,too-few-public-methods
         def wrapped(*args: Any, **kw: Any) -> Any:
             return func(*args, **kw)
 
-        if not asyncio.iscoroutinefunction(func):
+        if not inspect.iscoroutinefunction(func):
             raise PodmanComposeError("Command must be async")
         wrapped._compose = self.compose  # type: ignore[attr-defined]
         # Trim extra indentation at start of multiline docstrings.
