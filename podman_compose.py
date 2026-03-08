@@ -3311,6 +3311,33 @@ def get_excluded(
     return excluded
 
 
+async def _wait_containers_started(compose: PodmanCompose, containers: list) -> None:
+    """Poll until all containers have left the 'created' state.
+
+    For service_completed_successfully (--condition=stopped), podman wait may return
+    immediately if the container hasn't transitioned out of "created" state yet —
+    i.e. podman start was called but the container hasn't actually begun running.
+    We poll until all dependency containers have left the "created" state before
+    invoking podman wait, eliminating the race condition.
+    See: https://github.com/containers/podman-compose/issues/1330
+    """
+    while True:
+        try:
+            statuses_raw = await compose.podman.output(
+                [], "inspect", ["--format={{.State.Status}}"] + containers
+            )
+            statuses = statuses_raw.decode().split()
+            if all(s != "created" for s in statuses if s):
+                break
+        except subprocess.CalledProcessError:
+            pass
+        log.debug(
+            "Waiting for dependency containers to leave 'created' state: %s",
+            ', '.join(containers),
+        )
+        await asyncio.sleep(0.05)
+
+
 async def check_dep_conditions(compose: PodmanCompose, deps: set) -> None:
     """Enforce that all specified conditions in deps are met"""
     if not deps:
@@ -3338,28 +3365,8 @@ async def check_dep_conditions(compose: PodmanCompose, deps: set) -> None:
                 deps_cd.extend(compose.container_names_by_service[d.name])
 
         if deps_cd:
-            # For service_completed_successfully (--condition=stopped), podman wait may return
-            # immediately if the container hasn't transitioned out of "created" state yet ΓÇö
-            # i.e. podman start was called but the container hasn't actually begun running.
-            # We poll until all dependency containers have left the "created" state before
-            # invoking podman wait, eliminating the race condition.
-            # See: https://github.com/containers/podman-compose/issues/1330
             if condition == ServiceDependencyCondition.STOPPED:
-                while True:
-                    try:
-                        statuses_raw = await compose.podman.output(
-                            [], "inspect", ["--format={{.State.Status}}"] + deps_cd
-                        )
-                        statuses = statuses_raw.decode().split()
-                        if all(s != "created" for s in statuses if s):
-                            break
-                    except subprocess.CalledProcessError:
-                        pass
-                    log.debug(
-                        "Waiting for dependency containers to leave 'created' state: %s",
-                        ', '.join(deps_cd),
-                    )
-                    await asyncio.sleep(0.05)
+                await _wait_containers_started(compose, deps_cd)
 
             # podman wait will return always with a rc -1.
             while True:
