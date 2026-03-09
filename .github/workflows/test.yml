@@ -10,24 +10,53 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ '3.9', '3.10', '3.11', '3.12', '3.13' ]
-        podman-version: ['4.3.1', '4.9.5', '5.0.3', '5.4.2']
-
+        conf: [
+          {dist: bookworm, python: '3.9', podman: '4.3.1'},
+          {dist: bookworm, python: '3.9', podman: '4.9.5'},
+          {dist: bookworm, python: '3.9', podman: '5.0.3'},
+          {dist: bookworm, python: '3.9', podman: '5.4.2'},
+          {dist: bookworm, python: '3.10', podman: '4.3.1'},
+          {dist: bookworm, python: '3.10', podman: '4.9.5'},
+          {dist: bookworm, python: '3.10', podman: '5.0.3'},
+          {dist: bookworm, python: '3.10', podman: '5.4.2'},
+          {dist: bookworm, python: '3.11', podman: '4.3.1'},
+          {dist: bookworm, python: '3.11', podman: '4.9.5'},
+          {dist: bookworm, python: '3.11', podman: '5.0.3'},
+          {dist: bookworm, python: '3.11', podman: '5.4.2'},
+          {dist: bookworm, python: '3.12', podman: '4.3.1'},
+          {dist: bookworm, python: '3.12', podman: '4.9.5'},
+          {dist: bookworm, python: '3.12', podman: '5.0.3'},
+          {dist: bookworm, python: '3.12', podman: '5.4.2'},
+          {dist: bookworm, python: '3.13', podman: '4.3.1'},
+          {dist: bookworm, python: '3.13', podman: '4.9.5'},
+          {dist: bookworm, python: '3.13', podman: '5.0.3'},
+          {dist: bookworm, python: '3.13', podman: '5.4.2'},
+          {dist: trixie, python: '3.9', podman: '5.7.1'},
+          {dist: trixie, python: '3.9', podman: '5.7.1'},
+          {dist: trixie, python: '3.10', podman: '5.7.1'},
+          {dist: trixie, python: '3.10', podman: '5.7.1'},
+          {dist: trixie, python: '3.11', podman: '5.7.1'},
+          {dist: trixie, python: '3.11', podman: '5.7.1'},
+          {dist: trixie, python: '3.12', podman: '5.7.1'},
+          {dist: trixie, python: '3.12', podman: '5.7.1'},
+          {dist: trixie, python: '3.13', podman: '5.7.1'},
+          {dist: trixie, python: '3.13', podman: '5.7.1'},
+        ]
     runs-on: ubuntu-latest
     container:
-      image: "docker.io/library/python:${{ matrix.python-version }}-bookworm"
+      image: "docker.io/library/python:${{ matrix.conf.python }}-${{ matrix.conf.dist }}"
       # cgroupns needed to address the following error:
       # write /sys/fs/cgroup/cgroup.subtree_control: operation not supported
       options: --privileged --cgroupns=host
     steps:
     - uses: actions/checkout@v6
     - name: Install podman-4.3.1
-      if: matrix.podman-version == '4.3.1'
+      if: matrix.conf.podman == '4.3.1'
       run: |
         set -e
         apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y podman
     - name: Install dependencies for podman-4.9.5
-      if: matrix.podman-version == '4.9.5'
+      if: matrix.conf.podman == '4.9.5'
       shell: bash
       run: |
         DEBIAN_FRONTEND=noninteractive apt update -y && apt install -y buildah
@@ -48,7 +77,7 @@ jobs:
         apt-get update -qq
         apt-get install -y -qq "$TMPDIR"/*.deb
     - name: Install dependencies for podman-5.0.3
-      if: matrix.podman-version == '5.0.3'
+      if: matrix.conf.podman == '5.0.3'
       shell: bash
       run: |
         DEBIAN_FRONTEND=noninteractive apt update -y && apt install -y buildah
@@ -69,7 +98,7 @@ jobs:
         apt-get update -qq
         apt-get install -y -qq "$TMPDIR"/*.deb
     - name: Install dependencies for podman-5.4.2
-      if: matrix.podman-version == '5.4.2'
+      if: matrix.conf.podman == '5.4.2'
       shell: bash
       run: |
         DEBIAN_FRONTEND=noninteractive apt update -y && apt install -y buildah
@@ -91,36 +120,9 @@ jobs:
         echo "Installing packages ..."
         apt-get update -qq
         apt-get install -y -qq "$TMPDIR"/*.deb
-    - name: Install other test dependencies
-      run: |
-        set -e
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r test-requirements.txt
-    - name: Run integration tests
-      run: |
-        python -m unittest discover -v tests/integration
-      env:
-        TESTS_DEBUG: 1
-    - name: Run unit tests
-      run: |
-        coverage run --source podman_compose -m unittest discover tests/unit
-    - name: Report coverage
-      run: |
-        coverage combine
-        coverage report --format=markdown | tee -a $GITHUB_STEP_SUMMARY
-  test-trixie:
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.9','3.10','3.11','3.12','3.13']
-    runs-on: ubuntu-latest
-    container:
-      image: docker.io/library/python:${{ matrix.python-version }}-trixie
-      options: --privileged --cgroupns=host
-    steps:
-    - uses: actions/checkout@v4
     - name: Install dependencies for podman-5.7.1
+      if: matrix.conf.podman == '5.7.1'
+      shell: bash
       run: |
         DEBIAN_FRONTEND=noninteractive apt update -y && apt install -y crun netavark aardvark-dns
         BASE_URL="https://github.com/p12tic/podman-compose-test-data/raw/refs/heads/master/deb_files"
