@@ -1,0 +1,2 @@
+Add support for `start_interval` option.
+Rename healthcheck flags to be consistent with Podman options.
