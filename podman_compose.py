@@ -2437,6 +2437,7 @@ class PodmanCompose:
                     project_name = content.get("name")
                 if not project_name:
                     project_name = dir_basename.lower()
+                project_name = rec_subs(project_name, self.environ)
                 # More strict then actually needed for simplicity:
                 # podman requires [a-zA-Z0-9][a-zA-Z0-9_.-]*
                 project_name_normalized = norm_re.sub("", project_name)
