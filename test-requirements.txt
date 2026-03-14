@@ -10,6 +10,7 @@ pylint==3.1.0
 types-PyYAML==6.0.12.20250402
 types-requests==2.32.0.20250328
 types-setuptools==80.7.0.20250516
+APScheduler==3.11.2
 
 # NOTE: when upgrading the above packages, also upgrade .pre-commit-config.yaml
 
@@ -45,5 +46,6 @@ PyYAML==6.0.1
 requests==2.32.5
 tomlkit==0.12.4
 typing_extensions==4.13.2
+tzlocal==5.3.1
 urllib3==2.6.3
 virtualenv==20.26.6
