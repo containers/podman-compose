@@ -7,6 +7,7 @@ from datetime import datetime
 from datetime import timedelta
 from io import BytesIO
 from typing import Any
+from typing import Final
 from typing import Optional
 
 from packaging import version
@@ -15,6 +16,8 @@ from tests.integration.test_utils import RunSubprocessMixin
 from tests.integration.test_utils import get_podman_version
 from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
+
+EXECUTION_TIMEOUT: Final[float] = 30
 
 
 def compose_yaml_path() -> str:
@@ -142,7 +145,8 @@ class TestComposeWait(unittest.TestCase, RunSubprocessMixin):
                         "-d",
                         "--wait",
                     ],
-                )
+                    timeout=EXECUTION_TIMEOUT,
+            )
 
             output, _ = self.run_subprocess_assert_returncode([
                 podman_compose_path(),
@@ -177,7 +181,8 @@ class TestComposeWait(unittest.TestCase, RunSubprocessMixin):
                         "--wait-timeout",
                         "5",
                     ],
-                )
+                    timeout=EXECUTION_TIMEOUT,
+            )
 
             output, _ = self.run_subprocess_assert_returncode([
                 podman_compose_path(),
@@ -240,7 +245,8 @@ class TestComposeWait(unittest.TestCase, RunSubprocessMixin):
                         "start",
                         "--wait",
                     ],
-                )
+                    timeout=EXECUTION_TIMEOUT,
+            )
 
             self.assertTrue(self._is_running("wait_app_1"))
 
