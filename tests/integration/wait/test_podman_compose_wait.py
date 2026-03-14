@@ -10,10 +10,16 @@ from typing import Any
 from typing import Final
 from typing import Optional
 
+from apscheduler.job import Job
+from apscheduler.jobstores.base import JobLookupError
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.interval import IntervalTrigger
 from packaging import version
+from tzlocal import get_localzone
 
 from tests.integration.test_utils import RunSubprocessMixin
 from tests.integration.test_utils import get_podman_version
+from tests.integration.test_utils import is_systemd_available
 from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
@@ -55,6 +61,22 @@ class ExecutionTime:
     get_podman_version() < version.parse("4.6.0"), "Wait feature not supported below 4.6.0."
 )
 class TestComposeWait(unittest.TestCase, RunSubprocessMixin):
+    # WORKAROUND for https://github.com/containers/podman/issues/28192
+    scheduler: Optional[BackgroundScheduler] = None
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        # use APScheduler to trigger a healtcheck periodically if systemd and its timers are not
+        # available
+        if not is_systemd_available():
+            cls.scheduler = BackgroundScheduler()
+            cls.scheduler.start()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        if cls.scheduler is not None:
+            cls.scheduler.shutdown(wait=True)
+
     def setUp(self) -> None:
         # build the test image before starting the tests
         # this is not possible in setUpClass method, because the run_subprocess_* methods are not
@@ -66,7 +88,36 @@ class TestComposeWait(unittest.TestCase, RunSubprocessMixin):
             "build",
         ])
 
+        # start the healthcheck job
+        self.healthcheck_job: Optional[Job] = None
+        if self.scheduler is not None:
+            self.healthcheck_job = self.scheduler.add_job(
+                func=self.run_subprocess,
+                # run health checking only for the wait_app_health_1 container
+                kwargs={"args": ["podman", "healthcheck", "run", "wait_app_health_1"]},
+                # trigger the healthcheck every 3 seconds (like defined in docker-compose.yml)
+                trigger=IntervalTrigger(
+                    # trigger the healthcheck every 3 seconds (like defined in docker-compose.yml)
+                    seconds=3,
+                    # run first healthcheck after 3 seconds (initial interval)
+                    start_date=datetime.now(get_localzone()) + timedelta(seconds=3),
+                    # stop after 21 seconds = 3s (interval) * 6 (retries) + 3s (initial interval)
+                    end_date=datetime.now(get_localzone()) + timedelta(seconds=21),
+                ),
+            )
+
     def tearDown(self) -> None:
+        # stop and remove the healtcheck job
+        if self.scheduler is not None:
+            try:
+                if self.healthcheck_job is not None:
+                    self.scheduler.remove_job(self.healthcheck_job.id)
+                else:
+                    self.scheduler.remove_all_jobs()
+            except JobLookupError:
+                # failover
+                self.scheduler.remove_all_jobs()
+
         # clean up compose after every test
         self.run_subprocess([
             podman_compose_path(),
