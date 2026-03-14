@@ -9,7 +9,10 @@ from io import BytesIO
 from typing import Any
 from typing import Optional
 
+from packaging import version
+
 from tests.integration.test_utils import RunSubprocessMixin
+from tests.integration.test_utils import get_podman_version
 from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
@@ -45,6 +48,9 @@ class ExecutionTime:
             assert execution_time <= self.__max_execution_time
 
 
+@unittest.skipIf(
+    get_podman_version() < version.parse("4.6.0"), "Wait feature not supported below 4.6.0."
+)
 class TestComposeWait(unittest.TestCase, RunSubprocessMixin):
     def setUp(self) -> None:
         # build the test image before starting the tests
