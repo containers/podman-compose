@@ -3892,7 +3892,7 @@ def compose_run_update_container_from_args(
         volumes = clone(cnt.get("volumes", []))
         volumes.extend(args.volume)
         cnt["volumes"] = volumes
-    cnt["tty"] = not args.T
+    cnt["tty"] = args.tty
     if args.cnt_command is not None and len(args.cnt_command) > 0:
         cnt["command"] = args.cnt_command
     # can't restart and --rm
@@ -3912,14 +3912,15 @@ async def compose_exec(compose: PodmanCompose, args: argparse.Namespace) -> None
 
 
 def compose_exec_args(cnt: dict, container_name: str, args: argparse.Namespace) -> list[str]:
-    podman_args = ["--interactive"]
+    podman_args = []
     if args.privileged:
         podman_args += ["--privileged"]
     if args.user:
         podman_args += ["--user", args.user]
     if args.workdir:
         podman_args += ["--workdir", args.workdir]
-    if not args.T:
+    if args.tty:
+        podman_args += ["--interactive"]
         podman_args += ["--tty"]
     env = dict(cnt.get("environment", {}))
     if args.env:
@@ -4378,11 +4379,16 @@ def compose_run_parse(parser: argparse.ArgumentParser) -> None:
         action="append",
         help="Bind mount a volume (can be used multiple times)",
     )
-    parser.add_argument(
+    tty_parser = parser.add_mutually_exclusive_group(required=False)
+    tty_parser.add_argument(
         "-T",
-        action="store_true",
-        help="Disable pseudo-tty allocation. By default `podman-compose run` allocates a TTY.",
+        "--no-tty",
+        dest="tty",
+        action="store_false",
+        help="Disable pseudo-TTY allocation (default: auto-detected)",
     )
+    tty_parser.add_argument("-t", "--tty", dest="tty", action="store_true", help=argparse.SUPPRESS)
+    parser.set_defaults(tty=sys.stdout.isatty())
     parser.add_argument(
         "-w",
         "--workdir",
@@ -4416,11 +4422,16 @@ def compose_exec_parse(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "-u", "--user", type=str, default=None, help="Run as specified username or uid"
     )
-    parser.add_argument(
+    tty_parser = parser.add_mutually_exclusive_group(required=False)
+    tty_parser.add_argument(
         "-T",
-        action="store_true",
-        help="Disable pseudo-tty allocation. By default `podman-compose run` allocates a TTY.",
+        "--no-tty",
+        dest="tty",
+        action="store_false",
+        help="Disable pseudo-TTY allocation (default: auto-detected)",
     )
+    tty_parser.add_argument("-t", "--tty", dest="tty", action="store_true", help=argparse.SUPPRESS)
+    parser.set_defaults(tty=sys.stdout.isatty())
     parser.add_argument(
         "--index",
         type=int,
