@@ -63,7 +63,7 @@ def get_minimal_compose() -> PodmanCompose:
 
 def get_minimal_args() -> argparse.Namespace:
     return argparse.Namespace(
-        T=None,
+        tty=True,
         cnt_command=None,
         entrypoint=None,
         env=None,

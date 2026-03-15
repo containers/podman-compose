@@ -30,6 +30,15 @@ class TestComposeExecArgs(unittest.TestCase):
         ]
         self.assertEqual(result, expected)
 
+    def test_noninteractive(self) -> None:
+        cnt = get_minimal_container()
+        args = get_minimal_args()
+        args.tty = False
+
+        result = compose_exec_args(cnt, "container_name", args)
+        expected = ["container_name"]
+        self.assertEqual(result, expected)
+
 
 def get_minimal_container() -> dict:
     return {}
@@ -37,7 +46,7 @@ def get_minimal_container() -> dict:
 
 def get_minimal_args() -> argparse.Namespace:
     return argparse.Namespace(
-        T=None,
+        tty=True,
         cnt_command=None,
         env=None,
         privileged=None,
