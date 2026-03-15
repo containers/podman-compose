@@ -87,3 +87,23 @@ class TestComposeEnv(unittest.TestCase, RunSubprocessMixin):
                 compose_yaml_path(),
                 "down",
             ])
+
+    def test_project_name_interpolation(self) -> None:
+        try:
+            output, _ = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(),
+                "run",
+                "-e",
+                "ZZVAR1=-myval2",
+                "project-name-test",
+            ])
+            self.assertIn("my-project-name-myval2", str(output))
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(),
+                "down",
+            ])
