@@ -1419,7 +1419,7 @@ async def container_to_args(
         podman_args.extend(["--hostname", cnt["hostname"]])
     if cnt.get("shm_size"):
         podman_args.extend(["--shm-size", str(cnt["shm_size"])])
-    if cnt.get("stdin_open"):
+    if cnt.get("tty") and cnt.get("stdin_open"):
         podman_args.append("-i")
     if cnt.get("stop_signal"):
         podman_args.extend(["--stop-signal", cnt["stop_signal"]])
@@ -4071,10 +4071,10 @@ async def compose_run(compose: PodmanCompose, args: argparse.Namespace) -> None:
     compose_run_update_container_from_args(compose, cnt, args)
     # run podman
     podman_args = await container_to_args(compose, cnt, args.detach, args.no_deps)
-    if not args.detach:
+    if args.tty and not args.detach:
         podman_args.insert(1, "-i")
-        if args.rm:
-            podman_args.insert(1, "--rm")
+    if args.rm:
+        podman_args.insert(1, "--rm")
     p = await compose.podman.run([], "run", podman_args)
     sys.exit(p)
 
@@ -4111,7 +4111,7 @@ def compose_run_update_container_from_args(
         volumes = clone(cnt.get("volumes", []))
         volumes.extend(args.volume)
         cnt["volumes"] = volumes
-    cnt["tty"] = not args.T
+    cnt["tty"] = args.tty
     if args.cnt_command is not None and len(args.cnt_command) > 0:
         cnt["command"] = args.cnt_command
     # can't restart and --rm
@@ -4131,14 +4131,15 @@ async def compose_exec(compose: PodmanCompose, args: argparse.Namespace) -> None
 
 
 def compose_exec_args(cnt: dict, container_name: str, args: argparse.Namespace) -> list[str]:
-    podman_args = ["--interactive"]
+    podman_args = []
     if args.privileged:
         podman_args += ["--privileged"]
     if args.user:
         podman_args += ["--user", args.user]
     if args.workdir:
         podman_args += ["--workdir", args.workdir]
-    if not args.T:
+    if args.tty:
+        podman_args += ["--interactive"]
         podman_args += ["--tty"]
     env = dict(cnt.get("environment", {}))
     if args.env:
@@ -4600,11 +4601,16 @@ def compose_run_parse(parser: argparse.ArgumentParser) -> None:
         action="append",
         help="Bind mount a volume (can be used multiple times)",
     )
-    parser.add_argument(
+    tty_parser = parser.add_mutually_exclusive_group(required=False)
+    tty_parser.add_argument(
         "-T",
-        action="store_true",
-        help="Disable pseudo-tty allocation. By default `podman-compose run` allocates a TTY.",
+        "--no-tty",
+        dest="tty",
+        action="store_false",
+        help="Disable pseudo-TTY allocation (default: auto-detected)",
     )
+    tty_parser.add_argument("-t", "--tty", dest="tty", action="store_true", help=argparse.SUPPRESS)
+    parser.set_defaults(tty=sys.stdout.isatty())
     parser.add_argument(
         "-w",
         "--workdir",
@@ -4638,11 +4644,16 @@ def compose_exec_parse(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "-u", "--user", type=str, default=None, help="Run as specified username or uid"
     )
-    parser.add_argument(
+    tty_parser = parser.add_mutually_exclusive_group(required=False)
+    tty_parser.add_argument(
         "-T",
-        action="store_true",
-        help="Disable pseudo-tty allocation. By default `podman-compose run` allocates a TTY.",
+        "--no-tty",
+        dest="tty",
+        action="store_false",
+        help="Disable pseudo-TTY allocation (default: auto-detected)",
     )
+    tty_parser.add_argument("-t", "--tty", dest="tty", action="store_true", help=argparse.SUPPRESS)
+    parser.set_defaults(tty=sys.stdout.isatty())
     parser.add_argument(
         "--index",
         type=int,
