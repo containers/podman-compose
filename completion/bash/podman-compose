@@ -73,7 +73,7 @@ _completeUpArgs() {
 
 # complete the arguments for `podman-compose exec` and return 0
 _completeExecArgs() {
-    exec_opts="${help_opts} -d --detach --privileged -u --user -T --index -e --env -w --workdir"
+    exec_opts="${help_opts} -d --detach --privileged -u --user -T --no-tty --index -e --env -w --workdir"
     if [[ ${prev} == "-u" || ${prev} == "--user" || ${prev} == "--index" || ${prev} == "-e" || ${prev} == "--env" || ${prev} == "-w" || ${prev} == "--workdir" ]]; then
         return 0
     elif [[ ${cur} == -* ]]; then
@@ -237,7 +237,7 @@ _completeStartArgs() {
 
 # complete the arguments for `podman-compose run` and return 0
 _completeRunArgs() {
-    run_opts="${help_opts} -d --detach --privileged -u --user -T --index -e --env -w --workdir"
+    run_opts="${help_opts} -d --detach --privileged -u --user -T --no-tty --index -e --env -w --workdir"
     if [[ ${prev} == "-u" || ${prev} == "--user" || ${prev} == "--index" || ${prev} == "-e" || ${prev} == "--env" || ${prev} == "-w" || ${prev} == "--workdir" ]]; then
         return 0
     elif  [[ ${cur} == -* ]]; then
@@ -267,7 +267,7 @@ _podmanCompose() {
     help_opts="-h --help"
 
     # global options that don't take additional arguments
-    basic_global_opts="${help_opts} -v --no-ansi --no-cleanup --dry-run" 
+    basic_global_opts="${help_opts} -v --no-ansi --no-cleanup --dry-run"
 
     # global options that take paths as arguments
     path_arg_global_opts="-f --file --podman-path"
@@ -291,7 +291,7 @@ _podmanCompose() {
     if [[ $? -eq 0 ]]; then
         return 0
     fi
-   
+
     # computing comp_cword_adj, which thruthfully tells us how deep in the subcommands tree we are
     # additionally, set the chosen_root_command if possible
     comp_cword_adj=${COMP_CWORD}
@@ -309,7 +309,7 @@ _podmanCompose() {
             fi
             if [[ ${el} == -* && ${el} != ${cur} ]]; then
                 let "comp_cword_adj--"
-                
+
                 for opt in ${arg_global_opts_array[@]}; do
                     if [[ ${el} == ${opt} ]]; then
                         skip_next="yes"
@@ -320,7 +320,7 @@ _podmanCompose() {
             fi
         done
     fi
-    
+
     if [[ ${comp_cword_adj} -eq 1 ]]; then
        _completeRoot
 
