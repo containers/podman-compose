@@ -1,0 +1,8 @@
+version: "3.7"
+services:
+  cgroupconf:
+    image: busybox
+    command: httpd -f -p 8123 -h /tmp/
+    x-podman.cgroup_conf:
+      - memory.high=712M
+      - memory.max=800M
