@@ -125,5 +125,6 @@ exclude = "build"
 [[tool.mypy.overrides]]
 module = [
     "parameterized.*",
+    "apscheduler.*",
 ]
 ignore_missing_imports = true
