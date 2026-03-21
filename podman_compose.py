@@ -658,6 +658,19 @@ def get_secret_args(
         secret_mode = secret.get("mode")
         secret_type = secret.get("type")
 
+    source_env = declared_secret.get("environment")
+    if source_env:
+        if podman_is_building:
+            secret_id = secret_target if secret_target else secret_name
+            return ["--secret", f"id={secret_id},env={source_env}"]
+        # TODO: Runtime support for environment secrets requires injecting the
+        # value into the container (e.g. via podman cp or podman secret create),
+        # which is beyond the scope of this arg-generating function.
+        raise ValueError(
+            f'ERROR: Secret "{secret_name}" uses environment source, '
+            "which is not supported for runtime secrets in podman-compose."
+        )
+
     if source_file:
         # assemble path for source file first, because we need it for all cases
         basedir = compose.dirname

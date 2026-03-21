@@ -380,3 +380,45 @@ class TestContainerToBuildArgs(unittest.TestCase):
                 './subdir',
             ],
         )
+
+    def test_build_environment_secret_no_target(self):
+        c = create_compose_mock()
+        c.declared_secrets = {'my_secret': {'environment': 'MY_VAR'}}
+        cnt = get_minimal_container()
+        cnt['build']['secrets'] = ['my_secret']
+        args = get_minimal_args()
+        args = container_to_build_args(c, cnt, args, lambda path: True)
+        self.assertEqual(
+            args,
+            [
+                '-f',
+                'Containerfile',
+                '-t',
+                'new-image',
+                '--secret',
+                'id=my_secret,env=MY_VAR',
+                '--no-cache',
+                '.',
+            ],
+        )
+
+    def test_build_environment_secret_with_target(self):
+        c = create_compose_mock()
+        c.declared_secrets = {'my_secret': {'environment': 'MY_VAR'}}
+        cnt = get_minimal_container()
+        cnt['build']['secrets'] = [{'source': 'my_secret', 'target': 'custom_id'}]
+        args = get_minimal_args()
+        args = container_to_build_args(c, cnt, args, lambda path: True)
+        self.assertEqual(
+            args,
+            [
+                '-f',
+                'Containerfile',
+                '-t',
+                'new-image',
+                '--secret',
+                'id=custom_id,env=MY_VAR',
+                '--no-cache',
+                '.',
+            ],
+        )
