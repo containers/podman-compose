@@ -418,3 +418,13 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
                 "busybox",
             ],
         )
+
+    async def test_environment_secret_run_raises(self) -> None:
+        c = create_compose_mock()
+        c.declared_secrets = {'my_secret': {'environment': 'MY_VAR'}}
+        cnt = get_minimal_container()
+        cnt['_service'] = 'test-service'
+        cnt['secrets'] = ['my_secret']
+        with self.assertRaises(ValueError) as context:
+            await container_to_args(c, cnt)
+        self.assertIn('not supported for runtime secrets', str(context.exception))
