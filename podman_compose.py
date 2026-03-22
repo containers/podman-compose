@@ -3716,14 +3716,33 @@ async def wait_for_container_running_healthy(
 
 
 @cmd_run(podman_compose, "up", "Create and start the entire stack or some of its services")
-async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | None:
+async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | None:  # pylint: disable=too-many-return-statements
     excluded = get_excluded(compose, args)
 
-    exit_code = await prepare_images(compose, args, excluded)
-    if exit_code != 0:
-        log.error("Prepare images failed")
-        if not args.dry_run:
-            return exit_code
+    # When creating containers, podman create internally invokes podman pull with the default
+    # policy of --pull=missing.
+    # To minimize downtime during container up command, we explicitly run podman pull before
+    # tearing down the old container, ensuring the image is already cached when we subsequently
+    # call podman create.
+    # However, the pull --policy flag was only introduced to podman in version 5.6.0, so we can
+    # only perform this pre-teardown optimization when using podman >= 5.6.0.
+
+    if compose.podman_version is not None and not strverscmp_lt(compose.podman_version, "5.6.0"):
+        exit_code = await prepare_images(compose, args, excluded)
+        if exit_code != 0:
+            log.error("Prepare images failed")
+            if not args.dry_run:
+                return exit_code
+    else:
+        log.info("building images: ...")
+
+        if not args.no_build:
+            # `podman build` does not cache, so don't always build
+            build_args = argparse.Namespace(if_not_exists=(not args.build), **args.__dict__)
+            build_exit_code = await compose.commands["build"](compose, build_args)
+            if build_exit_code != 0:
+                log.error("Build command failed")
+                return build_exit_code
 
     # if needed, tear down existing containers
 
