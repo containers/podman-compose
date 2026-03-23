@@ -62,8 +62,12 @@ class TestComposeBuildSecrets(unittest.TestCase):
         )
         self.assertEqual(p.returncode, 0)
         secret_path = os.path.join(compose_yaml_path(), "my_secret")
-        self.assertIn(f"--secret id=build_secret,src={secret_path}", p.stdout)
-        self.assertIn(f"--secret id=build_secret2,src={secret_path}", p.stdout)
+        # file-sourced secrets
+        self.assertIn(f"--secret id=build_secret_file,src={secret_path}", p.stdout)
+        self.assertIn(f"--secret id=build_secret_file2,src={secret_path}", p.stdout)
+        # environment-sourced secrets
+        self.assertIn("--secret id=build_secret_env,env=MY_SECRET_VAR", p.stdout)
+        self.assertIn("--secret id=build_secret_env2,env=MY_SECRET_VAR", p.stdout)
 
     def test_invalid_build_secret(self):
         """build secrets in docker-compose file can only have a target argument without directory
