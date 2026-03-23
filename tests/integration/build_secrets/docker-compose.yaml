@@ -11,12 +11,17 @@ services:
     build:
       context: .
       secrets:
-        - build_secret              # can be mounted in Dockerfile with "RUN --mount=type=secret,id=build_secret"
-        - source: build_secret
-          target: build_secret2     # rename to build_secret2
+        - build_secret_file         # can be mounted in Dockerfile with "RUN --mount=type=secret,id=build_secret_file"
+        - source: build_secret_file
+          target: build_secret_file2 # rename to build_secret_file2
+        - build_secret_env          # environment-sourced build secret
+        - source: build_secret_env
+          target: build_secret_env2 # environment-sourced with custom target
 
 secrets:
-  build_secret:
+  build_secret_file:
     file: ./my_secret
+  build_secret_env:
+    environment: MY_SECRET_VAR
   run_secret:
     file: ./my_secret
