@@ -1,0 +1,9 @@
+services:
+  test:
+    image: alpine:latest
+    command: ["true"]
+    # default pull_policy is 'missing'
+  test-override:
+    image: alpine:latest
+    command: ["true"]
+    pull_policy: always
