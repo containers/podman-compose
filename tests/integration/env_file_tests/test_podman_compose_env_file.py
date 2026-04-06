@@ -35,7 +35,40 @@ class TestComposeEnvFile(unittest.TestCase, RunSubprocessMixin):
                 "--no-color",
             ])
             # takes only value ZZVAR1 as container-compose.yaml file requires
-            self.assertEqual(output, b"ZZVAR1=podman-rocks-123\n")
+            self.assertEqual(output, b"ZZVAR1=podman-rocks-123\nZZVAR3=podman-rocks-125\n")
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                path_compose_file,
+                "down",
+            ])
+
+    def test_path_env_file_inline_many(self) -> None:
+        # Test taking env variable value directly from env-file when its path is inline path
+        base_path = compose_base_path()
+        path_compose_file = os.path.join(base_path, "project/container-compose.yaml")
+        try:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                path_compose_file,
+                "--env-file",
+                os.path.join(base_path, "env-files/project-1.env"),
+                "--env-file",
+                os.path.join(base_path, "env-files/project-2.env"),
+                "up",
+            ])
+            output, _ = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                path_compose_file,
+                "logs",
+                "--no-log-prefix",
+                "--no-color",
+            ])
+            # takes only value ZZVAR1 as container-compose.yaml file requires
+            self.assertEqual(output, b"ZZVAR1=podman-rocks-223\nZZVAR3=podman-rocks-125\n")
         finally:
             self.run_subprocess_assert_returncode([
                 podman_compose_path(),
@@ -207,7 +240,7 @@ class TestComposeEnvFile(unittest.TestCase, RunSubprocessMixin):
                 "--no-color",
             ])
             # takes only value ZZVAR1 as container-compose.yaml file requires
-            self.assertEqual(output, b"ZZVAR1=podman-rocks-321\n")
+            self.assertEqual(output, b"ZZVAR1=podman-rocks-321\nZZVAR3=podman-rocks-125\n")
         finally:
             self.run_subprocess_assert_returncode([
                 podman_compose_path(),
