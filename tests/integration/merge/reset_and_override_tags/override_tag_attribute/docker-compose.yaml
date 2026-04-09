@@ -5,3 +5,5 @@ services:
         command: ["/bin/busybox", "echo", "Zero"]
         ports:
             - "8080:80"
+        depends_on:
+          - db

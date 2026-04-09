@@ -2059,10 +2059,12 @@ def normalize_service(service: dict[str, Any], sub_dir: str = "") -> dict[str, A
             deps = {deps: {}}
         elif is_list(deps):
             deps = {x: {} for x in deps}
+        elif isinstance(deps, OverrideTag):
+            deps.value = {x: {} for x in deps.value}
 
         # the dependency service_started is set by default
         # unless requested otherwise.
-        for k, v in deps.items():
+        for k, v in deps.items() if not isinstance(deps, OverrideTag) else deps.value.items():  # type: ignore[union-attr]
             v.setdefault('condition', 'service_started')
         service["depends_on"] = deps
     if "volumes" in service and sub_dir:

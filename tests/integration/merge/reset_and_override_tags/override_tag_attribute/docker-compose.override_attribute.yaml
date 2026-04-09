@@ -5,3 +5,8 @@ services:
         command: ["/bin/busybox", "echo", "One"]
         ports: !override
             - "8111:81"
+        depends_on: !override
+            - other_db
+    other_db:
+        image: busybox
+        command: ["/bin/busybox", "sleep", "10"]
