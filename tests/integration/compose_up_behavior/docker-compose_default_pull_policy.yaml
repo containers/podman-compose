@@ -1,0 +1,4 @@
+services:
+  test:
+    image: alpine:latest
+    command: ["true"]

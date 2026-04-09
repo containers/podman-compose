@@ -1,0 +1,6 @@
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: localhost/test-image:1

@@ -5,9 +5,11 @@ import os
 import unittest
 from typing import Any
 
+from packaging import version
 from parameterized import parameterized
 
 from tests.integration.test_utils import RunSubprocessMixin
+from tests.integration.test_utils import get_podman_version
 from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
@@ -18,7 +20,7 @@ def compose_yaml_path(scenario: str) -> str:
     )
 
 
-class TestComposeDownBehavior(unittest.TestCase, RunSubprocessMixin):
+class TestComposeUpBehavior(unittest.TestCase, RunSubprocessMixin):
     def get_existing_containers(self, scenario: str) -> dict[str, Any]:
         out, _ = self.run_subprocess_assert_returncode(
             [
@@ -133,3 +135,276 @@ class TestComposeDownBehavior(unittest.TestCase, RunSubprocessMixin):
                 "-t",
                 "0",
             ])
+
+    @unittest.skipIf(
+        get_podman_version() < version.parse("5.6.0"),
+        "The image pull policy feature was only added as of Podman 5.6.0.",
+    )
+    def test_pull_only_if_image_missing(self) -> None:
+        """Verify image is pulled because default pull policy is --missing"""
+
+        compose_file = compose_yaml_path("default_pull_policy")
+        image = "docker.io/library/alpine:latest"
+
+        try:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_file,
+                "up",
+                "-d",
+            ])
+
+            # Remove image while container is still up
+            self.run_subprocess_assert_returncode([
+                "podman",
+                "rmi",
+                "-f",
+                image,
+            ])
+
+            # up container one more time, it sees missing images and pulls them again
+            _, error = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "--verbose",
+                "-f",
+                compose_file,
+                "up",
+                "-d",
+            ])
+
+            # podman pull command is explicitly run before container teardown and now is
+            # visible in --verbose output. After container teardown, podman create is called
+            # and already has needed images available
+            self.assertIn(b"podman pull --policy missing alpine:latest", error)
+
+            output, _ = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_file,
+                "ps",
+            ])
+            self.assertIn(b"compose_up_behavior_test_1", output)
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_file,
+                "down",
+                "-t",
+                "0",
+            ])
+            self.run_subprocess_assert_returncode([
+                "podman",
+                "rmi",
+                "-f",
+                image,
+            ])
+
+    @unittest.skipIf(
+        get_podman_version() < version.parse("5.6.0"),
+        "The image pull policy feature was only added as of Podman 5.6.0.",
+    )
+    def test_pull_default_policy_overrides_lower_priority_policy(self) -> None:
+        """Verify pull policy flag with higher priority overrides the default pull
+        policy --missing"""
+
+        compose_file = compose_yaml_path("override_missing")
+        image = "docker.io/library/alpine:latest"
+
+        try:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_file,
+                "up",
+                "-d",
+            ])
+
+            # Remove image while container is still up
+            self.run_subprocess_assert_returncode([
+                "podman",
+                "rmi",
+                "-f",
+                image,
+            ])
+
+            # up container one more time
+            _, error = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "--verbose",
+                "-f",
+                compose_file,
+                "up",
+                "-d",
+            ])
+            # default pull-policy is --missing, but it has been overridden by policy of
+            # higher priority --always
+            self.assertIn(b"podman pull --policy always alpine:latest", error)
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_file,
+                "down",
+                "-t",
+                "0",
+            ])
+            self.run_subprocess_assert_returncode([
+                "podman",
+                "rmi",
+                "-f",
+                image,
+            ])
+
+    @unittest.skipIf(
+        get_podman_version() < version.parse("5.6.0"),
+        "The image pull policy feature was only added as of Podman 5.6.0.",
+    )
+    def test_localhost_image_not_pulled(self) -> None:
+        """Verify existing localhost/ images are used locally without pulling"""
+
+        compose_file = compose_yaml_path("non_existent_localhost_image")
+        image = "localhost/test-image:1"
+
+        try:
+            # pre-create image locally by tagging a minimal base image,
+            # this simulates the image already existing locally
+            self.run_subprocess_assert_returncode(["podman", "pull", "alpine:latest"])
+            self.run_subprocess_assert_returncode(["podman", "tag", "alpine:latest", image])
+
+            output, _ = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_file,
+                "up",
+                "-d",
+            ])
+
+            # Remove image while container is still up
+            self.run_subprocess_assert_returncode([
+                "podman",
+                "rmi",
+                "-f",
+                image,
+            ])
+
+            # since the compose file has both 'build' and 'image', podman-compose
+            # should use the existing image (or rebuild if necessary), but it should
+            # never attempt to pull localhost/ images
+            _, error = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "--verbose",
+                "-f",
+                compose_file,
+                "up",
+                "-d",
+            ])
+            self.assertNotIn(b"Trying to pull", error)
+
+            # Confirm container is actually started with localhost/ image
+            output, _ = self.run_subprocess_assert_returncode([
+                "podman",
+                "ps",
+                "-a",
+                "--filter",
+                f"ancestor={image}",
+                "--format",
+                "{{.Image}}",
+            ])
+            self.assertIn(b"localhost/test-image:1", output)
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_file,
+                "down",
+            ])
+            self.run_subprocess_assert_returncode([
+                "podman",
+                "rmi",
+                "-f",
+                image,
+            ])
+
+    @unittest.skipIf(
+        get_podman_version() < version.parse("5.6.0"),
+        "The image pull policy feature was only added as of Podman 5.6.0.",
+    )
+    def test_localhost_image_built_if_does_not_exist(self) -> None:
+        """Verify non-existent localhost/ images are built instead of pulling"""
+
+        compose_file = compose_yaml_path("build_localhost_image")
+        image = "localhost/not-exists"
+
+        # check image does not exist
+        self.run_subprocess_assert_returncode(
+            [
+                "podman",
+                "image",
+                "exists",
+                image,
+            ],
+            1,
+        )
+
+        try:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_file,
+                "up",
+                "-d",
+            ])
+
+            # Remove image while container is still up
+            self.run_subprocess_assert_returncode([
+                "podman",
+                "rmi",
+                "-f",
+                image,
+            ])
+
+            # image was not pulled, it was built
+            output, _ = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "--verbose",
+                "-f",
+                compose_file,
+                "up",
+                "-d",
+            ])
+            self.assertNotIn(b"Trying to pull", output)
+
+            # After up command, image now exists (was built)
+            output, _ = self.run_subprocess_assert_returncode([
+                "podman",
+                "images",
+                "--filter",
+                f"reference={image}",
+                "--format",
+                "{{.Repository}}:{{.Tag}}",
+            ])
+            self.assertIn(image.encode(), output)
+
+            # Container uses the locally built image
+            output, _ = self.run_subprocess_assert_returncode([
+                "podman",
+                "ps",
+                "-a",
+                "--filter",
+                f"ancestor={image}",
+                "--format",
+                "{{.Image}}",
+            ])
+            self.assertIn(image.encode(), output)
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_file,
+                "down",
+            ])
+            self.run_subprocess_assert_returncode(
+                ["podman", "rmi", "-f", image],
+            )
