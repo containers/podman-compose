@@ -1034,6 +1034,41 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
+    async def test_healthcheck_options(self) -> None:
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+        cnt["healthcheck"] = {
+            "test": ["CMD", "cmd", "arg1", "arg2"],
+            "interval": "1m",
+            "timeout": "10s",
+            "retries": "3",
+            "start_period": "10s",
+            "start_interval": "5s",
+        }
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge:alias=service_name",
+                "--health-cmd",
+                '["cmd", "arg1", "arg2"]',
+                '--health-interval',
+                '1m',
+                '--health-timeout',
+                '10s',
+                '--health-start-period',
+                '10s',
+                '--health-startup-interval',
+                '5s',
+                '--health-retries',
+                '3',
+                "busybox",
+            ],
+        )
+
     async def test_healthcheck_cmd_shell(self) -> None:
         c = create_compose_mock()
         cnt = get_minimal_container()
