@@ -3333,7 +3333,7 @@ def container_to_build_args(
                 raise OSError(f"Dockerfile not found in {dockerfile}")
             raise OSError(f"Dockerfile not found in {ctx}")
 
-    if is_context_git_url(ctx) and dockerfile:
+    elif dockerfile:
         build_args.extend(["-f", dockerfile])
 
     build_args.extend(["-t", cnt["image"]])
