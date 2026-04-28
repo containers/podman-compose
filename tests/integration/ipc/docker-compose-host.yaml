@@ -1,0 +1,7 @@
+services:
+  ipc_test:
+    image: ipc_test_dummy
+    build:
+      dockerfile: "Dockerfile-dummy"
+      context: .
+    ipc: host

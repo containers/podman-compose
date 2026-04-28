@@ -1,0 +1,12 @@
+services:
+  ipc_test0:
+    container_name: ipc_test0_container
+    image: nopush/podman-compose-test
+    command: [ 'sh', '-c', 'ls -l /proc/self/ns/ipc; sleep 2' ]
+    ipc: shareable
+  ipc_test:
+    image: nopush/podman-compose-test
+    command: [ 'sh', '-c', 'ls -l /proc/self/ns/ipc' ]
+    ipc: container:ipc_test0_container
+    depends_on:
+      - ipc_test0

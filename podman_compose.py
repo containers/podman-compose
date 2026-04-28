@@ -1453,6 +1453,21 @@ async def container_to_args(
         podman_args.append("--init")
     if cnt.get("init-path"):
         podman_args.extend(["--init-path", cnt["init-path"]])
+
+    ipc = cnt.get('ipc')
+    if ipc is not None:
+        mode, colon, param = ipc.partition(":")
+
+        if (mode in ("", "host", "none", "private", "shareable") and not colon) or (
+            mode in ("container", "ns") and param
+        ):
+            podman_args.extend(['--ipc', ipc])
+        elif mode == "service" and param:
+            other_cnt = compose.container_names_by_service[param][0]
+            podman_args.extend(['--ipc', "container:" + other_cnt])
+        else:
+            raise ValueError(f"invalid ipc mode [{ipc}]")
+
     entrypoint = cnt.get("entrypoint")
     if entrypoint is not None:
         if isinstance(entrypoint, str):

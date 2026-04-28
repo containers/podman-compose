@@ -1,0 +1,3 @@
+services:
+  ipc_test:
+    image: nopush/podman-compose-test
