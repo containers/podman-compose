@@ -3376,6 +3376,17 @@ async def build_one(compose: PodmanCompose, args: argparse.Namespace, cnt: dict)
     status = await compose.podman.run([], "build", build_args)
     for c in cleanup_callbacks:
         c()
+
+    # When both build: and image: are specified, podman build tags the image
+    # as localhost/<image>, but podman run resolves the bare image name to
+    # the registry. Update the image reference to the localhost/ form so the
+    # locally built image is used instead of the registry one (matching
+    # docker-compose behaviour). See: #1445
+    if status == 0 and "image" in cnt:
+        image = cnt["image"]
+        if not image.startswith("localhost/") and "/" not in image:
+            cnt["image"] = f"localhost/{image}"
+
     return status
 
 
