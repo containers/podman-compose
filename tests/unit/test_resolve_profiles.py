@@ -1,7 +1,7 @@
 import unittest
-from typing import Any
 
 from podman_compose import PodmanCompose
+
 
 class TestResolveProfiles(unittest.TestCase):
     def setUp(self):
@@ -27,19 +27,9 @@ class TestResolveProfiles(unittest.TestCase):
 
     def test_depends_on_pulls_dependency(self):
         defined_services = {
-            "web": {
-                "image": "nginx",
-                "profiles": ["frontend"],
-                "depends_on": ["db"]
-            },
-            "db": {
-                "image": "postgres",
-                "profiles": ["backend"]
-            },
-            "cache": {
-                "image": "redis",
-                "profiles": ["backend"]
-            }
+            "web": {"image": "nginx", "profiles": ["frontend"], "depends_on": ["db"]},
+            "db": {"image": "postgres", "profiles": ["backend"]},
+            "cache": {"image": "redis", "profiles": ["backend"]},
         }
         services = self.compose._resolve_profiles(defined_services, {"frontend"})
         self.assertIn("web", services)
@@ -51,14 +41,9 @@ class TestResolveProfiles(unittest.TestCase):
             "web": {
                 "image": "nginx",
                 "profiles": ["frontend"],
-                "depends_on": {
-                    "db": {"condition": "service_healthy"}
-                }
+                "depends_on": {"db": {"condition": "service_healthy"}},
             },
-            "db": {
-                "image": "postgres",
-                "profiles": ["backend"]
-            }
+            "db": {"image": "postgres", "profiles": ["backend"]},
         }
         services = self.compose._resolve_profiles(defined_services, {"frontend"})
         self.assertIn("web", services)
@@ -66,15 +51,8 @@ class TestResolveProfiles(unittest.TestCase):
 
     def test_extends_pulls_dependency(self):
         defined_services = {
-            "web": {
-                "image": "nginx",
-                "profiles": ["frontend"],
-                "extends": "base-web"
-            },
-            "base-web": {
-                "image": "nginx:alpine",
-                "profiles": ["backend"]
-            }
+            "web": {"image": "nginx", "profiles": ["frontend"], "extends": "base-web"},
+            "base-web": {"image": "nginx:alpine", "profiles": ["backend"]},
         }
         services = self.compose._resolve_profiles(defined_services, {"frontend"})
         self.assertIn("web", services)
@@ -82,15 +60,8 @@ class TestResolveProfiles(unittest.TestCase):
 
     def test_extends_dict_pulls_dependency(self):
         defined_services = {
-            "web": {
-                "image": "nginx",
-                "profiles": ["frontend"],
-                "extends": {"service": "base-web"}
-            },
-            "base-web": {
-                "image": "nginx:alpine",
-                "profiles": ["backend"]
-            }
+            "web": {"image": "nginx", "profiles": ["frontend"], "extends": {"service": "base-web"}},
+            "base-web": {"image": "nginx:alpine", "profiles": ["backend"]},
         }
         services = self.compose._resolve_profiles(defined_services, {"frontend"})
         self.assertIn("web", services)
@@ -98,20 +69,9 @@ class TestResolveProfiles(unittest.TestCase):
 
     def test_transitive_dependencies(self):
         defined_services = {
-            "web": {
-                "image": "nginx",
-                "profiles": ["frontend"],
-                "depends_on": ["api"]
-            },
-            "api": {
-                "image": "node",
-                "profiles": ["backend"],
-                "depends_on": ["db"]
-            },
-            "db": {
-                "image": "postgres",
-                "profiles": ["database"]
-            }
+            "web": {"image": "nginx", "profiles": ["frontend"], "depends_on": ["api"]},
+            "api": {"image": "node", "profiles": ["backend"], "depends_on": ["db"]},
+            "db": {"image": "postgres", "profiles": ["database"]},
         }
         services = self.compose._resolve_profiles(defined_services, {"frontend"})
         self.assertIn("web", services)
@@ -120,16 +80,8 @@ class TestResolveProfiles(unittest.TestCase):
 
     def test_circular_dependencies(self):
         defined_services = {
-            "a": {
-                "image": "alpine",
-                "profiles": ["group1"],
-                "depends_on": ["b"]
-            },
-            "b": {
-                "image": "alpine",
-                "profiles": ["group2"],
-                "depends_on": ["a"]
-            }
+            "a": {"image": "alpine", "profiles": ["group1"], "depends_on": ["b"]},
+            "b": {"image": "alpine", "profiles": ["group2"], "depends_on": ["a"]},
         }
         services = self.compose._resolve_profiles(defined_services, {"group1"})
         self.assertIn("a", services)
@@ -140,7 +92,7 @@ class TestResolveProfiles(unittest.TestCase):
             "web": {
                 "image": "nginx",
                 "profiles": ["frontend"],
-                "depends_on": ["non_existent_service"]
+                "depends_on": ["non_existent_service"],
             }
         }
         services = self.compose._resolve_profiles(defined_services, {"frontend"})
@@ -155,12 +107,9 @@ class TestResolveProfiles(unittest.TestCase):
                 # Invalid format: depends_on should be list or dict
                 "depends_on": "db",
                 # Invalid format: extends should be str or dict
-                "extends": ["db"]
+                "extends": ["db"],
             },
-            "db": {
-                "image": "postgres",
-                "profiles": ["backend"]
-            }
+            "db": {"image": "postgres", "profiles": ["backend"]},
         }
         # It should not crash, and should just include 'web' without 'db'
         services = self.compose._resolve_profiles(defined_services, {"frontend"})
