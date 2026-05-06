@@ -1,0 +1,1 @@
+Recursively include explicitly depended services (via depends_on or extends) into the active execution graph regardless of profile exclusions, mirroring standard docker-compose behavior and fixing a KeyError in check_dep_conditions.
