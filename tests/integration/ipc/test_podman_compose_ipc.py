@@ -55,19 +55,21 @@ class TestComposeIpc(unittest.TestCase):
         """Do not pass --ipc if there is no ipc element in the config"""
         p = podman_compose_simulate("run", "docker-compose-no-ipc.yaml", "ipc_test")
         self.assertNotIn("--ipc", p.stdout)
+        self.assertNotIn("Error", p.stdout)
         self.assertEqual(p.returncode, 0)
 
     def test_pass_no_ipc_to_build(self) -> None:
         """Do not pass --ipc to podman build"""
         p = podman_compose_simulate("build", "docker-compose-host.yaml", "ipc_test")
         self.assertNotIn("--ipc", p.stdout)
+        self.assertNotIn("Error", p.stdout)
         self.assertEqual(p.returncode, 0)
 
     def test_invalid_ipc(self) -> None:
         """Throw ValueError on invalid ipc mode"""
         p = podman_compose_simulate("run", "docker-compose-invalid.yaml", "ipc_test")
         self.assertIn("ValueError: invalid ipc mode [invalid]", p.stdout)
-        self.assertEqual(p.returncode, 1)
+        self.assertNotEqual(p.returncode, 0)
 
     def test_pass_ipc(self) -> None:
         """Pass correct --ipc parameter to podman run"""
@@ -87,16 +89,31 @@ class TestComposeIpc(unittest.TestCase):
             for compose_command in ("run", "up"):
                 p = podman_compose_simulate(compose_command, compose_file, "ipc_test")
                 self.assertIn(f"--ipc {ipc_mode} ", p.stdout)
+                self.assertNotIn("Error", p.stdout)
                 self.assertEqual(p.returncode, 0)
 
-    def test_ipc_services(self) -> None:
-        """Start up a composefile with two services and shared ipc namespace"""
+    def test_up_empty_string(self) -> None:
+        """Create and start container with ipc mode "" (empty string)"""
 
-        p = podman_compose_invoke("up", "docker-compose-service.yaml")
+        compose_file = "docker-compose-emptystring.yaml"
 
+        p = podman_compose_invoke("up", compose_file)
+        podman_compose_invoke("down", compose_file)
+
+        self.assertNotIn("Error", p.stdout)
+        self.assertEqual(p.returncode, 0)
+
+    def test_up_shared_namespace(self) -> None:
+        """Create and start two containers with shared ipc namespace"""
+
+        compose_file = "docker-compose-service.yaml"
+
+        p = podman_compose_invoke("up", compose_file)
+        podman_compose_invoke("down", compose_file)
+
+        # check that both /proc/self/ns/ipc point to the same target
         matches = re.findall(r'/proc/\d+/ns/ipc:.+', p.stdout)
         self.assertEqual(len(matches), 2)
         self.assertEqual(matches[0], matches[1])
+        self.assertNotIn("Error", p.stdout)
         self.assertEqual(p.returncode, 0)
-
-        podman_compose_invoke("down", "docker-compose-service.yaml")
