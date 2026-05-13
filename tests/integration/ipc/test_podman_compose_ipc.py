@@ -71,6 +71,15 @@ class TestComposeIpc(unittest.TestCase):
         self.assertIn("ValueError: invalid ipc mode [invalid]", p.stdout)
         self.assertNotEqual(p.returncode, 0)
 
+    def test_invalid_service_name(self) -> None:
+        """Throw ValueError if ipc: "service:<name>" refers to an invalid service name"""
+        p = podman_compose_simulate("run", "docker-compose-invalid-service.yaml", "ipc_test")
+        self.assertIn(
+            "ValueError: invalid ipc mode [service:invalid], service [invalid] does not exist",
+            p.stdout,
+        )
+        self.assertNotEqual(p.returncode, 0)
+
     def test_pass_ipc(self) -> None:
         """Pass correct --ipc parameter to podman run"""
 

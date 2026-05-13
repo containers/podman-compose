@@ -1463,6 +1463,8 @@ async def container_to_args(
         ):
             podman_args.extend(['--ipc', ipc])
         elif mode == "service" and param:
+            if param not in compose.container_names_by_service:
+                raise ValueError(f"invalid ipc mode [{ipc}], service [{param}] does not exist.")
             other_cnt = compose.container_names_by_service[param][0]
             podman_args.extend(['--ipc', "container:" + other_cnt])
         else:
