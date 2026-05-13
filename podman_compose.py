@@ -4162,10 +4162,14 @@ def compose_run_update_container_from_args(
     podman_compose, "cp", "copy files/folders between a service container and the local filesystem"
 )
 async def compose_cp(compose: PodmanCompose, args: argparse.Namespace) -> None:
-    if ':' in args.src:
+    if ':' in args.src and ':' not in args.dst:
         service = args.src.split(':', 1)[0]
-    elif ':' in args.dst:
+    elif ':' in args.dst and ':' not in args.src:
         service = args.dst.split(':', 1)[0]
+    else:
+        raise ValueError(
+            f"Invalid copy arguments format: source = {args.src}, destination = {args.dst}."
+        )
     compose.assert_services(service)
     container_names = compose.container_names_by_service[service]
     podman_args = compose_cp_args(container_names[0], args)
