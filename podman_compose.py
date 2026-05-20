@@ -2100,16 +2100,33 @@ def normalize_service(service: dict[str, Any], sub_dir: str = "") -> dict[str, A
 
             new_volumes.append(v)
         service["volumes"] = new_volumes
+    if "env_file" in service and sub_dir:
+        new_env_file = []
+        for ef in service["env_file"]:
+            if isinstance(ef, str):
+                if is_relative_ref(ef):
+                    ef = os.path.join(sub_dir, ef)
+            elif isinstance(ef, dict):
+                path = ef.get("path")
+                if isinstance(path, str) and is_relative_ref(path):
+                    ef["path"] = os.path.join(sub_dir, path)
+            new_env_file.append(ef)
+        service["env_file"] = new_env_file
     return service
 
 
-def normalize(compose: dict[str, Any]) -> dict[str, Any]:
+def normalize(compose: dict[str, Any], sub_dir: str = "") -> dict[str, Any]:
     """
     convert compose dict of some keys from string or dicts into arrays
+
+    If ``sub_dir`` is provided, relative paths in ``volumes``, ``env_file`` and
+    ``build.context`` are rewritten to be relative to ``sub_dir`` (used when an
+    included file lives in a different directory than the project root, per
+    Compose Spec resolution of paths in ``include:``d files).
     """
     services = compose.get("services", {}) or {}
     for service in services.values():
-        normalize_service(service)
+        normalize_service(service, sub_dir)
     return compose
 
 
