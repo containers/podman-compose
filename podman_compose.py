@@ -2595,6 +2595,11 @@ class PodmanCompose:
         compose: dict[str, Any] = {}
         # Iterate over files primitively to allow appending to files in-loop
         files_iter = iter(files)
+        # Track files appended by ``include:`` so we can resolve their
+        # relative paths against the included file's directory per the
+        # Compose Spec, without changing the legacy merge behavior of
+        # files passed directly via ``-f``.
+        include_origin_files: set[str] = set()
 
         while True:
             try:
@@ -2611,7 +2616,22 @@ class PodmanCompose:
             if not isinstance(content, dict):
                 log.fatal("Compose file does not contain a top level object: %s", filename)
                 sys.exit(1)
-            content = normalize(content)
+            # For files arriving via ``include:``, paths inside the file must
+            # resolve against the included file's directory rather than the
+            # project root (Compose Spec, ``include`` section). Pass that as
+            # sub_dir so volumes / env_file / build.context get rewritten.
+            file_sub_dir = ""
+            if filename in include_origin_files:
+                file_dir = os.path.dirname(os.path.abspath(filename))
+                file_sub_dir = os.path.relpath(file_dir, self.dirname)
+                if file_sub_dir == ".":
+                    file_sub_dir = ""
+                elif not file_sub_dir.startswith((".", "/")):
+                    # Prefix with "./" so rewritten paths remain recognizable
+                    # as relative refs (is_relative_ref checks for "./"/".."
+                    # prefixes).
+                    file_sub_dir = "./" + file_sub_dir
+            content = normalize(content, file_sub_dir)
             # log(filename, json.dumps(content, indent = 2))
 
             # See also https://docs.docker.com/compose/how-tos/project-name/#set-a-project-name
@@ -2649,7 +2669,7 @@ class PodmanCompose:
             # If `include` is used, append included files to files
             include = compose.get("include")
             if include:
-                included_files = []
+                new_includes = []
                 for i in include:
                     if isinstance(i, dict):
                         rel_path = i.get("path")
@@ -2659,8 +2679,9 @@ class PodmanCompose:
                         rel_path = None
 
                     if rel_path:
-                        included_files.append(os.path.join(os.path.dirname(filename), rel_path))
-                files.extend(included_files)
+                        new_includes.append(os.path.join(os.path.dirname(filename), rel_path))
+                files.extend(new_includes)
+                include_origin_files.update(new_includes)
                 # As compose obj is updated and tested with every loop, not deleting `include`
                 # from it, results in it being tested again and again, original values for
                 # `include` be appended to `files`, and, included files be processed for ever.
