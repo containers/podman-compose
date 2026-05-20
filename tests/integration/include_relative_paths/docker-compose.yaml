@@ -1,0 +1,6 @@
+version: "3.6"
+
+name: include-relative-paths
+
+include:
+  - sub/included.yaml

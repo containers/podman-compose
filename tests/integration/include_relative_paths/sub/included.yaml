@@ -1,0 +1,15 @@
+services:
+  # All relative paths below should resolve against this file's directory
+  # (sub/), not the project root. So:
+  #   ./local.env       -> sub/local.env
+  #   ../shared.env     -> shared.env (in project root)
+  #   ./data:/data:ro   -> sub/data
+  #   ../assets:/assets:ro -> assets (in project root)
+  web:
+    image: nopush/podman-compose-test
+    env_file:
+      - ./local.env
+      - ../shared.env
+    volumes:
+      - ./data:/data:ro
+      - ../assets:/assets:ro
