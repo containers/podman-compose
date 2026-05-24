@@ -18,9 +18,9 @@ class TestLogs(unittest.TestCase, RunSubprocessMixin):
             [],
             [
                 b'',
-                b'\x1b[1;32m[test1] |\x1b[0m \x1b[37mtest1\x1b[0m',
-                b'\x1b[1;33m[test2] |\x1b[0m \x1b[37mtest2\x1b[0m',
-                b'\x1b[1;34m[test3] |\x1b[0m \x1b[37mtest3\x1b[0m',
+                b'\x1b[1;32m[test1_1]|\x1b[0m \x1b[37mtest1\x1b[0m',
+                b'\x1b[1;33m[test2_1]|\x1b[0m \x1b[37mtest2\x1b[0m',
+                b'\x1b[1;34m[test3_1]|\x1b[0m \x1b[37mtest3\x1b[0m',
             ],
         ),
         (
@@ -28,9 +28,9 @@ class TestLogs(unittest.TestCase, RunSubprocessMixin):
             ["--no-color"],
             [
                 b'',
-                b'\x1b[0m[test1] |\x1b[0m test1',
-                b'\x1b[0m[test2] |\x1b[0m test2',
-                b'\x1b[0m[test3] |\x1b[0m test3',
+                b'\x1b[0m[test1_1]|\x1b[0m test1',
+                b'\x1b[0m[test2_1]|\x1b[0m test2',
+                b'\x1b[0m[test3_1]|\x1b[0m test3',
             ],
         ),
         (
@@ -46,12 +46,12 @@ class TestLogs(unittest.TestCase, RunSubprocessMixin):
         (
             "one_service_no_flag",
             ["test1"],
-            [b'', b'\x1b[1;32m[test1] |\x1b[0m \x1b[37mtest1\x1b[0m'],
+            [b'', b'\x1b[1;32m[test1_1]|\x1b[0m \x1b[37mtest1\x1b[0m'],
         ),
         (
             "one_service_flag_no_color",
             ["test1", "--no-color"],
-            [b'', b'\x1b[0m[test1] |\x1b[0m test1'],
+            [b'', b'\x1b[0m[test1_1]|\x1b[0m test1'],
         ),
         (
             "one_service_flag_no_log_prefix",
@@ -68,14 +68,14 @@ class TestLogs(unittest.TestCase, RunSubprocessMixin):
             ["test2", "test3"],
             [
                 b'',
-                b'\x1b[1;32m[test2] |\x1b[0m \x1b[37mtest2\x1b[0m',
-                b'\x1b[1;33m[test3] |\x1b[0m \x1b[37mtest3\x1b[0m',
+                b'\x1b[1;33m[test2_1]|\x1b[0m \x1b[37mtest2\x1b[0m',
+                b'\x1b[1;34m[test3_1]|\x1b[0m \x1b[37mtest3\x1b[0m',
             ],
         ),
         (
             "two_services_flag_no_color",
             ["test2", "test3", "--no-color"],
-            [b'', b'\x1b[0m[test2] |\x1b[0m test2', b'\x1b[0m[test3] |\x1b[0m test3'],
+            [b'', b'\x1b[0m[test2_1]|\x1b[0m test2', b'\x1b[0m[test3_1]|\x1b[0m test3'],
         ),
         (
             "two_services_flag_no_log_prefix",

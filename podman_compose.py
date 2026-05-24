@@ -2854,6 +2854,11 @@ class PodmanCompose:
                     name = service_desc.get("container_name", name0)
                 else:
                     name = name0
+
+                if service_desc.get("container_name", False):
+                    log_prefix = name
+                else:
+                    log_prefix = f"{service_name}_{num}"
                 container_names_by_service[service_name].append(name)
                 # log(service_name,service_desc)
                 cnt = {
@@ -2861,6 +2866,7 @@ class PodmanCompose:
                     "name": name,
                     "num": num,
                     "service_name": service_name,
+                    "log_prefix": log_prefix,
                     **service_desc,
                 }
                 x_podman = service_desc.get("x-podman")
@@ -3722,6 +3728,46 @@ def deps_from_container(args: argparse.Namespace, cnt: dict) -> set:
     return cnt['_deps']
 
 
+def get_service_info(compose: PodmanCompose, service: str) -> tuple[dict, int] | None:
+    for index, cnt in enumerate(compose.containers):
+        service_name = cnt["_service"]
+        if service == service_name:
+            return (cnt, index)
+    return None
+
+
+def create_format_logs_task(
+    compose: PodmanCompose,
+    args: argparse.Namespace,
+    service: str,
+    podman_args: list,
+    max_service_length: int,
+) -> asyncio.Task | None:
+    result = get_service_info(compose, service)
+    if result is None:
+        return None
+
+    container, index = result
+    # Add colored service prefix to output by piping output through sed
+    if args.no_log_prefix:
+        log_formatter = None
+    else:
+        color_idx = index % len(compose.console_colors)
+        if args.no_color:  # monochrome output
+            color = '\x1b[0m'
+        else:
+            color = compose.console_colors[color_idx]
+
+        log_prefix = container["log_prefix"]
+        space_suffix = " " * (max_service_length - len(log_prefix) + 1)
+        log_formatter = f"{color}[{log_prefix}]{space_suffix}|\x1b[0m"
+
+    target_service = compose.container_names_by_service[service]
+    return asyncio.create_task(
+        compose.podman.run([], "logs", podman_args + target_service, log_formatter=log_formatter)
+    )
+
+
 @dataclass
 class PullImageSettings:
     POLICY_PRIORITY: ClassVar[dict[str, int]] = {
@@ -4433,9 +4479,7 @@ async def compose_restart(compose: PodmanCompose, args: argparse.Namespace) -> N
 
 
 @cmd_run(podman_compose, "logs", "show logs from services")
-async def compose_logs(
-    compose: PodmanCompose, args: argparse.Namespace, log_formatter: str | None = None
-) -> None:
+async def compose_logs(compose: PodmanCompose, args: argparse.Namespace) -> None:
     container_names_by_service = compose.container_names_by_service
     if not args.services and not args.latest:
         args.services = container_names_by_service.keys()
@@ -4462,27 +4506,12 @@ async def compose_logs(
         podman_args.extend(["--until", args.until])
 
     max_service_length = 0
-    tasks = []
+    tasks: list[asyncio.Task[Any]] = []
     max_service_length = max(len(service) for service in args.services)
-    for i, service in enumerate(args.services):
-        # Add colored service prefix to output by piping output through sed
-        if args.no_log_prefix:
-            log_formatter = None
-        else:
-            color_idx = i % len(compose.console_colors)
-            if args.no_color:  # monochrome output
-                color = '\x1b[0m'
-            else:
-                color = compose.console_colors[color_idx]
-            space_suffix = " " * (max_service_length - len(service) + 1)
-            log_formatter = f"{color}[{service}]{space_suffix}|\x1b[0m"
-
-        podman_args_with_target = podman_args + container_names_by_service[service]
-        tasks.append(
-            asyncio.create_task(
-                compose.podman.run([], "logs", podman_args_with_target, log_formatter=log_formatter)
-            )
-        )
+    for service in args.services:
+        task = create_format_logs_task(compose, args, service, podman_args, max_service_length)
+        if task:
+            tasks.append(task)
     await asyncio.gather(*tasks)
 
 

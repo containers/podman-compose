@@ -1,0 +1,1 @@
+Use the custom `container_name` from `compose.yml` as the log prefix.
