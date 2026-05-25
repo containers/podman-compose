@@ -9,3 +9,7 @@ services:
   test3:
     image: busybox
     command: ["echo", "test3"]
+  test4:
+    image: busybox
+    command: ["echo", "test4"]
+    container_name: custom_name
