@@ -136,6 +136,86 @@ class TestComposeUpBehavior(unittest.TestCase, RunSubprocessMixin):
                 "0",
             ])
 
+    @parameterized.expand([
+        (
+            "service_change_base",
+            ["up", "--force-recreate"],
+            {"app", "db", "no_deps"},
+        ),
+        (
+            "service_change_base",
+            ["up", "--force-recreate", "app"],
+            {"app"},
+        ),
+        (
+            "service_change_base",
+            ["up", "--force-recreate", "db"],
+            {"db", "app"},
+        ),
+        (
+            "service_change_base",
+            ["up", "--force-recreate", "no_deps"],
+            {"no_deps"},
+        ),
+        (
+            "service_change_base",
+            ["up", "--force-recreate", "--always-recreate-deps", "app"],
+            {"app", "db"},
+        ),
+    ])
+    def test_force_recreate_scoped_to_requested_services(
+        self,
+        running_scenario: str,
+        command_args: list[str],
+        expect_recreated_services: set[str],
+    ) -> None:
+        try:
+            self.run_subprocess_assert_returncode(
+                [podman_compose_path(), "-f", compose_yaml_path(running_scenario), "up", "-d"],
+            )
+
+            original_containers = self.get_existing_containers(running_scenario)
+
+            self.run_subprocess_assert_returncode(
+                [
+                    podman_compose_path(),
+                    "--verbose",
+                    "-f",
+                    compose_yaml_path(running_scenario),
+                    *command_args,
+                    "-d",
+                ],
+            )
+
+            new_containers = self.get_existing_containers(running_scenario)
+            recreated_services = {
+                c.get("service_name")
+                for c in original_containers.values()
+                if new_containers.get(c.get("name"), {}).get("id") != c.get("id")
+            }
+
+            self.assertEqual(
+                recreated_services,
+                expect_recreated_services,
+                msg=f"Expected services to be recreated: {expect_recreated_services}, "
+                f"but got: {recreated_services}, containers: "
+                f"[{original_containers}, {new_containers}]",
+            )
+            self.assertTrue(
+                all([c.get("exited") is False for c in new_containers.values()]),
+                msg="Not all containers are running after up command",
+            )
+
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(running_scenario),
+                "down",
+                "-t",
+                "0",
+            ])
+
     @unittest.skipIf(
         get_podman_version() < version.parse("5.6.0"),
         "The image pull policy feature was only added as of Podman 5.6.0.",
