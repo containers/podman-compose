@@ -1,0 +1,1 @@
+Fixed Windows file paths for `context` attribute being interpreted as URLs causing custom `dockerfile` and `dockerfile_inline` attributes to be ignored.
