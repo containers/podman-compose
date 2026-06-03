@@ -44,7 +44,7 @@ from urllib.parse import quote
 import yaml
 from dotenv import dotenv_values
 
-__version__ = "1.5.0"
+__version__ = "1.6.0"
 
 script = os.path.realpath(sys.argv[0])
 
