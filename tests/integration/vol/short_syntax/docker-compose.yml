@@ -11,3 +11,8 @@ services:
     command: ["/bin/busybox", "mkdir", "cont/test_dir/new_dir"]
     volumes:
       - ./test_dir:/cont/test_dir
+  test3:
+    image: nopush/podman-compose-test
+    command: ["echo", "test3"]
+    volumes:
+        - /tmp/symlink-test/link:/mnt
