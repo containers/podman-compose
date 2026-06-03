@@ -1,1 +1,0 @@
-Fixed top-level `name` attribute interpolation not happening.

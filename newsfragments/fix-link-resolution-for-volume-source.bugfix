@@ -1,1 +1,0 @@
-Fix link resolution for mounted volume when volume source is a symlink.

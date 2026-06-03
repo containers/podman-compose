@@ -1,1 +1,0 @@
-Fix TypeError when parsing 'include' items that are formatted as detailed mappings (dictionaries).
