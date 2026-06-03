@@ -1,1 +1,0 @@
-Fix `podman-compose down service` stops wrong dependents

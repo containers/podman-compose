@@ -1,1 +1,0 @@
-Show a clean one-line error (without Python traceback) when an external network or volume is missing, including a suggested `podman network create` / `podman volume create` command.
