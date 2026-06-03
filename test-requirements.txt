@@ -31,7 +31,7 @@ colorama==0.4.6
 dill==0.3.8
 distlib==0.3.8
 filelock==3.13.1
-idna==3.11
+idna==3.15
 iniconfig==2.0.0
 isort==5.13.2
 mccabe==0.7.0
