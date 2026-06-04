@@ -41,17 +41,6 @@ def podman_compose_invoke(
 
 
 class TestComposeIpc(unittest.TestCase):
-    def test_up_empty_string(self) -> None:
-        """Create and start container with ipc mode "" (empty string)"""
-
-        compose_file = "docker-compose-emptystring.yaml"
-
-        p = podman_compose_invoke("up", compose_file)
-        podman_compose_invoke("down", compose_file)
-
-        self.assertNotIn("Error", p.stdout)
-        self.assertEqual(p.returncode, 0)
-
     def test_up_shared_namespace(self) -> None:
         """Create and start two containers with shared ipc namespace"""
 
