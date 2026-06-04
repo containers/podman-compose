@@ -1,15 +1,11 @@
-# modified from
-# https://github.com/containers/podman-compose/issues/1292
-
 services:
   ipc_test0:
-    container_name: ipc_test0_container
     image: nopush/podman-compose-test
-    command: [ 'sh', '-c', 'readlink -f /proc/self/ns/ipc; sleep 2' ]
+    command: [ 'sleep', 'infinity' ]
     ipc: shareable
   ipc_test:
     image: nopush/podman-compose-test
-    command: [ 'sh', '-c', 'readlink -f /proc/self/ns/ipc' ]
+    command: [ 'sleep', 'infinity' ]
     ipc: service:ipc_test0
     depends_on:
       - ipc_test0
