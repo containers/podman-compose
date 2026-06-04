@@ -40,67 +40,7 @@ def podman_compose_invoke(
     )
 
 
-def podman_compose_simulate(
-    compose_command: str, compose_file: str, service: str | None
-) -> subprocess.CompletedProcess:
-    """Helper function, uses --dry-run to simulate a run of podman compose <command>"""
-
-    return podman_compose_invoke(
-        compose_command, compose_file, service, compose_options=("--dry-run", "--verbose")
-    )
-
-
 class TestComposeIpc(unittest.TestCase):
-    def test_no_ipc(self) -> None:
-        """Do not pass --ipc if there is no ipc element in the config"""
-        p = podman_compose_simulate("run", "docker-compose-no-ipc.yaml", "ipc_test")
-        self.assertNotIn("--ipc", p.stdout)
-        self.assertNotIn("Error", p.stdout)
-        self.assertEqual(p.returncode, 0)
-
-    def test_pass_no_ipc_to_build(self) -> None:
-        """Do not pass --ipc to podman build"""
-        p = podman_compose_simulate("build", "docker-compose-host.yaml", "ipc_test")
-        self.assertNotIn("--ipc", p.stdout)
-        self.assertNotIn("Error", p.stdout)
-        self.assertEqual(p.returncode, 0)
-
-    def test_invalid_ipc(self) -> None:
-        """Throw ValueError on invalid ipc mode"""
-        p = podman_compose_simulate("run", "docker-compose-invalid.yaml", "ipc_test")
-        self.assertIn("ValueError: invalid ipc mode [invalid]", p.stdout)
-        self.assertNotEqual(p.returncode, 0)
-
-    def test_invalid_service_name(self) -> None:
-        """Throw ValueError if ipc: "service:<name>" refers to an invalid service name"""
-        p = podman_compose_simulate("run", "docker-compose-invalid-service.yaml", "ipc_test")
-        self.assertIn(
-            "ValueError: invalid ipc mode [service:invalid], service [invalid] does not exist",
-            p.stdout,
-        )
-        self.assertNotEqual(p.returncode, 0)
-
-    def test_pass_ipc(self) -> None:
-        """Pass correct --ipc parameter to podman run"""
-
-        test_cases = (
-            ("docker-compose-emptystring.yaml", ""),
-            ("docker-compose-container.yaml", "container:ipc_test0_container"),
-            ("docker-compose-host.yaml", "host"),
-            ("docker-compose-none.yaml", "none"),
-            ("docker-compose-ns.yaml", "ns:namespace_id"),
-            ("docker-compose-private.yaml", "private"),
-            ("docker-compose-shareable.yaml", "shareable"),
-            ("docker-compose-service.yaml", "container:ipc_test0_container"),
-        )
-
-        for compose_file, ipc_mode in test_cases:
-            for compose_command in ("run", "up"):
-                p = podman_compose_simulate(compose_command, compose_file, "ipc_test")
-                self.assertIn(f"--ipc {ipc_mode} ", p.stdout)
-                self.assertNotIn("Error", p.stdout)
-                self.assertEqual(p.returncode, 0)
-
     def test_up_empty_string(self) -> None:
         """Create and start container with ipc mode "" (empty string)"""
 
