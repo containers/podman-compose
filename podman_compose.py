@@ -1456,6 +1456,9 @@ async def container_to_args(
 
     ipc = cnt.get('ipc')
     if ipc is not None:
+        if not isinstance(ipc, str):
+            raise ValueError(f"invalid ipc mode [{ipc}]")
+
         mode, colon, param = ipc.partition(":")
 
         if (mode in ("", "host", "none", "private", "shareable") and not colon) or (
