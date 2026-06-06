@@ -613,7 +613,7 @@ async def assert_config_artifact(
                 f"External config [{artifact_name}] does not exist. "
                 f"Create it first with: podman artifact add '{artifact_name}'"
             ) from e
-    except (json.JSONDecodeError, KeyError) as e:
+    except (json.JSONDecodeError, KeyError, TypeError) as e:
         raise PodmanComposeError(
             f'Artifact {artifact_name} exists, but the Manifest.layers[0].digest '
             f'field could not be parsed. Check the output of: '
@@ -4161,7 +4161,7 @@ async def compose_down(compose: PodmanCompose, args: argparse.Namespace) -> None
         for cnt in containers:
             if cnt["_service"] not in excluded:
                 continue
-            for cfg_name, cfg in cnt.get("configs", {}).items():
+            for cfg in cnt.get("configs", []):
                 src = cfg if isinstance(cfg, str) else cfg.get("source")
                 configs_to_keep.add(src)
 
