@@ -5,7 +5,10 @@ import subprocess
 import tempfile
 import unittest
 
+from packaging import version
+
 from tests.integration.test_utils import RunSubprocessMixin
+from tests.integration.test_utils import get_podman_version
 from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
 
@@ -48,6 +51,10 @@ class TestComposeConfigs(unittest.TestCase, RunSubprocessMixin):
             ])
 
     # test if configs are saved and available in respective files of a container
+    @unittest.skipIf(
+        get_podman_version() < version.parse("5.6.0"),
+        "Configs supported on podman-5.6.0 and later.",
+    )
     def test_configs(self) -> None:
         try:
             _, error = self.run_subprocess_assert_returncode(

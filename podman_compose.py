@@ -2910,6 +2910,16 @@ class PodmanCompose:
         ]
         # other top-levels:
         self.declared_configs = compose.get("configs", {})
+        if (
+            self.declared_configs
+            and self.podman_version is not None
+            and strverscmp_lt(self.podman_version, "5.6.0")
+        ):
+            raise PodmanComposeError(
+                "Compose configs are only supported when running podman >= 5.6.0 "
+                f"(current version {self.podman_version})"
+            )
+
         self.declared_secrets = compose.get("secrets", {})
         given_containers = []
         container_names_by_service: dict[str, list[str]] = {}
