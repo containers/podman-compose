@@ -389,9 +389,10 @@ class TestContainerToArgsConfigs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    @mock.patch.dict(os.environb, {b'CONFIG_VAL': b'config-from-environment'})
     async def test_environment_config(self) -> None:
         c = create_compose_mock()
+        # mock.patch.dict would be better, but doesn't work on Python 3.9
+        os.environ['CONFIG_VAL'] = 'config-from-environment'
         c.declared_configs = {
             "environment_config": {
                 "environment": "CONFIG_VAL",
