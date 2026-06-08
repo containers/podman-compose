@@ -2073,16 +2073,33 @@ def normalize_service(service: dict[str, Any], sub_dir: str = "") -> dict[str, A
 
             new_volumes.append(v)
         service["volumes"] = new_volumes
+    if "env_file" in service and sub_dir:
+        new_env_file = []
+        for ef in service["env_file"]:
+            if isinstance(ef, str):
+                if is_relative_ref(ef):
+                    ef = os.path.join(sub_dir, ef)
+            elif isinstance(ef, dict):
+                path = ef.get("path")
+                if isinstance(path, str) and is_relative_ref(path):
+                    ef["path"] = os.path.join(sub_dir, path)
+            new_env_file.append(ef)
+        service["env_file"] = new_env_file
     return service
 
 
-def normalize(compose: dict[str, Any]) -> dict[str, Any]:
+def normalize(compose: dict[str, Any], sub_dir: str = "") -> dict[str, Any]:
     """
     convert compose dict of some keys from string or dicts into arrays
+
+    If ``sub_dir`` is provided, relative paths in ``volumes``, ``env_file`` and
+    ``build.context`` are rewritten to be relative to ``sub_dir`` (used when an
+    included file lives in a different directory than the project root, per
+    Compose Spec resolution of paths in ``include:``d files).
     """
     services = compose.get("services", {}) or {}
     for service in services.values():
-        normalize_service(service)
+        normalize_service(service, sub_dir)
     return compose
 
 
@@ -2578,6 +2595,11 @@ class PodmanCompose:
         compose: dict[str, Any] = {}
         # Iterate over files primitively to allow appending to files in-loop
         files_iter = iter(files)
+        # Track files appended by ``include:`` so we can resolve their
+        # relative paths against the included file's directory per the
+        # Compose Spec, without changing the legacy merge behavior of
+        # files passed directly via ``-f``.
+        include_origin_files: set[str] = set()
 
         while True:
             try:
@@ -2594,7 +2616,22 @@ class PodmanCompose:
             if not isinstance(content, dict):
                 log.fatal("Compose file does not contain a top level object: %s", filename)
                 sys.exit(1)
-            content = normalize(content)
+            # For files arriving via ``include:``, paths inside the file must
+            # resolve against the included file's directory rather than the
+            # project root (Compose Spec, ``include`` section). Pass that as
+            # sub_dir so volumes / env_file / build.context get rewritten.
+            file_sub_dir = ""
+            if filename in include_origin_files:
+                file_dir = os.path.dirname(os.path.abspath(filename))
+                file_sub_dir = os.path.relpath(file_dir, self.dirname)
+                if file_sub_dir == ".":
+                    file_sub_dir = ""
+                elif not file_sub_dir.startswith((".", "/")):
+                    # Prefix with "./" so rewritten paths remain recognizable
+                    # as relative refs (is_relative_ref checks for "./"/".."
+                    # prefixes).
+                    file_sub_dir = "./" + file_sub_dir
+            content = normalize(content, file_sub_dir)
             # log(filename, json.dumps(content, indent = 2))
 
             # See also https://docs.docker.com/compose/how-tos/project-name/#set-a-project-name
@@ -2632,7 +2669,7 @@ class PodmanCompose:
             # If `include` is used, append included files to files
             include = compose.get("include")
             if include:
-                included_files = []
+                new_includes = []
                 for i in include:
                     if isinstance(i, dict):
                         rel_path = i.get("path")
@@ -2642,8 +2679,9 @@ class PodmanCompose:
                         rel_path = None
 
                     if rel_path:
-                        included_files.append(os.path.join(os.path.dirname(filename), rel_path))
-                files.extend(included_files)
+                        new_includes.append(os.path.join(os.path.dirname(filename), rel_path))
+                files.extend(new_includes)
+                include_origin_files.update(new_includes)
                 # As compose obj is updated and tested with every loop, not deleting `include`
                 # from it, results in it being tested again and again, original values for
                 # `include` be appended to `files`, and, included files be processed for ever.

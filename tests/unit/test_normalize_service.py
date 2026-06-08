@@ -78,6 +78,18 @@ class TestNormalizeService(unittest.TestCase):
                 ]
             },
         ),
+        (
+            {"env_file": "./.env"},
+            {"env_file": ["./sub_dir/./.env"]},
+        ),
+        (
+            {"env_file": ["./.env", "../shared.env"]},
+            {"env_file": ["./sub_dir/./.env", "./sub_dir/../shared.env"]},
+        ),
+        (
+            {"env_file": [{"path": "./.env", "required": False}]},
+            {"env_file": [{"path": "./sub_dir/./.env", "required": False}]},
+        ),
     ])
     def test_normalize_service_with_sub_dir(
         self, input: dict[str, Any], expected: dict[str, Any]
