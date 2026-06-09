@@ -73,6 +73,7 @@ class RunSubprocessMixin:
         args: list[str],
         env: dict[str, str] = {},
         timeout: Optional[float] = None,
+        cwd: Optional[Path] = None,
     ) -> tuple[bytes, bytes, int]:
         begin = time.time()
         if self.is_debug_enabled():
@@ -82,6 +83,7 @@ class RunSubprocessMixin:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             env=os.environ | env,
+            cwd=cwd,
         )
         out, err = proc.communicate(timeout=timeout)
         if self.is_debug_enabled():
