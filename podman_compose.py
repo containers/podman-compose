@@ -31,7 +31,6 @@ import urllib.parse
 from asyncio import Task
 from dataclasses import dataclass
 from enum import Enum
-from os.path import isabs as primarypathisabs
 from typing import Any
 from typing import Callable
 from typing import ClassVar
@@ -45,6 +44,8 @@ from urllib.parse import quote
 import yaml
 from dotenv import dotenv_values
 
+# Python loads the appropriate path module based on the OS, but we need to be able
+# to check if a path is absolute according to BOTH major OS's rules.
 if os.name == 'posix':
     from ntpath import isabs as secondarypathisabs
 if os.name == 'nt':
@@ -3251,7 +3252,7 @@ def is_context_git_url(path: str) -> bool:
     # URL contains a ":" character, a hint of a valid URL
     # But also detects windows file paths (e.g. "C:\path\to\contextdir") as urls
     is_path_with_drive_letter = (
-        (primarypathisabs(path) or secondarypathisabs(path))
+        (os.path.isabs(path) or secondarypathisabs(path))
         and len(path) > 2
         and path[1] == ':'
         and path[2] in ('\\', '/')
