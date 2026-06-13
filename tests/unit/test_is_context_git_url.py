@@ -75,6 +75,9 @@ class TestIsContextGitUrl(unittest.TestCase):
         ("", "github.com:containers/podman-compose.git", True),
         ("", "github:containers/podman-compose.git", True),
         ("", "https://github.com/test_repo.git/git_not_suffix", True),
+        ("windows filepath 1", "C:\\path\\to\\containerfile\\context", False),
+        ("windows filepath 2", "C:/path/to/containerfile/context", False),
+        ("unix file path 1", "/path/to/containerfile/context", False),
     ])
-    def test_is_path_git_url(self, test_name: str, path: str, result: bool) -> None:
+    def test_is_context_git_url(self, test_name: str, path: str, result: bool) -> None:
         self.assertEqual(is_context_git_url(path), result)

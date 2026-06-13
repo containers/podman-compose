@@ -44,6 +44,13 @@ from urllib.parse import quote
 import yaml
 from dotenv import dotenv_values
 
+# Python loads the appropriate path module based on the OS, but we need to be able
+# to check if a path is absolute according to BOTH major OS's rules.
+if os.name == 'posix':
+    from ntpath import isabs as secondarypathisabs
+if os.name == 'nt':
+    from posixpath import isabs as secondarypathisabs
+
 __version__ = "1.6.0"
 
 script = os.path.realpath(sys.argv[0])
@@ -3270,7 +3277,14 @@ def is_context_git_url(path: str) -> bool:
     if r.scheme in ('git', 'http', 'https', 'ssh', 'file', 'rsync'):
         return True
     # URL contains a ":" character, a hint of a valid URL
-    if r.scheme != "" and r.netloc == "" and r.path != "":
+    # But also detects windows file paths (e.g. "C:\path\to\contextdir") as urls
+    is_path_with_drive_letter = (
+        (os.path.isabs(path) or secondarypathisabs(path))
+        and len(path) > 2
+        and path[1] == ':'
+        and path[2] in ('\\', '/')
+    )
+    if r.scheme != "" and r.netloc == "" and r.path != "" and not is_path_with_drive_letter:
         return True
     if r.scheme == "":  # tweak path URL to get username from url parser
         r = urllib.parse.urlparse("ssh://" + path)
