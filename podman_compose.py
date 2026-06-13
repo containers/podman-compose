@@ -3766,6 +3766,8 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
             return 1
 
         if not args.no_recreate:
+            requested_services = set(args.services) if args.services else set()
+            always_recreate_deps = getattr(args, "always_recreate_deps", False)
             for c in existing_containers.values():
                 if (
                     c.service_name in excluded
@@ -3774,7 +3776,12 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
                     continue
 
                 service = compose.services[c.service_name]
-                if args.force_recreate or c.config_hash != compose.config_hash(service):
+                force_this = args.force_recreate and (
+                    not requested_services
+                    or c.service_name in requested_services
+                    or always_recreate_deps
+                )
+                if force_this or c.config_hash != compose.config_hash(service):
                     recreate_services.add(c.service_name)
 
                     # Running dependents of service are removed by down command
