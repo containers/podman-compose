@@ -1,0 +1,1 @@
+Support `include` items specified as either strings or dicts with a `path` key.
