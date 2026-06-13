@@ -1,0 +1,11 @@
+services:
+  ipc_test0:
+    image: nopush/podman-compose-test
+    command: [ 'sleep', 'infinity' ]
+    ipc: shareable
+  ipc_test:
+    image: nopush/podman-compose-test
+    command: [ 'sleep', 'infinity' ]
+    ipc: service:ipc_test0
+    depends_on:
+      - ipc_test0
