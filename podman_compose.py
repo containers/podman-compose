@@ -567,6 +567,113 @@ def try_parse_bool(value: Any) -> bool | None:
     return None
 
 
+def default_config_artifact_name(compose: PodmanCompose, config_name: str) -> str:
+    return "localhost/podman-compose/" + compose.format_name("config", config_name) + ":latest"
+
+
+async def assert_config_artifact(
+    compose: PodmanCompose, config_name: str, config: dict[str, Any]
+) -> str | None:
+    """
+    inspect config artifact
+    create artifact if needed
+
+    Returns:
+        Artifact name and tag, or None if file source
+    """
+    source_file = config.get("file")
+    source_env = config.get("environment")
+    source_content = config.get("content")
+    source_external = config.get("external", False)
+    if not bool(source_file) ^ bool(source_env) ^ bool(source_content) ^ source_external:
+        raise ValueError(
+            f'ERROR: Config "{config_name}" must specify one and only one of file, '
+            'environment, content, or external.'
+        )
+
+    if source_file:
+        # File configs are mounted as volumes, not created as artifacts
+        return None
+
+    if "name" in config:
+        artifact_name = config["name"]
+    elif source_external:
+        artifact_name = config_name
+    else:
+        artifact_name = default_config_artifact_name(compose, config_name)
+
+    log.debug('podman artifact inspect %s || podman artifact add %s', artifact_name, artifact_name)
+    artifact_content_digest = None
+    try:
+        output = await compose.podman.output([], "artifact", ["inspect", artifact_name])
+        artifact_content_digest = json.loads(output)["Manifest"]["layers"][0]["digest"]
+    except subprocess.CalledProcessError as e:
+        if source_external:
+            raise PodmanComposeError(
+                f"External config [{artifact_name}] does not exist. "
+                f"Create it first with: podman artifact add '{artifact_name}'"
+            ) from e
+    except (json.JSONDecodeError, KeyError, TypeError) as e:
+        raise PodmanComposeError(
+            f'Artifact {artifact_name} exists, but the Manifest.layers[0].digest '
+            f'field could not be parsed. Check the output of: '
+            f'podman artifact inspect {artifact_name}.'
+        ) from e
+
+    if source_external:
+        # External artifact exists, nothing to check
+        return artifact_name
+
+    config_content = b''
+    if source_env:
+        try:
+            config_content = os.environb[source_env.encode("utf-8")]
+        except KeyError as e:
+            raise PodmanComposeError(
+                f'Config "{config_name}" specifies an environment variable '
+                f'as its source, but "{source_env}" is not defined in the environment.'
+            ) from e
+    if source_content:
+        config_content = source_content.encode("utf-8")
+
+    if artifact_content_digest:
+        hash_alg, _, digest = artifact_content_digest.partition(':')
+        try:
+            compose_content_digest = hashlib.new(hash_alg, config_content, usedforsecurity=False)
+        except ValueError as e:
+            raise PodmanComposeError(
+                f'Artifact hash digest {hash_alg} is not supported. '
+                f'Check the output of: podman artifact inspect {artifact_name}.'
+            ) from e
+        if compose_content_digest.hexdigest() == digest:
+            # Stored artifact is the same, returning
+            return artifact_name
+
+    # Artifact didn't exist or digest differed, so (re-)create
+    args = [
+        "add",
+        "--replace",
+        "--file-type",
+        "application/octet-stream",
+        "--annotation",
+        f"io.podman.compose.project={compose.project_name}",
+        "--annotation",
+        f"com.docker.compose.project={compose.project_name}",
+        artifact_name,
+    ]
+    # Once requires-python is >=3.12, delete=False can be changed
+    # to delete_on_close=False and the call to os.unlink removed
+    with tempfile.NamedTemporaryFile(delete=False) as config_tempfile:
+        config_tempfile.write(config_content)
+        config_tempfile.close()
+        args.append(config_tempfile.name)
+        await compose.podman.output([], "artifact", args)
+        os.unlink(config_tempfile.name)
+    await compose.podman.output([], "artifact", ["inspect", artifact_name])
+
+    return artifact_name
+
+
 async def assert_volume(compose: PodmanCompose, mount_dict: dict[str, Any]) -> None:
     """
     inspect volume to get directory
@@ -907,6 +1014,71 @@ def get_secret_args(
     raise ValueError(
         'ERROR: unparsable secret: "{}", service: "{}"'.format(secret_name, cnt["_service"])
     )
+
+
+async def get_config_args(
+    compose: PodmanCompose,
+    cnt: dict[str, Any],
+    config: str | dict[str, Any],
+) -> list[str]:
+    assert compose.declared_configs is not None
+
+    config_name = config if isinstance(config, str) else config.get("source")
+    if not config_name or config_name not in compose.declared_configs.keys():
+        raise ValueError(f'ERROR: undeclared config: "{config}", service: {cnt["_service"]}')
+    declared_config = compose.declared_configs[config_name]
+
+    x_podman_relabel = declared_config.get("x-podman.relabel")
+
+    config_target = None
+    config_uid = None
+    config_gid = None
+    config_mode = None
+    if isinstance(config, dict):
+        config_target = config.get("target")
+        config_uid = config.get("uid")
+        config_gid = config.get("gid")
+        config_mode = config.get("mode")
+    if config_uid or config_gid or config_mode:
+        target_msg = f' (at target {config_target})' if config_target else ""
+        log.warning(
+            'WARNING: Service %s uses configs.%s%s '
+            "with uid, gid, or mode. These fields are not supported by this implementation "
+            "of the Compose file",
+            cnt["_service"],
+            config_name,
+            target_msg,
+        )
+
+    source_artifact = await assert_config_artifact(compose, config_name, declared_config)
+    dest_file = config_target or f"/{config_name}"
+
+    if source_artifact:
+        mount_ref = ["--mount", f"type=artifact,source={source_artifact},target={dest_file}"]
+
+        return mount_ref
+
+    if source_file := declared_config.get("file"):
+        # assemble path for source file first, because we need it for all cases
+        basedir = compose.dirname
+        source_file = os.path.realpath(os.path.join(basedir, os.path.expanduser(source_file)))
+
+        # pass file configs to "podman run" as volumes
+        mount_options = 'ro,rprivate,rbind'
+
+        selinux_relabel_to_mount_option_map = {None: "", "z": ",z", "Z": ",Z"}
+        try:
+            mount_options += selinux_relabel_to_mount_option_map[x_podman_relabel]
+        except KeyError as exc:
+            raise ValueError(
+                f'ERROR: Config "{config_name}" has invalid "relabel" option related '
+                + f' to SELinux "{x_podman_relabel}". Expected "z" "Z" or nothing.'
+            ) from exc
+        volume_ref = ["--volume", f"{source_file}:{dest_file}:{mount_options}"]
+
+        return volume_ref
+
+    raise ValueError(f'ERROR: unparsable config: "{config_name}", service: "{cnt["_service"]}"')
 
 
 def container_to_res_args(cnt: dict[str, Any], podman_args: list[str]) -> None:
@@ -1388,6 +1560,8 @@ async def container_to_args(
         podman_args.append(f'--log-driver={log_config.get("driver", "k8s-file")}')
         log_opts = log_config.get("options", {})
         podman_args += [f"--log-opt={name}={value}" for name, value in log_opts.items()]
+    for config in cnt.get("configs", []):
+        podman_args.extend(await get_config_args(compose, cnt, config))
     for secret in cnt.get("secrets", []):
         podman_args.extend(get_secret_args(compose, cnt, secret))
     for i in cnt.get("extra_hosts", []):
@@ -2292,6 +2466,7 @@ class PodmanCompose:
         self.vols: dict[str, Any] | None = None
         self.networks: dict[str, Any] = {}
         self.default_net: str | None = "default"
+        self.declared_configs: dict[str, Any] | None = None
         self.declared_secrets: dict[str, Any] | None = None
         self.container_names_by_service: dict[str, list[str]]
         self.container_by_name: dict[str, Any]
@@ -2744,7 +2919,17 @@ class PodmanCompose:
             "com.docker.compose.project.config_files=" + ",".join(relative_files),
         ]
         # other top-levels:
-        # configs: {...}
+        self.declared_configs = compose.get("configs", {})
+        if (
+            self.declared_configs
+            and self.podman_version is not None
+            and strverscmp_lt(self.podman_version, "5.6.0")
+        ):
+            raise PodmanComposeError(
+                "Compose configs are only supported when running podman >= 5.6.0 "
+                f"(current version {self.podman_version})"
+            )
+
         self.declared_secrets = compose.get("secrets", {})
         given_containers = []
         container_names_by_service: dict[str, list[str]] = {}
@@ -3991,8 +4176,70 @@ async def compose_down(compose: PodmanCompose, args: argparse.Namespace) -> None
             continue
         await compose.podman.run([], "rm", [cnt["name"]])
 
+    if compose.declared_configs is not None:
+        configs_to_keep = set()
+        for cnt in containers:
+            if cnt["_service"] not in excluded:
+                continue
+            for cfg in cnt.get("configs", []):
+                src = cfg if isinstance(cfg, str) else cfg.get("source")
+                configs_to_keep.add(src)
+
+        configs_to_remove = {
+            name: config
+            for name, config in compose.declared_configs.items()
+            if not (name in configs_to_keep or config.get("external", False) or "file" in config)
+        }
+        for name, config in configs_to_remove.items():
+            artifact_name = config.get("name") or default_config_artifact_name(compose, name)
+            try:
+                output = await compose.podman.output([], "artifact", ["inspect", artifact_name])
+            except subprocess.CalledProcessError:
+                # Already removed
+                continue
+
+            try:
+                config_info = json.loads(output)["Manifest"]
+                config_annotations = config_info["annotations"]
+                config_project = config_annotations.get(
+                    "io.podman.compose.project"
+                ) or config_annotations.get("com.docker.compose.project")
+            except (json.JSONDecodeError, KeyError):
+                log.warning(
+                    'WARNING: Config %s has an associated artifact, but the output '
+                    "of podman artifact inspect %s couldn't be parsed.",
+                    name,
+                    artifact_name,
+                )
+                continue
+
+            if config_project is not None and config_project == compose.project_name:
+                try:
+                    await compose.podman.output([], "artifact", ["rm", artifact_name])
+                except subprocess.CalledProcessError:
+                    log.error(
+                        'ERROR: Failed to remove artifact %s associated with config %s.',
+                        artifact_name,
+                        name,
+                    )
+                    continue
+            else:
+                if config_project:
+                    msg = f'its annotated project name "{config_project}" does not match '
+                else:
+                    msg = 'it is not annotated with '
+
+                log.warning(
+                    f'WARNING: Config {name} has an associated artifact, but '
+                    + msg
+                    + f'the name of this Compose project, "{compose.project_name}". '
+                    + f'Check the output of podman artifact inspect {artifact_name}.'
+                )
+
     orphaned_images = set()
     if args.remove_orphans:
+        # TODO: if podman artifact ls gets a --filter option, then
+        # orphaned configs could be cleaned up
         orphaned_containers = (
             (
                 await compose.podman.output(
