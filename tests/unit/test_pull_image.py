@@ -58,7 +58,7 @@ class TestPullImageSettings(IsolatedAsyncioTestCase):
         result = await pull_image(podman_mock, settings)
         assert result == 0
         run_mock.assert_called_once_with(
-            [], "pull", ["--policy", "always", "--quiet", "localhost/test:1"]
+            [], "pull", ["--policy", "always", "--quiet", "localhost/test:1"], suppress_output=False, on_stdout_line=None
         )
 
     @mock.patch("podman_compose.Podman")
@@ -107,7 +107,7 @@ class TestPullImageSettings(IsolatedAsyncioTestCase):
             "Remote image should pull",
             [{"image": "ghcr.io/a:latest"}],
             [
-                mock.call([], "pull", ["--policy", "missing", "ghcr.io/a:latest"]),
+                mock.call([], "pull", ["--policy", "missing", "ghcr.io/a:latest"], suppress_output=True),
             ],
         ),
         (
@@ -118,8 +118,8 @@ class TestPullImageSettings(IsolatedAsyncioTestCase):
                 {"image": "ghcr.io/b:latest"},
             ],
             [
-                mock.call([], "pull", ["--policy", "missing", "ghcr.io/a:latest"]),
-                mock.call([], "pull", ["--policy", "missing", "ghcr.io/b:latest"]),
+                mock.call([], "pull", ["--policy", "missing", "ghcr.io/a:latest"], suppress_output=True),
+                mock.call([], "pull", ["--policy", "missing", "ghcr.io/b:latest"], suppress_output=True),
             ],
         ),
     ])
@@ -131,10 +131,12 @@ class TestPullImageSettings(IsolatedAsyncioTestCase):
         calls: list,
         podman_mock: mock.Mock,
     ) -> None:
-        run_mock = mock.AsyncMock(return_value=1)
+        run_mock = mock.AsyncMock(return_value=0)
         podman_mock.run = run_mock
 
-        assert await pull_images(podman_mock, Namespace(), services) == 0
+        exit_code, results = await pull_images(podman_mock, Namespace(), services)
+        assert exit_code == 0
+        assert isinstance(results, dict)
         assert run_mock.call_count == len(calls)
         if calls:
             run_mock.assert_has_calls(calls, any_order=True)
@@ -147,15 +149,31 @@ class TestPullImageSettings(IsolatedAsyncioTestCase):
         run_mock = mock.AsyncMock(return_value=1)
         podman_mock.run = run_mock
 
-        assert (
-            await pull_images(
-                podman_mock,
-                Namespace(),
-                [
-                    {"image": "ghcr.io/a:latest", "build": {"context": "."}},
-                ],
-            )
-            == 0
+        exit_code, results = await pull_images(
+            podman_mock,
+            Namespace(),
+            [
+                {"image": "ghcr.io/a:latest", "build": {"context": "."}},
+            ],
         )
+        assert exit_code == 0
+        assert results
         assert run_mock.call_count == 1
-        run_mock.assert_called_with([], "pull", ["--policy", "missing", "ghcr.io/a:latest"])
+        run_mock.assert_called_with([], "pull", ["--policy", "missing", "ghcr.io/a:latest"], suppress_output=True)
+
+    @mock.patch("podman_compose.Podman")
+    async def test_pull_image_returns_error(
+        self,
+        podman_mock: mock.Mock,
+    ) -> None:
+        run_mock = mock.AsyncMock(return_value=1)
+        podman_mock.run = run_mock
+
+        exit_code, results = await pull_images(
+            podman_mock,
+            Namespace(),
+            [{"image": "ghcr.io/a:latest"}],
+        )
+        assert exit_code == 1
+        assert results
+        assert run_mock.call_count == 1
