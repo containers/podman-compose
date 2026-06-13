@@ -2831,7 +2831,8 @@ class PodmanCompose:
         the requested_profiles list.
 
         The returned service dictionary contains all services which do not include/reference a
-        profile in addition to services that match the requested_profiles.
+        profile in addition to services that match the requested_profiles, plus any services
+        they explicitly depend on.
 
         :param defined_services: The service dictionary
         :param requested_profiles: The profiles requested using the --profile arg.
@@ -2840,11 +2841,39 @@ class PodmanCompose:
             requested_profiles = set()
 
         services = {}
+        pending_services = set()
 
         for name, config in defined_services.items():
             service_profiles = set(config.get("profiles", []))
             if not service_profiles or requested_profiles.intersection(service_profiles):
                 services[name] = config
+                pending_services.add(name)
+
+        while pending_services:
+            current_name = pending_services.pop()
+            config = services[current_name]
+
+            dep_names = []
+
+            # Check depends_on
+            depends_on = config.get("depends_on", [])
+            if isinstance(depends_on, dict):
+                dep_names.extend(depends_on.keys())
+            elif isinstance(depends_on, list):
+                dep_names.extend(depends_on)
+
+            # Check extends
+            extends = config.get("extends", {})
+            if isinstance(extends, str):
+                dep_names.append(extends)
+            elif isinstance(extends, dict) and "service" in extends:
+                dep_names.append(extends["service"])
+
+            for dep in dep_names:
+                if isinstance(dep, str) and dep not in services and dep in defined_services:
+                    services[dep] = defined_services[dep]
+                    pending_services.add(dep)
+
         return services
 
     # Docker Compose specifies that services can have build-time dependencies on each other
