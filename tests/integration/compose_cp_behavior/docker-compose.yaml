@@ -1,0 +1,9 @@
+services:
+  my-service:
+    image: nopush/podman-compose-test
+    command:
+      - /bin/bash
+      - -c
+      - |
+        echo 'This is a test file inside the container.' > /tmp/container_file.txt
+        exec tail -f /dev/null
