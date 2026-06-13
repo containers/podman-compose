@@ -1,0 +1,15 @@
+version: "3"
+services:
+    test:
+      image: test:latest
+      command: ["echo", "test"]
+      profiles: [test_profile]
+      build:
+        context: .
+        dockerfile: Dockerfile
+    test_2:
+      image: test_2:latest
+      profiles: [test_2_profile]
+      build:
+        context: .
+        dockerfile: Dockerfile
