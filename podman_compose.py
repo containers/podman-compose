@@ -22,11 +22,13 @@ import os
 import random
 import re
 import shlex
+import shutil
 import signal
 import string
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.parse
 from asyncio import Task
 from dataclasses import dataclass
@@ -107,6 +109,26 @@ def try_float(i: int | str, fallback: float | None = None) -> float | None:
 
 
 log = logging.getLogger(__name__)
+
+
+class _ColoredLevelFormatter(logging.Formatter):
+    _LEVEL_COLORS = {
+        logging.DEBUG: "\x1b[2m",
+        logging.INFO: "\x1b[1;36m",
+        logging.WARNING: "\x1b[1;33m",
+        logging.ERROR: "\x1b[1;31m",
+        logging.CRITICAL: "\x1b[1;41m",
+    }
+    _RESET = "\x1b[0m"
+
+    def format(self, record: logging.LogRecord) -> str:
+        color = self._LEVEL_COLORS.get(record.levelno, "")
+        original = record.levelname
+        record.levelname = f"{color}{original}{self._RESET}"
+        try:
+            return super().format(record)
+        finally:
+            record.levelname = original
 
 
 dir_re = re.compile(r"^[~/\.]")
@@ -572,6 +594,471 @@ def try_parse_bool(value: Any) -> bool | None:
         if value == 0:
             return False
     return None
+
+
+def _env_var_defined(name: str, environ: dict[str, str]) -> bool:
+    return name in environ
+
+
+def _supports_unicode_output(stream: Any) -> bool:
+    encoding = getattr(stream, "encoding", None) or "utf-8"
+    try:
+        "✔⠧✖⚠".encode(encoding)
+    except (UnicodeEncodeError, LookupError):
+        return False
+    return True
+
+
+def should_use_pretty_output(
+    args: argparse.Namespace, environ: dict[str, str], stream: Any
+) -> bool:
+    pretty_setting = try_parse_bool(environ.get("PODMAN_COMPOSE_PRETTY", "1"))
+    if pretty_setting is False:
+        return False
+    if _env_var_defined("CI", environ):
+        return False
+    is_tty = hasattr(stream, "isatty") and stream.isatty()
+    return bool(is_tty)
+
+
+def should_use_color_output(
+    args: argparse.Namespace, environ: dict[str, str], stream: Any
+) -> bool:
+    is_tty = hasattr(stream, "isatty") and stream.isatty()
+    if not is_tty:
+        return False
+
+    if getattr(args, "no_color", False):
+        return False
+    if _env_var_defined("NO_COLOR", environ):
+        return False
+
+    force_color = try_parse_bool(environ.get("FORCE_COLOR"))
+    if force_color is not None:
+        return force_color
+
+    return not _env_var_defined("CI", environ)
+
+
+@dataclass
+class UpStatusLine:
+    kind: str
+    name: str
+    status: str
+    level: str
+    elapsed: float | None = None
+    final: bool = False
+
+
+class PlainRenderer:
+    def begin(self) -> None:
+        return
+
+    def emit(self, _line: UpStatusLine) -> None:
+        return
+
+    def finish(self) -> None:
+        return
+
+
+class PrettyRenderer:
+    _BOLD = "\x1b[1m"
+    _LEVEL_COLORS = {
+        "success": "\x1b[1;32m",
+        "pending": "\x1b[1;33m",
+        "error": "\x1b[1;31m",
+        "warning": "\x1b[1;33m",
+    }
+    _ELAPSED_COLOR = "\x1b[1;34m"
+    _RESET = "\x1b[0m"
+    _ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+    def __init__(
+        self,
+        sink: Any,
+        *,
+        total: int,
+        use_color: bool,
+        use_unicode: bool,
+        operation: str = "up",
+        default_kind: str = "Container",
+        name_width: int = 0,
+    ) -> None:
+        self.sink = sink
+        self.total = total
+        self.use_color = use_color
+        self.use_unicode = use_unicode
+        self.operation = operation
+        self.default_kind = default_kind
+        self.name_width = max(name_width, 1)
+        self.completed = 0
+        self._term_width = shutil.get_terminal_size().columns
+
+    def _symbol(self, level: str) -> str:
+        if self.use_unicode:
+            symbols = {
+                "success": "✔",
+                "pending": "⠧",
+                "error": "✖",
+                "warning": "⚠",
+            }
+        else:
+            symbols = {
+                "success": "+",
+                "pending": ">",
+                "error": "x",
+                "warning": "!",
+            }
+        return symbols.get(level, symbols["warning"])
+
+    def _colorize(self, text: str, level: str) -> str:
+        if not self.use_color:
+            return text
+        color = self._LEVEL_COLORS.get(level)
+        if not color:
+            return text
+        return f"{color}{text}{self._RESET}"
+
+    def _colorize_elapsed(self, text: str) -> str:
+        if not self.use_color or not text:
+            return text
+        return f"{self._ELAPSED_COLOR}{text}{self._RESET}"
+
+    def _bold(self, text: str) -> str:
+        if not self.use_color:
+            return text
+        return f"{self._BOLD}{text}{self._RESET}"
+
+    def _visible_len(self, text: str) -> int:
+        return len(self._ANSI_RE.sub("", text))
+
+    def _pad_for_elapsed(self, left: str, right: str) -> str:
+        if not right:
+            return left
+        vis_left = self._visible_len(left)
+        vis_right = self._visible_len(right)
+        padding = self._term_width - vis_left - vis_right - 1
+        if padding > 0:
+            return left + " " * padding
+        return left
+
+    def _format_elapsed(self, elapsed: float | None) -> str:
+        if elapsed is None:
+            return ""
+        if elapsed >= 3600:
+            hours = int(elapsed / 3600)
+            minutes = int((elapsed % 3600) / 60)
+            return f" {hours}h{minutes:02d}m"
+        if elapsed >= 60:
+            minutes = int(elapsed / 60)
+            seconds = int(elapsed % 60)
+            return f" {minutes}m{seconds:02d}s"
+        return f" {elapsed:.1f}s"
+
+    def begin(self) -> None:
+        print(file=self.sink)
+        print(self._bold(f"[+] {self.operation} {self.completed}/{self.total}"), file=self.sink)
+
+    def emit(self, line: UpStatusLine) -> None:
+        if line.final:
+            self.completed += 1
+
+        symbol = self._colorize(self._symbol(line.level), line.level)
+        kind = line.kind or self.default_kind
+        elapsed = self._format_elapsed(line.elapsed)
+        elapsed_colored = self._colorize_elapsed(elapsed)
+        name = line.name.ljust(self.name_width)
+        status = line.status
+        left = f" {symbol} {kind:<9} {name} {status}"
+        line_str = self._pad_for_elapsed(left, elapsed_colored)
+        if elapsed_colored:
+            line_str = f"{line_str}{elapsed_colored}"
+        print(line_str, file=self.sink)
+
+    def finish(self) -> None:
+        print(self._bold(f"[+] {self.operation} {self.completed}/{self.total}"), file=self.sink)
+
+
+class PullPrettyRenderer:
+    _BOLD = "\x1b[1m"
+    _DIMMED = "\x1b[2m"
+    _LEVEL_COLORS = {
+        "success": "\x1b[1;32m",
+        "pending": "\x1b[1;33m",
+        "error": "\x1b[1;31m",
+        "warning": "\x1b[1;33m",
+    }
+    _ELAPSED_COLOR = "\x1b[1;34m"
+    _RESET = "\x1b[0m"
+    _SPINNER_UNICODE = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+    _SPINNER_ASCII = "|/-\\"
+    _ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+    _BAR_CHAR_FULL = "█"
+    _BAR_CHAR_EMPTY = "░"
+
+    def __init__(
+        self,
+        sink: Any,
+        *,
+        use_color: bool,
+        use_unicode: bool,
+        images: list[str],
+    ) -> None:
+        self.sink = sink
+        self.use_color = use_color
+        self.use_unicode = use_unicode
+        self.images = images
+        self.total = len(images)
+        self.completed = 0
+        self._name_width = max((len(img) for img in images), default=1)
+        self._status_width = 8
+        self.statuses: dict[str, tuple[str, str, float | None]] = {}
+        for img in images:
+            self.statuses[img] = ("Pulling", "pending", None)
+        self._lines_printed = 0
+        self._spinner_idx = 0
+        self._spinner_task: asyncio.Task | None = None
+        self._spinner_running = False
+        self._spinner_chars = self._SPINNER_UNICODE if use_unicode else self._SPINNER_ASCII
+        self._term_width = shutil.get_terminal_size().columns
+        self._start_time: float | None = None
+        self._sub_progress: dict[str, tuple[int, int]] = {}
+
+    def _colorize(self, text: str, level: str) -> str:
+        if not self.use_color:
+            return text
+        color = self._LEVEL_COLORS.get(level)
+        if not color:
+            return text
+        return f"{color}{text}{self._RESET}"
+
+    def _colorize_elapsed(self, text: str) -> str:
+        if not self.use_color or not text:
+            return text
+        return f"{self._ELAPSED_COLOR}{text}{self._RESET}"
+
+    def _bold(self, text: str) -> str:
+        if not self.use_color:
+            return text
+        return f"{self._BOLD}{text}{self._RESET}"
+
+    def _dim(self, text: str) -> str:
+        if not self.use_color:
+            return text
+        return f"{self._DIMMED}{text}{self._RESET}"
+
+    def _visible_len(self, text: str) -> int:
+        return len(self._ANSI_RE.sub("", text))
+
+    def _overall_level(self) -> str:
+        if self.completed == 0:
+            return "pending"
+        states = [s[1] for s in self.statuses.values()]
+        if any(s == "error" for s in states):
+            if all(s == "error" or s == "pending" for s in states):
+                return "error"
+            return "warning"
+        return "success"
+
+    def _progress_bar(self) -> str:
+        if self.total == 0 or not self.use_unicode:
+            return ""
+        ratio = self.completed / self.total
+        bar_width = 15
+        filled = int(ratio * bar_width)
+        empty = bar_width - filled
+        level = self._overall_level()
+        bar = self._colorize(self._BAR_CHAR_FULL * filled, level) + self._dim(self._BAR_CHAR_EMPTY * empty)
+        return bar
+
+    def _symbol(self, level: str) -> str:
+        if level == "pending":
+            return self._spinner_chars[self._spinner_idx % len(self._spinner_chars)]
+        if self.use_unicode:
+            symbols = {
+                "success": "✔",
+                "error": "✖",
+                "warning": "⚠",
+            }
+        else:
+            symbols = {
+                "success": "+",
+                "error": "x",
+                "warning": "!",
+            }
+        return symbols.get(level, symbols["warning"])
+
+    def _cursor_up(self, n: int) -> None:
+        if n > 0:
+            print(f"\x1b[{n}A", file=self.sink, end="", flush=True)
+
+    def _clear_and_print(self, text: str) -> None:
+        print(f"\x1b[2K\x1b[1G{text}", file=self.sink, flush=True)
+
+    def _padded_name(self, image: str) -> str:
+        name = self._bold(image)
+        pad = self._name_width - len(image)
+        return name + " " * pad if pad > 0 else name
+
+    def begin(self) -> None:
+        self._start_time = time.monotonic()
+        print(file=self.sink)
+        self._clear_and_print(self._bold(f"[+] pulling {self.completed}/{self.total}  {self._progress_bar()}"))
+        for img in self.images:
+            symbol = self._colorize(self._symbol("pending"), "pending")
+            name = self._padded_name(img)
+            self._clear_and_print(f" {symbol} {name}  Pulling")
+        self._lines_printed = 1 + self.total
+        self._start_spinner()
+
+    def _start_spinner(self) -> None:
+        if self.total == 0:
+            return
+        self._spinner_running = True
+        self._spinner_task = asyncio.create_task(self._spinner_loop())
+
+    async def _spinner_loop(self) -> None:
+        while self._spinner_running:
+            await asyncio.sleep(0.12)
+            if not self._spinner_running:
+                break
+            has_pending = any(s[1] == "pending" for s in self.statuses.values())
+            if not has_pending:
+                break
+            self._spinner_idx = (self._spinner_idx + 1) % len(self._spinner_chars)
+            self._redraw()
+
+    def _stop_spinner(self) -> None:
+        self._spinner_running = False
+        if self._spinner_task is not None:
+            self._spinner_task.cancel()
+            self._spinner_task = None
+
+    def update_sub_progress(self, image: str, done: int, total: int) -> None:
+        self._sub_progress[image] = (done, max(total, done))
+        self._redraw()
+
+    def update(self, image: str, status: str, level: str, elapsed: float | None = None) -> None:
+        self.statuses[image] = (status, level, elapsed)
+        self.completed = sum(
+            1 for s in self.statuses.values() if s[1] in ("success", "error")
+        )
+        self._redraw()
+        if self.completed == self.total:
+            self._stop_spinner()
+
+    def finish(self) -> None:
+        self._stop_spinner()
+        self._redraw()
+        print(file=self.sink)
+
+    def _redraw(self) -> None:
+        self._cursor_up(self._lines_printed)
+        self._draw_header()
+        for img in self.images:
+            self._draw_line(img)
+
+    def _draw_header(self) -> None:
+        self._clear_and_print(self._bold(f"[+] pulling {self.completed}/{self.total}  {self._progress_bar()}"))
+
+    def _current_elapsed(self, image: str) -> float | None:
+        _, level, stored = self.statuses[image]
+        if stored is not None:
+            return stored
+        if level == "pending" and self._start_time is not None:
+            return time.monotonic() - self._start_time
+        return None
+
+    def _sub_progress_bar(self, done: int, total: int) -> str:
+        if total == 0 or not self.use_unicode:
+            return ""
+        ratio = done / max(total, 1)
+        bar_width = 8
+        filled = int(ratio * bar_width)
+        empty = bar_width - filled
+        bar = self._colorize(self._BAR_CHAR_FULL * filled, "pending") + self._dim(self._BAR_CHAR_EMPTY * empty)
+        return f" {bar}"
+
+    def _draw_line(self, image: str) -> None:
+        status, level, _ = self.statuses[image]
+        elapsed = self._current_elapsed(image)
+        symbol = self._colorize(self._symbol(level), level)
+        name = self._padded_name(image)
+        elapsed_str = f"{elapsed:.1f}s" if elapsed is not None else ""
+        elapsed_colored = self._colorize_elapsed(elapsed_str)
+        left = f" {symbol} {name}  {status:<{self._status_width}}"
+        sub = self._sub_progress.get(image)
+        if sub and level == "pending":
+            done, total = sub
+            left += self._sub_progress_bar(done, total)
+        left_padded = self._pad_for_elapsed(left, elapsed_colored)
+        if elapsed_colored:
+            self._clear_and_print(f"{left_padded}{elapsed_colored}")
+        else:
+            self._clear_and_print(left)
+
+    def _pad_for_elapsed(self, left: str, right: str) -> str:
+        if not right:
+            return left
+        vis_left = self._visible_len(left)
+        vis_right = self._visible_len(right)
+        padding = self._term_width - vis_left - vis_right - 1
+        if padding > 0:
+            return left + " " * padding
+        return left
+
+
+def create_up_renderer(
+    args: argparse.Namespace,
+    environ: dict[str, str],
+    sink: Any,
+    *,
+    total: int,
+    name_width: int,
+) -> PlainRenderer | PrettyRenderer:
+    if not should_use_pretty_output(args, environ, sink):
+        return PlainRenderer()
+
+    return PrettyRenderer(
+        sink,
+        total=total,
+        use_color=should_use_color_output(args, environ, sink),
+        use_unicode=_supports_unicode_output(sink),
+        name_width=name_width,
+    )
+
+
+def _create_pull_renderer(
+    args: argparse.Namespace,
+    environ: dict[str, str],
+    sink: Any,
+    services: list[dict[str, Any]],
+) -> PullPrettyRenderer | None:
+    if not should_use_pretty_output(args, environ, sink):
+        return None
+
+    images = _get_pull_images(services)
+    if not images:
+        return None
+
+    return PullPrettyRenderer(
+        sink,
+        use_color=should_use_color_output(args, environ, sink),
+        use_unicode=_supports_unicode_output(sink),
+        images=images,
+    )
+
+
+def _get_pull_images(services: list[dict[str, Any]]) -> list[str]:
+    seen: set[str] = set()
+    images: list[str] = []
+    for s in services:
+        if not is_local(s):
+            img = str(s.get("image", ""))
+            if img and img not in seen:
+                seen.add(img)
+                images.append(img)
+    return images
 
 
 async def assert_volume(compose: PodmanCompose, mount_dict: dict[str, Any]) -> None:
@@ -1874,14 +2361,17 @@ class Podman:
         cmd_args: list[str] | None = None,
         log_formatter: str | None = None,
         *,
-        # Intentionally mutable default argument to hold references to tasks
         task_reference: set[asyncio.Task] = set(),
+        suppress_output: bool = False,
+        on_stdout_line: Callable[[bytes], None] | None = None,
+        stderr_lines: list[bytes] | None = None,
     ) -> int | None:
         async with self.semaphore:
             cmd_args = list(map(str, cmd_args or []))
             xargs = self.compose.get_podman_args(cmd) if cmd else []
             cmd_ls = [self.podman_path, *podman_args, cmd] + xargs + cmd_args
-            log.info(" ".join([str(i) for i in cmd_ls]))
+            if not on_stdout_line:
+                log.info(" ".join([str(i) for i in cmd_ls]))
             if self.dry_run:
                 return None
 
@@ -1910,6 +2400,59 @@ class Podman:
                 task_reference.add(err_t)
                 err_t.add_done_callback(task_reference.discard)
 
+            elif on_stdout_line is not None:
+                stderr_target = (
+                    asyncio.subprocess.PIPE
+                    if stderr_lines is not None
+                    else asyncio.subprocess.DEVNULL
+                )
+                p = await asyncio.create_subprocess_exec(
+                    *cmd_ls,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=stderr_target,
+                    close_fds=False,
+                )
+                assert p.stdout is not None
+
+                async def _pipe_stdout():
+                    while not p.stdout.at_eof():
+                        try:
+                            line = await p.stdout.readuntil(b"\n")
+                            if line:
+                                on_stdout_line(line)
+                        except asyncio.IncompleteReadError as e:
+                            if e.partial:
+                                on_stdout_line(e.partial)
+                            break
+
+                _out_task = asyncio.create_task(_pipe_stdout())
+                task_reference.add(_out_task)
+                _out_task.add_done_callback(task_reference.discard)
+
+                if stderr_lines is not None and p.stderr is not None:
+
+                    async def _pipe_stderr():
+                        while not p.stderr.at_eof():
+                            try:
+                                line = await p.stderr.readuntil(b"\n")
+                                if line:
+                                    stderr_lines.append(line)
+                            except asyncio.IncompleteReadError as e:
+                                if e.partial:
+                                    stderr_lines.append(e.partial)
+                                break
+
+                    _err_task = asyncio.create_task(_pipe_stderr())
+                    task_reference.add(_err_task)
+                    _err_task.add_done_callback(task_reference.discard)
+
+            elif suppress_output:
+                p = await asyncio.create_subprocess_exec(
+                    *cmd_ls,
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL,
+                    close_fds=False,
+                )
             else:
                 p = await asyncio.create_subprocess_exec(*cmd_ls, close_fds=False)  # pylint: disable=consider-using-with
 
@@ -2947,7 +3490,15 @@ class PodmanCompose:
             parser.print_help()
             sys.exit(-1)
 
-        logging.basicConfig(level=("DEBUG" if self.global_args.verbose else "WARN"))
+        level = logging.DEBUG if self.global_args.verbose else logging.WARN
+        logging.basicConfig(level=level, format="%(levelname)s %(message)s")
+        # Apply colored level names when stderr is a terminal and color is allowed
+        if sys.stderr.isatty() and not self.global_args.no_color:
+            for handler in logging.getLogger().handlers:
+                if isinstance(handler, logging.StreamHandler):
+                    handler.setFormatter(
+                        _ColoredLevelFormatter("%(levelname)s %(message)s")
+                    )
         return self.global_args
 
     @staticmethod
@@ -3507,7 +4058,7 @@ async def create_pods(compose: PodmanCompose) -> None:
             ports = [ports]
         for i in ports:
             podman_args.extend(["-p", str(i)])
-        await compose.podman.run([], "pod", podman_args)
+        await compose.podman.run([], "pod", podman_args, suppress_output=True)
 
 
 class DependField(str, Enum):
@@ -3596,7 +4147,7 @@ async def run_container(
 
     # start the container
     log.debug("Starting task for container %s", name)
-    return await compose.podman.run(*command, log_formatter=log_formatter)  # type: ignore[misc]
+    return await compose.podman.run(*command, log_formatter=log_formatter, suppress_output=log_formatter is None)  # type: ignore[misc]
 
 
 def deps_from_container(args: argparse.Namespace, cnt: dict) -> set:
@@ -3618,6 +4169,7 @@ class PullImageSettings:
     image: str
     policy: str = "missing"
     quiet: bool = False
+    suppress_output: bool = False
 
     ignore_pull_error: bool = False
 
@@ -3635,6 +4187,76 @@ class PullImageSettings:
             self.policy = new_policy
 
 
+@dataclass
+class PullResult:
+    image: str
+    status: str = "pulled"  # pulled, skipped, failed
+    short_reason: str | None = None
+    full_error: str | None = None
+    exit_code: int | None = 0
+
+
+_PULL_ERROR_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"tls.*failed to verify certificate|x509:|certificate is not valid"), "TLS certificate verification failed while downloading image layers"),
+    (re.compile(r"authentication required|unauthorized|denied:.*access"), "registry authentication failed"),
+    (re.compile(r"manifest unknown|not found|repository does not exist"), "image not found in registry"),
+    (re.compile(r"connection refused|no route to host|temporary failure|i/o timeout"), "network error while contacting registry"),
+]
+
+
+def classify_pull_error(stderr: str) -> str:
+    if not stderr:
+        return "image pull failed"
+    for pattern, summary in _PULL_ERROR_PATTERNS:
+        if pattern.search(stderr):
+            return summary
+    return "image pull failed"
+
+
+# Long URL patterns to compact in error display — matches AWS-style signed URLs and
+# other verbose resource locators that add noise without diagnostic value.
+_URL_NOISE_RE = re.compile(
+    r"https?://[^\s]+?(?:X-Amz|AWSAccessKeyId|Signature|Expires|KeyPairId)[^\s]*"
+)
+
+
+def _compact_stderr(stderr: str) -> str:
+    """Return a human-scanable excerpt from a verbose Podman stderr dump.
+
+    Strips signed/qualified URLs and picks the most relevant error lines (TLS,
+    x509, auth, manifest, network).  Falls back to the first non‑empty line.
+    """
+    if not stderr:
+        return "image pull failed"
+
+    cleaned = _URL_NOISE_RE.sub("<url>", stderr)
+    lines = [l for l in cleaned.splitlines() if l.strip()]
+    if not lines:
+        return "image pull failed"
+
+    # Collect lines that carry actual diagnostic signal
+    signal = (
+        "tls", "x509", "certificate", "unable to", "error:",
+        "authentication required", "unauthorized", "denied",
+        "not found", "manifest unknown", "repository does not exist",
+        "connection refused", "no route to host", "i/o timeout",
+        "temporary failure",
+    )
+    picks = [l for l in lines if any(s in l.lower() for s in signal)]
+    if picks:
+        # Deduplicate while preserving order
+        seen: set[str] = set()
+        unique: list[str] = []
+        for p in picks:
+            norm = p.strip().lower()
+            if norm not in seen:
+                seen.add(norm)
+                unique.append(p.strip())
+        return "\n".join(unique[:4])  # cap at 4 lines
+
+    return lines[0].strip()
+
+
 def settings_to_pull_args(settings: PullImageSettings) -> list[str]:
     args = ["--policy", settings.policy]
     if settings.quiet:
@@ -3644,12 +4266,20 @@ def settings_to_pull_args(settings: PullImageSettings) -> list[str]:
     return args
 
 
-async def pull_image(podman: Podman, settings: PullImageSettings) -> int | None:
+async def pull_image(
+    podman: Podman,
+    settings: PullImageSettings,
+    on_line_callback: Callable[[bytes], None] | None = None,
+) -> int | None:
     if settings.policy in ("never", "build"):
         log.debug("Skipping pull of image %s due to policy %s", settings.image, settings.policy)
         return 0
 
-    ret = await podman.run([], "pull", settings_to_pull_args(settings))
+    ret = await podman.run(
+        [], "pull", settings_to_pull_args(settings),
+        suppress_output=settings.suppress_output if on_line_callback is None else False,
+        on_stdout_line=on_line_callback,
+    )
     return ret if not settings.ignore_pull_error else 0
 
 
@@ -3657,8 +4287,8 @@ async def pull_images(
     podman: Podman,
     args: argparse.Namespace,
     services: list[dict[str, Any]],
-) -> int | None:
-    pull_tasks = []
+    renderer: PullPrettyRenderer | None = None,
+) -> tuple[int | None, dict[str, PullResult]]:
     settings: dict[str, PullImageSettings] = {}
     for pull_service in services:
         if not is_local(pull_service):
@@ -3673,26 +4303,87 @@ async def pull_images(
                 )
 
             if "build" in pull_service:
-                # From https://github.com/compose-spec/compose-spec/blob/main/build.md#using-build-and-image
-                # When both image and build are specified,
-                # we should try to pull the image first,
-                # and then build it if it does not exist.
-                # we should not stop here if pull fails.
                 settings[image].ignore_pull_error = True
 
-    for s in settings.values():
-        pull_tasks.append(pull_image(podman, s))
+    if not settings:
+        return 0, {}
 
-    if pull_tasks:
-        ret = await asyncio.gather(*pull_tasks)
-        return next((r for r in ret if not r), 0)
+    if renderer:
+        renderer.begin()
 
-    return 0
+    async def _pull_with_name(
+        name: str, setting: PullImageSettings
+    ) -> tuple[str, int | None, float, str | None, str | None]:
+        start = time.time()
+        short_reason = None
+        full_stderr = None
+        if renderer:
+            setting.quiet = True
+
+            blobs_done = [0]
+            blobs_seen: set[str] = set()
+            err_lines: list[bytes] = []
+
+            def _on_line(line: bytes) -> None:
+                text = line.decode("utf-8", errors="replace").strip()
+                if "Copying blob" in text:
+                    match = re.search(r"sha256:[a-f0-9]+", text)
+                    if match and match.group() not in blobs_seen:
+                        blobs_seen.add(match.group())
+                    if "done" in text:
+                        blobs_done[0] += 1
+                    renderer.update_sub_progress(name, blobs_done[0], len(blobs_seen))
+
+            ret = await podman.run(
+                [], "pull", settings_to_pull_args(setting),
+                on_stdout_line=_on_line,
+                stderr_lines=err_lines,
+            )
+            if ret:
+                full_stderr = b"".join(err_lines).decode("utf-8", errors="replace")
+                short_reason = classify_pull_error(full_stderr)
+                if not renderer:
+                    log.debug("Pull error for %s — %s", name, short_reason)
+        else:
+            ret = await podman.run(
+                [], "pull", settings_to_pull_args(setting),
+                suppress_output=True,
+            )
+            if ret and setting.ignore_pull_error:
+                ret = 0
+        elapsed = time.time() - start
+        return name, ret, elapsed, short_reason, full_stderr
+
+    tasks = [_pull_with_name(name, s) for name, s in settings.items()]
+    has_error = False
+    pull_results: dict[str, PullResult] = {}
+
+    for coro in asyncio.as_completed(tasks):
+        name, ret, elapsed, short_reason, full_stderr = await coro
+        if ret and not settings[name].ignore_pull_error:
+            if renderer:
+                renderer.update(name, "Error", "error", elapsed)
+            has_error = True
+            pull_results[name] = PullResult(
+                image=name, status="failed",
+                short_reason=short_reason or "image pull failed",
+                full_error=full_stderr,
+                exit_code=ret,
+            )
+        else:
+            if renderer:
+                renderer.update(name, "Pulled", "success", elapsed)
+            pull_results[name] = PullResult(image=name, status="pulled", exit_code=0)
+
+    if renderer:
+        renderer.finish()
+
+    return (1 if has_error else 0), pull_results
 
 
 async def prepare_images(
     compose: PodmanCompose, args: argparse.Namespace, excluded: set[str]
-) -> int | None:
+) -> tuple[int | None, dict[str, PullResult]]:
 
     # When creating containers, podman create internally invokes podman pull with the default
     # policy of --pull=missing.
@@ -3701,26 +4392,28 @@ async def prepare_images(
     # call podman create.
     # However, the pull --policy flag was only introduced to podman in version 5.6.0, so we can
     # only perform this pre-teardown optimization when using podman >= 5.6.0.
+    pull_results: dict[str, PullResult] = {}
     if compose.podman_version is not None and not strverscmp_lt(compose.podman_version, "5.6.0"):
-        log.info("pulling images: ...")
-
         pull_services = [v for k, v in compose.services.items() if k not in excluded]
-        err = await pull_images(compose.podman, args, pull_services)
+
+        pull_renderer = _create_pull_renderer(args, compose.environ, sys.stdout, pull_services)
+        if not pull_renderer:
+            log.info("pulling images: ...")
+
+        err, pull_results = await pull_images(compose.podman, args, pull_services, renderer=pull_renderer)
         if err:
-            log.error("Pull image failed")
-            return err
+            if not pull_renderer:
+                log.error("Prepare images failed")
 
     log.info("building images: ...")
 
     if not args.no_build:
-        # `podman build` does not cache, so don't always build
         build_args = argparse.Namespace(if_not_exists=(not args.build), **args.__dict__)
         build_exit_code = await compose.commands["build"](compose, build_args)
         if build_exit_code != 0:
             log.error("Build command failed")
-            return build_exit_code
 
-    return 0
+    return 0, pull_results
 
 
 async def wait_for_container_running_healthy(
@@ -3771,15 +4464,81 @@ async def wait_for_container_running_healthy(
     await wait_with_timeout(run_podman_wait(), timeout=args.wait_timeout)
 
 
+def _print_pull_failure_summary(
+    compose: PodmanCompose,
+    pull_results: dict[str, PullResult],
+    sink: Any = sys.stdout,
+    use_color: bool = False,
+    debug_pull_errors: bool = False,
+    verbose: bool = False,
+) -> None:
+    failures = [r for r in pull_results.values() if r.status == "failed"]
+    if not failures:
+        return
+
+    _B = "\x1b[1m" if use_color else ""
+    _D = "\x1b[2m" if use_color else ""
+    _R = "\x1b[0m" if use_color else ""
+    _RED = "\x1b[1;31m" if use_color else ""
+    _YELLOW = "\x1b[1;33m" if use_color else ""
+    _CYAN = "\x1b[1;36m" if use_color else ""
+
+    hr = f"{_D}{'─' * 50}{_R}"
+
+    print(file=sink)
+    print(hr, file=sink)
+    print(f" {_RED}✖{_R} {_B}Pull failed for some images{_R}", file=sink)
+    print(hr, file=sink)
+
+    for svc_name, svc in compose.services.items():
+        img = str(svc.get("image", ""))
+        result = pull_results.get(img)
+        if not result or result.status != "failed":
+            continue
+
+        short = result.short_reason or "unknown error"
+        color = _YELLOW if "network" in short or "TLS" in short else _RED
+        print(f" {color}✖{_R} {_B}{svc_name}{_R}", file=sink)
+        print(f"   {_D}image:{_R} {img}", file=sink)
+        print(f"   {_D}error:{_R} {short}", file=sink)
+        if (debug_pull_errors or verbose) and result.full_error:
+            compact = _compact_stderr(result.full_error)
+            for line in compact.splitlines():
+                print(f"   {_D}detail:{_R} {line}", file=sink)
+
+    print(file=sink)
+    print(f" {_B}Hints{_R}", file=sink)
+    print(hr, file=sink)
+    print(f" {_CYAN}podman pull <image>{_R}  — try manually", file=sink)
+    print(f" Check system date, time, and CA certificates", file=sink)
+    print(f" Verify your TLS trust store or proxy config", file=sink)
+    print(f" Use {_B}--debug-pull-errors{_R} for raw Podman stderr", file=sink)
+    print(file=sink)
+
+
 @cmd_run(podman_compose, "up", "Create and start the entire stack or some of its services")
 async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | None:  # pylint: disable=too-many-return-statements
     excluded = get_excluded(compose, args)
 
-    exit_code = await prepare_images(compose, args, excluded)
-    if exit_code != 0:
-        log.error("Prepare images failed")
-        if not args.dry_run:
-            return exit_code
+    _, pull_results = await prepare_images(compose, args, excluded)
+    pull_failures = {name for name, r in pull_results.items() if r.status == "failed"}
+
+    if pull_failures:
+        _print_pull_failure_summary(
+            compose, pull_results, sys.stdout,
+            use_color=should_use_color_output(args, compose.environ, sys.stdout),
+            debug_pull_errors=getattr(args, "debug_pull_errors", False),
+            verbose=getattr(args, "verbose", False),
+        )
+
+    failed_services: set[str] = set()
+    for svc_name, svc in compose.services.items():
+        img = str(svc.get("image", ""))
+        if img in pull_failures:
+            failed_services.add(svc_name)
+    excluded |= failed_services
+
+    _pull_failed = bool(failed_services)
 
     # if needed, tear down existing containers
 
@@ -3848,23 +4607,50 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
 
     log.info("creating missing containers: ...")
 
+    max_svc_len = max((len(cnt["_service"]) for cnt in compose.containers), default=0)
+
+    use_color = should_use_color_output(args, compose.environ, sys.stdout)
+    _B = "\x1b[1m" if use_color else ""
+    _G = "\x1b[1;32m" if use_color else ""
+    _R = "\x1b[0m" if use_color else ""
+    colormap = list(compose.console_colors) if use_color else [""] * len(compose.console_colors)
+
     create_error_codes: list[int | None] = []
-    for cnt in compose.containers:
+    for i, cnt in enumerate(compose.containers):
         if cnt["_service"] in excluded or (
             cnt["name"] in existing_containers and cnt["_service"] not in recreate_services
         ):
             log.debug("** skipping create: %s", cnt["name"])
             continue
         podman_args = await container_to_args(compose, cnt, detached=False, no_deps=args.no_deps)
-        exit_code = await compose.podman.run([], "create", podman_args)
-        create_error_codes.append(exit_code)
+        color = colormap[i % len(colormap)]
+        if compose.podman.dry_run:
+            svc = f"{color}{cnt['_service']}{_R}"
+            pad = " " * (max_svc_len - len(cnt["_service"]) + 2)
+            print(f"  {svc}{pad}{_B}{cnt['name']}{_R}  (dry-run)")
+            create_error_codes.append(0)
+            continue
+        try:
+            output = await compose.podman.output([], "create", podman_args)
+            container_id = output.decode().strip()
+            short_id = container_id[:12]
+            svc = f"{color}{cnt['_service']}{_R}"
+            pad = " " * (max_svc_len - len(cnt["_service"]) + 2)
+            print(f"  {_G}✔{_R} {svc}{pad}{_B}{cnt['name']}{_R}  {_B}{short_id}{_R}")
+            create_error_codes.append(0)
+        except subprocess.CalledProcessError as e:
+            if e.stderr:
+                print(e.stderr.decode().strip(), file=sys.stderr)
+            create_error_codes.append(e.returncode)
+            continue
 
     if args.dry_run:
         return None
 
     if args.no_start:
         # return first error code from create calls, if any
-        return next((code for code in create_error_codes if code is not None and code != 0), 0)
+        _ec = next((code for code in create_error_codes if code is not None and code != 0), 0)
+        return _ec or (1 if _pull_failed else 0)
 
     if args.detach:
         log.info("starting containers (detached): ...")
@@ -3882,7 +4668,8 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
             await wait_for_container_running_healthy(compose, args)
 
         # return first error code from start calls, if any
-        return next((code for code in start_error_codes if code is not None and code != 0), 0)
+        _ec = next((code for code in start_error_codes if code is not None and code != 0), 0)
+        return _ec or (1 if _pull_failed else 0)
 
     log.info("starting containers (attached): ...")
 
@@ -3901,14 +4688,18 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
     tasks: set[asyncio.Task] = set()
 
     async def handle_sigint() -> None:
-        log.info("Caught SIGINT or Ctrl+C, shutting down...")
+        print(file=sys.stdout)
+        print("─" * 50, file=sys.stdout)
+        print("  \x1b[1;31m✖\x1b[0m Interrupted. Shutting down gracefully...", file=sys.stdout)
+        print(file=sys.stdout)
         try:
-            log.info("Shutting down gracefully, please wait...")
             down_args = argparse.Namespace(**dict(args.__dict__, volumes=False, rmi=None))
             await compose.commands["down"](compose, down_args)
         except Exception as e:
             log.error("Error during shutdown: %s", e)
         finally:
+            print(file=sys.stdout)
+            print("─" * 50, file=sys.stdout)
             for task in tasks:
                 task.cancel()
 
@@ -3981,7 +4772,7 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
                 for t_ in done:
                     if t_.get_name() == exit_code_from:
                         exit_code = t_.result()
-    return exit_code
+    return exit_code or (1 if _pull_failed else 0)
 
 
 def get_volume_names(compose: PodmanCompose, cnt: dict) -> list[str]:
@@ -4007,6 +4798,11 @@ async def compose_down(compose: PodmanCompose, args: argparse.Namespace) -> None
     timeout_global = getattr(args, "timeout", None)
     containers = list(reversed(compose.containers))
 
+    use_color = should_use_color_output(args, compose.environ, sys.stdout)
+    _B = "\x1b[1m" if use_color else ""
+    _R = "\x1b[0m" if use_color else ""
+    _DIM = "\x1b[2m" if use_color else ""
+
     down_tasks = []
     for cnt in containers:
         if cnt["_service"] in excluded:
@@ -4020,14 +4816,14 @@ async def compose_down(compose: PodmanCompose, args: argparse.Namespace) -> None
             podman_stop_args.extend(["-t", str(timeout)])
         down_tasks.append(
             asyncio.create_task(
-                compose.podman.run([], "stop", [*podman_stop_args, cnt["name"]]), name=cnt["name"]
+                compose.podman.run([], "stop", [*podman_stop_args, cnt["name"]], suppress_output=True), name=cnt["name"]
             )
         )
     await asyncio.gather(*down_tasks)
     for cnt in containers:
         if cnt["_service"] in excluded:
             continue
-        await compose.podman.run([], "rm", [cnt["name"]])
+        await compose.podman.run([], "rm", [cnt["name"]], suppress_output=True)
 
     orphaned_images = set()
     if args.remove_orphans:
@@ -4051,9 +4847,9 @@ async def compose_down(compose: PodmanCompose, args: argparse.Namespace) -> None
         orphaned_images = {item.split()[0] for item in orphaned_containers}
         names = {item.split()[1] for item in orphaned_containers}
         for name in names:
-            await compose.podman.run([], "stop", [*podman_args, name])
+            await compose.podman.run([], "stop", [*podman_args, name], suppress_output=True)
         for name in names:
-            await compose.podman.run([], "rm", [name])
+            await compose.podman.run([], "rm", [name], suppress_output=True)
     if args.volumes:
         vol_names_to_keep = set()
         for cnt in containers:
@@ -4064,7 +4860,8 @@ async def compose_down(compose: PodmanCompose, args: argparse.Namespace) -> None
         for volume_name in await compose.podman.volume_ls():
             if volume_name in vol_names_to_keep:
                 continue
-            await compose.podman.run([], "volume", ["rm", volume_name])
+            print(f"  {_DIM}volume{_R} {_B}{volume_name}{_R}", file=sys.stderr)
+            await compose.podman.run([], "volume", ["rm", volume_name], suppress_output=True)
     if args.rmi:
         images_to_remove = set()
         for cnt in containers:
@@ -4075,14 +4872,14 @@ async def compose_down(compose: PodmanCompose, args: argparse.Namespace) -> None
             images_to_remove.add(cnt["image"])
         images_to_remove.update(orphaned_images)
         log.debug("images to remove: %s", images_to_remove)
-        await compose.podman.run([], "rmi", ["--ignore", "--force"] + list(images_to_remove))
+        await compose.podman.run([], "rmi", ["--ignore", "--force"] + list(images_to_remove), suppress_output=True)
 
     if excluded:
         return
     for pod in compose.pods:
-        await compose.podman.run([], "pod", ["rm", pod["name"]])
+        await compose.podman.run([], "pod", ["rm", pod["name"]], suppress_output=True)
     for network in await compose.podman.network_ls():
-        await compose.podman.run([], "network", ["rm", network])
+        await compose.podman.run([], "network", ["rm", network], suppress_output=True)
 
 
 @cmd_run(podman_compose, "ps", "show status of containers")
@@ -4622,6 +5419,11 @@ def compose_up_parse(parser: argparse.ArgumentParser) -> None:
         default=None,
         help="Return the exit code of the selected service container. "
         "Implies --abort-on-container-exit.",
+    )
+    parser.add_argument(
+        "--debug-pull-errors",
+        action="store_true",
+        help="Print the full raw Podman stderr for every failed image pull.",
     )
 
 
