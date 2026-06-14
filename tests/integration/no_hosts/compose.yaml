@@ -1,0 +1,5 @@
+services:
+  app:
+    image: nopush/podman-compose-test
+    container_name: test_no_hosts
+    command: ["cat", "/etc/hosts"]

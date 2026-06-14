@@ -3855,6 +3855,8 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
         ):
             log.debug("** skipping create: %s", cnt["name"])
             continue
+        if getattr(args, "no_hosts", False):
+            cnt["x-podman.no_hosts"] = True
         podman_args = await container_to_args(compose, cnt, detached=False, no_deps=args.no_deps)
         exit_code = await compose.podman.run([], "create", podman_args)
         create_error_codes.append(exit_code)
@@ -4622,6 +4624,11 @@ def compose_up_parse(parser: argparse.ArgumentParser) -> None:
         default=None,
         help="Return the exit code of the selected service container. "
         "Implies --abort-on-container-exit.",
+    )
+    parser.add_argument(
+        "--no-hosts",
+        action="store_true",
+        help="Do not modify the /etc/hosts file in the container.",
     )
 
 
