@@ -422,3 +422,24 @@ class TestContainerToBuildArgs(unittest.TestCase):
                 '.',
             ],
         )
+
+    def test_pass_no_ipc_to_build(self) -> None:
+        """Do not pass --ipc to podman build"""
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["ipc"] = "host"
+        args = get_minimal_args()
+
+        args = container_to_build_args(c, cnt, args, lambda path: True)
+        self.assertEqual(
+            args,
+            [
+                '-f',
+                'Containerfile',
+                '-t',
+                'new-image',
+                '--no-cache',
+                '.',
+            ],
+        )
