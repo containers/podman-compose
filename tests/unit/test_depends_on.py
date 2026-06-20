@@ -3,6 +3,7 @@ from typing import Any
 
 from parameterized import parameterized
 
+from podman_compose import ServiceDependency
 from podman_compose import flat_deps
 
 
@@ -50,4 +51,23 @@ class TestDependsOn(unittest.TestCase):
             },
             dependents,
             msg="Dependents do not match",
+        )
+
+    def test_depends_on_properties(self) -> None:
+        services: dict[str, Any] = {
+            "service_a": {},
+            "service_b": {
+                "depends_on": {
+                    "service_a": {
+                        "condition": "service_healthy",
+                        "required": False,
+                        "restart": False,
+                    }
+                }
+            },
+        }
+        flat_deps(services)
+        self.assertEqual(
+            services["service_b"]["_deps"],
+            {ServiceDependency("service_a", "service_healthy", required=False, restart=False)},
         )
