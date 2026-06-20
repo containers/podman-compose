@@ -56,6 +56,25 @@ class TestDependsOn(unittest.TestCase):
             msg="Dependents do not match",
         )
 
+    def test_depends_on_properties(self) -> None:
+        services: dict[str, Any] = {
+            "service_a": {},
+            "service_b": {
+                "depends_on": {
+                    "service_a": {
+                        "condition": "service_healthy",
+                        "required": False,
+                        "restart": False,
+                    }
+                }
+            },
+        }
+        flat_deps(services)
+        self.assertEqual(
+            services["service_b"]["_deps"],
+            {ServiceDependency("service_a", "service_healthy", required=False, restart=False)},
+        )
+
 
 class TestCheckDepConditions(unittest.IsolatedAsyncioTestCase):
     async def test_empty_deps_does_nothing(self) -> None:
