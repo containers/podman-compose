@@ -2187,6 +2187,14 @@ def rec_merge_one(target: dict[str, Any], source: dict[str, Any]) -> dict[str, A
         if value is None and isinstance(value2, dict):
             target[key] = value = {}
 
+        # normalizing inputs to dicts
+        if key == "depends_on":
+            if is_list(value) and isinstance(value2, dict):
+                value = {x: {} for x in value}
+                target[key] = value
+            elif isinstance(value, dict) and is_list(value2):
+                value2 = {x: {} for x in value2}
+
         if not isinstance(value2, type(value)):
             value_type = type(value)
             value2_type = type(value2)
