@@ -585,7 +585,7 @@ async def assert_config_artifact(
     source_env = config.get("environment")
     source_content = config.get("content")
     source_external = config.get("external", False)
-    if not bool(source_file) ^ bool(source_env) ^ bool(source_content) ^ source_external:
+    if bool(source_file) + bool(source_env) + bool(source_content) + source_external != 1:
         raise ValueError(
             f'ERROR: Config "{config_name}" must specify one and only one of file, '
             'environment, content, or external.'
