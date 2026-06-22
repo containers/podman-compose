@@ -1,0 +1,1 @@
+Fix `service_completed_successfully` to require exit code 0.
