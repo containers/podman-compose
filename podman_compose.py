@@ -1811,7 +1811,7 @@ class Podman:
         async with self.semaphore:
             cmd_args = cmd_args or []
             xargs = self.compose.get_podman_args(cmd) if cmd else []
-            cmd_ls = [self.podman_path, *podman_args, cmd] + xargs + cmd_args
+            cmd_ls = [self.podman_path, *podman_args] + xargs + cmd_args
             log.info(str(cmd_ls))
             p = await asyncio.create_subprocess_exec(
                 *cmd_ls, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
@@ -1883,7 +1883,7 @@ class Podman:
     ) -> None:
         cmd_args = list(map(str, cmd_args or []))
         xargs = self.compose.get_podman_args(cmd) if cmd else []
-        cmd_ls = [self.podman_path, *podman_args, cmd] + xargs + cmd_args
+        cmd_ls = [self.podman_path, *podman_args] + xargs + cmd_args
         log.info(" ".join([str(i) for i in cmd_ls]))
         os.execlp(self.podman_path, *cmd_ls)
 
@@ -1900,7 +1900,7 @@ class Podman:
         async with self.semaphore:
             cmd_args = list(map(str, cmd_args or []))
             xargs = self.compose.get_podman_args(cmd) if cmd else []
-            cmd_ls = [self.podman_path, *podman_args, cmd] + xargs + cmd_args
+            cmd_ls = [self.podman_path, *podman_args] + xargs + cmd_args
             log.info(" ".join([str(i) for i in cmd_ls]))
             if self.dry_run:
                 return None
@@ -2377,6 +2377,7 @@ class PodmanCompose:
         xargs = []
         for args in self.global_args.podman_args:
             xargs.extend(shlex.split(args))
+        xargs += [cmd]
         cmd_norm = cmd if cmd != "create" else "run"
         cmd_args = self.global_args.__dict__.get(f"podman_{cmd_norm}_args", [])
         for args in cmd_args:
