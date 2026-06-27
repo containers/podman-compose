@@ -1787,6 +1787,7 @@ class ExistingContainer:
     id: str
     service_name: str
     config_hash: str
+    image_id: str
     exited: bool
     state: str
     status: str
@@ -2007,6 +2008,7 @@ class Podman:
                     or c.get("Labels", {}).get("com.docker.compose.service", "")
                 ),
                 config_hash=c.get("Labels", {}).get("io.podman.compose.config-hash", ""),
+                image_id=c.get("ImageID", ""),
                 exited=c.get("Exited", False),
                 state=c.get("State", ""),
                 status=c.get("Status", ""),
@@ -3971,6 +3973,27 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
         if not args.no_recreate:
             requested_services = set(args.services) if args.services else set()
             always_recreate_deps = getattr(args, "always_recreate_deps", False)
+
+            # resolve current local image IDs for services with running containers
+            current_image_ids: dict[str, str] = {}
+            for c in existing_containers.values():
+                if (
+                    c.service_name in excluded
+                    or c.service_name not in compose.services
+                    or not c.image_id
+                ):
+                    continue
+                service = compose.services[c.service_name]
+                image = service.get("image")
+                if image and image not in current_image_ids:
+                    try:
+                        img_id = await compose.podman.output(
+                            [], "inspect", ["-t", "image", "-f", "{{.Id}}", image]
+                        )
+                        current_image_ids[image] = img_id.decode().strip()
+                    except subprocess.CalledProcessError:
+                        pass
+
             for c in existing_containers.values():
                 if (
                     c.service_name in excluded
@@ -3984,7 +4007,20 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
                     or c.service_name in requested_services
                     or always_recreate_deps
                 )
-                if force_this or c.config_hash != compose.config_hash(service):
+
+                image_changed = False
+                image = service.get("image")
+                if image and c.image_id:
+                    local_id = current_image_ids.get(image, "")
+                    if local_id and local_id != c.image_id:
+                        log.info(
+                            "Image changed for service %s (%s), will recreate",
+                            c.service_name,
+                            image,
+                        )
+                        image_changed = True
+
+                if force_this or image_changed or c.config_hash != compose.config_hash(service):
                     recreate_services.add(c.service_name)
 
                     # Running dependents of service are removed by down command
