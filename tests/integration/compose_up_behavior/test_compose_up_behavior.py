@@ -488,3 +488,162 @@ class TestComposeUpBehavior(unittest.TestCase, RunSubprocessMixin):
             self.run_subprocess_assert_returncode(
                 ["podman", "rmi", "-f", image],
             )
+
+    def test_recreate_on_image_changed(self) -> None:
+        """Verify that containers are recreated when their image changes.
+
+        Simulates pulling a new version of an image by re-tagging a different
+        base image under the same tag. Only the service whose image changed
+        should be recreated; the unchanged service should keep its container.
+        """
+        compose_file = compose_yaml_path("image_change")
+        tag = "nopush/podman-compose-test:image-change-app"
+
+        try:
+            # create the tagged image from the existing base image
+            self.run_subprocess_assert_returncode([
+                "podman",
+                "tag",
+                "nopush/podman-compose-test",
+                tag,
+            ])
+
+            # start containers
+            self.run_subprocess_assert_returncode(
+                [podman_compose_path(), "-f", compose_file, "up", "-d"],
+            )
+
+            original_containers = self.get_existing_containers("image_change")
+
+            # simulate a new image version: re-tag a different image under the same tag
+            self.run_subprocess_assert_returncode([
+                "podman",
+                "tag",
+                "nopush/podman-compose-test2",
+                tag,
+            ])
+
+            # verify the app container exists
+            self.assertIn(
+                "compose_up_behavior_app_1",
+                original_containers,
+                "app container should exist after initial up",
+            )
+
+            # run up again — should detect the changed image and recreate app
+            self.run_subprocess_assert_returncode(
+                [podman_compose_path(), "-f", compose_file, "up", "-d"],
+            )
+
+            new_containers = self.get_existing_containers("image_change")
+
+            # app should be recreated (different container ID)
+            self.assertNotEqual(
+                original_containers["compose_up_behavior_app_1"]["id"],
+                new_containers["compose_up_behavior_app_1"]["id"],
+                "app container should be recreated when its image changes",
+            )
+
+            # db should NOT be recreated (same container ID)
+            self.assertEqual(
+                original_containers["compose_up_behavior_db_1"]["id"],
+                new_containers["compose_up_behavior_db_1"]["id"],
+                "db container should not be recreated when its image did not change",
+            )
+
+            # all containers should be running
+            self.assertTrue(
+                all(c["exited"] is False for c in new_containers.values()),
+                "Not all containers are running after up command",
+            )
+
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_file,
+                "down",
+                "-t",
+                "0",
+            ])
+            self.run_subprocess_assert_returncode(
+                ["podman", "rmi", "-f", tag],
+            )
+
+    def test_recreate_on_build_image_changed(self) -> None:
+        """Verify that containers are recreated when a locally built image changes.
+
+        Builds an image from a Dockerfile, starts containers, modifies the
+        Dockerfile to produce a different image, rebuilds with --build, and
+        verifies that the service whose image changed is recreated while the
+        unchanged service keeps its container.
+        """
+        compose_file = compose_yaml_path("build_image_change")
+        tag = "nopush/podman-compose-test:build-image-change"
+        dockerfile = os.path.join(
+            os.path.join(test_path(), "compose_up_behavior"),
+            "Dockerfile.image_change",
+        )
+
+        try:
+            # create the Dockerfile for the initial build
+            with open(dockerfile, "w") as f:
+                f.write("FROM nopush/podman-compose-test\n")
+
+            # build and start containers
+            self.run_subprocess_assert_returncode(
+                [podman_compose_path(), "-f", compose_file, "up", "-d", "--build"],
+            )
+
+            original_containers = self.get_existing_containers("build_image_change")
+
+            self.assertIn(
+                "compose_up_behavior_app_1",
+                original_containers,
+                "app container should exist after initial up",
+            )
+
+            # modify the Dockerfile to produce a different image
+            with open(dockerfile, "w") as f:
+                f.write("FROM nopush/podman-compose-test\nRUN touch /marker\n")
+
+            # rebuild and restart — should detect the changed image and recreate app
+            self.run_subprocess_assert_returncode(
+                [podman_compose_path(), "-f", compose_file, "up", "-d", "--build"],
+            )
+
+            new_containers = self.get_existing_containers("build_image_change")
+
+            # app should be recreated (different container ID)
+            self.assertNotEqual(
+                original_containers["compose_up_behavior_app_1"]["id"],
+                new_containers["compose_up_behavior_app_1"]["id"],
+                "app container should be recreated when its built image changes",
+            )
+
+            # db should NOT be recreated (same container ID)
+            self.assertEqual(
+                original_containers["compose_up_behavior_db_1"]["id"],
+                new_containers["compose_up_behavior_db_1"]["id"],
+                "db container should not be recreated when its image did not change",
+            )
+
+            # all containers should be running
+            self.assertTrue(
+                all(c["exited"] is False for c in new_containers.values()),
+                "Not all containers are running after up command",
+            )
+
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_file,
+                "down",
+                "-t",
+                "0",
+            ])
+            self.run_subprocess_assert_returncode(
+                ["podman", "rmi", "-f", tag],
+            )
+            os.remove(dockerfile)
