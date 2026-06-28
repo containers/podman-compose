@@ -1,0 +1,18 @@
+version: "3.7"
+services:
+  failing_oneshot:
+    image: nopush/podman-compose-test
+    command: ["sh", "-c", "echo 'Task failed!' && exit 1"]
+    tmpfs:
+      - /run
+      - /tmp
+
+  should_not_start:
+    image: nopush/podman-compose-test
+    command: ["sh", "-c", "echo 'This should not run' && sleep 3600"]
+    depends_on:
+      failing_oneshot:
+        condition: service_completed_successfully
+    tmpfs:
+      - /run
+      - /tmp
