@@ -1,0 +1,1 @@
+Pass ``stop_grace_period`` as ``--stop-timeout`` to ``podman create`` so containers respect the configured grace period instead of using podman's 10-second default.
