@@ -1279,3 +1279,41 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ValueError, r"invalid ipc mode \[service:invalid\], service \[invalid\] does not exist"
         ):
             await container_to_args(c, cnt)
+
+    async def test_stop_grace_period(self) -> None:
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["stop_grace_period"] = "30s"
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge:alias=service_name",
+                "--stop-timeout",
+                "30",
+                "busybox",
+            ],
+        )
+
+    async def test_stop_grace_period_minutes(self) -> None:
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["stop_grace_period"] = "1m30s"
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge:alias=service_name",
+                "--stop-timeout",
+                "90",
+                "busybox",
+            ],
+        )

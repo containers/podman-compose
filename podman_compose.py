@@ -1430,6 +1430,11 @@ async def container_to_args(
         podman_args.append("-i")
     if cnt.get("stop_signal"):
         podman_args.extend(["--stop-signal", cnt["stop_signal"]])
+    stop_grace = cnt.get("stop_grace_period")
+    if stop_grace:
+        timeout = str_to_seconds(stop_grace)
+        if timeout is not None:
+            podman_args.extend(["--stop-timeout", str(timeout)])
 
     sysctls = cnt.get("sysctls")
     if sysctls is not None:
