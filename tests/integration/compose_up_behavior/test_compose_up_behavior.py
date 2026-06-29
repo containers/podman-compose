@@ -518,13 +518,8 @@ class TestComposeUpBehavior(unittest.TestCase, RunSubprocessMixin):
             # simulate a new image version: re-tag a different image under the same tag
             self.run_subprocess_assert_returncode([
                 "podman",
-                "pull",
-                "docker.io/library/alpine:latest",
-            ])
-            self.run_subprocess_assert_returncode([
-                "podman",
                 "tag",
-                "docker.io/library/alpine:latest",
+                "nopush/podman-compose-test2",
                 tag,
             ])
 
@@ -544,21 +539,21 @@ class TestComposeUpBehavior(unittest.TestCase, RunSubprocessMixin):
 
             # app should be recreated (different container ID)
             self.assertNotEqual(
-                original_containers.get("compose_up_behavior_app_1", {}).get("id"),
-                new_containers.get("compose_up_behavior_app_1", {}).get("id"),
+                original_containers["compose_up_behavior_app_1"]["id"],
+                new_containers["compose_up_behavior_app_1"]["id"],
                 "app container should be recreated when its image changes",
             )
 
             # db should NOT be recreated (same container ID)
             self.assertEqual(
-                original_containers.get("compose_up_behavior_db_1", {}).get("id"),
-                new_containers.get("compose_up_behavior_db_1", {}).get("id"),
+                original_containers["compose_up_behavior_db_1"]["id"],
+                new_containers["compose_up_behavior_db_1"]["id"],
                 "db container should not be recreated when its image did not change",
             )
 
             # all containers should be running
             self.assertTrue(
-                all(c.get("exited") is False for c in new_containers.values()),
+                all(c["exited"] is False for c in new_containers.values()),
                 "Not all containers are running after up command",
             )
 
@@ -618,21 +613,21 @@ class TestComposeUpBehavior(unittest.TestCase, RunSubprocessMixin):
 
             # app should be recreated (different container ID)
             self.assertNotEqual(
-                original_containers.get("compose_up_behavior_app_1", {}).get("id"),
-                new_containers.get("compose_up_behavior_app_1", {}).get("id"),
+                original_containers["compose_up_behavior_app_1"]["id"],
+                new_containers["compose_up_behavior_app_1"]["id"],
                 "app container should be recreated when its built image changes",
             )
 
             # db should NOT be recreated (same container ID)
             self.assertEqual(
-                original_containers.get("compose_up_behavior_db_1", {}).get("id"),
-                new_containers.get("compose_up_behavior_db_1", {}).get("id"),
+                original_containers["compose_up_behavior_db_1"]["id"],
+                new_containers["compose_up_behavior_db_1"]["id"],
                 "db container should not be recreated when its image did not change",
             )
 
             # all containers should be running
             self.assertTrue(
-                all(c.get("exited") is False for c in new_containers.values()),
+                all(c["exited"] is False for c in new_containers.values()),
                 "Not all containers are running after up command",
             )
 
