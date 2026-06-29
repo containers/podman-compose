@@ -1,0 +1,1 @@
+Use per-container ``asyncio.gather`` waits in ``check_dep_conditions`` instead of a single blocking ``podman wait`` with all containers at once.
