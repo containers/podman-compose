@@ -422,9 +422,19 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
         cnt = get_minimal_container()
         cnt['_service'] = 'test-service'
         cnt['secrets'] = ['my_secret']
-        with self.assertRaises(ValueError) as context:
-            await container_to_args(c, cnt)
-        self.assertIn('not supported for runtime secrets', str(context.exception))
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                '--name=project_name_service_name1',
+                '-d',
+                '--network=bridge:alias=service_name',
+                '--secret',
+                'test_project_name_my_secret',
+                'busybox',
+            ],
+        )
 
     async def test_external_secret_with_target_path_uid_gid_mode(self) -> None:
         """Reproduce the reported bug: external secret with custom target path, uid, gid, mode."""

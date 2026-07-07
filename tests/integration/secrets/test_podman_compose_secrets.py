@@ -47,6 +47,7 @@ class TestComposeNoSecrets(unittest.TestCase, RunSubprocessMixin):
                     "up",
                     "test",
                 ],
+                env={"TEST_ENVIRONMENT": "important-secret-is-important"},
             )
 
             self.assertNotIn(
@@ -66,6 +67,7 @@ class TestComposeNoSecrets(unittest.TestCase, RunSubprocessMixin):
                 + b'/run/secrets/file_secret:important-secret-is-important\n'
                 + b'/run/secrets/podman_compose_test_secret:podman_compose_test_secret\n'
                 + b'/run/secrets/podman_compose_test_secret_3:podman_compose_test_secret_3\n'
+                + b'/run/secrets/secrets_environment_secret:important-secret-is-important\n'
                 + b'/run/secrets/unused_params_warning:important-secret-is-important\n'
                 + b'important-secret-is-important\n'
                 + b'podman_compose_test_secret\n'
