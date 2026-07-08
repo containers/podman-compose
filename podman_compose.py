@@ -1902,6 +1902,7 @@ class Podman:
         cmd_args: list[str] | None = None,
         log_formatter: str | None = None,
         *,
+        suppress_output: bool = False,
         # Intentionally mutable default argument to hold references to tasks
         task_reference: set[asyncio.Task] = set(),
     ) -> int | None:
@@ -1937,6 +1938,14 @@ class Podman:
                 )
                 task_reference.add(err_t)
                 err_t.add_done_callback(task_reference.discard)
+
+            elif suppress_output:
+                p = await asyncio.create_subprocess_exec(
+                    *cmd_ls,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    close_fds=False,
+                )  # pylint: disable=consider-using-with
 
             else:
                 p = await asyncio.create_subprocess_exec(*cmd_ls, close_fds=False)  # pylint: disable=consider-using-with
@@ -3787,7 +3796,12 @@ async def check_dep_conditions(compose: PodmanCompose, deps: set) -> None:
 
 
 async def run_container(
-    compose: PodmanCompose, name: str, deps: set, command: tuple, log_formatter: str | None = None
+    compose: PodmanCompose,
+    name: str,
+    deps: set,
+    command: tuple,
+    log_formatter: str | None = None,
+    suppress_output: bool = False,
 ) -> int | None:
     """runs a container after waiting for its dependencies to be fulfilled"""
 
@@ -3798,7 +3812,9 @@ async def run_container(
 
     # start the container
     log.debug("Starting task for container %s", name)
-    return await compose.podman.run(*command, log_formatter=log_formatter)  # type: ignore[misc]
+    return await compose.podman.run(  # type: ignore[misc]
+        *command, log_formatter=log_formatter, suppress_output=suppress_output
+    )
 
 
 def deps_from_container(args: argparse.Namespace, cnt: dict) -> set:
@@ -4016,6 +4032,11 @@ async def wait_for_container_running_healthy(
 @cmd_run(podman_compose, "up", "Create and start the entire stack or some of its services")
 async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | None:  # pylint: disable=too-many-return-statements
     excluded = get_excluded(compose, args)
+    no_attach_services = set(args.no_attach)
+    unknown_no_attach_services = no_attach_services - set(compose.services)
+    if unknown_no_attach_services:
+        log.error("no such service: %s", sorted(unknown_no_attach_services)[0])
+        return 1
 
     exit_code = await prepare_images(compose, args, excluded)
     if exit_code != 0:
@@ -4168,6 +4189,21 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
         log_formatter = "{}[{}]{}|\x1b[0m".format(color, cnt["_service"], space_suffix)
         if cnt["_service"] in excluded:
             log.debug("** skipping: %s", cnt["name"])
+            continue
+
+        if cnt["_service"] in no_attach_services:
+            tasks.add(
+                asyncio.create_task(
+                    run_container(
+                        compose,
+                        cnt["name"],
+                        deps_from_container(args, cnt),
+                        ([], "start", ["-a", cnt["name"]]),
+                        suppress_output=True,
+                    ),
+                    name=cnt["_service"],
+                )
+            )
             continue
 
         tasks.add(
@@ -4373,6 +4409,7 @@ async def compose_run(compose: PodmanCompose, args: argparse.Namespace) -> None:
                 parallel=1,
                 remove_orphans=True,
                 wait=False,
+                no_attach=[],
             )
         )
         await compose.commands["up"](compose, up_args)
@@ -4774,6 +4811,13 @@ def compose_up_parse(parser: argparse.ArgumentParser) -> None:
         help="Pull without printing progress information.",
     )
     parser.add_argument("--no-deps", action="store_true", help="Don't start linked services.")
+    parser.add_argument(
+        "--no-attach",
+        action="append",
+        default=[],
+        metavar="SERVICE",
+        help="Do not attach to SERVICE.",
+    )
     parser.add_argument(
         "--force-recreate",
         action="store_true",
