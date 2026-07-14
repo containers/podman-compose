@@ -1,0 +1,1 @@
+When no ``--env-file`` is given, only the ``.env`` file in the project directory (compose file's directory) is loaded (the old default ``.env`` in the current working directory is no longer loaded automatically).

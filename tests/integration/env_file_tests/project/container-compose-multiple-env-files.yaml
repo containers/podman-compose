@@ -1,0 +1,7 @@
+services:
+  app:
+    image: busybox
+    command: ["/bin/busybox", "sh", "-c", "env | grep ZZ"]
+    environment:
+      ZZVAR1: $ZZVAR1
+      ZZVAR3: $ZZVAR3
