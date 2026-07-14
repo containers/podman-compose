@@ -30,7 +30,7 @@ charset-normalizer==3.4.4
 colorama==0.4.6
 dill==0.3.8
 distlib==0.3.8
-filelock==3.13.1
+filelock==3.20.3
 idna==3.15
 iniconfig==2.0.0
 isort==5.13.2
