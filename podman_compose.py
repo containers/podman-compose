@@ -4081,10 +4081,10 @@ async def prepare_images(
 
 async def wait_for_container_running_healthy(
     compose: PodmanCompose, args: argparse.Namespace
-) -> None:
+) -> int:
     if compose.podman_version is not None and strverscmp_lt(compose.podman_version, "4.6.0"):
         log.warning("Ignore --wait due to podman %s doesn't support it!", compose.podman_version)
-        return
+        return 0
 
     log.info("waiting for all containers to be running|healthy")
 
@@ -4098,13 +4098,16 @@ async def wait_for_container_running_healthy(
             cnt_without_healthcheck.append(cnt["name"])
 
     async def run_podman_wait() -> None:
-        # wait for running state of containers without a healthcheck
+        # wait for running state of containers without a healthcheck. The "exited"
+        # condition ensures podman wait returns as soon as a container fails instead of
+        # blocking until the timeout is reached.
         if cnt_without_healthcheck:
             await compose.podman.run(
                 [],
                 "wait",
                 [
                     "--condition=running",
+                    "--condition=exited",
                     "--ignore",
                     *cnt_without_healthcheck,
                 ],
@@ -4116,6 +4119,7 @@ async def wait_for_container_running_healthy(
                 "wait",
                 [
                     "--condition=healthy",
+                    "--condition=exited",
                     "--ignore",
                     *cnt_with_healthcheck,
                 ],
@@ -4125,6 +4129,41 @@ async def wait_for_container_running_healthy(
     # https://docs.python.org/3/library/asyncio-task.html#asyncio.wait_for
     # the CancelledError is handled in the compose.podman.run() method
     await wait_with_timeout(run_podman_wait(), timeout=args.wait_timeout)
+
+    # After waiting, inspect the containers to detect any that failed to reach the
+    # desired state. This matches docker-compose behaviour of returning a non-zero exit
+    # code when a service fails to become running|healthy.
+    return await check_containers_healthy(compose, cnt_with_healthcheck + cnt_without_healthcheck)
+
+
+async def check_containers_healthy(compose: PodmanCompose, container_names: list[str]) -> int:
+    exit_code = 0
+    for container_name in container_names:
+        try:
+            inspect_output = await compose.podman.output([], "inspect", [container_name])
+        except subprocess.CalledProcessError:
+            # container does not exist (e.g. excluded or never created), skip it
+            continue
+        container_info = json.loads(inspect_output)[0]
+        state = container_info.get("State", {})
+        status = state.get("Status")
+
+        # a container that exited with a non-zero exit code is considered a failure
+        if status in ("exited", "stopped"):
+            container_exit_code = state.get("ExitCode", 0)
+            if container_exit_code != 0:
+                log.error("container %s exited with code %s", container_name, container_exit_code)
+                if exit_code == 0:
+                    exit_code = container_exit_code
+            continue
+
+        # a container whose healthcheck reports it as unhealthy is considered a failure
+        health_status = state.get("Health", {}).get("Status")
+        if health_status == "unhealthy":
+            log.error("container %s is unhealthy", container_name)
+            exit_code = exit_code or 1
+
+    return exit_code
 
 
 @cmd_run(podman_compose, "up", "Create and start the entire stack or some of its services")
@@ -4278,7 +4317,9 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
             start_error_codes.append(exit_code)
 
         if args.wait:
-            await wait_for_container_running_healthy(compose, args)
+            wait_exit_code = await wait_for_container_running_healthy(compose, args)
+            if wait_exit_code != 0:
+                return wait_exit_code
 
         # return first error code from start calls, if any
         return next((code for code in start_error_codes if code is not None and code != 0), 0)
@@ -4711,11 +4752,13 @@ async def transfer_service_status(
 
 
 @cmd_run(podman_compose, "start", "start specific services")
-async def compose_start(compose: PodmanCompose, args: argparse.Namespace) -> None:
+async def compose_start(compose: PodmanCompose, args: argparse.Namespace) -> int | None:
     await transfer_service_status(compose, args, "start")
 
     if args.wait:
-        await wait_for_container_running_healthy(compose, args)
+        return await wait_for_container_running_healthy(compose, args)
+
+    return None
 
 
 @cmd_run(podman_compose, "stop", "stop specific services")
@@ -5373,7 +5416,8 @@ def compose_up_start_parse(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--wait",
         action="store_true",
-        help="Wait for services to be running|healthy. Implies detached mode.",
+        help="Wait for services to be running|healthy. Implies detached mode. Returns a non-zero "
+        "exit code if a service fails to become running|healthy.",
     )
     parser.add_argument(
         "--wait-timeout",
