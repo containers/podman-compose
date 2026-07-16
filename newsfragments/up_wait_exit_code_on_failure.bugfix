@@ -1,0 +1,1 @@
+Fix ``up --wait`` (and ``start --wait``) not returning a non-zero exit code when a service fails to become running|healthy, matching docker-compose behaviour.
