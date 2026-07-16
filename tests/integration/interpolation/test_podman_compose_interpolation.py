@@ -56,3 +56,33 @@ class TestComposeInterpolation(unittest.TestCase, RunSubprocessMixin):
                 compose_yaml_path(),
                 "down",
             ])
+
+    def test_required_nonempty_variable_missing(self) -> None:
+        compose_yaml_path = os.path.join(
+            os.path.join(test_path(), "interpolation"), "docker-compose-colon-question-error.yml"
+        )
+        out, err = self.run_subprocess_assert_returncode(
+            [
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path,
+                "up",
+            ],
+            1,
+        )
+        self.assertIn(b"required variable NOT_A_VARIABLE is missing a value: Missing variable", err)
+
+    def test_required_set_variable_missing(self) -> None:
+        compose_yaml_path = os.path.join(
+            os.path.join(test_path(), "interpolation"), "docker-compose-question-error.yml"
+        )
+        out, err = self.run_subprocess_assert_returncode(
+            [
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path,
+                "up",
+            ],
+            1,
+        )
+        self.assertIn(b"required variable NOT_A_VARIABLE is missing a value: Missing variable", err)
