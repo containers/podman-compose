@@ -1,0 +1,1 @@
+Resolve relative paths in included compose files against the included file's directory rather than the project root, matching the Compose Spec. Affects volumes, env_file, and build.context inside files referenced by include:. Fixes #1301.
