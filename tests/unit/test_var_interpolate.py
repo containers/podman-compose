@@ -177,6 +177,20 @@ class TestVarInterpolate(unittest.TestCase):
         # 45. Dollar sign not followed by valid variable name (should be treated as literal)
         # Disable shell comparison since POSIX shells would treat $5 as fifth argument
         ("Price is $5", {}, "Price is $5", False),
+        # 46. Required variable with spaces in error message (unquoted command syntax)
+        (
+            "cmd ${BAR:?BAR variable missing}",
+            {"BAR": "myvalue"},
+            "cmd myvalue",
+            True,
+        ),
+        # 47. Required variable with spaces in error message fails when missing
+        (
+            "cmd ${BAR:?BAR variable missing}",
+            {},
+            ValueError("required variable BAR is missing a value: BAR variable missing"),
+            True,
+        ),
     ]
 
     @parameterized.expand(test_cases)
