@@ -3804,32 +3804,37 @@ async def check_dep_conditions(compose: PodmanCompose, deps: set) -> None:
                 deps_cd.extend(compose.container_names_by_service[d.name])
 
         if deps_cd:
-            # podman wait will return always with a rc -1.
-            while True:
-                try:
-                    if condition == ServiceDependencyCondition.SERVICE_COMPLETED_SUCCESSFULLY:
-                        await _validate_completed_successfully(compose, deps_cd)
-                    else:
-                        await compose.podman.output(
-                            [], "wait", [f"--condition={condition.value}"] + deps_cd
+
+            async def wait_one(
+                d_cnt: str, condition: ServiceDependencyCondition = condition
+            ) -> None:
+                while True:
+                    try:
+                        if condition == ServiceDependencyCondition.SERVICE_COMPLETED_SUCCESSFULLY:
+                            await _validate_completed_successfully(compose, [d_cnt])
+                        else:
+                            await compose.podman.output(
+                                [], "wait", [f"--condition={condition.value}", d_cnt]
+                            )
+                        log.debug(
+                            "dependency for condition %s has been fulfilled on container %s",
+                            condition.value,
+                            d_cnt,
                         )
-                    log.debug(
-                        "dependencies for condition %s have been fulfilled on containers %s",
-                        condition.value,
-                        ', '.join(deps_cd),
-                    )
-                    break
-                except subprocess.CalledProcessError as _exc:
-                    output = list(
-                        ((_exc.stdout or b"") + (_exc.stderr or b"")).decode().split('\n')
-                    )
-                    log.debug(
-                        'Podman wait returned an error (%d) when executing "%s": %s',
-                        _exc.returncode,
-                        _exc.cmd,
-                        output,
-                    )
-                await asyncio.sleep(1)
+                        break
+                    except subprocess.CalledProcessError as _exc:
+                        output = list(
+                            ((_exc.stdout or b"") + (_exc.stderr or b"")).decode().split('\n')
+                        )
+                        log.debug(
+                            'Podman wait returned an error (%d) when executing "%s": %s',
+                            _exc.returncode,
+                            _exc.cmd,
+                            output,
+                        )
+                    await asyncio.sleep(1)
+
+            await asyncio.gather(*(wait_one(cnt) for cnt in deps_cd))
 
 
 async def run_container(
