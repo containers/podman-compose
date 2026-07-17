@@ -317,7 +317,7 @@ def var_interpolate(value: str, env: dict[str, Any]) -> str:
                     interpolated_operand = (
                         interpolate_str(self.operand, env) if self.operand else ''
                     )
-                    raise ValueError(
+                    raise PodmanComposeError(
                         f"required variable {self.name} is missing a value: {interpolated_operand}"
                     )
                 return var_value
@@ -327,7 +327,7 @@ def var_interpolate(value: str, env: dict[str, Any]) -> str:
                     interpolated_operand = (
                         interpolate_str(self.operand, env) if self.operand else ''
                     )
-                    raise ValueError(
+                    raise PodmanComposeError(
                         f"required variable {self.name} is missing a value: {interpolated_operand}"
                     )
                 return var_value

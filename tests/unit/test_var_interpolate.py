@@ -6,6 +6,7 @@ from typing import Union
 
 from parameterized import parameterized
 
+from podman_compose import PodmanComposeError
 from podman_compose import var_interpolate
 
 
@@ -31,14 +32,18 @@ class TestVarInterpolate(unittest.TestCase):
         (
             "Path: ${TEST_PATH:?TEST_PATH required}",
             {},
-            ValueError("required variable TEST_PATH is missing a value: TEST_PATH required"),
+            PodmanComposeError(
+                "required variable TEST_PATH is missing a value: TEST_PATH required"
+            ),
             True,
         ),
         # 9. Required variable fails when empty (since :?)
         (
             "Path: ${TEST_PATH:?TEST_PATH required}",
             {"TEST_PATH": ""},
-            ValueError("required variable TEST_PATH is missing a value: TEST_PATH required"),
+            PodmanComposeError(
+                "required variable TEST_PATH is missing a value: TEST_PATH required"
+            ),
             True,
         ),
         # 10. Required variable (no colon, fails only if unset)
@@ -47,7 +52,7 @@ class TestVarInterpolate(unittest.TestCase):
         (
             "Config: ${CFG?missing}",
             {},
-            ValueError("required variable CFG is missing a value: missing"),
+            PodmanComposeError("required variable CFG is missing a value: missing"),
             True,
         ),
         # 12. Required variable passes even if empty (no colon)
@@ -96,7 +101,7 @@ class TestVarInterpolate(unittest.TestCase):
         (
             "${MAIN:-${BACKUP:?Missing BACKUP}}",
             {},
-            ValueError("required variable BACKUP is missing a value: Missing BACKUP"),
+            PodmanComposeError("required variable BACKUP is missing a value: Missing BACKUP"),
             True,
         ),
         # 29. Nested default with error in inner fallback
@@ -105,7 +110,7 @@ class TestVarInterpolate(unittest.TestCase):
         (
             "${X:-${Y:?Y required}}",
             {},
-            ValueError("required variable Y is missing a value: Y required"),
+            PodmanComposeError("required variable Y is missing a value: Y required"),
             True,
         ),
         # 31. Inner nested default that is never triggered because outer value is used
@@ -129,7 +134,7 @@ class TestVarInterpolate(unittest.TestCase):
         (
             "${REQ:?Missing ${ALT:-something}}",
             {},
-            ValueError("required variable REQ is missing a value: Missing something"),
+            PodmanComposeError("required variable REQ is missing a value: Missing something"),
             True,
         ),
         # 38. Nested alternative chain
@@ -179,16 +184,16 @@ class TestVarInterpolate(unittest.TestCase):
         self,
         to_interpolate: str,
         var_values: dict[str, str],
-        expected: Union[str, ValueError],
+        expected: Union[str, PodmanComposeError, ValueError],
         compare_shell_evaluation: bool,
     ) -> None:
         try:
             result = var_interpolate(to_interpolate, var_values)
             self.assertEqual(result, expected)
-        except ValueError as e:
+        except (PodmanComposeError, ValueError) as e:
             self.assertTrue(
-                isinstance(expected, ValueError),
-                msg=f"Expected ValueError for input: {to_interpolate}",
+                isinstance(expected, (PodmanComposeError, ValueError)),
+                msg=f"Expected PodmanComposeError or ValueError for input: {to_interpolate}",
             )
             self.assertEqual(str(e), str(expected))
 
@@ -206,7 +211,7 @@ class TestVarInterpolate(unittest.TestCase):
         stdout, _ = process.communicate()
         shell_result = stdout.rstrip(b'\n').decode()
         exit_code = process.returncode
-        if isinstance(expected, ValueError):
+        if isinstance(expected, (PodmanComposeError, ValueError)):
             error_msg = f"Expected non-zero return code success for input: {to_interpolate}"
             self.assertNotEqual(exit_code, 0, msg=error_msg)
         else:
