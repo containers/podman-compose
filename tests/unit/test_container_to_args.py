@@ -1196,3 +1196,124 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "busybox",
             ],
         )
+
+    @parameterized.expand([
+        "",
+        "container:ipc_test0_container",
+        "host",
+        "none",
+        "ns:namespace_id",
+        "private",
+        "shareable",
+        "container:ipc_test0_container",
+    ])
+    async def test_ipc_simple_modes(self, ipc_mode: str) -> None:
+        """Pass simple ipc modes unchanged as --ipc parameter"""
+
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["ipc"] = ipc_mode
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge:alias=service_name",
+                "--ipc",
+                ipc_mode,
+                "busybox",
+            ],
+        )
+
+    @parameterized.expand(["invalid", (["a list", "is invalid too"],)])
+    async def test_ipc_invalid_mode(self, ipc_mode: Any) -> None:
+        """Throw ValueError on invalid ipc mode"""
+
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["ipc"] = ipc_mode
+
+        with self.assertRaisesRegex(ValueError, r"invalid ipc mode"):
+            await container_to_args(c, cnt)
+
+    async def test_ipc_service_name(self) -> None:
+        """Translate ipc mode "service:service_name" to "container:container_name"."""
+
+        c = create_compose_mock()
+        c.container_names_by_service = {
+            "service_1": ["container_1"],
+        }
+
+        cnt = get_minimal_container()
+        cnt["ipc"] = "service:service_1"
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge:alias=service_name",
+                "--ipc",
+                "container:container_1",
+                "busybox",
+            ],
+        )
+
+    async def test_ipc_invalid_service_name(self) -> None:
+        """Throw ValueError if ipc mode "service:service_name" refers to an invalid service name"""
+
+        c = create_compose_mock()
+        c.container_names_by_service = {
+            "service_1": ["container_1"],
+        }
+
+        cnt = get_minimal_container()
+        cnt["ipc"] = "service:invalid"
+
+        with self.assertRaisesRegex(
+            ValueError, r"invalid ipc mode \[service:invalid\], service \[invalid\] does not exist"
+        ):
+            await container_to_args(c, cnt)
+
+    async def test_stop_grace_period(self) -> None:
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["stop_grace_period"] = "30s"
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge:alias=service_name",
+                "--stop-timeout",
+                "30",
+                "busybox",
+            ],
+        )
+
+    async def test_stop_grace_period_minutes(self) -> None:
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["stop_grace_period"] = "1m30s"
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge:alias=service_name",
+                "--stop-timeout",
+                "90",
+                "busybox",
+            ],
+        )

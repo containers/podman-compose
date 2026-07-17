@@ -42,6 +42,8 @@ devel = [
     "parameterized",
     "pre-commit",
     "ruff",
+    "mypy",
+    "pylint",
 ]
 
 [project.scripts]

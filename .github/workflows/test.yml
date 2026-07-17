@@ -49,7 +49,7 @@ jobs:
       # write /sys/fs/cgroup/cgroup.subtree_control: operation not supported
       options: --privileged --cgroupns=host
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Install podman-4.3.1
       if: matrix.conf.podman == '4.3.1'
       run: |

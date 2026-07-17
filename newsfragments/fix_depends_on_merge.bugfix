@@ -1,0 +1,1 @@
+Fixed ``ValueError: can't merge value of depends_on`` when using ``extends`` with mixed list and dict ``depends_on`` forms.

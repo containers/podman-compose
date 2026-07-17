@@ -318,7 +318,7 @@ def var_interpolate(value: str, env: dict[str, Any]) -> str:
                     interpolated_operand = (
                         interpolate_str(self.operand, env) if self.operand else ''
                     )
-                    raise ValueError(
+                    raise PodmanComposeError(
                         f"required variable {self.name} is missing a value: {interpolated_operand}"
                     )
                 return var_value
@@ -328,7 +328,7 @@ def var_interpolate(value: str, env: dict[str, Any]) -> str:
                     interpolated_operand = (
                         interpolate_str(self.operand, env) if self.operand else ''
                     )
-                    raise ValueError(
+                    raise PodmanComposeError(
                         f"required variable {self.name} is missing a value: {interpolated_operand}"
                     )
                 return var_value
@@ -795,6 +795,42 @@ async def get_mount_args(
     return ["--mount", args]
 
 
+async def create_secrets_from_environment(compose: PodmanCompose) -> None:
+    if not compose.declared_secrets:
+        return
+    for secret_name in compose.declared_secrets.keys():
+        secret_environment = compose.declared_secrets[secret_name].get("environment")
+        if secret_environment:
+            secret_environment_value = os.getenv(secret_environment)
+
+            if secret_environment_value is None:
+                raise ValueError(
+                    f"Environment variable '{secret_environment}' required"
+                    + " by secret '{secret_name}' is not set in the process environment."
+                )
+
+            log.debug(
+                "attempting creation of secret '%s' set to '%s'",
+                secret_name,
+                secret_environment_value,
+            )
+
+            assert compose.project_name is not None
+
+            await compose.podman.run(
+                [],
+                "secret",
+                [
+                    "create",
+                    "--label",
+                    "io.podman.compose.project=" + compose.project_name,
+                    "--env",
+                    f"{compose.project_name}_{secret_name}",
+                    secret_environment,
+                ],
+            )
+
+
 def get_secret_args(
     compose: PodmanCompose,
     cnt: dict[str, Any],
@@ -834,13 +870,10 @@ def get_secret_args(
         if podman_is_building:
             secret_id = secret_target if secret_target else secret_name
             return ["--secret", f"id={secret_id},env={source_env}"]
-        # TODO: Runtime support for environment secrets requires injecting the
-        # value into the container (e.g. via podman cp or podman secret create),
-        # which is beyond the scope of this arg-generating function.
-        raise ValueError(
-            f'ERROR: Secret "{secret_name}" uses environment source, '
-            "which is not supported for runtime secrets in podman-compose."
-        )
+
+        assert compose.project_name is not None
+        log.debug("mounting secret '%s'", secret_name)
+        return ["--secret", f"{compose.project_name}_{secret_name}"]
 
     if source_file:
         # assemble path for source file first, because we need it for all cases
@@ -1438,6 +1471,11 @@ async def container_to_args(
         podman_args.append("-i")
     if cnt.get("stop_signal"):
         podman_args.extend(["--stop-signal", cnt["stop_signal"]])
+    stop_grace = cnt.get("stop_grace_period")
+    if stop_grace:
+        timeout = str_to_seconds(stop_grace)
+        if timeout is not None:
+            podman_args.extend(["--stop-timeout", str(timeout)])
 
     sysctls = cnt.get("sysctls")
     if sysctls is not None:
@@ -1468,6 +1506,26 @@ async def container_to_args(
         podman_args.append("--init")
     if cnt.get("init-path"):
         podman_args.extend(["--init-path", cnt["init-path"]])
+
+    ipc = cnt.get('ipc')
+    if ipc is not None:
+        if not isinstance(ipc, str):
+            raise ValueError(f"invalid ipc mode [{ipc}]")
+
+        mode, colon, param = ipc.partition(":")
+
+        if (mode in ("", "host", "none", "private", "shareable") and not colon) or (
+            mode in ("container", "ns") and param
+        ):
+            podman_args.extend(['--ipc', ipc])
+        elif mode == "service" and param:
+            if param not in compose.container_names_by_service:
+                raise ValueError(f"invalid ipc mode [{ipc}], service [{param}] does not exist.")
+            other_cnt = compose.container_names_by_service[param][0]
+            podman_args.extend(['--ipc', "container:" + other_cnt])
+        else:
+            raise ValueError(f"invalid ipc mode [{ipc}]")
+
     entrypoint = cnt.get("entrypoint")
     if entrypoint is not None:
         if isinstance(entrypoint, str):
@@ -1576,6 +1634,7 @@ class ServiceDependencyCondition(Enum):
     STOPPED = "stopped"
     STOPPING = "stopping"
     UNHEALTHY = "unhealthy"
+    SERVICE_COMPLETED_SUCCESSFULLY = "service_completed_successfully"
 
     @classmethod
     def from_value(cls, value: str) -> ServiceDependencyCondition:
@@ -1588,7 +1647,9 @@ class ServiceDependencyCondition(Enum):
         docker_to_podman_cond = {
             "service_healthy": ServiceDependencyCondition.HEALTHY,
             "service_started": ServiceDependencyCondition.RUNNING,
-            "service_completed_successfully": ServiceDependencyCondition.STOPPED,
+            "service_completed_successfully": (
+                ServiceDependencyCondition.SERVICE_COMPLETED_SUCCESSFULLY
+            ),
         }
         try:
             return docker_to_podman_cond[value]
@@ -1797,7 +1858,7 @@ class Podman:
         async with self.semaphore:
             cmd_args = cmd_args or []
             xargs = self.compose.get_podman_args(cmd) if cmd else []
-            cmd_ls = [self.podman_path, *podman_args, cmd] + xargs + cmd_args
+            cmd_ls = [self.podman_path, *podman_args] + xargs + cmd_args
             log.info(str(cmd_ls))
             p = await asyncio.create_subprocess_exec(
                 *cmd_ls, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
@@ -1869,7 +1930,7 @@ class Podman:
     ) -> None:
         cmd_args = list(map(str, cmd_args or []))
         xargs = self.compose.get_podman_args(cmd) if cmd else []
-        cmd_ls = [self.podman_path, *podman_args, cmd] + xargs + cmd_args
+        cmd_ls = [self.podman_path, *podman_args] + xargs + cmd_args
         log.info(" ".join([str(i) for i in cmd_ls]))
         os.execlp(self.podman_path, *cmd_ls)
 
@@ -1880,13 +1941,14 @@ class Podman:
         cmd_args: list[str] | None = None,
         log_formatter: str | None = None,
         *,
+        suppress_output: bool = False,
         # Intentionally mutable default argument to hold references to tasks
         task_reference: set[asyncio.Task] = set(),
     ) -> int | None:
         async with self.semaphore:
             cmd_args = list(map(str, cmd_args or []))
             xargs = self.compose.get_podman_args(cmd) if cmd else []
-            cmd_ls = [self.podman_path, *podman_args, cmd] + xargs + cmd_args
+            cmd_ls = [self.podman_path, *podman_args] + xargs + cmd_args
             log.info(" ".join([str(i) for i in cmd_ls]))
             if self.dry_run:
                 return None
@@ -1915,6 +1977,14 @@ class Podman:
                 )
                 task_reference.add(err_t)
                 err_t.add_done_callback(task_reference.discard)
+
+            elif suppress_output:
+                p = await asyncio.create_subprocess_exec(
+                    *cmd_ls,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    close_fds=False,
+                )  # pylint: disable=consider-using-with
 
             else:
                 p = await asyncio.create_subprocess_exec(*cmd_ls, close_fds=False)  # pylint: disable=consider-using-with
@@ -2086,16 +2156,33 @@ def normalize_service(service: dict[str, Any], sub_dir: str = "") -> dict[str, A
 
             new_volumes.append(v)
         service["volumes"] = new_volumes
+    if "env_file" in service and sub_dir:
+        new_env_file = []
+        for ef in service["env_file"]:
+            if isinstance(ef, str):
+                if is_relative_ref(ef):
+                    ef = os.path.join(sub_dir, ef)
+            elif isinstance(ef, dict):
+                path = ef.get("path")
+                if isinstance(path, str) and is_relative_ref(path):
+                    ef["path"] = os.path.join(sub_dir, path)
+            new_env_file.append(ef)
+        service["env_file"] = new_env_file
     return service
 
 
-def normalize(compose: dict[str, Any]) -> dict[str, Any]:
+def normalize(compose: dict[str, Any], sub_dir: str = "") -> dict[str, Any]:
     """
     convert compose dict of some keys from string or dicts into arrays
+
+    If ``sub_dir`` is provided, relative paths in ``volumes``, ``env_file`` and
+    ``build.context`` are rewritten to be relative to ``sub_dir`` (used when an
+    included file lives in a different directory than the project root, per
+    Compose Spec resolution of paths in ``include:``d files).
     """
     services = compose.get("services", {}) or {}
     for service in services.values():
-        normalize_service(service)
+        normalize_service(service, sub_dir)
     return compose
 
 
@@ -2172,6 +2259,14 @@ def rec_merge_one(target: dict[str, Any], source: dict[str, Any]) -> dict[str, A
         #   driver: "abcdef"
         if value is None and isinstance(value2, dict):
             target[key] = value = {}
+
+        # normalizing inputs to dicts
+        if key == "depends_on":
+            if is_list(value) and isinstance(value2, dict):
+                value = {x: {} for x in value}
+                target[key] = value
+            elif isinstance(value, dict) and is_list(value2):
+                value2 = {x: {} for x in value2}
 
         if not isinstance(value2, type(value)):
             value_type = type(value)
@@ -2282,6 +2377,33 @@ COMPOSE_DEFAULT_LS = [
 ]
 
 
+def find_compose_files_recursively(
+    start_dir: str, compose_files: list[str], max_depth: int = 10
+) -> tuple[list[str], str] | None:
+    current_dir = os.path.abspath(start_dir)
+
+    for _ in range(max_depth):
+        found_files = []
+        for compose_file in compose_files:
+            file_path = os.path.join(current_dir, compose_file)
+            if os.path.exists(file_path):
+                found_files.append(file_path)
+
+        if found_files:
+            log.debug("Found compose files in %s: %s", current_dir, found_files)
+            return found_files, current_dir
+
+        parent_dir = os.path.dirname(current_dir)
+
+        # If we've reached the root directory, stop searching
+        if parent_dir == current_dir:
+            break
+
+        current_dir = parent_dir
+
+    return None
+
+
 class PodmanCompose:
     class XPodmanSettingKey(Enum):
         DOCKER_COMPOSE_COMPAT = "docker_compose_compat"
@@ -2336,6 +2458,7 @@ class PodmanCompose:
         xargs = []
         for args in self.global_args.podman_args:
             xargs.extend(shlex.split(args))
+        xargs += [cmd]
         cmd_norm = cmd if cmd != "create" else "run"
         cmd_args = self.global_args.__dict__.get(f"podman_{cmd_norm}_args", [])
         for args in cmd_args:
@@ -2521,13 +2644,29 @@ class PodmanCompose:
         if project_dir and os.path.isdir(project_dir):
             os.chdir(project_dir)
         pathsep = os.environ.get("COMPOSE_PATH_SEPARATOR", os.pathsep)
+
         if not args.file:
             default_str = os.environ.get("COMPOSE_FILE")
             if default_str:
                 default_ls = default_str.split(pathsep)
+                args.file = list(filter(os.path.exists, default_ls))
             else:
-                default_ls = COMPOSE_DEFAULT_LS
-            args.file = list(filter(os.path.exists, default_ls))
+                # Recursive search up the directory tree
+                current_working_dir = os.getcwd()
+                result = find_compose_files_recursively(current_working_dir, COMPOSE_DEFAULT_LS)
+
+                if result:
+                    found_files, base_dir = result
+                    args.file = found_files
+                    # Change to the directory where compose files were found
+                    log.info("Found compose files in: %s", base_dir)
+                    log.info("Changing working directory to: %s", base_dir)
+                    os.chdir(base_dir)
+                else:
+                    # Fallback to original behavior if no files found
+                    default_ls = COMPOSE_DEFAULT_LS
+                    args.file = list(filter(os.path.exists, default_ls))
+
         files = args.file
         if not files:
             log.fatal(
@@ -2552,17 +2691,22 @@ class PodmanCompose:
         dir_basename = os.path.basename(dirname)
         self.dirname = dirname
 
-        # env-file is relative to the CWD
         dotenv_dict = {}
-        if args.env_file:
-            # Load .env from the Compose file's directory to preserve
-            # behavior prior to 1.1.0 and to match with Docker Compose (v2).
-            if ".env" == args.env_file:
-                project_dotenv_file = os.path.realpath(os.path.join(dirname, ".env"))
-                if os.path.exists(project_dotenv_file):
-                    dotenv_dict.update(dotenv_to_dict(project_dotenv_file))
-            dotenv_path = os.path.realpath(args.env_file)
-            dotenv_dict.update(dotenv_to_dict(dotenv_path))
+        if not args.env_file:
+            # No --env-file specified: load the default .env from the
+            # compose file's directory
+            project_dotenv_file = os.path.realpath(os.path.join(dirname, ".env"))
+            if os.path.exists(project_dotenv_file):
+                dotenv_dict.update(dotenv_to_dict(project_dotenv_file))
+        else:
+            # User-specified env files are resolved relative to the CWD
+            # Later files override earlier ones
+            for env_file in args.env_file:
+                dotenv_path = os.path.realpath(env_file)
+                if not os.path.exists(dotenv_path):
+                    log.fatal("Couldn't find env file: %s", dotenv_path)
+                    sys.exit(1)
+                dotenv_dict.update(dotenv_to_dict(dotenv_path))
 
         os.environ.update({
             key: value  # type: ignore[misc]
@@ -2600,6 +2744,11 @@ class PodmanCompose:
         compose: dict[str, Any] = {}
         # Iterate over files primitively to allow appending to files in-loop
         files_iter = iter(files)
+        # Track files appended by ``include:`` so we can resolve their
+        # relative paths against the included file's directory per the
+        # Compose Spec, without changing the legacy merge behavior of
+        # files passed directly via ``-f``.
+        include_origin_files: set[str] = set()
 
         while True:
             try:
@@ -2616,7 +2765,22 @@ class PodmanCompose:
             if not isinstance(content, dict):
                 log.fatal("Compose file does not contain a top level object: %s", filename)
                 sys.exit(1)
-            content = normalize(content)
+            # For files arriving via ``include:``, paths inside the file must
+            # resolve against the included file's directory rather than the
+            # project root (Compose Spec, ``include`` section). Pass that as
+            # sub_dir so volumes / env_file / build.context get rewritten.
+            file_sub_dir = ""
+            if filename in include_origin_files:
+                file_dir = os.path.dirname(os.path.abspath(filename))
+                file_sub_dir = os.path.relpath(file_dir, self.dirname)
+                if file_sub_dir == ".":
+                    file_sub_dir = ""
+                elif not file_sub_dir.startswith((".", "/")):
+                    # Prefix with "./" so rewritten paths remain recognizable
+                    # as relative refs (is_relative_ref checks for "./"/".."
+                    # prefixes).
+                    file_sub_dir = "./" + file_sub_dir
+            content = normalize(content, file_sub_dir)
             # log(filename, json.dumps(content, indent = 2))
 
             # See also https://docs.docker.com/compose/how-tos/project-name/#set-a-project-name
@@ -2659,23 +2823,28 @@ class PodmanCompose:
                 if not isinstance(include, list):
                     raise RuntimeError("`include` must be a list")
 
+                new_includes: list[str] = []
                 for item in include:
                     if isinstance(item, str):
-                        files.append(os.path.join(os.path.dirname(filename), item))
+                        new_includes.append(os.path.join(os.path.dirname(filename), item))
                     elif isinstance(item, dict):
                         if "path" not in item:
                             raise RuntimeError("Missing required 'path' key in `include` block")
                         path = item["path"]
                         if isinstance(path, str):
-                            files.append(os.path.join(os.path.dirname(filename), path))
+                            new_includes.append(os.path.join(os.path.dirname(filename), path))
                         elif isinstance(path, list):
-                            files.extend([os.path.join(os.path.dirname(filename), p) for p in path])
+                            new_includes.extend(
+                                os.path.join(os.path.dirname(filename), p) for p in path
+                            )
                         else:
                             raise RuntimeError("'path' must be a string or a list of strings")
                     else:
                         raise RuntimeError(
                             "Items in `include` must be strings or dictionaries with a 'path' key"
                         )
+                files.extend(new_includes)
+                include_origin_files.update(new_includes)
                 # As compose obj is updated and tested with every loop, not deleting `include`
                 # from it, results in it being tested again and again, original values for
                 # `include` be appended to `files`, and, included files be processed for ever.
@@ -2797,6 +2966,11 @@ class PodmanCompose:
                     name = service_desc.get("container_name", name0)
                 else:
                     name = name0
+
+                if service_desc.get("container_name", False):
+                    log_prefix = name
+                else:
+                    log_prefix = f"{service_name}_{num}"
                 container_names_by_service[service_name].append(name)
                 # log(service_name,service_desc)
                 cnt = {
@@ -2804,6 +2978,7 @@ class PodmanCompose:
                     "name": name,
                     "num": num,
                     "service_name": service_name,
+                    "log_prefix": log_prefix,
                     **service_desc,
                 }
                 x_podman = service_desc.get("x-podman")
@@ -2947,6 +3122,10 @@ class PodmanCompose:
                 cmd_parser(subparser)
         self.global_args = parser.parse_args(argv)
 
+        compose_env_files = os.environ.get("COMPOSE_ENV_FILES")
+        if not self.global_args.env_file and compose_env_files:
+            self.global_args.env_file = compose_env_files.split(",")
+
         if self.global_args.version:
             self.global_args.command = "version"
         if not self.global_args.command or self.global_args.command == "help":
@@ -2980,10 +3159,10 @@ class PodmanCompose:
         )
         parser.add_argument(
             "--env-file",
-            help="Specify an alternate environment file",
+            help="Specify an alternate environment file (can be specified multiple times)",
             metavar="env_file",
-            type=str,
-            default=".env",
+            action="append",
+            default=[],
         )
         parser.add_argument(
             "-f",
@@ -3424,6 +3603,9 @@ def container_to_build_args(
                 raise OSError(f"Dockerfile not found in {dockerfile}")
             raise OSError(f"Dockerfile not found in {ctx}")
 
+    elif dockerfile:
+        build_args.extend(["-f", dockerfile])
+
     build_args.extend(["-t", cnt["image"]])
 
     if "platform" in cnt:
@@ -3592,6 +3774,57 @@ def get_excluded(
     return excluded
 
 
+async def _validate_completed_successfully(
+    compose: PodmanCompose, container_names: list[str]
+) -> None:
+    # Poll until all containers have left the 'created' state
+    # This prevents podman wait from racing against container startup
+    last_log_time = 0.0
+    while True:
+        try:
+            statuses_raw = await compose.podman.output(
+                [], "inspect", ["--format={{.State.Status}}"] + container_names
+            )
+            statuses = statuses_raw.decode().split()
+            if all(s != "created" for s in statuses if s):
+                break
+        except subprocess.CalledProcessError as exc:
+            log.debug(
+                "podman inspect failed while polling for created states: %s",
+                exc,
+            )
+
+        now = asyncio.get_event_loop().time()
+        if now - last_log_time >= 1.0:
+            log.debug(
+                "Waiting for dependency containers to leave 'created' state: %s",
+                ', '.join(container_names),
+            )
+            last_log_time = now
+        await asyncio.sleep(0.05)
+
+    # podman does not actually support value "service_completed_successfully"
+    # default value "stopped" is sent instead
+    await compose.podman.output([], "wait", ["--condition=stopped"] + container_names)
+
+    for container_name in container_names:
+        try:
+            inspect_output = await compose.podman.output([], "inspect", [container_name])
+        except subprocess.CalledProcessError as exc:
+            raise RuntimeError(
+                f"Container {container_name} disappeared after waiting for stop"
+            ) from exc
+        container_info = json.loads(inspect_output)[0]
+
+        exit_code = container_info.get("State", {}).get("ExitCode", -1)
+        if exit_code != 0:
+            error_msg = (
+                f"Container {container_name} didn't complete successfully: exit code {exit_code}"
+            )
+            log.error(error_msg)
+            raise RuntimeError(error_msg)
+
+
 async def check_dep_conditions(compose: PodmanCompose, deps: set) -> None:
     """Enforce that all specified conditions in deps are met"""
     if not deps:
@@ -3624,33 +3857,46 @@ async def check_dep_conditions(compose: PodmanCompose, deps: set) -> None:
                     raise KeyError(f"Required dependency '{d.name}' is missing from the workspace.")
 
         if deps_cd:
-            # podman wait will return always with a rc -1.
-            while True:
-                try:
-                    await compose.podman.output(
-                        [], "wait", [f"--condition={condition.value}"] + deps_cd
-                    )
-                    log.debug(
-                        "dependencies for condition %s have been fulfilled on containers %s",
-                        condition.value,
-                        ', '.join(deps_cd),
-                    )
-                    break
-                except subprocess.CalledProcessError as _exc:
-                    output = list(
-                        ((_exc.stdout or b"") + (_exc.stderr or b"")).decode().split('\n')
-                    )
-                    log.debug(
-                        'Podman wait returned an error (%d) when executing "%s": %s',
-                        _exc.returncode,
-                        _exc.cmd,
-                        output,
-                    )
-                await asyncio.sleep(1)
+
+            async def wait_one(
+                d_cnt: str, condition: ServiceDependencyCondition = condition
+            ) -> None:
+                while True:
+                    try:
+                        if condition == ServiceDependencyCondition.SERVICE_COMPLETED_SUCCESSFULLY:
+                            await _validate_completed_successfully(compose, [d_cnt])
+                        else:
+                            await compose.podman.output(
+                                [], "wait", [f"--condition={condition.value}", d_cnt]
+                            )
+                        log.debug(
+                            "dependency for condition %s has been fulfilled on container %s",
+                            condition.value,
+                            d_cnt,
+                        )
+                        break
+                    except subprocess.CalledProcessError as _exc:
+                        output = list(
+                            ((_exc.stdout or b"") + (_exc.stderr or b"")).decode().split('\n')
+                        )
+                        log.debug(
+                            'Podman wait returned an error (%d) when executing "%s": %s',
+                            _exc.returncode,
+                            _exc.cmd,
+                            output,
+                        )
+                    await asyncio.sleep(1)
+
+            await asyncio.gather(*(wait_one(cnt) for cnt in deps_cd))
 
 
 async def run_container(
-    compose: PodmanCompose, name: str, deps: set, command: tuple, log_formatter: str | None = None
+    compose: PodmanCompose,
+    name: str,
+    deps: set,
+    command: tuple,
+    log_formatter: str | None = None,
+    suppress_output: bool = False,
 ) -> int | None:
     """runs a container after waiting for its dependencies to be fulfilled"""
 
@@ -3661,13 +3907,55 @@ async def run_container(
 
     # start the container
     log.debug("Starting task for container %s", name)
-    return await compose.podman.run(*command, log_formatter=log_formatter)  # type: ignore[misc]
+    return await compose.podman.run(  # type: ignore[misc]
+        *command, log_formatter=log_formatter, suppress_output=suppress_output
+    )
 
 
 def deps_from_container(args: argparse.Namespace, cnt: dict) -> set:
     if args.no_deps:
         return set()
     return cnt['_deps']
+
+
+def get_service_info(compose: PodmanCompose, service: str) -> tuple[dict, int] | None:
+    for index, cnt in enumerate(compose.containers):
+        service_name = cnt["_service"]
+        if service == service_name:
+            return (cnt, index)
+    return None
+
+
+def create_format_logs_task(
+    compose: PodmanCompose,
+    args: argparse.Namespace,
+    service: str,
+    podman_args: list,
+    max_service_length: int,
+) -> asyncio.Task | None:
+    result = get_service_info(compose, service)
+    if result is None:
+        return None
+
+    container, index = result
+    # Add colored service prefix to output by piping output through sed
+    if args.no_log_prefix:
+        log_formatter = None
+    else:
+        color_idx = index % len(compose.console_colors)
+        if args.no_color:  # monochrome output
+            color = '\x1b[0m'
+        else:
+            color = compose.console_colors[color_idx]
+
+        log_prefix = container["log_prefix"]
+        space_suffix = " " * (max_service_length - len(log_prefix) + 1)
+        log_formatter = f"{color}[{log_prefix}]{space_suffix}|\x1b[0m"
+
+    target_service = compose.container_names_by_service[service]
+    return asyncio.create_task(
+        compose.podman.run([], "logs", podman_args + target_service, log_formatter=log_formatter)
+    )
 
 
 @dataclass
@@ -3839,6 +4127,11 @@ async def wait_for_container_running_healthy(
 @cmd_run(podman_compose, "up", "Create and start the entire stack or some of its services")
 async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | None:  # pylint: disable=too-many-return-statements
     excluded = get_excluded(compose, args)
+    no_attach_services = set(args.no_attach)
+    unknown_no_attach_services = no_attach_services - set(compose.services)
+    if unknown_no_attach_services:
+        log.error("no such service: %s", sorted(unknown_no_attach_services)[0])
+        return 1
 
     exit_code = await prepare_images(compose, args, excluded)
     if exit_code != 0:
@@ -3852,6 +4145,8 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
     existing_containers = await compose.podman.existing_containers(compose.project_name)
     recreate_services: set[str] = set()
     running_services = {c.service_name for c in existing_containers.values() if not c.exited}
+
+    await create_secrets_from_environment(compose)
 
     if existing_containers:
         if args.force_recreate and args.no_recreate:
@@ -4036,6 +4331,21 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
         log_formatter = "{}[{}]{}|\x1b[0m".format(color, cnt["_service"], space_suffix)
         if cnt["_service"] in excluded:
             log.debug("** skipping: %s", cnt["name"])
+            continue
+
+        if cnt["_service"] in no_attach_services:
+            tasks.add(
+                asyncio.create_task(
+                    run_container(
+                        compose,
+                        cnt["name"],
+                        deps_from_container(args, cnt),
+                        ([], "start", ["-a", cnt["name"]]),
+                        suppress_output=True,
+                    ),
+                    name=cnt["_service"],
+                )
+            )
             continue
 
         tasks.add(
@@ -4241,6 +4551,7 @@ async def compose_run(compose: PodmanCompose, args: argparse.Namespace) -> None:
                 parallel=1,
                 remove_orphans=True,
                 wait=False,
+                no_attach=[],
             )
         )
         await compose.commands["up"](compose, up_args)
@@ -4426,9 +4737,7 @@ async def compose_restart(compose: PodmanCompose, args: argparse.Namespace) -> N
 
 
 @cmd_run(podman_compose, "logs", "show logs from services")
-async def compose_logs(
-    compose: PodmanCompose, args: argparse.Namespace, log_formatter: str | None = None
-) -> None:
+async def compose_logs(compose: PodmanCompose, args: argparse.Namespace) -> None:
     container_names_by_service = compose.container_names_by_service
     if not args.services and not args.latest:
         args.services = container_names_by_service.keys()
@@ -4455,27 +4764,12 @@ async def compose_logs(
         podman_args.extend(["--until", args.until])
 
     max_service_length = 0
-    tasks = []
+    tasks: list[asyncio.Task[Any]] = []
     max_service_length = max(len(service) for service in args.services)
-    for i, service in enumerate(args.services):
-        # Add colored service prefix to output by piping output through sed
-        if args.no_log_prefix:
-            log_formatter = None
-        else:
-            color_idx = i % len(compose.console_colors)
-            if args.no_color:  # monochrome output
-                color = '\x1b[0m'
-            else:
-                color = compose.console_colors[color_idx]
-            space_suffix = " " * (max_service_length - len(service) + 1)
-            log_formatter = f"{color}[{service}]{space_suffix}|\x1b[0m"
-
-        podman_args_with_target = podman_args + container_names_by_service[service]
-        tasks.append(
-            asyncio.create_task(
-                compose.podman.run([], "logs", podman_args_with_target, log_formatter=log_formatter)
-            )
-        )
+    for service in args.services:
+        task = create_format_logs_task(compose, args, service, podman_args, max_service_length)
+        if task:
+            tasks.append(task)
     await asyncio.gather(*tasks)
 
 
@@ -4659,6 +4953,13 @@ def compose_up_parse(parser: argparse.ArgumentParser) -> None:
         help="Pull without printing progress information.",
     )
     parser.add_argument("--no-deps", action="store_true", help="Don't start linked services.")
+    parser.add_argument(
+        "--no-attach",
+        action="append",
+        default=[],
+        metavar="SERVICE",
+        help="Do not attach to SERVICE.",
+    )
     parser.add_argument(
         "--force-recreate",
         action="store_true",

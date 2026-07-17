@@ -44,6 +44,56 @@ class TestComposeEnvFile(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
+    def test_path_env_file_inline_many(self) -> None:
+        base_path = compose_base_path()
+        path_compose_file = os.path.join(
+            base_path, "project/container-compose-multiple-env-files.yaml"
+        )
+        try:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                path_compose_file,
+                "--env-file",
+                os.path.join(base_path, "env-files/project-1.env"),
+                "--env-file",
+                os.path.join(base_path, "env-files/project-2.env"),
+                "up",
+            ])
+            output, _ = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                path_compose_file,
+                "logs",
+                "--no-log-prefix",
+                "--no-color",
+            ])
+            # ZZVAR1 is overridden by the following --env-file and ZZVAR3 is added
+            self.assertEqual(output, b"ZZVAR1=podman-rocks-223\nZZVAR3=podman-rocks-125\n")
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                path_compose_file,
+                "down",
+            ])
+
+    def test_path_env_file_inline_missing_fails(self) -> None:
+        base_path = compose_base_path()
+        path_compose_file = os.path.join(base_path, "project/container-compose.yaml")
+        out, err = self.run_subprocess_assert_returncode(
+            [
+                podman_compose_path(),
+                "-f",
+                path_compose_file,
+                "--env-file",
+                os.path.join(base_path, "env-files/nonexistent.env"),
+                "up",
+            ],
+            expected_returncode=1,
+        )
+        self.assertIn(b"Couldn't find env file", err)
+
     def test_path_env_file_flat_in_compose_file(self) -> None:
         # Test taking env variable value from env-file/project-1.env which was declared in
         # compose file's env_file

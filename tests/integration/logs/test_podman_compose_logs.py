@@ -18,9 +18,10 @@ class TestLogs(unittest.TestCase, RunSubprocessMixin):
             [],
             [
                 b'',
-                b'\x1b[1;32m[test1] |\x1b[0m \x1b[37mtest1\x1b[0m',
-                b'\x1b[1;33m[test2] |\x1b[0m \x1b[37mtest2\x1b[0m',
-                b'\x1b[1;34m[test3] |\x1b[0m \x1b[37mtest3\x1b[0m',
+                b'\x1b[1;32m[test1_1]|\x1b[0m \x1b[37mtest1\x1b[0m',
+                b'\x1b[1;33m[test2_1]|\x1b[0m \x1b[37mtest2\x1b[0m',
+                b'\x1b[1;34m[test3_1]|\x1b[0m \x1b[37mtest3\x1b[0m',
+                b'\x1b[1;35m[custom_name]|\x1b[0m \x1b[37mtest4\x1b[0m',
             ],
         ),
         (
@@ -28,30 +29,37 @@ class TestLogs(unittest.TestCase, RunSubprocessMixin):
             ["--no-color"],
             [
                 b'',
-                b'\x1b[0m[test1] |\x1b[0m test1',
-                b'\x1b[0m[test2] |\x1b[0m test2',
-                b'\x1b[0m[test3] |\x1b[0m test3',
+                b'\x1b[0m[custom_name]|\x1b[0m test4',
+                b'\x1b[0m[test1_1]|\x1b[0m test1',
+                b'\x1b[0m[test2_1]|\x1b[0m test2',
+                b'\x1b[0m[test3_1]|\x1b[0m test3',
             ],
         ),
         (
             "all_services_flag_no_log_prefix",
             ["--no-log-prefix"],
-            [b'', b'\x1b[37mtest1\x1b[0m', b'\x1b[37mtest2\x1b[0m', b'\x1b[37mtest3\x1b[0m'],
+            [
+                b'',
+                b'\x1b[37mtest1\x1b[0m',
+                b'\x1b[37mtest2\x1b[0m',
+                b'\x1b[37mtest3\x1b[0m',
+                b'\x1b[37mtest4\x1b[0m',
+            ],
         ),
         (
             "all_services_flag_no_color_no_log_prefix",
             ["--no-color", "--no-log-prefix"],
-            [b'', b'test1', b'test2', b'test3'],
+            [b'', b'test1', b'test2', b'test3', b'test4'],
         ),
         (
             "one_service_no_flag",
             ["test1"],
-            [b'', b'\x1b[1;32m[test1] |\x1b[0m \x1b[37mtest1\x1b[0m'],
+            [b'', b'\x1b[1;32m[test1_1]|\x1b[0m \x1b[37mtest1\x1b[0m'],
         ),
         (
             "one_service_flag_no_color",
             ["test1", "--no-color"],
-            [b'', b'\x1b[0m[test1] |\x1b[0m test1'],
+            [b'', b'\x1b[0m[test1_1]|\x1b[0m test1'],
         ),
         (
             "one_service_flag_no_log_prefix",
@@ -68,14 +76,14 @@ class TestLogs(unittest.TestCase, RunSubprocessMixin):
             ["test2", "test3"],
             [
                 b'',
-                b'\x1b[1;32m[test2] |\x1b[0m \x1b[37mtest2\x1b[0m',
-                b'\x1b[1;33m[test3] |\x1b[0m \x1b[37mtest3\x1b[0m',
+                b'\x1b[1;33m[test2_1]|\x1b[0m \x1b[37mtest2\x1b[0m',
+                b'\x1b[1;34m[test3_1]|\x1b[0m \x1b[37mtest3\x1b[0m',
             ],
         ),
         (
             "two_services_flag_no_color",
             ["test2", "test3", "--no-color"],
-            [b'', b'\x1b[0m[test2] |\x1b[0m test2', b'\x1b[0m[test3] |\x1b[0m test3'],
+            [b'', b'\x1b[0m[test2_1]|\x1b[0m test2', b'\x1b[0m[test3_1]|\x1b[0m test3'],
         ),
         (
             "two_services_flag_no_log_prefix",
@@ -86,6 +94,15 @@ class TestLogs(unittest.TestCase, RunSubprocessMixin):
             "two_services_flag_no_color_no_log_prefix",
             ["test2", "test3", "--no-color", "--no-log-prefix"],
             [b'', b'test2', b'test3'],
+        ),
+        (
+            "custom_container_name",
+            ["test2", "test4"],
+            [
+                b'',
+                b'\x1b[1;33m[test2_1]|\x1b[0m \x1b[37mtest2\x1b[0m',
+                b'\x1b[1;35m[custom_name]|\x1b[0m \x1b[37mtest4\x1b[0m',
+            ],
         ),
     ])
     def test_logs(
@@ -114,6 +131,41 @@ class TestLogs(unittest.TestCase, RunSubprocessMixin):
             self.assertEqual(lines, expected_log)
         finally:
             out, _ = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_path,
+                "down",
+            ])
+
+    def test_up_no_attach_suppresses_selected_service_output(self) -> None:
+        compose_path = os.path.join(test_path(), "logs/docker-compose.yml")
+
+        try:
+            out, _ = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_path,
+                "up",
+                "--no-attach",
+                "test2",
+            ])
+
+            lines = [
+                line
+                for line in out.decode().splitlines()
+                if not (len(line) == 64 and all(c in "0123456789abcdef" for c in line))
+            ]
+            lines.sort()
+            self.assertEqual(
+                lines,
+                [
+                    "\x1b[1;32m[test1] |\x1b[0m test1",
+                    "\x1b[1;34m[test3] |\x1b[0m test3",
+                    "\x1b[1;35m[test4] |\x1b[0m test4",
+                ],
+            )
+        finally:
+            self.run_subprocess_assert_returncode([
                 podman_compose_path(),
                 "-f",
                 compose_path,

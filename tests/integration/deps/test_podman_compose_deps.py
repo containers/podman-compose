@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
+import json
 import os
 import unittest
 
@@ -190,6 +191,139 @@ class TestComposeConditionalDeps(unittest.TestCase, RunSubprocessMixin):
                 "-f",
                 compose_yaml_path(suffix),
                 "down",
+            ])
+
+    def test_deps_completed_successfully(self) -> None:
+        suffix = "-conditional-completed"
+        try:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(suffix),
+                "up",
+                "-d",
+            ])
+            output, _ = self.run_subprocess_assert_returncode([
+                "podman",
+                "ps",
+                "-a",
+                "--filter",
+                "name=deps_",
+                "--format",
+                "json",
+            ])
+            # build a dict by name for easy lookup
+            by_name = {c["Names"][0]: c for c in json.loads(output)}
+
+            # assert on stable fields, otherwise test is flaky due to relative timestamps
+            # of CREATED and STATUS
+            self.assertIn("deps_oneshot_1", by_name)
+            self.assertEqual(by_name["deps_oneshot_1"]["State"], "exited")
+            self.assertEqual(by_name["deps_oneshot_1"]["ExitCode"], 0)
+
+            self.assertIn("deps_longrunning_1", by_name)
+            self.assertEqual(by_name["deps_longrunning_1"]["State"], "running")
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(suffix),
+                "down",
+                "-t",
+                "0",
+            ])
+
+    def test_deps_completed_failed(self) -> None:
+        suffix = "-conditional-completed-failed"
+        try:
+            output, stderr = self.run_subprocess_assert_returncode(
+                [
+                    podman_compose_path(),
+                    "-f",
+                    compose_yaml_path(suffix),
+                    "up",
+                    "-d",
+                ],
+                1,
+            )
+            self.assertIn(b"didn't complete successfully: exit code 1", stderr)
+
+            output, _ = self.run_subprocess_assert_returncode([
+                "podman",
+                "ps",
+                "-a",
+                "--filter",
+                "name=deps_",
+                "--format",
+                "json",
+            ])
+            # build a dict by name for easy lookup
+            by_name = {c["Names"][0]: c for c in json.loads(output)}
+
+            # assert on stable fields, otherwise test is flaky due to relative timestamps
+            # of CREATED and STATUS
+            self.assertIn("deps_failing_oneshot_1", by_name)
+            self.assertEqual(by_name["deps_failing_oneshot_1"]["State"], "exited")
+            self.assertEqual(by_name["deps_failing_oneshot_1"]["ExitCode"], 1)
+
+            self.assertIn("deps_should_not_start_1", by_name)
+            self.assertEqual(by_name["deps_should_not_start_1"]["State"], "created")
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(suffix),
+                "down",
+                "-t",
+                "0",
+            ])
+
+    def test_deps_stopped(self) -> None:
+        suffix = "-conditional-stopped"
+        try:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(suffix),
+                "up",
+                "-d",
+            ])
+            output, _ = self.run_subprocess_assert_returncode([
+                "podman",
+                "ps",
+                "-a",
+                "--filter",
+                "name=deps_",
+                "--format",
+                "json",
+            ])
+            # build a dict by name for easy lookup
+            by_name = {c["Names"][0]: c for c in json.loads(output)}
+
+            # assert on stable fields, otherwise test is flaky due to relative timestamps
+            # of CREATED and STATUS
+            self.assertIn("deps_failing_oneshot_1", by_name)
+            self.assertEqual(by_name["deps_failing_oneshot_1"]["State"], "exited")
+            self.assertEqual(by_name["deps_failing_oneshot_1"]["ExitCode"], 1)
+
+            # stopped condition should start dependents regardless of exit code
+            self.assertIn("deps_should_start_when_fail_1", by_name)
+            self.assertEqual(by_name["deps_should_start_when_fail_1"]["State"], "running")
+
+            self.assertIn("deps_success_oneshot_1", by_name)
+            self.assertEqual(by_name["deps_success_oneshot_1"]["State"], "exited")
+            self.assertEqual(by_name["deps_success_oneshot_1"]["ExitCode"], 0)
+
+            self.assertIn("deps_should_start_when_success_1", by_name)
+            self.assertEqual(by_name["deps_should_start_when_success_1"]["State"], "running")
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(suffix),
+                "down",
+                "-t",
+                "0",
             ])
 
 

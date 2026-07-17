@@ -1,0 +1,2 @@
+Load the comma-separated environment files from ``COMPOSE_ENV_FILES`` when no
+``--env-file`` option is provided.
