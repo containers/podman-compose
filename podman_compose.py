@@ -3032,6 +3032,10 @@ class PodmanCompose:
                 cmd_parser(subparser)
         self.global_args = parser.parse_args(argv)
 
+        compose_env_files = os.environ.get("COMPOSE_ENV_FILES")
+        if not self.global_args.env_file and compose_env_files:
+            self.global_args.env_file = compose_env_files.split(",")
+
         if self.global_args.version:
             self.global_args.command = "version"
         if not self.global_args.command or self.global_args.command == "help":
