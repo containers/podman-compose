@@ -794,6 +794,42 @@ async def get_mount_args(
     return ["--mount", args]
 
 
+async def create_secrets_from_environment(compose: PodmanCompose) -> None:
+    if not compose.declared_secrets:
+        return
+    for secret_name in compose.declared_secrets.keys():
+        secret_environment = compose.declared_secrets[secret_name].get("environment")
+        if secret_environment:
+            secret_environment_value = os.getenv(secret_environment)
+
+            if secret_environment_value is None:
+                raise ValueError(
+                    f"Environment variable '{secret_environment}' required"
+                    + " by secret '{secret_name}' is not set in the process environment."
+                )
+
+            log.debug(
+                "attempting creation of secret '%s' set to '%s'",
+                secret_name,
+                secret_environment_value,
+            )
+
+            assert compose.project_name is not None
+
+            await compose.podman.run(
+                [],
+                "secret",
+                [
+                    "create",
+                    "--label",
+                    "io.podman.compose.project=" + compose.project_name,
+                    "--env",
+                    f"{compose.project_name}_{secret_name}",
+                    secret_environment,
+                ],
+            )
+
+
 def get_secret_args(
     compose: PodmanCompose,
     cnt: dict[str, Any],
@@ -833,13 +869,10 @@ def get_secret_args(
         if podman_is_building:
             secret_id = secret_target if secret_target else secret_name
             return ["--secret", f"id={secret_id},env={source_env}"]
-        # TODO: Runtime support for environment secrets requires injecting the
-        # value into the container (e.g. via podman cp or podman secret create),
-        # which is beyond the scope of this arg-generating function.
-        raise ValueError(
-            f'ERROR: Secret "{secret_name}" uses environment source, '
-            "which is not supported for runtime secrets in podman-compose."
-        )
+
+        assert compose.project_name is not None
+        log.debug("mounting secret '%s'", secret_name)
+        return ["--secret", f"{compose.project_name}_{secret_name}"]
 
     if source_file:
         # assemble path for source file first, because we need it for all cases
@@ -4054,6 +4087,8 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
     existing_containers = await compose.podman.existing_containers(compose.project_name)
     recreate_services: set[str] = set()
     running_services = {c.service_name for c in existing_containers.values() if not c.exited}
+
+    await create_secrets_from_environment(compose)
 
     if existing_containers:
         if args.force_recreate and args.no_recreate:
