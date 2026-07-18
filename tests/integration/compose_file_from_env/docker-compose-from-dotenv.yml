@@ -1,0 +1,4 @@
+services:
+  dotenv-service:
+    image: nopush/podman-compose-test
+    command: echo "from-dotenv"
