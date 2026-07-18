@@ -2343,6 +2343,7 @@ def resolve_extends(
                 del from_service["extends"]
             except KeyError:
                 pass
+            from_service.pop(DependField.DEPENDENTS, None)
         new_service = rec_merge({}, from_service, service)
         services[name] = new_service
 
