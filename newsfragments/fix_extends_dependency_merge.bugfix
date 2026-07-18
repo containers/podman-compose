@@ -1,0 +1,1 @@
+Fix extending services with dependents failing while merging internal dependency metadata.
