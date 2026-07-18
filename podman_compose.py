@@ -2193,11 +2193,10 @@ def normalize_service_final(service: dict[str, Any], project_dir: str) -> dict[s
     return service
 
 
-def normalize_final(compose: dict[str, Any], project_dir: str) -> dict[str, Any]:
-    services = compose.get("services", {})
+def normalize_final(services: dict[str, Any], project_dir: str) -> dict[str, Any]:
     for service in services.values():
         normalize_service_final(service, project_dir)
-    return compose
+    return services
 
 
 def clone(value: Any) -> Any:
@@ -2849,8 +2848,6 @@ class PodmanCompose:
             compose.get("services") or {}, target, requested_profiles
         )
         compose["services"] = resolved_services
-        if not getattr(args, "no_normalize", None):
-            compose = normalize_final(compose, self.dirname)
         self.merged_yaml = yaml.safe_dump(compose)
         merged_json_b = json.dumps(
             self.original_configuration(compose), separators=(",", ":")
@@ -2877,6 +2874,9 @@ class PodmanCompose:
         service_names = sorted([(len(srv["_deps"]), name) for name, srv in services.items()])
         resolve_extends(services, [name for _, name in service_names], self.environ)
         flat_deps(services)
+
+        if not getattr(args, "no_normalize", None):
+            services = normalize_final(services, self.dirname)
 
         # networks: [...]
         nets = compose.get("networks") or {}
