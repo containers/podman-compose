@@ -2333,12 +2333,13 @@ def resolve_extends(
             normalize_service(from_service, subdirectory)
         else:
             from_service = services.get(from_service_name, {}).copy()
-            try:
-                del from_service["_deps"]
-            except KeyError as e:
+            if DependField.DEPENDENCIES not in from_service:
                 raise KeyError(
                     f"{from_service_name} not found at services.{name}.extends definition"
-                ) from e
+                )
+            # These fields are computed again after all extends references are resolved.
+            for field in DependField:
+                from_service.pop(field, None)
             try:
                 del from_service["extends"]
             except KeyError:
