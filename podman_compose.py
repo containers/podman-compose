@@ -2097,10 +2097,6 @@ def normalize_service(service: dict[str, Any], sub_dir: str = "") -> dict[str, A
     if "build" in service and "args" in service["build"]:
         if isinstance(build["args"], dict):
             build["args"] = norm_as_list(build["args"])
-    for key in ("command", "entrypoint"):
-        if key in service:
-            if isinstance(service[key], str):
-                service[key] = shlex.split(service[key])
     for key in ("env_file", "security_opt", "volumes"):
         if key not in service:
             continue

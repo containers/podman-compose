@@ -1,0 +1,5 @@
+version: "3.7"
+services:
+    command_test:
+        image: nopush/podman-compose-test
+        command: echo ${CMD_VAR:?CMD_VAR variable missing}

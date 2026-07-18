@@ -100,14 +100,16 @@ class TestNormalizeService(unittest.TestCase):
         ([], []),
         (["sh"], ["sh"]),
         (["sh", "-c", "date"], ["sh", "-c", "date"]),
-        ("sh", ["sh"]),
-        ("sleep infinity", ["sleep", "infinity"]),
+        ("sh", "sh"),
+        ("sleep infinity", "sleep infinity"),
         (
             "bash -c 'sleep infinity'",
-            ["bash", "-c", "sleep infinity"],
+            "bash -c 'sleep infinity'",
         ),
     ])
-    def test_command_like(self, input: Union[list[str], str], expected: list[str]) -> None:
+    def test_command_like(
+        self, input: Union[list[str], str], expected: Union[list[str], str]
+    ) -> None:
         for key in ['command', 'entrypoint']:
             input_service = {}
             input_service[key] = input

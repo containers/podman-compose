@@ -1,0 +1,1 @@
+Fix variable interpolation in unquoted ``command`` and ``entrypoint`` values.

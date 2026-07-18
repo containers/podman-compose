@@ -13,6 +13,12 @@ def compose_yaml_path() -> str:
     return os.path.join(os.path.join(test_path(), "interpolation"), "docker-compose.yml")
 
 
+def compose_command_yaml_path() -> str:
+    return os.path.join(
+        os.path.join(test_path(), "interpolation"), "docker-compose-command-interpolation.yml"
+    )
+
+
 class TestComposeInterpolation(unittest.TestCase, RunSubprocessMixin):
     def test_interpolation(self) -> None:
         try:
@@ -86,3 +92,52 @@ class TestComposeInterpolation(unittest.TestCase, RunSubprocessMixin):
             1,
         )
         self.assertIn(b"required variable NOT_A_VARIABLE is missing a value: Missing variable", err)
+
+    def test_command_interpolation_unquoted(self) -> None:
+        try:
+            self.run_subprocess_assert_returncode(
+                [
+                    podman_compose_path(),
+                    "-f",
+                    compose_command_yaml_path(),
+                    "up",
+                ],
+                0,
+                {"CMD_VAR": "hello_world"},
+            )
+            output, _ = self.run_subprocess_assert_returncode(
+                [
+                    podman_compose_path(),
+                    "-f",
+                    compose_command_yaml_path(),
+                    "logs",
+                ],
+                0,
+                {"CMD_VAR": "hello_world"},
+            )
+            self.assertIn(b"hello_world", output)
+        finally:
+            self.run_subprocess_assert_returncode(
+                [
+                    podman_compose_path(),
+                    "-f",
+                    compose_command_yaml_path(),
+                    "down",
+                ],
+                0,
+                {"CMD_VAR": "hello_world"},
+            )
+
+    def test_command_interpolation_unquoted_missing_variable(self) -> None:
+        out, err = self.run_subprocess_assert_returncode(
+            [
+                podman_compose_path(),
+                "-f",
+                compose_command_yaml_path(),
+                "up",
+            ],
+            1,
+        )
+        self.assertIn(
+            b"required variable CMD_VAR is missing a value: CMD_VAR variable missing", err
+        )
