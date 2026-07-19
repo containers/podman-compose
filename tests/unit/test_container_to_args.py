@@ -1355,3 +1355,29 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "busybox",
             ],
         )
+
+    async def test_env_file_interpolates_from_project_dotenv_braces(self) -> None:
+        """Env file values with ${VAR} should interpolate using project .env variables."""
+        c = create_compose_mock()
+        c.environ = {"BAR": "bar"}
+
+        cnt = get_minimal_container()
+        env_file = get_test_file_path('tests/integration/env_file_interpolation/.env.extra')
+        cnt['env_file'] = env_file
+
+        args = await container_to_args(c, cnt)
+        self.assertIn("-e", args)
+        self.assertIn("FOO=bar", args)
+
+    async def test_env_file_interpolates_from_project_dotenv_no_braces(self) -> None:
+        """Env file values with $VAR should interpolate using project .env variables."""
+        c = create_compose_mock()
+        c.environ = {"BAR": "bar"}
+
+        cnt = get_minimal_container()
+        env_file = get_test_file_path('tests/integration/env_file_interpolation/.env.extra')
+        cnt['env_file'] = env_file
+
+        args = await container_to_args(c, cnt)
+        self.assertIn("-e", args)
+        self.assertIn("FOO=bar", args)
