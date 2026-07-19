@@ -44,6 +44,10 @@ devel = [
     "ruff",
     "mypy",
     "pylint",
+    "packaging",
+    "requests",
+    "tzlocal",
+    "types-PyYAML"
 ]
 
 [project.scripts]
