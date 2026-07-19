@@ -16,6 +16,7 @@ import getpass
 import glob
 import hashlib
 import inspect
+import io
 import json
 import logging
 import os
@@ -1398,7 +1399,11 @@ async def container_to_args(
                 continue
             raise ValueError(f"Env file at {i} does not exist")
         dotenv_dict = {}
-        dotenv_dict = dotenv_to_dict(i)
+        project_environ = getattr(compose, 'environ', None)
+        if isinstance(project_environ, dict):
+            dotenv_dict = dotenv_to_dict(i, project_environ)
+        else:
+            dotenv_dict = dotenv_to_dict(i)
         env = norm_as_list(dotenv_dict)
         for e in env:
             podman_args.extend(["-e", e])
@@ -2343,10 +2348,31 @@ def resolve_extends(
         services[name] = new_service
 
 
-def dotenv_to_dict(dotenv_path: str) -> dict[str, str | None]:
+def _preprocess_env_file(content: str) -> str:
+    """Replace $VAR with ${VAR} so python-dotenv can interpolate both syntaxes."""
+    # Replace $VAR with ${VAR} but leave $$ and ${VAR} unchanged.
+    # Match $ followed by a valid variable name (alphanumeric + underscore),
+    # but not when preceded by another $ or followed by {.
+    return re.sub(r"(?<!\$)\$(?!\$)(?!\{)([A-Za-z_][A-Za-z0-9_]*)", r"${\1}", content)
+
+
+def dotenv_to_dict(
+    dotenv_path: str, environ: dict[str, str | None] | None = None
+) -> dict[str, str | None]:
     if not os.path.isfile(dotenv_path):
         return {}
-    return dotenv_values(dotenv_path)
+    with open(dotenv_path, encoding="utf-8") as fh:
+        content = fh.read()
+    content = _preprocess_env_file(content)
+    if environ:
+        original_environ = dict(os.environ)
+        os.environ.update({k: v for k, v in environ.items() if v is not None})
+        try:
+            return dotenv_values(stream=io.StringIO(content))
+        finally:
+            os.environ.clear()
+            os.environ.update(original_environ)
+    return dotenv_values(stream=io.StringIO(content))
 
 
 COMPOSE_DEFAULT_LS = [
