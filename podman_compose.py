@@ -36,6 +36,7 @@ from typing import Callable
 from typing import ClassVar
 from typing import Iterable
 from typing import Sequence
+from typing import cast
 from typing import overload
 from urllib.parse import quote
 
@@ -1352,7 +1353,14 @@ async def container_to_args(
         podman_args.append(f"--pod={pod}")
     deps = []
     for dep_srv in cnt.get("_deps", []):
-        deps.extend(compose.container_names_by_service.get(dep_srv.name, []))
+        # Only add podman-level --requires for service_started condition.
+        # Oneshot containers (service_completed_successfully) and health-checked
+        # containers (service_healthy) are handled by check_dep_conditions at
+        # start time. Adding --requires for them creates transitive dependency
+        # chains that podman's graph resolver fails on when intermediate
+        # containers have already exited (podman 5.x dependency graph bug).
+        if dep_srv.condition == ServiceDependencyCondition.RUNNING:
+            deps.extend(compose.container_names_by_service.get(dep_srv.name, []))
     if deps and not no_deps:
         deps_csv = ",".join(deps)
         podman_args.append(f"--requires={deps_csv}")
@@ -1650,28 +1658,18 @@ class ServiceDependencyCondition(Enum):
             raise ValueError(f"Value '{value}' is not a valid condition for a service dependency")
 
 
+@dataclass(frozen=True)
 class ServiceDependency:
-    def __init__(self, name: str, condition: str) -> None:
-        self._name = name
-        self._condition = ServiceDependencyCondition.from_value(condition)
+    name: str
+    condition: str | ServiceDependencyCondition = "service_started"
+    required: bool = True
+    restart: bool = True
 
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def condition(self) -> ServiceDependencyCondition:
-        return self._condition
-
-    def __hash__(self) -> int:
-        # Compute hash based on the frozenset of items to ensure order does not matter
-        return hash(('name', self._name) + ('condition', self._condition))
-
-    def __eq__(self, other: Any) -> bool:
-        # Compare equality based on dictionary content
-        if isinstance(other, ServiceDependency):
-            return self._name == other.name and self._condition == other.condition
-        return False
+    def __post_init__(self) -> None:
+        if isinstance(self.condition, str):
+            object.__setattr__(
+                self, "condition", ServiceDependencyCondition.from_value(self.condition)
+            )
 
 
 def rec_deps(
@@ -1704,7 +1702,12 @@ def calc_dependents(services: dict[str, Any]) -> None:
         for dep in deps:
             if dep.name in services:
                 services[dep.name].setdefault(DependField.DEPENDENTS, set()).add(
-                    ServiceDependency(name, dep.condition.value)
+                    ServiceDependency(
+                        name,
+                        cast(ServiceDependencyCondition, dep.condition).value,
+                        dep.required,
+                        dep.restart,
+                    )
                 )
 
 
@@ -1727,7 +1730,10 @@ def flat_deps(services: dict[str, Any], with_extends: bool = False) -> None:
         # the compose file has been normalized. depends_on, if exists, can only be a dictionary
         # the normalization adds a "service_started" condition by default
         deps_ls = srv.get("depends_on", {})
-        deps_ls = [ServiceDependency(k, v["condition"]) for k, v in deps_ls.items()]
+        deps_ls = [
+            ServiceDependency(k, v["condition"], v.get("required", True), v.get("restart", True))
+            for k, v in deps_ls.items()
+        ]
         deps.update(deps_ls)
         # parse link to get service name and remove alias
         links_ls = srv.get("links", [])
@@ -3839,7 +3845,12 @@ async def check_dep_conditions(compose: PodmanCompose, deps: set) -> None:
                     )
                     continue
 
-                deps_cd.extend(compose.container_names_by_service[d.name])
+                if d.name in compose.container_names_by_service:
+                    deps_cd.extend(compose.container_names_by_service[d.name])
+                elif not d.required:
+                    log.debug("Dependency %s is not required and not present, skipping", d.name)
+                else:
+                    raise KeyError(f"Required dependency '{d.name}' is missing from the workspace.")
 
         if deps_cd:
 
@@ -4165,7 +4176,7 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
                     dependents = {
                         dep.name
                         for dep in service.get(DependField.DEPENDENTS, [])
-                        if dep.name in running_services
+                        if dep.name in running_services and dep.restart
                     }
                     if dependents:
                         log.debug(
@@ -4215,21 +4226,66 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
 
     if args.detach:
         log.info("starting containers (detached): ...")
-        start_error_codes: list[int | None] = []
+        start_names: list[str] = []
+        deps_to_check: list[set[ServiceDependency]] = []
         for cnt in compose.containers:
             if cnt["_service"] in excluded:
                 log.debug("** skipping start: %s", cnt["name"])
                 continue
-            exit_code = await run_container(
-                compose, cnt["name"], deps_from_container(args, cnt), ([], "start", [cnt["name"]])
-            )
-            start_error_codes.append(exit_code)
+            deps = deps_from_container(args, cnt)
+            start_names.append(cnt["name"])
+            non_running_deps = {
+                d for d in deps if d.condition != ServiceDependencyCondition.RUNNING
+            }
+            if non_running_deps:
+                deps_to_check.append(non_running_deps)
+
+        if start_names:
+            # Start all containers in a single podman call so podman can
+            # resolve the full --requires dependency graph. Starting
+            # one-at-a-time fails when a transitive dependency is already
+            # running (podman#25633 / podman 6.x regression).
+            log.debug("Batch-starting %d containers", len(start_names))
+            start_exit_code = await compose.podman.run([], "start", start_names)
+
+            if start_exit_code != 0:
+                log.warning("Batch-start exited with code %d", start_exit_code)
+
+            # Podman's dependency graph resolution can fail for containers
+            # whose transitive dependencies are already running (e.g. oneshot
+            # containers like vault-init that depend on vault-server). After
+            # the batch start, retry any containers still stuck in Created
+            # state individually — their dependencies should now be satisfied.
+            for _ in range(3):
+                created = []
+                for cnt in compose.containers:
+                    if cnt["_service"] in excluded:
+                        continue
+                    try:
+                        info = await compose.podman.output(
+                            [], "inspect", ["--format={{.State.Status}}", cnt["name"]]
+                        )
+                    except Exception:
+                        pass
+                    else:
+                        created.extend(
+                            [cnt["name"]] if info and info.decode().strip() == "created" else []
+                        )
+                if not created:
+                    break
+                log.debug("Retrying %d containers stuck in Created state", len(created))
+                await compose.podman.run([], "start", created)
+
+            if deps_to_check:
+                log.debug("Checking non-RUNNING dependencies for %d containers", len(deps_to_check))
+                for deps in deps_to_check:
+                    await check_dep_conditions(compose, deps)
 
         if args.wait:
             await wait_for_container_running_healthy(compose, args)
 
-        # return first error code from start calls, if any
-        return next((code for code in start_error_codes if code is not None and code != 0), 0)
+        # return first error code from create calls, if any
+        return next((code for code in create_error_codes if code is not None and code != 0), 0)
 
     log.info("starting containers (attached): ...")
 
