@@ -65,3 +65,43 @@ class TestComposeExitFrom(unittest.TestCase, RunSubprocessMixin):
 
         self.run_subprocess_assert_returncode(up_cmd + ["--exit-code-from", "sh1"], 1)
         self.run_subprocess_assert_returncode(up_cmd + ["--exit-code-from", "sh2"], 2)
+
+    def test_abort_all_containers_on_container_exit(self) -> None:
+        try:
+            out, err, returncode = self.run_subprocess(
+                [
+                    podman_compose_path(),
+                    "-f",
+                    compose_yaml_path(),
+                    "up",
+                    "--abort-on-container-exit",
+                ],
+                timeout=30,
+            )
+            # After one container exits, the others should be stopped.
+            # The command should complete within the timeout (all containers stop).
+            self.assertNotEqual(
+                returncode, -9, "Command was killed by timeout, containers were not stopped"
+            )
+
+            # Verify all containers are stopped
+            out2, _, _ = self.run_subprocess([
+                "podman",
+                "ps",
+                "-a",
+                "--filter",
+                "label=io.podman.compose.project=exit_from",
+                "--format",
+                "{{.Names}} {{.Status}}",
+            ])
+            self.assertEqual(
+                out2.decode("utf-8").strip().count("Exited"),
+                2,
+            )
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(),
+                "down",
+            ])
