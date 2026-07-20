@@ -1,0 +1,4 @@
+services:
+  var-service:
+    image: nopush/podman-compose-test
+    command: echo "var"
