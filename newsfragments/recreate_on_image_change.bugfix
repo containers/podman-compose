@@ -1,0 +1,5 @@
+Detect image changes and recreate affected containers on ``up``.
+Previously, ``podman-compose up`` only compared the YAML config hash to
+decide whether a container needed recreation, missing the case where an
+image was updated (e.g. after ``pull``) while the compose file stayed the
+same.
