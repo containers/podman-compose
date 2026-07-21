@@ -64,6 +64,16 @@ class TestRecSubs(unittest.TestCase):
             "$$v1",
             "$v1",
         ),
+        (
+            "Short-form environment variable resolves to subs_dict value",
+            {"environment": {"v1": None}},
+            {"environment": {"v1": "high priority"}},
+        ),
+        (
+            "Short-form environment variable keeps None when not in subs_dict",
+            {"environment": {"missing": None}},
+            {"environment": {"missing": None}},
+        ),
     ]
 
     @parameterized.expand(substitutions)

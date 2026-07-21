@@ -31,3 +31,17 @@ class TestConfigCommand(unittest.TestCase, RunSubprocessMixin):
 
         out, _ = self.run_subprocess_assert_returncode(config_cmd)
         self.assertEqual(out.decode("utf-8"), "")
+
+    def test_config_short_syntax_env(self) -> None:
+        config_cmd = [
+            "python3",
+            podman_compose_path(),
+            "-f",
+            compose_yaml_path("short_syntax"),
+            "config",
+        ]
+
+        out, _ = self.run_subprocess_assert_returncode(config_cmd)
+        output = out.decode("utf-8")
+        self.assertIn("ZZVAR3: TEST", output)
+        self.assertNotIn("ZZVAR3: null", output)

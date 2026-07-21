@@ -1,0 +1,1 @@
+Fixed `podman-compose config` printing `null` for short-form environment variables instead of resolving them to their actual values from `.env` files or the process environment.
