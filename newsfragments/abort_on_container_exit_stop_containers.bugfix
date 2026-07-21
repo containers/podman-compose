@@ -1,0 +1,1 @@
+Fixed `--abort-on-container-exit` and `--exit-code-from` so that remaining containers are explicitly stopped when one container exits, instead of being left running in the background.

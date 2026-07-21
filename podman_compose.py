@@ -1936,6 +1936,7 @@ class Podman:
         log_formatter: str | None = None,
         *,
         suppress_output: bool = False,
+        container_name: str | None = None,
         # Intentionally mutable default argument to hold references to tasks
         task_reference: set[asyncio.Task] = set(),
     ) -> int | None:
@@ -1988,6 +1989,12 @@ class Podman:
             except asyncio.CancelledError:
                 log.info("Sending termination signal")
                 p.terminate()
+                if container_name:
+                    log.info("Stopping container %s", container_name)
+                    try:
+                        await self.run([], "stop", ["-t", "10", container_name])
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        log.warning("Error stopping container %s: %s", container_name, e)
                 try:
                     exit_code = await wait_with_timeout(p.wait(), 10)
                 except TimeoutError:
@@ -3893,7 +3900,7 @@ async def run_container(
     # start the container
     log.debug("Starting task for container %s", name)
     return await compose.podman.run(  # type: ignore[misc]
-        *command, log_formatter=log_formatter, suppress_output=suppress_output
+        *command, log_formatter=log_formatter, suppress_output=suppress_output, container_name=name
     )
 
 
