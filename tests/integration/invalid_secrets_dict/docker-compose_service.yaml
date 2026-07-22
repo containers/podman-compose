@@ -1,0 +1,8 @@
+services:
+  tester:
+    image: nopush/podman-compose-test
+    secrets:
+      test-secret:
+        source: test-secret
+        type: env
+        target: MY_VAR
