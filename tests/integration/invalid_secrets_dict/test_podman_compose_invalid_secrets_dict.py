@@ -20,3 +20,9 @@ class TestComposeInvalidSecretsDict(unittest.TestCase, RunSubprocessMixin):
             [podman_compose_path(), "-f", compose_yaml_path("service"), "config"], 1
         )
         self.assertEqual(b'Error: ERROR: secrets must be a list, not a dict\n', err)
+
+    def test_invalid_build_secrets_dict_fails(self) -> None:
+        _, err = self.run_subprocess_assert_returncode(
+            [podman_compose_path(), "-f", compose_yaml_path("build"), "config"], 1
+        )
+        self.assertEqual(b'Error: ERROR: build.secrets must be a list, not a dict\n', err)
