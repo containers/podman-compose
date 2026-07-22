@@ -138,3 +138,12 @@ class TestNormalizeService(unittest.TestCase):
         with self.assertRaises(PodmanComposeError) as context:
             normalize_service({"secrets": {"my_secret": {"source": "my_secret"}}})
         self.assertIn("ERROR: secrets must be a list, not a dict", str(context.exception))
+
+    def test_build_secrets_dict_raises(self) -> None:
+        from podman_compose import PodmanComposeError
+
+        with self.assertRaises(PodmanComposeError) as context:
+            normalize_service({
+                "build": {"context": ".", "secrets": {"my_secret": {"source": "my_secret"}}}
+            })
+        self.assertIn("ERROR: build.secrets must be a list, not a dict", str(context.exception))

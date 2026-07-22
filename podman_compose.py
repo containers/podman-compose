@@ -2164,6 +2164,12 @@ def normalize_service(service: dict[str, Any], sub_dir: str = "") -> dict[str, A
             raise PodmanComposeError("ERROR: secrets must be a list, not a dict")
         if isinstance(secrets, str):
             service["secrets"] = [secrets]
+    if "build" in service and "secrets" in service["build"]:
+        build_secrets = service["build"]["secrets"]
+        if isinstance(build_secrets, dict):
+            raise PodmanComposeError("ERROR: build.secrets must be a list, not a dict")
+        if isinstance(build_secrets, str):
+            service["build"]["secrets"] = [build_secrets]
     return service
 
 
