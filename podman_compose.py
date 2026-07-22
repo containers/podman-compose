@@ -2158,6 +2158,12 @@ def normalize_service(service: dict[str, Any], sub_dir: str = "") -> dict[str, A
                     ef["path"] = os.path.join(sub_dir, path)
             new_env_file.append(ef)
         service["env_file"] = new_env_file
+    if "secrets" in service:
+        secrets = service["secrets"]
+        if isinstance(secrets, dict):
+            raise PodmanComposeError("ERROR: secrets must be a list, not a dict")
+        if isinstance(secrets, str):
+            service["secrets"] = [secrets]
     return service
 
 

@@ -5,6 +5,7 @@ from typing import Union
 
 from parameterized import parameterized
 
+from podman_compose import PodmanComposeError
 from podman_compose import normalize_service
 
 
@@ -117,3 +118,22 @@ class TestNormalizeService(unittest.TestCase):
             expected_service = {}
             expected_service[key] = expected
             self.assertEqual(normalize_service(input_service), expected_service)
+
+    @parameterized.expand([
+        ("secrets_string", {"secrets": "my_secret"}, {"secrets": ["my_secret"]}),
+        ("secrets_list", {"secrets": ["my_secret"]}, {"secrets": ["my_secret"]}),
+        (
+            "secrets_list_of_dicts",
+            {"secrets": [{"source": "my_secret", "target": "ENV_VAR"}]},
+            {"secrets": [{"source": "my_secret", "target": "ENV_VAR"}]},
+        ),
+    ])
+    def test_secrets_normalization(
+        self, test_name: str, input_service: dict[str, Any], expected_service: dict[str, Any]
+    ) -> None:
+        self.assertEqual(normalize_service(input_service), expected_service)
+
+    def test_secrets_dict_raises(self) -> None:
+        with self.assertRaises(PodmanComposeError) as context:
+            normalize_service({"secrets": {"my_secret": {"source": "my_secret"}}})
+        self.assertEqual("ERROR: secrets must be a list, not a dict", str(context.exception))
