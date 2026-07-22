@@ -2257,6 +2257,24 @@ def normalize_service_final(service: dict[str, Any], project_dir: str) -> dict[s
         if not isinstance(service["build"], dict):
             service["build"] = {}
         service["build"]["context"] = context
+    if "volumes" in service:
+        new_volumes = []
+        for v in service["volumes"]:
+            if isinstance(v, str):  # short form volume source:target:options
+                mount_a = v.split(":")
+                if mount_a and dir_re.match(mount_a[0]):
+                    mount_a[0] = os.path.abspath(
+                        os.path.join(project_dir, os.path.expanduser(mount_a[0]))
+                    )
+                    v = ":".join(mount_a)
+            elif isinstance(v, dict):  # long form
+                source = v.get("source")
+                if isinstance(source, str) and dir_re.match(source):
+                    v["source"] = os.path.abspath(
+                        os.path.join(project_dir, os.path.expanduser(source))
+                    )
+            new_volumes.append(v)
+        service["volumes"] = new_volumes
     return service
 
 

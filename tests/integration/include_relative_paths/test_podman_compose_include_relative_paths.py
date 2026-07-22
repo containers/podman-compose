@@ -28,6 +28,9 @@ class TestIncludeRelativePaths(unittest.TestCase, RunSubprocessMixin):
         ``../assets:/assets:ro``. After include resolution these must point
         at paths under ``sub/`` for the ``./`` forms and at the project
         root for the ``../`` forms.
+
+        ``env_file`` paths stay relative, while ``volumes`` bind sources are
+        expanded to absolute paths (matching ``docker compose config``).
         """
         out, _ = self.run_subprocess_assert_returncode([
             "coverage",
@@ -38,7 +41,11 @@ class TestIncludeRelativePaths(unittest.TestCase, RunSubprocessMixin):
             "config",
         ])
 
-        expected = textwrap.dedent("""\
+        base_dir = os.path.dirname(compose_file())
+        data_path = os.path.abspath(os.path.join(base_dir, "sub", "data"))
+        assets_path = os.path.abspath(os.path.join(base_dir, "assets"))
+
+        expected = textwrap.dedent(f"""\
             name: include-relative-paths
             services:
               web:
@@ -47,8 +54,8 @@ class TestIncludeRelativePaths(unittest.TestCase, RunSubprocessMixin):
                 - ./sub/../shared.env
                 image: nopush/podman-compose-test
                 volumes:
-                - ./sub/./data:/data:ro
-                - ./sub/../assets:/assets:ro
+                - {data_path}:/data:ro
+                - {assets_path}:/assets:ro
 
             """)
         self.assertEqual(out.decode("utf-8"), expected)
