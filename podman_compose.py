@@ -18,7 +18,9 @@ import hashlib
 import inspect
 import json
 import logging
+import ntpath
 import os
+import posixpath
 import random
 import re
 import shlex
@@ -44,13 +46,6 @@ from urllib.parse import quote
 import yaml
 from dotenv import dotenv_values
 
-# Python loads the appropriate path module based on the OS, but we need to be able
-# to check if a path is absolute according to BOTH major OS's rules.
-if os.name == 'posix':
-    from ntpath import isabs as secondarypathisabs
-if os.name == 'nt':
-    from posixpath import isabs as secondarypathisabs
-
 __version__ = "1.6.0"
 
 script = os.path.realpath(sys.argv[0])
@@ -64,6 +59,10 @@ def is_list(list_object: Any) -> bool:
         and not isinstance(list_object, dict)
         and hasattr(list_object, "__iter__")
     )
+
+
+def is_abs_any_os(path: str) -> bool:
+    return posixpath.isabs(path) or ntpath.isabs(path)
 
 
 def is_relative_ref(path: str) -> bool:
@@ -186,7 +185,7 @@ def parse_short_mount(mount_str: str, basedir: str) -> dict[str, Any]:
         # User-relative path
         # - ~/configs:/etc/configs/:ro
         mount_type = "bind"
-        if os.name != 'nt' or (os.name == 'nt' and ".sock" not in mount_src):
+        if not is_abs_any_os(mount_src) and (os.name != 'nt' or ".sock" not in mount_src):
             mount_src = os.path.abspath(os.path.join(basedir, os.path.expanduser(mount_src)))
     else:
         # Named volume
@@ -581,6 +580,10 @@ async def assert_volume(compose: PodmanCompose, mount_dict: dict[str, Any]) -> N
     """
     vol = mount_dict.get("_vol")
     if mount_dict["type"] == "bind":
+        # Don't rewrite POSIX absolute paths on Windows: they're host paths for
+        # a remote Linux connection.
+        if os.name == 'nt' and posixpath.isabs(mount_dict["source"]):
+            return
         basedir = os.path.realpath(compose.dirname)
         mount_src = mount_dict["source"]
         mount_src = os.path.abspath(os.path.join(basedir, os.path.expanduser(mount_src)))
@@ -3541,10 +3544,7 @@ def is_context_git_url(path: str) -> bool:
     # URL contains a ":" character, a hint of a valid URL
     # But also detects windows file paths (e.g. "C:\path\to\contextdir") as urls
     is_path_with_drive_letter = (
-        (os.path.isabs(path) or secondarypathisabs(path))
-        and len(path) > 2
-        and path[1] == ':'
-        and path[2] in ('\\', '/')
+        is_abs_any_os(path) and len(path) > 2 and path[1] == ':' and path[2] in ('\\', '/')
     )
     if r.scheme != "" and r.netloc == "" and r.path != "" and not is_path_with_drive_letter:
         return True
