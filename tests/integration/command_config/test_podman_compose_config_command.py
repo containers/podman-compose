@@ -31,3 +31,22 @@ class TestConfigCommand(unittest.TestCase, RunSubprocessMixin):
 
         out, _ = self.run_subprocess_assert_returncode(config_cmd)
         self.assertEqual(out.decode("utf-8"), "")
+
+    def test_config_omits_version_and_warns(self) -> None:
+        config_cmd = [
+            "coverage",
+            "run",
+            podman_compose_path(),
+            "-f",
+            compose_yaml_path(),
+            "config",
+        ]
+
+        out, err = self.run_subprocess_assert_returncode(config_cmd)
+
+        self.assertNotIn(b"version:", out)
+        self.assertIn(
+            b"the attribute `version` is obsolete, it will be ignored, "
+            b"please remove it to avoid potential confusion",
+            err,
+        )
