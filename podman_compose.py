@@ -2755,6 +2755,12 @@ class PodmanCompose:
             if not isinstance(content, dict):
                 log.fatal("Compose file does not contain a top level object: %s", filename)
                 sys.exit(1)
+            if "version" in content:
+                log.warning(
+                    "%s: the attribute `version` is obsolete, it will be ignored, "
+                    "please remove it to avoid potential confusion",
+                    filename,
+                )
             # For files arriving via ``include:``, paths inside the file must
             # resolve against the included file's directory rather than the
             # project root (Compose Spec, ``include`` section). Pass that as
@@ -2847,6 +2853,7 @@ class PodmanCompose:
         compose["services"] = resolved_services
         if not getattr(args, "no_normalize", None):
             compose = normalize_final(compose, self.dirname)
+        compose.pop("version", None)
         self.merged_yaml = yaml.safe_dump(compose)
         merged_json_b = json.dumps(
             self.original_configuration(compose), separators=(",", ":")

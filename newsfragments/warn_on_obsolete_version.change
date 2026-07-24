@@ -1,0 +1,1 @@
+Warn about the obsolete `version` key in `podman-compose config`, and omit it from the merged YAML output.
