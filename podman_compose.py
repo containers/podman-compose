@@ -1450,6 +1450,12 @@ async def container_to_args(
     if userns_mode is not None:
         podman_args.extend(["--userns", userns_mode])
 
+    cgroup = cnt.get("cgroup")
+    if cgroup is not None:
+        if cgroup not in ("host", "private"):
+            raise ValueError(f"invalid cgroup mode [{cgroup}]")
+        podman_args.extend(["--cgroupns", cgroup])
+
     user = cnt.get("user")
     if user is not None:
         podman_args.extend(["-u", user])
