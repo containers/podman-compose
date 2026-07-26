@@ -25,7 +25,9 @@ class TestComposeFileFromEnv(unittest.TestCase, RunSubprocessMixin):
             out.decode("utf-8"),
             'services:\n'
             '  dotenv-service:\n'
-            '    command: echo "from-dotenv"\n'
+            '    command:\n'
+            '    - echo\n'
+            '    - from-dotenv\n'
             '    image: nopush/podman-compose-test\n'
             '\n',
         )
@@ -47,7 +49,9 @@ class TestComposeFileFromEnv(unittest.TestCase, RunSubprocessMixin):
             out.decode("utf-8"),
             'services:\n'
             '  explicit-env-service:\n'
-            '    command: echo "from-explicit-env"\n'
+            '    command:\n'
+            '    - echo\n'
+            '    - from-explicit-env\n'
             '    image: nopush/podman-compose-test\n'
             '\n',
         )
@@ -70,7 +74,9 @@ class TestComposeFileFromEnv(unittest.TestCase, RunSubprocessMixin):
             out.decode("utf-8"),
             'services:\n'
             '  explicit-service:\n'
-            '    command: echo "explicit"\n'
+            '    command:\n'
+            '    - echo\n'
+            '    - explicit\n'
             '    image: nopush/podman-compose-test\n'
             '\n',
         )
@@ -88,7 +94,9 @@ class TestComposeFileFromEnv(unittest.TestCase, RunSubprocessMixin):
             out.decode("utf-8"),
             'services:\n'
             '  var-service:\n'
-            '    command: echo "var"\n'
+            '    command:\n'
+            '    - echo\n'
+            '    - var\n'
             '    image: nopush/podman-compose-test\n'
             '\n',
         )
