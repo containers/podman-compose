@@ -2186,6 +2186,9 @@ def normalize_service_final(service: dict[str, Any], project_dir: str) -> dict[s
         if not isinstance(service["build"], dict):
             service["build"] = {}
         service["build"]["context"] = context
+    for key in ("command", "entrypoint"):
+        if isinstance(service.get(key), str):
+            service[key] = shlex.split(service[key])
     return service
 
 
