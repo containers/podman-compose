@@ -1,0 +1,1 @@
+The output of the `config` command now includes resolved definitions for all networks, including the default network.

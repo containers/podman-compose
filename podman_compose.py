@@ -2426,7 +2426,6 @@ class PodmanCompose:
         self.all_services: set[Any] = set()
         self.prefer_volume_over_mount = True
         self.x_podman: dict[PodmanCompose.XPodmanSettingKey, Any] = {}
-        self.merged_yaml: Any
         self.yaml_hash = ""
         self.console_colors = [
             "\x1b[1;32m",
@@ -2865,7 +2864,6 @@ class PodmanCompose:
         compose["services"] = resolved_services
         if not getattr(args, "no_normalize", None):
             compose = normalize_final(compose, self.dirname)
-        self.merged_yaml = yaml.safe_dump(compose)
         merged_json_b = json.dumps(
             self.original_configuration(compose), separators=(",", ":")
         ).encode("utf-8")
@@ -4765,6 +4763,59 @@ async def compose_logs(compose: PodmanCompose, args: argparse.Namespace) -> None
     await asyncio.gather(*tasks)
 
 
+def build_compose_config(compose: PodmanCompose) -> dict[str, Any]:
+    config: dict[str, Any] = {
+        "services": {},
+    }
+    for name, service in compose.services.items():
+        config["services"][name] = compose.original_configuration(service)
+        if (
+            "networks" not in config["services"][name]
+            and "network_mode" not in config["services"][name]
+            and compose.default_net
+        ):
+            config["services"][name]["networks"] = {compose.default_net: None}
+        if "networks" in config["services"][name]:
+            networks = config["services"][name]["networks"]
+            if is_list(networks):
+                config["services"][name]["networks"] = {net: None for net in networks}
+            elif isinstance(networks, dict):
+                config["services"][name]["networks"] = {
+                    net: None if val == {} else val for net, val in networks.items()
+                }
+    if compose.networks:
+        used_networks: set[str] = set()
+        # Determine which networks are actually used by services
+        for name, service in compose.services.items():
+            if "network_mode" in service:
+                continue
+            srv_nets = service.get("networks")
+            if srv_nets:
+                if isinstance(srv_nets, dict):
+                    used_networks.update(srv_nets.keys())
+                else:
+                    used_networks.update(norm_as_list(srv_nets))
+            elif compose.default_net:
+                used_networks.add(compose.default_net)
+
+        config_networks = {}
+        for net_name, net_desc in compose.networks.items():
+            if net_name in used_networks:
+                config_networks[net_name] = net_desc or {}
+                is_ext = config_networks[net_name].get("external")
+                if "name" not in config_networks[net_name]:
+                    config_networks[net_name]["name"] = default_network_name_for_project(
+                        compose, net_name, is_ext
+                    )
+        if config_networks:
+            config["networks"] = config_networks
+    if compose.vols:
+        config["volumes"] = compose.vols
+    if compose.declared_secrets:
+        config["secrets"] = compose.declared_secrets
+    return config
+
+
 @cmd_run(podman_compose, "config", "displays the compose file")
 async def compose_config(compose: PodmanCompose, args: argparse.Namespace) -> None:
     if args.services:
@@ -4773,7 +4824,7 @@ async def compose_config(compose: PodmanCompose, args: argparse.Namespace) -> No
                 print(service)
         return
     if not args.quiet:
-        print(compose.merged_yaml)
+        print(yaml.safe_dump(build_compose_config(compose), sort_keys=False))
 
 
 @cmd_run(podman_compose, "port", "Prints the public port for a port binding.")
