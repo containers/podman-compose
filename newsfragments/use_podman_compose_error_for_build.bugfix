@@ -1,0 +1,1 @@
+Use `PodmanComposeError` instead of generic `OSError` when build-related validation fails.

@@ -3567,7 +3567,9 @@ def container_to_build_args(
         dockerfile_inline = str(dockerfile_inline)
         # Error if both `dockerfile_inline` and `dockerfile` are set
         if dockerfile and dockerfile_inline:
-            raise OSError("dockerfile_inline and dockerfile can't be used simultaneously")
+            raise PodmanComposeError(
+                "dockerfile_inline and dockerfile can't be used simultaneously"
+            )
         dockerfile = tempfile.NamedTemporaryFile(delete=False, suffix=".containerfile")
         dockerfile.write(dockerfile_inline.encode())
         dockerfile.close()
@@ -3608,8 +3610,8 @@ def container_to_build_args(
         else:
             if custom_dockerfile_given:
                 # custom dockerfile name was also not found in the file system
-                raise OSError(f"Dockerfile not found in {dockerfile}")
-            raise OSError(f"Dockerfile not found in {ctx}")
+                raise PodmanComposeError(f"Dockerfile not found in {dockerfile}")
+            raise PodmanComposeError(f"Dockerfile not found in {ctx}")
 
     elif dockerfile:
         build_args.extend(["-f", dockerfile])
