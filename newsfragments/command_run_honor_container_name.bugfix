@@ -1,0 +1,1 @@
+`podman-compose run` now honors the `container_name` service-level element from the compose file when no `--name` CLI argument is provided.
