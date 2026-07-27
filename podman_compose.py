@@ -2635,8 +2635,24 @@ class PodmanCompose:
             os.chdir(project_dir)
         pathsep = os.environ.get("COMPOSE_PATH_SEPARATOR", os.pathsep)
 
+        # Load env files early to honor COMPOSE_FILE from .env
+        early_dotenv: dict[str, str | None] = {}
+        if not args.env_file:
+            project_dotenv_file = os.path.realpath(os.path.join(os.getcwd(), ".env"))
+            if os.path.exists(project_dotenv_file):
+                early_dotenv.update(dotenv_to_dict(project_dotenv_file))
+        else:
+            for env_file in args.env_file:
+                dotenv_path = os.path.realpath(env_file)
+                if not os.path.exists(dotenv_path):
+                    log.fatal("Couldn't find env file: %s", dotenv_path)
+                    sys.exit(1)
+                early_dotenv.update(dotenv_to_dict(dotenv_path))
+
         if not args.file:
             default_str = os.environ.get("COMPOSE_FILE")
+            if not default_str:
+                default_str = early_dotenv.get("COMPOSE_FILE")
             if default_str:
                 default_ls = default_str.split(pathsep)
                 args.file = list(filter(os.path.exists, default_ls))

@@ -98,8 +98,9 @@ class RunSubprocessMixin:
         expected_returncode: int = 0,
         env: dict[str, str] = {},
         timeout: Optional[float] = None,
+        cwd: Optional[Path] = None,
     ) -> tuple[bytes, bytes]:
-        out, err, returncode = self.run_subprocess(args, env=env, timeout=timeout)
+        out, err, returncode = self.run_subprocess(args, env=env, timeout=timeout, cwd=cwd)
         decoded_out = out.decode('utf-8')
         decoded_err = err.decode('utf-8')
         self.assertEqual(  # type: ignore[attr-defined]
