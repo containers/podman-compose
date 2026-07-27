@@ -4468,7 +4468,7 @@ async def compose_down(compose: PodmanCompose, args: argparse.Namespace) -> None
     for cnt in containers:
         if cnt["_service"] in excluded:
             continue
-        await compose.podman.run([], "rm", [cnt["name"]])
+        await compose.podman.run([], "rm", (["--volumes"] if args.volumes else []) + [cnt["name"]])
 
     orphaned_images = set()
     if args.remove_orphans:
