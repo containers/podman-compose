@@ -16,6 +16,8 @@ container is assumed to be managed externally.
 
 * `x-podman.no_hosts` - Run the container without creating /etc/hosts file
 
+* `x-podman.passwd` - Allow Podman to add entries to /etc/passwd and /etc/group when used in conjunction with the --user option. Defaults to true.
+
 For example, the following docker-compose.yml allows running a podman container with externally managed rootfs.
 ```yml
 version: "3"
