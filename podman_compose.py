@@ -2099,13 +2099,15 @@ def normalize_service(service: dict[str, Any], sub_dir: str = "") -> dict[str, A
     if "build" in service and "args" in service["build"]:
         if isinstance(build["args"], dict):
             build["args"] = norm_as_list(build["args"])
-    for key in ("env_file", "security_opt", "volumes"):
+    for key in ("env_file", "volumes"):
         if key not in service:
             continue
         if isinstance(service[key], str):
             service[key] = [service[key]]
     if "security_opt" in service:
         sec_ls = service["security_opt"]
+        if not is_list(sec_ls):
+            raise PodmanComposeError("ERROR: security_opt must be a list")
         for ix, item in enumerate(sec_ls):
             if item in ("seccomp:unconfined", "apparmor:unconfined"):
                 sec_ls[ix] = item.replace(":", "=")
