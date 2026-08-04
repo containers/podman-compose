@@ -1,16 +1,15 @@
-version: "2"
 services:
 
     redis:
-      image: redis:alpine
+      image: docker.io/redis:alpine
       ports:
-        - "6379"
+        - "6379:6379"
       environment:
         - SECRET_KEY=aabbcc
         - ENV_IS_SET
 
     frontend:
-      image: busybox
+      image: docker.io/library/busybox:latest
       #entrypoint: []
       command: ["/bin/busybox", "httpd", "-f", "-p", "8080"]
       working_dir: /
@@ -18,7 +17,7 @@ services:
         SECRET_KEY2: aabbcc
         ENV_IS_SET2:
       ports:
-        - "8080"
+        - "8080:8080"
       links:
         - redis:myredis
       labels:
