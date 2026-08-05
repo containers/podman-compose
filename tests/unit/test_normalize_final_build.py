@@ -104,13 +104,11 @@ class TestNormalizeFinalBuild(unittest.TestCase):
         project_dir = cwd
         self.assertEqual(normalize_service_final(input, project_dir), expected)
 
-    cases_command_normalization = [
+    @parameterized.expand([
         ({"image": "busybox", "command": "sleep infinity"}, ["sleep", "infinity"], None),
         ({"image": "busybox", "command": ["sleep", "infinity"]}, ["sleep", "infinity"], None),
         ({"image": "busybox", "entrypoint": "/bin/sh -c"}, None, ["/bin/sh", "-c"]),
-    ]
-
-    @parameterized.expand(cases_command_normalization)
+    ])
     def test_normalize_service_final_splits_string_command(
         self, input, expected_command, expected_entrypoint
     ):
