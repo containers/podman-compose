@@ -5,6 +5,7 @@ from typing import Union
 
 from parameterized import parameterized
 
+from podman_compose import PodmanComposeError
 from podman_compose import normalize_service
 
 
@@ -117,3 +118,17 @@ class TestNormalizeService(unittest.TestCase):
             expected_service = {}
             expected_service[key] = expected
             self.assertEqual(normalize_service(input_service), expected_service)
+
+    @parameterized.expand([
+        ("label=disable",),
+        ({"label": "disable"},),
+    ])
+    def test_security_opt_must_be_a_list(self, value: Any) -> None:
+        with self.assertRaises(PodmanComposeError):
+            normalize_service({"security_opt": value})
+
+    def test_security_opt_list_is_normalized(self) -> None:
+        self.assertEqual(
+            normalize_service({"security_opt": ["seccomp:unconfined", "label=disable"]}),
+            {"security_opt": ["seccomp=unconfined", "label=disable"]},
+        )

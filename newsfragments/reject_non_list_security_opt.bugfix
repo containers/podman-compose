@@ -1,0 +1,2 @@
+Reject a non-list ``security_opt`` in service definitions instead of silently
+coercing a bare scalar into a one-element list.
