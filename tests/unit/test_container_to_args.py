@@ -288,6 +288,24 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
+    async def test_passwd_extension(self) -> None:
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["x-podman.passwd"] = False
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge:alias=service_name",
+                "--passwd=false",
+                "busybox",
+            ],
+        )
+
     @parameterized.expand([
         # short syntax: only take this specific environment variable value from .env file
         ("use_env_var_from_default_env_file_short_syntax", ["ZZVAR1"], "ZZVAR1=TEST1"),

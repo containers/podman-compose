@@ -1597,6 +1597,9 @@ async def container_to_args(
         podman_args.extend(["--gidmap", gidmap])
     if cnt.get("x-podman.no_hosts", False):
         podman_args.extend(["--no-hosts"])
+    if "x-podman.passwd" in cnt:
+        # --passwd defaults to true
+        podman_args.extend([f"--passwd={'false' if not cnt['x-podman.passwd'] else 'true'}"])
     rootfs = cnt.get('x-podman.rootfs')
     if rootfs is not None:
         rootfs_mode = True
