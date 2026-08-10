@@ -1,0 +1,8 @@
+services:
+  tester:
+    build:
+      context: .
+      secrets:
+        build-secret:
+          source: build-secret
+          target: build_secret
