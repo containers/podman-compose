@@ -1,0 +1,7 @@
+services:
+  test:
+    image: nopush/podman-compose-test
+    networks:
+      - net0
+networks:
+  net0:
