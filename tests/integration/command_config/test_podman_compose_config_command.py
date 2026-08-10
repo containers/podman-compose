@@ -11,7 +11,7 @@ from tests.integration.test_utils import test_path
 
 def compose_yaml_path(scenario: str) -> str:
     return os.path.join(
-        os.path.join(test_path(), "command_config"), f"docker-compose_{scenario}.yaml"
+        os.path.join(test_path(), "command_config"), f"docker-compose{scenario}.yaml"
     )
 
 
@@ -25,7 +25,7 @@ class TestConfigCommand(unittest.TestCase, RunSubprocessMixin):
             "run",
             podman_compose_path(),
             "-f",
-            compose_yaml_path("quiet"),
+            compose_yaml_path("_quiet"),
             "config",
             "--quiet",
         ]
@@ -38,7 +38,7 @@ class TestConfigCommand(unittest.TestCase, RunSubprocessMixin):
             [
                 podman_compose_path(),
                 "-f",
-                compose_yaml_path("short_syntax"),
+                compose_yaml_path("_short_syntax"),
                 "config",
             ],
             0,
@@ -57,3 +57,21 @@ class TestConfigCommand(unittest.TestCase, RunSubprocessMixin):
 
             """)
         self.assertEqual(out.decode("utf-8"), expected)
+
+    def test_config_omits_version_and_warns(self) -> None:
+        config_cmd = [
+            "coverage",
+            "run",
+            podman_compose_path(),
+            "-f",
+            compose_yaml_path(""),
+            "config",
+        ]
+
+        out, err = self.run_subprocess_assert_returncode(config_cmd)
+        self.assertIn(
+            b'the attribute `version` is obsolete, it will be ignored, '
+            b'please remove it to avoid potential confusion\n',
+            err,
+        )
+        self.assertEqual(out, b'services:\n  test:\n    image: nopush/podman-compose-test\n\n')

@@ -49,7 +49,6 @@ class TestIncludeRelativePaths(unittest.TestCase, RunSubprocessMixin):
                 volumes:
                 - ./sub/./data:/data:ro
                 - ./sub/../assets:/assets:ro
-            version: '3.6'
 
             """)
         self.assertEqual(out.decode("utf-8"), expected)
