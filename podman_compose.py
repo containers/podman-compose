@@ -484,6 +484,11 @@ def rec_subs(value: dict | str | Iterable, subs_dict: dict[str, Any]) -> dict | 
             svc_envs = rec_subs(svc_envs, subs_dict)
             subs_dict.update(svc_envs)
 
+            # Resolve short-form environment variables (value is None) to their actual values
+            for env_k, env_v in value['environment'].items():
+                if env_v is None and env_k in subs_dict:
+                    value['environment'][env_k] = subs_dict[env_k]
+
         value = {rec_subs(k, subs_dict): rec_subs(v, subs_dict) for k, v in value.items()}
     elif isinstance(value, str):
         value = var_interpolate(value, subs_dict)
