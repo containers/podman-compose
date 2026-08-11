@@ -1,0 +1,5 @@
+version: '3'
+services:
+  test:
+    image: nopush/podman-compose-test
+

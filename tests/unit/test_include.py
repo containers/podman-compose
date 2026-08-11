@@ -52,7 +52,6 @@ class TestIncludeDict(unittest.TestCase):
         self.write_yaml("test-compose-include-2.yaml", include_content_2)
 
         main_content = {
-            "version": "3.8",
             "include": include_value,
             "services": {"web": {"image": "alpine:latest"}},
         }
@@ -83,7 +82,6 @@ class TestIncludeDict(unittest.TestCase):
         self, name: str, include_value: dict | list, exception_msg: str
     ) -> None:
         main_content = {
-            "version": "3.8",
             "include": include_value,
             "services": {"web": {"image": "alpine:latest"}},
         }
