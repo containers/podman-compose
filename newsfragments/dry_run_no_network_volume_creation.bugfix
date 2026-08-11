@@ -1,0 +1,1 @@
+Fixed ``--dry-run`` creating networks and volumes: ``podman-compose --dry-run up`` now only logs the ``network create``/``volume create`` commands instead of running them.
