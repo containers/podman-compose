@@ -47,5 +47,5 @@ requests==2.32.5
 tomlkit==0.12.4
 typing_extensions==4.13.2
 tzlocal==5.3.1
-urllib3==2.6.3
+urllib3==2.7.0
 virtualenv==20.26.6
