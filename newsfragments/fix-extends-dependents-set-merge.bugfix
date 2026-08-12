@@ -1,0 +1,1 @@
+Fix `AttributeError: 'set' object has no attribute 'extend'` in `resolve_extends()` when a service used as an `extends:` target was itself depended on by another service.
