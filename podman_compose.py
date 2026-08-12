@@ -1574,7 +1574,7 @@ async def container_to_args(
         else:
             raise ValueError("'healthcheck.test' either a string or a list")
 
-    # interval, timeout, start_period, and start_interval are specified as durations.
+    # interval, timeout, and start_period are specified as durations.
     if "interval" in healthcheck:
         podman_args.extend(["--health-interval", healthcheck["interval"]])
     if "timeout" in healthcheck:
@@ -1582,7 +1582,22 @@ async def container_to_args(
     if "start_period" in healthcheck:
         podman_args.extend(["--health-start-period", healthcheck["start_period"]])
     if "start_interval" in healthcheck:
-        podman_args.extend(["--health-startup-interval", healthcheck["start_interval"]])
+        # The previous mapping translated start_interval to
+        # --health-startup-interval, but that Podman flag belongs to a
+        # separate startup-healthcheck mechanism gated by --health-startup-cmd
+        # (which podman-compose does not generate), so the Compose-spec
+        # semantics of start_interval were silently lost. Podman does not yet
+        # provide a direct equivalent (see containers/podman#26505), so warn
+        # the user and drop the broken mapping. Re-enable once the Podman
+        # native equivalent lands.
+        log.warning(
+            "Compose 'healthcheck.start_interval' is currently not supported "
+            "by podman-compose: Podman has no equivalent for the "
+            "startup-period interval yet (see containers/podman#26505); the "
+            "field %r is being ignored for service %r.",
+            healthcheck["start_interval"],
+            cnt.get("name", cnt.get("service_name", "?")),
+        )
 
     # convert other parameters to string
     if "retries" in healthcheck:
