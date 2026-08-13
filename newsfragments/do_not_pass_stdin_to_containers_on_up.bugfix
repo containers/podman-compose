@@ -1,0 +1,1 @@
+Only forward stdin to containers during `run` and `exec` commands, matching docker-compose behavior.
