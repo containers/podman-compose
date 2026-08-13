@@ -1,0 +1,5 @@
+services:
+  test:
+    image: nopush/podman-compose-test
+    command: ["sh", "-c", "echo 'Waiting...'; read line; echo 'Received:' $$line"]
+    stdin_open: true
