@@ -1945,9 +1945,18 @@ class Podman:
         log_formatter: str | None = None,
         *,
         suppress_output: bool = False,
+        pass_stdin: bool = False,
         # Intentionally mutable default argument to hold references to tasks
         task_reference: set[asyncio.Task] = set(),
     ) -> int | None:
+        """Run a podman command.
+
+        By default, podman-compose does not pass its own stdin to podman
+        subprocesses. This prevents piped input intended for podman-compose
+        (e.g. ``cat compose.yml | podman-compose -f - up``) from leaking
+        into containers. Only ``run`` and ``exec`` commands should set
+        ``pass_stdin=True`` to allow interactive container input.
+        """
         async with self.semaphore:
             cmd_args = list(map(str, cmd_args or []))
             xargs = self.compose.get_podman_args(cmd) if cmd else []
@@ -1956,9 +1965,16 @@ class Podman:
             if self.dry_run:
                 return None
 
+            # When pass_stdin is False, use PIPE so the subprocess does not
+            # inherit podman-compose's stdin. Using DEVNULL would send EOF
+            # to containers with stdin_open, causing them to exit
+            # immediately instead of waiting for input as docker-compose does.
+            stdin_arg = None if pass_stdin else asyncio.subprocess.PIPE
+
             if log_formatter is not None:
                 p = await asyncio.create_subprocess_exec(
                     *cmd_ls,
+                    stdin=stdin_arg,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     close_fds=False,
@@ -1984,13 +2000,14 @@ class Podman:
             elif suppress_output:
                 p = await asyncio.create_subprocess_exec(
                     *cmd_ls,
+                    stdin=stdin_arg,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     close_fds=False,
                 )  # pylint: disable=consider-using-with
 
             else:
-                p = await asyncio.create_subprocess_exec(*cmd_ls, close_fds=False)  # pylint: disable=consider-using-with
+                p = await asyncio.create_subprocess_exec(*cmd_ls, stdin=stdin_arg, close_fds=False)  # pylint: disable=consider-using-with
 
             try:
                 exit_code = await p.wait()
@@ -4587,7 +4604,7 @@ async def compose_run(compose: PodmanCompose, args: argparse.Namespace) -> None:
         podman_args.insert(1, "-i")
         if args.rm:
             podman_args.insert(1, "--rm")
-    p = await compose.podman.run([], "run", podman_args)
+    p = await compose.podman.run([], "run", podman_args, pass_stdin=True)
     sys.exit(p)
 
 
@@ -4677,7 +4694,7 @@ async def compose_exec(compose: PodmanCompose, args: argparse.Namespace) -> None
     container_name = container_names[args.index - 1]
     cnt = compose.container_by_name[container_name]
     podman_args = compose_exec_args(cnt, container_name, args)
-    p = await compose.podman.run([], "exec", podman_args)
+    p = await compose.podman.run([], "exec", podman_args, pass_stdin=True)
     sys.exit(p)
 
 
