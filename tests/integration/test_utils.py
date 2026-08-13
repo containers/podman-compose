@@ -74,6 +74,7 @@ class RunSubprocessMixin:
         env: dict[str, str] = {},
         timeout: Optional[float] = None,
         cwd: Optional[Path] = None,
+        input: Optional[bytes] = None,
     ) -> tuple[bytes, bytes, int]:
         begin = time.time()
         if self.is_debug_enabled():
@@ -82,10 +83,15 @@ class RunSubprocessMixin:
             args,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            stdin=subprocess.PIPE if input is not None else None,
             env=os.environ | env,
             cwd=cwd,
         )
-        out, err = proc.communicate(timeout=timeout)
+        try:
+            out, err = proc.communicate(input=input, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            out, err = proc.communicate()
         if self.is_debug_enabled():
             print("TEST_CALL completed", time.time() - begin)
             print("STDOUT:", out.decode('utf-8'))
@@ -99,8 +105,11 @@ class RunSubprocessMixin:
         env: dict[str, str] = {},
         timeout: Optional[float] = None,
         cwd: Optional[Path] = None,
+        input: Optional[bytes] = None,
     ) -> tuple[bytes, bytes]:
-        out, err, returncode = self.run_subprocess(args, env=env, timeout=timeout, cwd=cwd)
+        out, err, returncode = self.run_subprocess(
+            args, env=env, timeout=timeout, cwd=cwd, input=input
+        )
         decoded_out = out.decode('utf-8')
         decoded_err = err.decode('utf-8')
         self.assertEqual(  # type: ignore[attr-defined]
