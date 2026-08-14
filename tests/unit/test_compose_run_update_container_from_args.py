@@ -50,6 +50,47 @@ class TestComposeRunUpdateContainerFromArgs(unittest.TestCase):
         }
         self.assertEqual(cnt, expected_cnt)
 
+    def test_container_name_from_compose(self) -> None:
+        cnt = {"container_name": "compose_custom_name"}
+        compose = get_minimal_compose()
+        args = get_minimal_args()
+        args.name = None
+
+        compose_run_update_container_from_args(compose, cnt, args)
+
+        expected_cnt = {
+            "container_name": "compose_custom_name",
+            "name": "compose_custom_name",
+            "tty": True,
+        }
+        self.assertEqual(cnt, expected_cnt)
+
+    def test_cli_name_overrides_container_name(self) -> None:
+        cnt = {"container_name": "compose_custom_name"}
+        compose = get_minimal_compose()
+        args = get_minimal_args()
+        args.name = "cli_override_name"
+
+        compose_run_update_container_from_args(compose, cnt, args)
+
+        expected_cnt = {
+            "container_name": "compose_custom_name",
+            "name": "cli_override_name",
+            "tty": True,
+        }
+        self.assertEqual(cnt, expected_cnt)
+
+    def test_fallback_to_generated_name(self) -> None:
+        cnt = get_minimal_container()
+        compose = get_minimal_compose()
+        args = get_minimal_args()
+        args.name = None
+
+        compose_run_update_container_from_args(compose, cnt, args)
+
+        self.assertTrue(cnt["name"].startswith("test_project_test_service_tmp"))
+        self.assertEqual(cnt["tty"], True)
+
 
 def get_minimal_container() -> dict:
     return {}

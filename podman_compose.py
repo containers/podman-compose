@@ -484,6 +484,11 @@ def rec_subs(value: dict | str | Iterable, subs_dict: dict[str, Any]) -> dict | 
             svc_envs = rec_subs(svc_envs, subs_dict)
             subs_dict.update(svc_envs)
 
+            # Resolve short-form environment variables (value is None) to their actual values
+            for env_k, env_v in value['environment'].items():
+                if env_v is None and env_k in subs_dict:
+                    value['environment'][env_k] = subs_dict[env_k]
+
         value = {rec_subs(k, subs_dict): rec_subs(v, subs_dict) for k, v in value.items()}
     elif isinstance(value, str):
         value = var_interpolate(value, subs_dict)
@@ -1597,6 +1602,9 @@ async def container_to_args(
         podman_args.extend(["--gidmap", gidmap])
     if cnt.get("x-podman.no_hosts", False):
         podman_args.extend(["--no-hosts"])
+    if "x-podman.passwd" in cnt:
+        # --passwd defaults to true
+        podman_args.extend([f"--passwd={'false' if not cnt['x-podman.passwd'] else 'true'}"])
     rootfs = cnt.get('x-podman.rootfs')
     if rootfs is not None:
         rootfs_mode = True
@@ -1828,6 +1836,7 @@ class ExistingContainer:
     id: str
     service_name: str
     config_hash: str
+    image_id: str
     exited: bool
     state: str
     status: str
@@ -2057,6 +2066,7 @@ class Podman:
                     or c.get("Labels", {}).get("com.docker.compose.service", "")
                 ),
                 config_hash=c.get("Labels", {}).get("io.podman.compose.config-hash", ""),
+                image_id=c.get("ImageID", ""),
                 exited=c.get("Exited", False),
                 state=c.get("State", ""),
                 status=c.get("Status", ""),
@@ -2158,6 +2168,18 @@ def normalize_service(service: dict[str, Any], sub_dir: str = "") -> dict[str, A
                     ef["path"] = os.path.join(sub_dir, path)
             new_env_file.append(ef)
         service["env_file"] = new_env_file
+    if "secrets" in service:
+        secrets = service["secrets"]
+        if isinstance(secrets, dict):
+            raise PodmanComposeError("ERROR: secrets must be a list, not a dict")
+        if isinstance(secrets, str):
+            service["secrets"] = [secrets]
+    if "build" in service and "secrets" in service["build"]:
+        build_secrets = service["build"]["secrets"]
+        if isinstance(build_secrets, dict):
+            raise PodmanComposeError("ERROR: build.secrets must be a list, not a dict")
+        if isinstance(build_secrets, str):
+            service["build"]["secrets"] = [build_secrets]
     return service
 
 
@@ -2638,8 +2660,24 @@ class PodmanCompose:
             os.chdir(project_dir)
         pathsep = os.environ.get("COMPOSE_PATH_SEPARATOR", os.pathsep)
 
+        # Load env files early to honor COMPOSE_FILE from .env
+        early_dotenv: dict[str, str | None] = {}
+        if not args.env_file:
+            project_dotenv_file = os.path.realpath(os.path.join(os.getcwd(), ".env"))
+            if os.path.exists(project_dotenv_file):
+                early_dotenv.update(dotenv_to_dict(project_dotenv_file))
+        else:
+            for env_file in args.env_file:
+                dotenv_path = os.path.realpath(env_file)
+                if not os.path.exists(dotenv_path):
+                    log.fatal("Couldn't find env file: %s", dotenv_path)
+                    sys.exit(1)
+                early_dotenv.update(dotenv_to_dict(dotenv_path))
+
         if not args.file:
             default_str = os.environ.get("COMPOSE_FILE")
+            if not default_str:
+                default_str = early_dotenv.get("COMPOSE_FILE")
             if default_str:
                 default_ls = default_str.split(pathsep)
                 args.file = list(filter(os.path.exists, default_ls))
@@ -2758,6 +2796,12 @@ class PodmanCompose:
             if not isinstance(content, dict):
                 log.fatal("Compose file does not contain a top level object: %s", filename)
                 sys.exit(1)
+            if "version" in content:
+                log.warning(
+                    "%s: the attribute `version` is obsolete, it will be ignored, "
+                    "please remove it to avoid potential confusion",
+                    filename,
+                )
             # For files arriving via ``include:``, paths inside the file must
             # resolve against the included file's directory rather than the
             # project root (Compose Spec, ``include`` section). Pass that as
@@ -2850,6 +2894,7 @@ class PodmanCompose:
         compose["services"] = resolved_services
         if not getattr(args, "no_normalize", None):
             compose = normalize_final(compose, self.dirname)
+        compose.pop("version", None)
         self.merged_yaml = yaml.safe_dump(compose)
         merged_json_b = json.dumps(
             self.original_configuration(compose), separators=(",", ":")
@@ -4147,6 +4192,27 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
         if not args.no_recreate:
             requested_services = set(args.services) if args.services else set()
             always_recreate_deps = getattr(args, "always_recreate_deps", False)
+
+            # resolve current local image IDs for services with running containers
+            current_image_ids: dict[str, str] = {}
+            for c in existing_containers.values():
+                if (
+                    c.service_name in excluded
+                    or c.service_name not in compose.services
+                    or not c.image_id
+                ):
+                    continue
+                service = compose.services[c.service_name]
+                image = service.get("image")
+                if image and image not in current_image_ids:
+                    try:
+                        img_id = await compose.podman.output(
+                            [], "inspect", ["-t", "image", "-f", "{{.Id}}", image]
+                        )
+                        current_image_ids[image] = img_id.decode().strip()
+                    except subprocess.CalledProcessError:
+                        pass
+
             for c in existing_containers.values():
                 if (
                     c.service_name in excluded
@@ -4160,7 +4226,20 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
                     or c.service_name in requested_services
                     or always_recreate_deps
                 )
-                if force_this or c.config_hash != compose.config_hash(service):
+
+                image_changed = False
+                image = service.get("image")
+                if image and c.image_id:
+                    local_id = current_image_ids.get(image, "")
+                    if local_id and local_id != c.image_id:
+                        log.info(
+                            "Image changed for service %s (%s), will recreate",
+                            c.service_name,
+                            image,
+                        )
+                        image_changed = True
+
+                if force_this or image_changed or c.config_hash != compose.config_hash(service):
                     recreate_services.add(c.service_name)
 
                     # Running dependents of service are removed by down command
@@ -4520,7 +4599,7 @@ def compose_run_update_container_from_args(
 ) -> None:
     # adjust one-off container options
     name0 = compose.format_name(args.service, f'tmp{random.randrange(0, 65536)}')
-    cnt["name"] = args.name or name0
+    cnt["name"] = args.name or cnt.get("container_name") or name0
     if args.entrypoint:
         cnt["entrypoint"] = args.entrypoint
     if args.user:

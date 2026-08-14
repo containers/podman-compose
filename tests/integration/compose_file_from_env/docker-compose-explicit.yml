@@ -1,0 +1,4 @@
+services:
+  explicit-service:
+    image: nopush/podman-compose-test
+    command: echo "explicit"

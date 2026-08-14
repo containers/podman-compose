@@ -1,0 +1,5 @@
+services:
+  test:
+    image: nopush/podman-compose-test
+    container_name: my_custom_run_container
+    command: ["echo", "hello"]
