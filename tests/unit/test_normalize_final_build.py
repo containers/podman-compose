@@ -104,6 +104,20 @@ class TestNormalizeFinalBuild(unittest.TestCase):
         project_dir = cwd
         self.assertEqual(normalize_service_final(input, project_dir), expected)
 
+    @parameterized.expand([
+        ({"image": "busybox", "command": "sleep infinity"}, ["sleep", "infinity"], None),
+        ({"image": "busybox", "command": ["sleep", "infinity"]}, ["sleep", "infinity"], None),
+        ({"image": "busybox", "entrypoint": "/bin/sh -c"}, None, ["/bin/sh", "-c"]),
+    ])
+    def test_normalize_service_final_splits_string_command(
+        self, input, expected_command, expected_entrypoint
+    ):
+        # Tests that string [service.command] and [service.entrypoint] are split into
+        # lists after variable interpolation
+        actual = normalize_service_final(input, cwd)
+        self.assertEqual(actual.get("command"), expected_command)
+        self.assertEqual(actual.get("entrypoint"), expected_entrypoint)
+
     @parameterized.expand(cases_simple_normalization)
     def test_normalize_returns_absolute_path_in_context(self, input, expected):
         project_dir = cwd
