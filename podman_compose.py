@@ -2892,7 +2892,7 @@ class PodmanCompose:
         if not getattr(args, "no_normalize", None):
             compose = normalize_final(compose, self.dirname)
         compose.pop("version", None)
-        self.merged_yaml = yaml.safe_dump(compose)
+        self.merged_yaml = yaml.safe_dump(compose, allow_unicode=True)
         merged_json_b = json.dumps(
             self.original_configuration(compose), separators=(",", ":")
         ).encode("utf-8")
