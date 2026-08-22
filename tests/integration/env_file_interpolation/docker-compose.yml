@@ -1,0 +1,5 @@
+services:
+  app:
+    image: nopush/podman-compose-test
+    env_file: .env.extra
+    command: ["/bin/sh", "-c", "env | grep '^FOO='"]

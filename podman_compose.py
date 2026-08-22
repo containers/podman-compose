@@ -16,6 +16,7 @@ import getpass
 import glob
 import hashlib
 import inspect
+import io
 import json
 import logging
 import os
@@ -35,6 +36,7 @@ from typing import Any
 from typing import Callable
 from typing import ClassVar
 from typing import Iterable
+from typing import Mapping
 from typing import Sequence
 from typing import overload
 from urllib.parse import quote
@@ -43,6 +45,7 @@ from urllib.parse import quote
 # fnmatch.fnmatchcase(env, "*_HOST")
 import yaml
 from dotenv import dotenv_values
+from dotenv.variables import parse_variables
 
 # Python loads the appropriate path module based on the OS, but we need to be able
 # to check if a path is absolute according to BOTH major OS's rules.
@@ -1402,9 +1405,7 @@ async def container_to_args(
             if not required:
                 continue
             raise ValueError(f"Env file at {i} does not exist")
-        dotenv_dict = {}
-        dotenv_dict = dotenv_to_dict(i)
-        env = norm_as_list(dotenv_dict)
+        env = norm_as_list(dotenv_to_dict(i, compose.environ))
         for e in env:
             podman_args.extend(["-e", e])
     env = norm_as_list(cnt.get("environment", {}))
@@ -2374,10 +2375,34 @@ def resolve_extends(
         services[name] = new_service
 
 
-def dotenv_to_dict(dotenv_path: str) -> dict[str, str | None]:
+def dotenv_to_dict(
+    dotenv_path: str, environ: Mapping[str, str | None] | None = None
+) -> dict[str, str | None]:
     if not os.path.isfile(dotenv_path):
         return {}
-    return dotenv_values(dotenv_path)
+    try:
+        with open(dotenv_path, encoding="utf-8") as fh:
+            content = fh.read()
+    except OSError as exc:
+        log.warning("Could not read env file %s: %s", dotenv_path, exc)
+        return {}
+
+    if environ is None:
+        return dotenv_values(stream=io.StringIO(content))
+
+    raw = dotenv_values(stream=io.StringIO(content), interpolate=False)
+    base_env: dict[str, str | None] = {k: v for k, v in environ.items() if v is not None}
+
+    resolved: dict[str, str | None] = {}
+    for name, value in raw.items():
+        if value is None:
+            resolved[name] = None
+        else:
+            atoms = parse_variables(value)
+            env = {**base_env, **resolved}
+            resolved_value = "".join(atom.resolve(env) or "" for atom in atoms)
+            resolved[name] = resolved_value
+    return resolved
 
 
 COMPOSE_DEFAULT_LS = [

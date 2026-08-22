@@ -23,6 +23,7 @@ def create_compose_mock(project_name: str = "test_project_name") -> PodmanCompos
     compose.default_net = None
     compose.networks = {}
     compose.x_podman = {}
+    compose.environ = {}
     compose.join_name_parts = mock.Mock(side_effect=lambda *args: '_'.join(args))
     compose.format_name = mock.Mock(side_effect=lambda *args: '_'.join([project_name, *args]))
 
@@ -1371,5 +1372,51 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "--entrypoint",
                 '["bash", "-c", "echo hello"]',
                 "busybox",
+            ],
+        )
+
+    async def test_env_file_interpolates_from_project_dotenv_braces(self) -> None:
+        """Env file values with ${VAR} should interpolate using project .env variables."""
+        c = create_compose_mock()
+        c.environ = {"BAR": "bar"}
+
+        cnt = get_minimal_container()
+        cnt['env_file'] = get_test_file_path('tests/integration/env_file_interpolation/.env.extra')
+
+        args = await container_to_args(c, cnt)
+
+        self.assertEqual(
+            args,
+            [
+                '--name=project_name_service_name1',
+                '-d',
+                '-e',
+                'FOO=bar',
+                '--network=bridge:alias=service_name',
+                'busybox',
+            ],
+        )
+
+    async def test_env_file_missing_variable(self) -> None:
+        """Missing variable references should resolve to an empty string."""
+        c = create_compose_mock()
+        c.environ = {}
+
+        cnt = get_minimal_container()
+        cnt['env_file'] = get_test_file_path(
+            'tests/integration/env_file_interpolation/.env.missing'
+        )
+
+        args = await container_to_args(c, cnt)
+
+        self.assertEqual(
+            args,
+            [
+                '--name=project_name_service_name1',
+                '-d',
+                '-e',
+                'FOO=',
+                '--network=bridge:alias=service_name',
+                'busybox',
             ],
         )
