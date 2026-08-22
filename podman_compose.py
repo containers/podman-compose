@@ -4526,6 +4526,24 @@ async def compose_down(compose: PodmanCompose, args: argparse.Namespace) -> None
         await compose.podman.run([], "network", ["rm", network])
 
 
+@cmd_run(podman_compose, "rm", "remove stopped service containers")
+async def compose_rm(compose: PodmanCompose, args: argparse.Namespace) -> None:
+    services = set(args.services) if args.services else set(compose.services)
+    containers = list(reversed(compose.containers))
+
+    for cnt in containers:
+        if cnt["_service"] not in services:
+            continue
+        if args.stop:
+            await compose.podman.run([], "stop", ["-i", cnt["name"]])
+        rm_args = []
+        if args.force:
+            rm_args.append("-f")
+        if args.volumes:
+            rm_args.append("-v")
+        await compose.podman.run([], "rm", [*rm_args, cnt["name"]])
+
+
 @cmd_run(podman_compose, "ps", "show status of containers")
 async def compose_ps(compose: PodmanCompose, args: argparse.Namespace) -> None:
     ps_args = ["-a", "--filter", f"label=io.podman.compose.project={compose.project_name}"]
@@ -5088,6 +5106,29 @@ def compose_down_parse(parser: argparse.ArgumentParser) -> None:
     )
 
 
+@cmd_parse(podman_compose, "rm")
+def compose_rm_parse(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "-s",
+        "--stop",
+        action="store_true",
+        help="Stop the containers, if required, before removing.",
+    )
+    parser.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help="Force removal of running or unusable containers. podman-compose has no "
+        "interactive prompts so behaves differently than docker-compose here.",
+    )
+    parser.add_argument(
+        "-v",
+        "--volumes",
+        action="store_true",
+        help="Remove any anonymous volumes attached to containers.",
+    )
+
+
 @cmd_parse(podman_compose, "run")
 def compose_run_parse(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
@@ -5384,7 +5425,7 @@ def compose_build_up_parse(parser: argparse.ArgumentParser) -> None:
     )
 
 
-@cmd_parse(podman_compose, ["build", "up", "down", "start", "stop", "restart"])
+@cmd_parse(podman_compose, ["build", "up", "down", "start", "stop", "restart", "rm"])
 def compose_build_parse(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "services",
