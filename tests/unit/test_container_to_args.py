@@ -1420,3 +1420,75 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 'busybox',
             ],
         )
+
+    async def test_env_file_interpolates_from_project_dotenv_no_braces(self) -> None:
+        """Env file values with $VAR should interpolate using project .env variables."""
+        c = create_compose_mock()
+        c.environ = {"BAR": "bar"}
+
+        cnt = get_minimal_container()
+        cnt['env_file'] = get_test_file_path(
+            'tests/integration/env_file_interpolation/.env.extra_no_braces'
+        )
+
+        args = await container_to_args(c, cnt)
+
+        self.assertEqual(
+            args,
+            [
+                '--name=project_name_service_name1',
+                '-d',
+                '-e',
+                'FOO=bar',
+                '--network=bridge:alias=service_name',
+                'busybox',
+            ],
+        )
+
+    async def test_env_file_escaped_dollar(self) -> None:
+        """Escaped $$VAR should resolve to a single literal $VAR."""
+        c = create_compose_mock()
+        c.environ = {"BAR": "bar"}
+
+        cnt = get_minimal_container()
+        cnt['env_file'] = get_test_file_path(
+            'tests/integration/env_file_interpolation/.env.escaped'
+        )
+
+        args = await container_to_args(c, cnt)
+
+        self.assertEqual(
+            args,
+            [
+                '--name=project_name_service_name1',
+                '-d',
+                '-e',
+                'FOO=$BAR',
+                '--network=bridge:alias=service_name',
+                'busybox',
+            ],
+        )
+
+    async def test_env_file_single_quoted_literal(self) -> None:
+        """Single-quoted values should preserve literal $VAR."""
+        c = create_compose_mock()
+        c.environ = {"BAR": "bar"}
+
+        cnt = get_minimal_container()
+        cnt['env_file'] = get_test_file_path(
+            'tests/integration/env_file_interpolation/.env.literal'
+        )
+
+        args = await container_to_args(c, cnt)
+
+        self.assertEqual(
+            args,
+            [
+                '--name=project_name_service_name1',
+                '-d',
+                '-e',
+                'FOO=$BAR',
+                '--network=bridge:alias=service_name',
+                'busybox',
+            ],
+        )

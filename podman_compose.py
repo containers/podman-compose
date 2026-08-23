@@ -2375,6 +2375,61 @@ def resolve_extends(
         services[name] = new_service
 
 
+# Private sentinel used to temporarily hide escaped $$ while we rewrite
+# bare $VAR into ${VAR}.
+_ESCAPE_SENTINEL = "\ufffe"
+
+
+def _preprocess_env_file(content: str) -> str:
+    """Replace $VAR with ${VAR} so python-dotenv can interpolate both syntaxes.
+
+    Only unquoted or double-quoted values are modified. Single-quoted
+    values are left untouched so that literal dollar signs are preserved.
+    Escaped sequences ($$) are preserved as a single literal $.
+    """
+    lines = []
+    for line in content.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            lines.append(line)
+            continue
+
+        in_single_quote = False
+        in_double_quote = False
+        sep_pos = -1
+        for i, ch in enumerate(line):
+            if ch == "'" and not in_double_quote:
+                in_single_quote = not in_single_quote
+            elif ch == '"' and not in_single_quote:
+                in_double_quote = not in_double_quote
+            elif ch in ("=", ":") and not in_single_quote and not in_double_quote:
+                sep_pos = i
+                break
+
+        if sep_pos == -1:
+            lines.append(line)
+            continue
+
+        key = line[:sep_pos]
+        value = line[sep_pos + 1 :]
+
+        value_stripped = value.lstrip()
+        if value_stripped.startswith("'"):
+            lines.append(line)
+            continue
+
+        # Hide escaped $$ so the regex below does not touch them.
+        new_value = value.replace("$$", _ESCAPE_SENTINEL)
+        new_value = re.sub(
+            r"(?<!\$)\$(?!\$)(?!\{)([A-Za-z_][A-Za-z0-9_]*)(?![A-Za-z0-9_])",
+            r"${\1}",
+            new_value,
+        )
+        lines.append(f"{key}={new_value}")
+
+    return "\n".join(lines)
+
+
 def dotenv_to_dict(
     dotenv_path: str, environ: Mapping[str, str | None] | None = None
 ) -> dict[str, str | None]:
@@ -2390,6 +2445,7 @@ def dotenv_to_dict(
     if environ is None:
         return dotenv_values(stream=io.StringIO(content))
 
+    content = _preprocess_env_file(content)
     raw = dotenv_values(stream=io.StringIO(content), interpolate=False)
     base_env: dict[str, str | None] = {k: v for k, v in environ.items() if v is not None}
 
@@ -2401,7 +2457,7 @@ def dotenv_to_dict(
             atoms = parse_variables(value)
             env = {**base_env, **resolved}
             resolved_value = "".join(atom.resolve(env) or "" for atom in atoms)
-            resolved[name] = resolved_value
+            resolved[name] = resolved_value.replace(_ESCAPE_SENTINEL, "$")
     return resolved
 
 
