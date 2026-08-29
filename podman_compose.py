@@ -4597,7 +4597,7 @@ def compose_run_update_container_from_args(
     # adjust one-off container options
     name0 = compose.format_name(args.service, f'tmp{random.randrange(0, 65536)}')
     cnt["name"] = args.name or cnt.get("container_name") or name0
-    if args.entrypoint:
+    if args.entrypoint is not None:
         cnt["entrypoint"] = args.entrypoint
     if args.user:
         cnt["user"] = args.user
