@@ -1,0 +1,7 @@
+services:
+  remove_anonymous_volume:
+    container_name: podman-compose-remove-anonymous-volume-test-container
+    image: podman-compose-remove-anonymous-volume-test
+    build: .
+    init: true
+    command: ["sleep", "infinity"]
