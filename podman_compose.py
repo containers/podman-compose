@@ -869,7 +869,21 @@ def get_secret_args(
         secret_mode = secret.get("mode")
         secret_type = secret.get("type")
 
+    if not secret_target:
+        dest_file = f"/run/secrets/{secret_name}"
+    elif not secret_target.startswith("/"):
+        sec = secret_target if secret_target else secret_name
+        dest_file = f"/run/secrets/{sec}"
+    else:
+        dest_file = secret_target
+
+    secret_opts += f",uid={secret_uid}" if secret_uid else ""
+    secret_opts += f",gid={secret_gid}" if secret_gid else ""
+    secret_opts += f",mode={secret_mode}" if secret_mode else ""
+    secret_opts += f",type={secret_type}" if secret_type else ""
+
     source_env = declared_secret.get("environment")
+
     if source_env:
         if podman_is_building:
             secret_id = secret_target if secret_target else secret_name
@@ -877,7 +891,8 @@ def get_secret_args(
 
         assert compose.project_name is not None
         log.debug("mounting secret '%s'", secret_name)
-        return ["--secret", f"{compose.project_name}_{secret_name}"]
+
+        return ["--secret", f"{compose.project_name}_{secret_name},target={dest_file}{secret_opts}"]
 
     if source_file:
         # assemble path for source file first, because we need it for all cases
@@ -898,14 +913,6 @@ def get_secret_args(
             volume_ref = ["--secret", f"id={secret_id},src={source_file}"]
         else:
             # pass file secrets to "podman run" as volumes
-            if not secret_target:
-                dest_file = f"/run/secrets/{secret_name}"
-            elif not secret_target.startswith("/"):
-                sec = secret_target if secret_target else secret_name
-                dest_file = f"/run/secrets/{sec}"
-            else:
-                dest_file = secret_target
-
             mount_options = 'ro,rprivate,rbind'
 
             selinux_relabel_to_mount_option_map = {None: "", "z": ",z", "Z": ",Z"}
@@ -927,6 +934,7 @@ def get_secret_args(
                 sec,
             )
         return volume_ref
+
     # v3.5 and up added external flag, earlier the spec
     # only required a name to be specified.
     # docker-compose does not support external secrets outside of swarm mode.
@@ -935,10 +943,6 @@ def get_secret_args(
     # podman-create commands, albeit we can only support a 1:1 mapping
     # at the moment
     if declared_secret.get("external", False) or declared_secret.get("name"):
-        secret_opts += f",uid={secret_uid}" if secret_uid else ""
-        secret_opts += f",gid={secret_gid}" if secret_gid else ""
-        secret_opts += f",mode={secret_mode}" if secret_mode else ""
-        secret_opts += f",type={secret_type}" if secret_type else ""
         secret_opts += f",target={secret_target}" if secret_target else ""
         # having a custom name for the external secret is not supported
         ext_name = declared_secret.get("name")
