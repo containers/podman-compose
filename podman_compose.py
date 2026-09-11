@@ -802,6 +802,7 @@ async def get_mount_args(
 async def create_secrets_from_environment(compose: PodmanCompose) -> None:
     if not compose.declared_secrets:
         return
+
     for secret_name in compose.declared_secrets.keys():
         secret_environment = compose.declared_secrets[secret_name].get("environment")
         if secret_environment:
@@ -810,16 +811,49 @@ async def create_secrets_from_environment(compose: PodmanCompose) -> None:
             if secret_environment_value is None:
                 raise ValueError(
                     f"Environment variable '{secret_environment}' required"
-                    + " by secret '{secret_name}' is not set in the process environment."
+                    + f" by secret '{secret_name}' is not set in the process environment."
                 )
 
-            log.debug(
-                "attempting creation of secret '%s' set to '%s'",
-                secret_name,
-                secret_environment_value,
-            )
-
             assert compose.project_name is not None
+
+            stored_secret_name = f"{compose.project_name}_{secret_name}"
+
+            try:
+                await compose.podman.output([], "secret", ["exists", stored_secret_name])
+
+                current_label = (
+                    (
+                        await compose.podman.output(
+                            [],
+                            "secret",
+                            [
+                                "inspect",
+                                "--format",
+                                '{{index .Spec.Labels "io.podman.compose.project"}}',
+                                stored_secret_name,
+                            ],
+                        )
+                    )
+                    .decode('utf-8')
+                    .strip()
+                )
+
+                if current_label != compose.project_name:
+                    raise PodmanComposeError(
+                        f"Secret {stored_secret_name} already exists, but is missing the label "
+                        f"indicating it's managed by compose. "
+                        f"Expected: 'io.podman.compose.project={compose.project_name}', "
+                        f"got '{current_label}' Refusing to overwrite. "
+                        f"Remove it first 'podman secret rm {stored_secret_name}', "
+                        f"or rename the secret in your compose file."
+                    )
+
+            except subprocess.CalledProcessError:
+                log.debug(
+                    "attempting creation of secret '%s' set to '%s'",
+                    stored_secret_name,
+                    secret_environment_value,
+                )
 
             await compose.podman.run(
                 [],
@@ -828,8 +862,9 @@ async def create_secrets_from_environment(compose: PodmanCompose) -> None:
                     "create",
                     "--label",
                     "io.podman.compose.project=" + compose.project_name,
+                    "--replace",
                     "--env",
-                    f"{compose.project_name}_{secret_name}",
+                    stored_secret_name,
                     secret_environment,
                 ],
             )

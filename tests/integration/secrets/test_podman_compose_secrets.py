@@ -23,11 +23,13 @@ class TestComposeNoSecrets(unittest.TestCase, RunSubprocessMixin):
     ]
 
     def setUp(self) -> None:
+        self.run_subprocess(["podman", "secret", "rm", "-i", "secrets_environment_secret"])
         for secret in self.created_secrets:
             p = Popen(["podman", "secret", "create", secret, "-"], stdin=PIPE)
             p.communicate(secret.encode('utf-8'))
 
     def tearDown(self) -> None:
+        self.run_subprocess(["podman", "secret", "rm", "-i", "secrets_environment_secret"])
         for secret in self.created_secrets:
             self.run_subprocess_assert_returncode([
                 "podman",
@@ -75,6 +77,92 @@ class TestComposeNoSecrets(unittest.TestCase, RunSubprocessMixin):
                 + b'ENV_SECRET=podman_compose_test_secret\n'
             )
             self.assertEqual(expected_output, output)
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(),
+                "down",
+                "-t",
+                "0",
+            ])
+
+    def test_replace_environment_secret(self) -> None:
+        try:
+            self.run_subprocess_assert_returncode(
+                [
+                    podman_compose_path(),
+                    "-f",
+                    compose_yaml_path(),
+                    "up",
+                    "test",
+                ],
+                env={"TEST_ENVIRONMENT": "initial-secret-value"},
+            )
+
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(),
+                "down",
+                "-t",
+                "0",
+            ])
+
+            # Run up again with a new environment secret value, verifying replacement
+            self.run_subprocess_assert_returncode(
+                [
+                    podman_compose_path(),
+                    "-f",
+                    compose_yaml_path(),
+                    "up",
+                    "test",
+                ],
+                env={"TEST_ENVIRONMENT": "updated-secret-value"},
+            )
+
+            output, _ = self.run_subprocess_assert_returncode(["podman", "logs", "secrets_test_1"])
+            self.assertIn(
+                b'/run/secrets/REMAPPED_ENV_SECRET:updated-secret-value\n',
+                output,
+            )
+            self.assertIn(
+                b'/run/secrets/environment_secret:updated-secret-value\n',
+                output,
+            )
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(),
+                "down",
+                "-t",
+                "0",
+            ])
+
+    def test_environment_secret_conflict_unmanaged_secret(self) -> None:
+        # Create unmanaged secret with same name but without the compose project label
+        p = Popen(["podman", "secret", "create", "secrets_environment_secret", "-"], stdin=PIPE)
+        p.communicate(b"unmanaged-secret-value")
+
+        try:
+            _, error, returncode = self.run_subprocess(
+                [
+                    podman_compose_path(),
+                    "-f",
+                    compose_yaml_path(),
+                    "up",
+                    "test",
+                ],
+                env={"TEST_ENVIRONMENT": "new-secret-value"},
+            )
+            self.assertNotEqual(returncode, 0)
+            self.assertIn(
+                b"Secret secrets_environment_secret already exists, "
+                + b"but is missing the label indicating it's managed by compose.",
+                error,
+            )
+            self.assertIn(b"Refusing to overwrite.", error)
         finally:
             self.run_subprocess_assert_returncode([
                 podman_compose_path(),
