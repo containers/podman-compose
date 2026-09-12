@@ -29,6 +29,7 @@ def create_compose_mock(
     if podman_output is not None:
         compose.podman.output = podman_output
     else:
+
         async def default_podman_output(*args: Any, **kwargs: Any) -> None:
             pass
 
