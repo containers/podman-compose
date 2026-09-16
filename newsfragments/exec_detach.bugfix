@@ -1,0 +1,1 @@
+`podman-compose exec -d`/`--detach` now actually detaches. Previously the flag was parsed but never used, so `exec -d` always ran with `--interactive`/`--tty` and blocked the caller until the executed command exited.
