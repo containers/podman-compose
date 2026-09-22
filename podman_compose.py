@@ -3977,7 +3977,7 @@ def create_format_logs_task(
         return None
 
     container, index = result
-    # Add colored service prefix to output by piping output through sed
+    # Add colored service prefix to output
     if args.no_log_prefix:
         log_formatter = None
     else:
@@ -4352,7 +4352,7 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
         loop.add_signal_handler(signal.SIGINT, lambda: asyncio.create_task(handle_sigint()))
 
     for i, cnt in enumerate(compose.containers):
-        # Add colored service prefix to output by piping output through sed
+        # Add colored service prefix to output
         color_idx = i % len(compose.console_colors)
         color = compose.console_colors[color_idx]
         space_suffix = " " * (max_service_length - len(cnt["_service"]) + 1)
