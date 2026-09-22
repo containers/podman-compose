@@ -10,11 +10,9 @@ This project focuses on:
 This project only depends on:
 
 * `podman`
-* [podman dnsname plugin](https://github.com/containers/dnsname): It is usually found in
-  the `podman-plugins` or `podman-dnsname` distro packages, those packages are not pulled
-  by default and you need to install them. This allows containers to be able to resolve
-  each other if they are on the same CNI network. This is not necessary when podman is using
-  netavark as a network backend.
+* a podman network backend with DNS name resolution available. This allows containers to be able to resolve each other if they are on the same network.
+  * either: [podman dnsname plugin](https://github.com/containers/dnsname) with CNI network backend: It is usually found in the `podman-plugins` or `podman-dnsname` distro packages, those packages are not pulled by default and you need to install them.
+  * or: [netavark](https://github.com/containers/netavark)/[aardvark-dns](https://github.com/containers/aardvark-dns): Both are usually installed on new installations of podman 4.
 * Python 3.9 or newer
 * [PyYAML](https://pyyaml.org/)
 * [python-dotenv](https://pypi.org/project/python-dotenv/)
