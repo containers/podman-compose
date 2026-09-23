@@ -6,3 +6,6 @@ services:
       service: webapp
     environment:
       - DEBUG=1
+    build:
+      args:
+        VERSION: 3.24

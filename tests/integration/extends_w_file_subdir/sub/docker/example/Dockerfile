@@ -1,1 +1,2 @@
-FROM nopush/podman-compose-test as base
+ARG VERSION=latest
+FROM alpine:${VERSION} as base

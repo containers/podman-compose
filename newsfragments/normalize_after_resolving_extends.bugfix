@@ -1,0 +1,1 @@
+Fixed order of operations when populating defaults and using `extends` making sure the context points at the right directory
