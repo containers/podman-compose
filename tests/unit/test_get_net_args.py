@@ -326,3 +326,33 @@ class TestGetNetArgs(unittest.TestCase):
         container["network_mode"] = "service:service_2"
 
         self.assertEqual(get_net_args(compose, container), ["--network=container:container_2"])
+
+    def test_external_network_with_name_dict(self) -> None:
+        """external: name: custom-network should use the custom name, not the prefixed one."""
+        compose = get_networked_compose(num_networks=1)
+        compose.networks["net0"] = {
+            "external": {"name": "my-external-net"},
+        }
+        compose.default_net = None
+        container = get_minimal_container()
+        container["networks"] = {"net0": {}}
+
+        self.assertEqual(
+            get_net_args(compose, container),
+            ["--network=my-external-net:alias=service_name"],
+        )
+
+    def test_external_network_bool_true(self) -> None:
+        """external: true should use the un-prefixed compose key as the network name."""
+        compose = get_networked_compose(num_networks=1)
+        compose.networks["net0"] = {
+            "external": True,
+        }
+        compose.default_net = None
+        container = get_minimal_container()
+        container["networks"] = {"net0": {}}
+
+        self.assertEqual(
+            get_net_args(compose, container),
+            ["--network=net0:alias=service_name"],
+        )
