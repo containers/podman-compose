@@ -1491,6 +1491,8 @@ async def container_to_args(
         podman_args.append("--privileged")
     if cnt.get("pid"):
         podman_args.extend(["--pid", cnt["pid"]])
+    if cnt.get("uts"):
+        podman_args.extend(["--uts", cnt["uts"]])
     pull_policy = cnt.get("pull_policy")
     if pull_policy is not None and pull_policy != "build":
         podman_args.append(f"--pull={pull_policy}")

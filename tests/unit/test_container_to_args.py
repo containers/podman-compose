@@ -182,6 +182,25 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
+    async def test_uts(self) -> None:
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+
+        cnt["uts"] = "host"
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge:alias=service_name",
+                "--uts",
+                "host",
+                "busybox",
+            ],
+        )
+
     async def test_http_proxy(self) -> None:
         c = create_compose_mock()
 
