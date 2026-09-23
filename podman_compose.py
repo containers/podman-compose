@@ -636,6 +636,9 @@ async def assert_volume(compose: PodmanCompose, mount_dict: dict[str, Any]) -> N
         for opt, value in driver_opts.items():
             args.extend(["--opt", f"{opt}={value}"])
         args.append(vol_name)
+        if compose.podman.dry_run:
+            log.info("%s volume %s", compose.podman.podman_path, " ".join(args))
+            return
         await compose.podman.output([], "volume", args)
         await compose.podman.output([], "volume", ["inspect", vol_name])
 
@@ -1192,6 +1195,9 @@ async def assert_cnt_nets(compose: PodmanCompose, cnt: dict[str, Any]) -> None:
                     f"Create it first with: podman network create '{net_name}'"
                 ) from e
             args = get_network_create_args(net_desc, compose.project_name, net_name)
+            if compose.podman.dry_run:
+                log.info("%s network %s", compose.podman.podman_path, " ".join(args))
+                continue
             await compose.podman.output([], "network", args)
             await compose.podman.output([], "network", ["exists", net_name])
 
