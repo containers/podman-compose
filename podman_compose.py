@@ -4803,6 +4803,87 @@ async def compose_logs(compose: PodmanCompose, args: argparse.Namespace) -> None
     await asyncio.gather(*tasks)
 
 
+def _normalize_service_networks(service: dict[str, Any], default_net: str | None) -> None:
+    """Inject default network and normalize network formats for config output."""
+    if "networks" not in service and "network_mode" not in service and default_net:
+        service["networks"] = {default_net: None}
+    if "networks" in service:
+        networks = service["networks"]
+        if is_list(networks):
+            service["networks"] = {net: None for net in networks}
+        elif isinstance(networks, dict):
+            service["networks"] = {net: None if val == {} else val for net, val in networks.items()}
+
+
+def _get_used_networks(services: dict[str, Any], default_net: str | None) -> set[str]:
+    """Return the set of network names actually referenced by services."""
+    used_networks: set[str] = set()
+    for service in services.values():
+        if "network_mode" in service:
+            continue
+        srv_nets = service.get("networks")
+        if srv_nets:
+            if isinstance(srv_nets, dict):
+                used_networks.update(srv_nets.keys())
+            else:
+                used_networks.update(norm_as_list(srv_nets))
+        elif default_net:
+            used_networks.add(default_net)
+    return used_networks
+
+
+def _resolve_network_name(compose: PodmanCompose, net_name: str, net_desc: dict[str, Any]) -> str:
+    """Return the effective network name for config output."""
+    external_val = net_desc.get("external")
+    if isinstance(external_val, dict):
+        return external_val.get("name", net_name)
+    if external_val:
+        return net_name
+    return default_network_name_for_project(compose, net_name, False)
+
+
+def build_compose_config(compose: PodmanCompose) -> dict[str, Any]:
+    """
+    Build the effective compose configuration for the `config` command.
+
+    This takes the merged compose configuration and applies runtime-resolved values:
+    - Default network injection for services without explicit networks
+    - Normalized network formats (list -> dict, empty dict -> None)
+    - Resolved network names (project-prefixed for created networks,
+      original name or custom external name for external networks)
+    """
+    config = yaml.safe_load(compose.merged_yaml)
+    if not isinstance(config, dict):
+        config = {}
+
+    services = {}
+    for name, service in compose.services.items():
+        services[name] = compose.original_configuration(service)
+        _normalize_service_networks(services[name], compose.default_net)
+
+    # Reconstruct output with services first, then all other original keys,
+    # so that custom top-level keys (configs, x-*, name, etc.) are preserved.
+    result: dict[str, Any] = {"services": services}
+    for key, value in config.items():
+        if key not in ("services", "networks"):
+            result[key] = value
+
+    if compose.networks:
+        used_networks = _get_used_networks(compose.services, compose.default_net)
+        config_networks = {}
+        for net_name, net_desc in compose.networks.items():
+            if net_name in used_networks:
+                config_networks[net_name] = net_desc or {}
+                if "name" not in config_networks[net_name]:
+                    config_networks[net_name]["name"] = _resolve_network_name(
+                        compose, net_name, config_networks[net_name]
+                    )
+        if config_networks:
+            result["networks"] = config_networks
+
+    return result
+
+
 @cmd_run(podman_compose, "config", "displays the compose file")
 async def compose_config(compose: PodmanCompose, args: argparse.Namespace) -> None:
     if args.services:
@@ -4811,7 +4892,7 @@ async def compose_config(compose: PodmanCompose, args: argparse.Namespace) -> No
                 print(service)
         return
     if not args.quiet:
-        print(compose.merged_yaml)
+        print(yaml.safe_dump(build_compose_config(compose), sort_keys=False))
 
 
 @cmd_run(podman_compose, "port", "Prints the public port for a port binding.")

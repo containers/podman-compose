@@ -1,0 +1,8 @@
+services:
+  test:
+    image: nopush/podman-compose-test
+    networks:
+      - extnet
+networks:
+  extnet:
+    external: true

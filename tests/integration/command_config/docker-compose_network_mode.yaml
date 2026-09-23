@@ -1,0 +1,4 @@
+services:
+  test:
+    image: nopush/podman-compose-test
+    network_mode: host

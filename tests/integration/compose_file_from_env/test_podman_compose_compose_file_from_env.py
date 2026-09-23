@@ -25,8 +25,13 @@ class TestComposeFileFromEnv(unittest.TestCase, RunSubprocessMixin):
             out.decode("utf-8"),
             'services:\n'
             '  dotenv-service:\n'
-            '    command: echo "from-dotenv"\n'
             '    image: nopush/podman-compose-test\n'
+            '    command: echo "from-dotenv"\n'
+            '    networks:\n'
+            '      default: null\n'
+            'networks:\n'
+            '  default:\n'
+            '    name: compose_file_from_env_default\n'
             '\n',
         )
 
@@ -47,8 +52,13 @@ class TestComposeFileFromEnv(unittest.TestCase, RunSubprocessMixin):
             out.decode("utf-8"),
             'services:\n'
             '  explicit-env-service:\n'
-            '    command: echo "from-explicit-env"\n'
             '    image: nopush/podman-compose-test\n'
+            '    command: echo "from-explicit-env"\n'
+            '    networks:\n'
+            '      default: null\n'
+            'networks:\n'
+            '  default:\n'
+            '    name: compose_file_from_env_default\n'
             '\n',
         )
 
@@ -70,8 +80,13 @@ class TestComposeFileFromEnv(unittest.TestCase, RunSubprocessMixin):
             out.decode("utf-8"),
             'services:\n'
             '  explicit-service:\n'
-            '    command: echo "explicit"\n'
             '    image: nopush/podman-compose-test\n'
+            '    command: echo "explicit"\n'
+            '    networks:\n'
+            '      default: null\n'
+            'networks:\n'
+            '  default:\n'
+            '    name: compose_file_from_env_default\n'
             '\n',
         )
 
@@ -84,12 +99,18 @@ class TestComposeFileFromEnv(unittest.TestCase, RunSubprocessMixin):
             env={"COMPOSE_FILE": str(base_path / "docker-compose-var.yml")},
             cwd=base_path,
         )
+
         self.assertEqual(
             out.decode("utf-8"),
             'services:\n'
             '  var-service:\n'
-            '    command: echo "var"\n'
             '    image: nopush/podman-compose-test\n'
+            '    command: echo "var"\n'
+            '    networks:\n'
+            '      default: null\n'
+            'networks:\n'
+            '  default:\n'
+            '    name: compose_file_from_env_default\n'
             '\n',
         )
 
