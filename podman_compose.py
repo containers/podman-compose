@@ -667,6 +667,14 @@ def mount_desc_to_mount_args(mount_desc: dict[str, Any]) -> str:
         selinux = bind_opts.get("selinux")
         if selinux is not None:
             opts.append(selinux)
+    else:
+        # The short syntax parser stores a z/Z relabel flag as a bind propagation,
+        # but relabeling applies to every mount type, so forward it here as
+        # mount_desc_to_volume_args() already does for the -v syntax.
+        bind_opts = mount_desc.get("bind", {})
+        for opt in filteri(bind_opts.get("propagation", "").split(",")):
+            if opt in ("z", "Z"):
+                opts.append(opt)
 
     # According to compose specifications https://docs.docker.com/reference/compose-file/services/#volumes
     # subpath can be used in image and volume mount type
