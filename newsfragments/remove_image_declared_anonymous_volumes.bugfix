@@ -1,0 +1,1 @@
+Remove anonymous volumes declared by Dockerfile ``VOLUME`` instructions when running ``down --volumes``, as is already done for Compose-declared volumes (#1521).
