@@ -1,0 +1,5 @@
+version: "3"
+services:
+    app:
+        environment: !override
+            VAR_A: "overridden_a"

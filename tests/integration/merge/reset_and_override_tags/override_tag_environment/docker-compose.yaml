@@ -1,0 +1,8 @@
+version: "3"
+services:
+    app:
+        image: busybox
+        command: ["/bin/busybox", "echo", "Hello"]
+        environment:
+            VAR_A: "initial_a"
+            VAR_B: "initial_b"

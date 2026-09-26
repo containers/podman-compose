@@ -259,6 +259,72 @@ def fix_mount_dict(
     return mount_dict
 
 
+###################
+# Override and reset tags
+###################
+
+
+class OverrideTag(yaml.YAMLObject):
+    yaml_dumper = yaml.SafeDumper
+    yaml_loader = yaml.SafeLoader
+    yaml_tag = '!override'
+
+    def __init__(self, value: Any) -> None:
+        self.value: dict[Any, Any] | list[Any]  # type: ignore[no-redef]
+        if isinstance(value, (dict, list)):
+            self.value = value
+        elif len(value) > 0 and isinstance(value[0], tuple):
+            self.value = {}
+            # item is a tuple representing service's lower level key and value
+            for item in value:
+                # value can actually be a list, then all the elements from the list have to be
+                # collected
+                if isinstance(item[1].value, list):
+                    self.value[item[0].value] = [i.value for i in item[1].value]  # type: ignore[index]
+                else:
+                    self.value[item[0].value] = item[1].value  # type: ignore[index]
+        else:
+            self.value = [item.value for item in value]  # type: ignore[union-attr]
+
+    @classmethod
+    def from_yaml(cls, loader: Any, node: Any) -> OverrideTag:
+        if isinstance(node, yaml.MappingNode):
+            val = loader.construct_mapping(node, deep=True)
+        elif isinstance(node, yaml.SequenceNode):
+            val = loader.construct_sequence(node, deep=True)
+        elif isinstance(node, yaml.ScalarNode):
+            val = loader.construct_scalar(node)
+        else:
+            val = node.value
+        return OverrideTag(val)
+
+    @classmethod
+    def to_yaml(cls, dumper: Any, data: OverrideTag) -> Any:
+        if isinstance(data.value, dict):
+            return dumper.represent_mapping(cls.yaml_tag, data.value)
+        if isinstance(data.value, list):
+            return dumper.represent_sequence(cls.yaml_tag, data.value)
+        return dumper.represent_scalar(cls.yaml_tag, data.value or '')
+
+
+class ResetTag(yaml.YAMLObject):
+    yaml_dumper = yaml.SafeDumper
+    yaml_loader = yaml.SafeLoader
+    yaml_tag = '!reset'
+
+    @classmethod
+    def to_json(cls) -> str:
+        return cls.yaml_tag
+
+    @classmethod
+    def from_yaml(cls, loader: Any, node: Any) -> ResetTag:
+        return ResetTag()
+
+    @classmethod
+    def to_yaml(cls, dumper: Any, data: ResetTag) -> str:
+        return dumper.represent_scalar(cls.yaml_tag, '')
+
+
 # docker and docker-compose support subset of bash variable substitution
 # https://docs.docker.com/compose/compose-file/#variable-substitution
 # https://docs.docker.com/compose/env-file/
@@ -468,28 +534,40 @@ def rec_subs(value: dict, subs_dict: dict[str, Any]) -> dict: ...
 def rec_subs(value: str, subs_dict: dict[str, Any]) -> str: ...
 @overload
 def rec_subs(value: Iterable, subs_dict: dict[str, Any]) -> Iterable: ...
+@overload
+def rec_subs(value: OverrideTag, subs_dict: dict[str, Any]) -> OverrideTag: ...
 
 
-def rec_subs(value: dict | str | Iterable, subs_dict: dict[str, Any]) -> dict | str | Iterable:
+def rec_subs(
+    value: dict | str | Iterable | OverrideTag, subs_dict: dict[str, Any]
+) -> dict | str | Iterable | OverrideTag:
     """
     do bash-like substitution in value and if list of dictionary do that recursively
     """
     if isinstance(value, dict):
-        if 'environment' in value and isinstance(value['environment'], dict):
+        env = value.get('environment')
+        env_dict = env.value if isinstance(env, OverrideTag) else env
+        if isinstance(env_dict, dict):
             # Load service's environment variables
             subs_dict = subs_dict.copy()
-            svc_envs = {k: v for k, v in value['environment'].items() if k not in subs_dict}
+            svc_envs = {k: v for k, v in env_dict.items() if k not in subs_dict}
             # we need to add `svc_envs` to the `subs_dict` so that it can evaluate the
             # service environment that references another service environment.
             svc_envs = rec_subs(svc_envs, subs_dict)
             subs_dict.update(svc_envs)
 
             # Resolve short-form environment variables (value is None) to their actual values
-            for env_k, env_v in value['environment'].items():
+            for env_k, env_v in env_dict.items():
                 if env_v is None and env_k in subs_dict:
-                    value['environment'][env_k] = subs_dict[env_k]
+                    env_dict[env_k] = subs_dict[env_k]
 
         value = {rec_subs(k, subs_dict): rec_subs(v, subs_dict) for k, v in value.items()}
+    elif isinstance(value, OverrideTag):
+        if isinstance(value.value, dict):
+            value.value = rec_subs(value.value, subs_dict)
+        elif is_list(value.value):
+            value.value = [rec_subs(i, subs_dict) for i in value.value]
+        return value
     elif isinstance(value, str):
         value = var_interpolate(value, subs_dict)
     elif hasattr(value, "__iter__"):
@@ -1756,58 +1834,6 @@ def flat_deps(services: dict[str, Any], with_extends: bool = False) -> None:
     calc_dependents(services)
 
 
-###################
-# Override and reset tags
-###################
-
-
-class OverrideTag(yaml.YAMLObject):
-    yaml_dumper = yaml.SafeDumper
-    yaml_loader = yaml.SafeLoader
-    yaml_tag = '!override'
-
-    def __init__(self, value: Any) -> None:
-        self.value: dict[Any, Any] | list[Any]  # type: ignore[no-redef]
-        if len(value) > 0 and isinstance(value[0], tuple):
-            self.value = {}
-            # item is a tuple representing service's lower level key and value
-            for item in value:
-                # value can actually be a list, then all the elements from the list have to be
-                # collected
-                if isinstance(item[1].value, list):
-                    self.value[item[0].value] = [i.value for i in item[1].value]  # type: ignore[index]
-                else:
-                    self.value[item[0].value] = item[1].value  # type: ignore[index]
-        else:
-            self.value = [item.value for item in value]  # type: ignore[union-attr]
-
-    @classmethod
-    def from_yaml(cls, loader: Any, node: Any) -> OverrideTag:
-        return OverrideTag(node.value)
-
-    @classmethod
-    def to_yaml(cls, dumper: Any, data: OverrideTag) -> str:
-        return dumper.represent_scalar(cls.yaml_tag, data.value)
-
-
-class ResetTag(yaml.YAMLObject):
-    yaml_dumper = yaml.SafeDumper
-    yaml_loader = yaml.SafeLoader
-    yaml_tag = '!reset'
-
-    @classmethod
-    def to_json(cls) -> str:
-        return cls.yaml_tag
-
-    @classmethod
-    def from_yaml(cls, loader: Any, node: Any) -> ResetTag:
-        return ResetTag()
-
-    @classmethod
-    def to_yaml(cls, dumper: Any, data: ResetTag) -> str:
-        return dumper.represent_scalar(cls.yaml_tag, '')
-
-
 async def wait_with_timeout(coro: Any, timeout: int | float) -> Any:
     """
     Asynchronously waits for the given coroutine to complete with a timeout.
@@ -2131,7 +2157,12 @@ def normalize_service(service: dict[str, Any], sub_dir: str = "") -> dict[str, A
     for key in ("environment", "labels"):
         if key not in service:
             continue
-        service[key] = norm_as_dict(service[key])
+        if isinstance(service[key], ResetTag):
+            continue
+        if isinstance(service[key], OverrideTag):
+            service[key].value = norm_as_dict(service[key].value)
+        else:
+            service[key] = norm_as_dict(service[key])
     if "extends" in service:
         extends = service["extends"]
         if isinstance(extends, str):
@@ -2243,6 +2274,14 @@ def rec_merge_one(target: dict[str, Any], source: dict[str, Any]) -> dict[str, A
     for key, value in source.items():
         if key in target:
             continue
+        if isinstance(value, ResetTag):
+            log.info("Unneeded !reset found for [%s]", key)
+            continue
+        if isinstance(value, OverrideTag):
+            log.info("Unneeded !override found for [%s] with value '%s'", key, value)
+            target[key] = clone(value.value)
+            done.add(key)
+            continue
         target[key] = clone(value)
         done.add(key)
     for key, value in target.items():
@@ -2267,7 +2306,7 @@ def rec_merge_one(target: dict[str, Any], source: dict[str, Any]) -> dict[str, A
 
         if isinstance(value, OverrideTag) or isinstance(value2, OverrideTag):
             target[key] = (
-                clone(value.value) if isinstance(value, OverrideTag) else clone(value2.value)
+                clone(value2.value) if isinstance(value2, OverrideTag) else clone(value.value)
             )
             continue
 
