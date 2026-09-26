@@ -1,0 +1,1 @@
+Reject empty `volumes` sections with a clear validation error instead of crashing with a `TypeError` during `podman-compose up`.
