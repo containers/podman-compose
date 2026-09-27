@@ -58,6 +58,26 @@ class TestConfigCommand(unittest.TestCase, RunSubprocessMixin):
             """)
         self.assertEqual(out.decode("utf-8"), expected)
 
+    def test_config_keeps_non_ascii_characters(self) -> None:
+        out, _ = self.run_subprocess_assert_returncode(
+            [
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path("_non_ascii"),
+                "config",
+            ],
+            0,
+        )
+        expected = textwrap.dedent("""\
+            services:
+              sample:
+                image: nopush/podman-compose-test
+                volumes:
+                - /home/développement:/home/dev
+
+            """)
+        self.assertEqual(out.decode("utf-8"), expected)
+
     def test_config_omits_version_and_warns(self) -> None:
         config_cmd = [
             "coverage",
