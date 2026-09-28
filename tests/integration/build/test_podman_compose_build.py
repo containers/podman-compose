@@ -3,8 +3,6 @@
 import os
 import unittest
 
-import requests
-
 from tests.integration.test_utils import RunSubprocessMixin
 from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
@@ -35,27 +33,49 @@ class TestComposeBuild(unittest.TestCase, RunSubprocessMixin):
                 "-d",
             ])
 
-            request = requests.get('http://localhost:8080/index.txt')
-            self.assertEqual(request.status_code, 200)
+            output, _ = self.run_subprocess_assert_returncode([
+                "podman",
+                "run",
+                "--rm",
+                "my-busybox-httpd",
+                "cat",
+                "/var/www/html/index.txt",
+            ])
+            self.assertEqual(output.decode().strip(), "web1-test-content")
 
-            alt_request_success = False
-            try:
-                # FIXME: suspicious behaviour, too often ends up in error
-                alt_request = requests.get('http://localhost:8000/index.txt')
-                self.assertEqual(alt_request.status_code, 200)
-                self.assertIn("ALT buildno=2 port=8000 ", alt_request.text)
-                alt_request_success = True
-            except requests.exceptions.ConnectionError:
-                pass
+            # Verify web2 (Dockerfile-alt) image content and build args
+            output, _ = self.run_subprocess_assert_returncode([
+                "podman",
+                "run",
+                "--rm",
+                "my-busybox-httpd2",
+                "cat",
+                "/var/www/html/index.txt",
+            ])
+            self.assertEqual(output.decode().strip(), "ALT buildno=2 port=8000")
 
-            if alt_request_success:
-                output, _ = self.run_subprocess_assert_returncode([
-                    "podman",
-                    "inspect",
-                    "my-busybox-httpd2",
-                ])
-                self.assertIn("httpd_port=8000", str(output))
-                self.assertIn("buildno=2", str(output))
+            # Verify build args were baked into the image as env vars
+            output, _ = self.run_subprocess_assert_returncode([
+                "podman",
+                "run",
+                "--rm",
+                "my-busybox-httpd2",
+                "sh",
+                "-c",
+                "echo $httpd_port",
+            ])
+            self.assertEqual(output.decode().strip(), "8000")
+
+            output, _ = self.run_subprocess_assert_returncode([
+                "podman",
+                "run",
+                "--rm",
+                "my-busybox-httpd2",
+                "sh",
+                "-c",
+                "echo $buildno",
+            ])
+            self.assertEqual(output.decode().strip(), "2")
         finally:
             self.run_subprocess_assert_returncode([
                 podman_compose_path(),
