@@ -107,9 +107,9 @@ class TestNormalizeFinalBuild(unittest.TestCase):
     @parameterized.expand(cases_simple_normalization)
     def test_normalize_returns_absolute_path_in_context(self, input, expected):
         project_dir = cwd
-        compose_test = {"services": {"test-service": input}}
-        compose_expected = {"services": {"test-service": expected}}
-        self.assertEqual(normalize_final(compose_test, project_dir), compose_expected)
+        services_test = {"test-service": input}
+        services_expected = {"test-service": expected}
+        self.assertEqual(normalize_final(services_test, project_dir), services_expected)
 
     @parameterized.expand(cases_simple_normalization)
     def test_parse_compose_file_when_single_compose(self, input, expected):
