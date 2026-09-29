@@ -3207,6 +3207,27 @@ class PodmanCompose:
                 cmd_parser(subparser)
         self.global_args = parser.parse_args(argv)
 
+        if self.global_args.command in ("up", "start"):
+            wait_timeout = self.global_args.wait_timeout
+            if wait_timeout is not None and wait_timeout < 0:
+                raise PodmanComposeError("--wait-timeout must be a non-negative integer")
+
+        if self.global_args.command == "up" and self.global_args.wait:
+            incompatible = []
+            if self.global_args.abort_on_container_exit:
+                incompatible.append("--abort-on-container-exit")
+            if self.global_args.abort_on_container_failure:
+                incompatible.append("--abort-on-container-failure")
+            if self.global_args.exit_code_from:
+                incompatible.append("--exit-code-from")
+            if incompatible:
+                if len(incompatible) > 1:
+                    incompatible_options = ", ".join(incompatible[:-1]) + " or " + incompatible[-1]
+                else:
+                    incompatible_options = incompatible[0]
+                raise PodmanComposeError(f"--wait cannot be combined with {incompatible_options}")
+            self.global_args.detach = True
+
         compose_env_files = os.environ.get("COMPOSE_ENV_FILES")
         if not self.global_args.env_file and compose_env_files:
             self.global_args.env_file = compose_env_files.split(",")

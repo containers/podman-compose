@@ -1,0 +1,1 @@
+Make `up --wait` imply detached mode and reject incompatible attached-exit options. Reject negative wait timeouts for `up` and `start`.
