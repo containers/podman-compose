@@ -64,7 +64,6 @@ class TestDependsOn(unittest.TestCase):
                     "service_a": {
                         "condition": "service_healthy",
                         "required": False,
-                        "restart": False,
                     }
                 }
             },
@@ -72,7 +71,7 @@ class TestDependsOn(unittest.TestCase):
         flat_deps(services)
         self.assertEqual(
             services["service_b"]["_deps"],
-            {ServiceDependency("service_a", "service_healthy", required=False, restart=False)},
+            {ServiceDependency("service_a", "service_healthy", required=False)},
         )
 
 

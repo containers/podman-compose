@@ -1749,7 +1749,6 @@ class ServiceDependency:
     name: str
     condition: str | ServiceDependencyCondition = "service_started"
     required: bool = True
-    restart: bool = True
 
     def __post_init__(self) -> None:
         if isinstance(self.condition, str):
@@ -1792,7 +1791,6 @@ def calc_dependents(services: dict[str, Any]) -> None:
                         name,
                         cast(ServiceDependencyCondition, dep.condition).value,
                         dep.required,
-                        dep.restart,
                     )
                 )
 
@@ -1817,7 +1815,7 @@ def flat_deps(services: dict[str, Any], with_extends: bool = False) -> None:
         # the normalization adds a "service_started" condition by default
         deps_ls = srv.get("depends_on", {})
         deps_ls = [
-            ServiceDependency(k, v["condition"], v.get("required", True), v.get("restart", True))
+            ServiceDependency(k, v["condition"], v.get("required", True))
             for k, v in deps_ls.items()
         ]
         deps.update(deps_ls)
@@ -4328,7 +4326,7 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
                     dependents = {
                         dep.name
                         for dep in service.get(DependField.DEPENDENTS, [])
-                        if dep.name in running_services and dep.restart
+                        if dep.name in running_services
                     }
                     if dependents:
                         log.debug(
