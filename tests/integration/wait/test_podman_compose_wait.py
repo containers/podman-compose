@@ -23,6 +23,10 @@ def compose_yaml_path() -> str:
     return os.path.join(test_path(), "wait", "docker-compose.yml")
 
 
+def compose_yaml_fail_path() -> str:
+    return os.path.join(test_path(), "wait", "docker-compose-fail.yml")
+
+
 @unittest.skipIf(
     get_podman_version() < version.parse("4.6.0"), "Wait feature not supported below 4.6.0."
 )
@@ -241,3 +245,29 @@ class TestComposeWait(unittest.TestCase, RunSubprocessMixin):
                 self.assertEqual(health, "healthy")
         finally:
             self._compose_down()
+
+    def test_wait_with_failing_service(self) -> None:
+        # a service that fails (exits with a non-zero code) must cause `up --wait` to
+        # return a non-zero exit code, matching docker-compose behaviour
+        try:
+            _, _, returncode = self.run_subprocess(
+                [
+                    podman_compose_path(),
+                    "-f",
+                    compose_yaml_fail_path(),
+                    "up",
+                    "-d",
+                    "--wait",
+                ],
+                timeout=EXECUTION_TIMEOUT,
+            )
+            self.assertNotEqual(returncode, 0)
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_fail_path(),
+                "down",
+                "-t",
+                "0",
+            ])
