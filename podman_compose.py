@@ -4247,6 +4247,7 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
     assert compose.project_name is not None, "Project name must be set before running up command"
     existing_containers = await compose.podman.existing_containers(compose.project_name)
     recreate_services: set[str] = set()
+    existing_services = {c.service_name for c in existing_containers.values()}
     running_services = {c.service_name for c in existing_containers.values() if not c.exited}
 
     await create_secrets_from_environment(compose)
@@ -4312,12 +4313,12 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
                 if force_this or image_changed or c.config_hash != compose.config_hash(service):
                     recreate_services.add(c.service_name)
 
-                    # Running dependents of service are removed by down command
-                    # so we need to recreate and start them too
+                    # Dependents of service are removed by down command
+                    # so we need to recreate them and start the running ones too
                     dependents = {
                         dep.name
                         for dep in service.get(DependField.DEPENDENTS, [])
-                        if dep.name in running_services
+                        if dep.name in existing_services
                     }
                     if dependents:
                         log.debug(
@@ -4326,7 +4327,7 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
                             dependents,
                         )
                         recreate_services.update(dependents)
-                        excluded = excluded - dependents
+                        excluded = excluded - (dependents & running_services)
 
         log.debug("** excluding update: %s", excluded)
         log.debug("Prepare to recreate services: %s", recreate_services)
@@ -4347,8 +4348,8 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
 
     create_error_codes: list[int | None] = []
     for cnt in compose.containers:
-        if cnt["_service"] in excluded or (
-            cnt["name"] in existing_containers and cnt["_service"] not in recreate_services
+        if cnt["_service"] not in recreate_services and (
+            cnt["_service"] in excluded or cnt["name"] in existing_containers
         ):
             log.debug("** skipping create: %s", cnt["name"])
             continue
