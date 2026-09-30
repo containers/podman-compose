@@ -2192,8 +2192,8 @@ def normalize_service(service: dict[str, Any], sub_dir: str = "") -> dict[str, A
                 if is_relative_ref(v):
                     v = os.path.join(sub_dir, v)
             elif isinstance(v, dict):
-                source = v["source"]
-                if is_relative_ref(source):
+                source = v.get("source")
+                if isinstance(source, str) and is_relative_ref(source):
                     v["source"] = os.path.join(sub_dir, source)
 
             new_volumes.append(v)

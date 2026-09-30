@@ -9,6 +9,7 @@ import unittest
 import yaml
 
 from podman_compose import PodmanCompose
+from podman_compose import normalize_service
 from podman_compose import parse_short_mount
 
 
@@ -70,3 +71,25 @@ class AnonymousVolumeTests(unittest.TestCase):
                 "image": "test-image",
                 "volumes": [{"type": "volume", "source": "undeclared", "target": "/data"}],
             })
+
+    def test_normalize_service_leaves_a_missing_source_alone(self) -> None:
+        service = {
+            "image": "test-image",
+            "volumes": [{"type": "volume", "target": "/data"}],
+        }
+
+        self.assertEqual(
+            normalize_service(service, sub_dir="./sub")["volumes"],
+            [{"type": "volume", "target": "/data"}],
+        )
+
+    def test_normalize_service_still_rewrites_a_relative_source(self) -> None:
+        service = {
+            "image": "test-image",
+            "volumes": [{"type": "bind", "source": "./data", "target": "/data"}],
+        }
+
+        self.assertEqual(
+            normalize_service(service, sub_dir="./sub")["volumes"],
+            [{"type": "bind", "source": "./sub/./data", "target": "/data"}],
+        )
