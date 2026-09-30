@@ -3086,9 +3086,10 @@ class PodmanCompose:
                 volumes = cnt.get("volumes", [])
                 for volume in volumes:
                     mnt_dict = get_mnt_dict(self, cnt, volume)
+                    # An anonymous volume in long syntax carries no source at all.
                     if (
                         mnt_dict.get("type") == "volume"
-                        and mnt_dict["source"]
+                        and mnt_dict.get("source")
                         and mnt_dict["source"] not in self.vols  # type: ignore[operator]
                     ):
                         vol_name = mnt_dict["source"]
