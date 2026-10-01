@@ -1,0 +1,4 @@
+services:
+  nestedinheritleaf:
+    image: localhost/${NESTED_INHERIT_VAR:-unset}
+    command: ["true"]

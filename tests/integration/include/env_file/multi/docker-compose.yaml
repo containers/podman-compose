@@ -1,0 +1,7 @@
+name: include-envfile-multi
+
+include:
+  - path: child.yaml
+    env_file:
+      - base.env
+      - override.env
