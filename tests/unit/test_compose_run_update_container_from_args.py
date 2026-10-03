@@ -18,6 +18,16 @@ class TestComposeRunUpdateContainerFromArgs(unittest.TestCase):
         expected_cnt = {"name": "default_name", "tty": True}
         self.assertEqual(cnt, expected_cnt)
 
+    def test_empty_entrypoint_overrides_container_entrypoint(self) -> None:
+        cnt = {"entrypoint": ["some-binary"]}
+        compose = get_minimal_compose()
+        args = get_minimal_args()
+        args.entrypoint = ""
+
+        compose_run_update_container_from_args(compose, cnt, args)
+
+        self.assertEqual(cnt["entrypoint"], "")
+
     def test_additional_env_value_equals(self) -> None:
         cnt = get_minimal_container()
         compose = get_minimal_compose()
