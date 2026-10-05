@@ -6,7 +6,9 @@ from typing import Any
 
 from parameterized import parameterized
 
+from podman_compose import flat_deps
 from podman_compose import rec_merge
+from podman_compose import resolve_extends
 
 
 class TestRecMergeDependsOn(unittest.TestCase):
@@ -89,4 +91,27 @@ class TestRecMergeDependsOn(unittest.TestCase):
                 },
                 "environment": {"FOO": "bar"},
             },
+        )
+
+    def test_extends_services_with_dependents(self) -> None:
+        services: dict[str, dict[str, Any]] = {
+            "base": {"image": "base"},
+            "child": {"extends": {"service": "base"}, "command": ["run"]},
+            "base_consumer": {
+                "depends_on": {"base": {"condition": "service_started"}},
+            },
+            "child_consumer": {
+                "depends_on": {"child": {"condition": "service_started"}},
+            },
+        }
+
+        flat_deps(services, with_extends=True)
+        service_names = sorted((len(service["_deps"]), name) for name, service in services.items())
+        resolve_extends(services, [name for _, name in service_names], {})
+
+        self.assertEqual(services["child"]["image"], "base")
+        self.assertEqual(services["child"]["command"], ["run"])
+        self.assertEqual(
+            {dependency.name for dependency in services["child"]["_dependents"]},
+            {"child_consumer"},
         )
