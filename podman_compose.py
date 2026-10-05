@@ -1130,6 +1130,15 @@ def container_to_cpu_res_args(cnt: dict[str, Any], podman_args: list[str]) -> No
             "--memory-reservation",
             str(mem_res).lower(),
         ))
+    #  memswap_limit is an existing label for the Podman service.
+    #  A value of 0 means the setting is ignored, -1 means unlimited swap.
+    # https://github.com/compose-spec/compose-spec/blob/master/spec.md#memswap_limit
+    memswap = cnt.get("memswap_limit")
+    if memswap:
+        podman_args.extend((
+            "--memory-swap",
+            str(memswap).lower(),
+        ))
 
     # Handle pids limit from both container level and deploy section
     pids_limit = cnt.get("pids_limit")

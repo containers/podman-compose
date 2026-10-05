@@ -1,0 +1,1 @@
+Pass ``memswap_limit`` as ``--memory-swap`` to ``podman create``/``podman run``, with a value of 0 ignored and a value of -1 enabling unlimited swap.
