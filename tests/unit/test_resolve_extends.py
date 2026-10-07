@@ -144,6 +144,40 @@ services:
             with self.assertRaises(PodmanComposeError):
                 _resolve(services)
 
+    def test_empty_service_in_main_file_raises(self) -> None:
+        """An empty service in the main file is rejected, like docker-compose."""
+        services: dict[str, Any] = {"webapp_default": None}
+
+        with self.assertRaises(PodmanComposeError) as ctx:
+            _resolve(services)
+
+        self.assertIn("must be a mapping", str(ctx.exception))
+
+    def test_extends_empty_service_in_external_file(self) -> None:
+        general = """
+services:
+  webapp_default:
+
+  webapp_special:
+    image: nopush/podman-compose-test
+"""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            general_path = os.path.join(tmp_dir, "common-services.yml")
+            with open(general_path, "w", encoding="utf-8") as f:
+                f.write(general)
+
+            services: dict[str, Any] = {
+                "web": {
+                    "extends": {"file": general_path, "service": "webapp_default"},
+                    "image": "nopush/podman-compose-test",
+                }
+            }
+
+            _resolve(services)
+
+            self.assertEqual(services["web"]["image"], "nopush/podman-compose-test")
+            self.assertNotIn("extends", services["web"])
+
     def test_nested_relative_file_resolved_against_declaring_file(self) -> None:
         """A nested ``extends.file`` is relative to the file that declares it."""
         a_yml = """

@@ -37,6 +37,7 @@ from typing import Callable
 from typing import ClassVar
 from typing import Iterable
 from typing import Sequence
+from typing import cast
 from typing import overload
 from urllib.parse import quote
 
@@ -2236,8 +2237,10 @@ def normalize(compose: dict[str, Any], sub_dir: str = "") -> dict[str, Any]:
     Compose Spec resolution of paths in ``include:``d files).
     """
     services = compose.get("services", {}) or {}
-    for service in services.values():
-        normalize_service(service, sub_dir)
+    for name, service in services.items():
+        if not isinstance(service, (dict, ResetTag, OverrideTag)):
+            raise PodmanComposeError(f"services.{name} must be a mapping")
+        normalize_service(cast(dict[str, Any], service), sub_dir)
     return compose
 
 
@@ -2438,14 +2441,16 @@ def resolve_extends(
             chain = " -> ".join(f"{s} ({f or 'this file'})" for f, s in [*stack, key])
             raise PodmanComposeError(f"circular extends chain detected: {chain}")
 
-        if from_services.get(from_service_name) is None:
+        if from_service_name not in from_services:
             where = f"file '{filename}'" if filename else "this file"
             raise PodmanComposeError(
                 f"service '{from_service_name}' not found in {where} "
                 f"(referenced by services.{name}.extends)"
             )
 
-        from_service = from_services[from_service_name]
+        # An empty service in YAML parses to ``None``; treat it as an empty
+        # mapping so that extending it is a no-op rather than an error.
+        from_service = from_services[from_service_name] or {}
         # Work on a copy so that neither the referenced service nor the cached
         # external file is mutated while resolving the chain.
         from_service = copy.deepcopy(from_service)
@@ -2557,7 +2562,6 @@ class PodmanCompose:
         self.prefer_volume_over_mount = True
         self.x_podman: dict[PodmanCompose.XPodmanSettingKey, Any] = {}
         self.merged_yaml: Any
-        self.yaml_hash = ""
         self.console_colors = [
             "\x1b[1;32m",
             "\x1b[1;33m",
@@ -3002,11 +3006,6 @@ class PodmanCompose:
         if not getattr(args, "no_normalize", None):
             compose = normalize_final(compose, self.dirname)
         compose.pop("version", None)
-        self.merged_yaml = yaml.safe_dump(compose)
-        merged_json_b = json.dumps(
-            self.original_configuration(compose), separators=(",", ":")
-        ).encode("utf-8")
-        self.yaml_hash = hashlib.sha256(merged_json_b).hexdigest()
         compose["_dirname"] = dirname
         # debug mode
         if len(files) > 1:
@@ -3028,6 +3027,28 @@ class PodmanCompose:
         service_names = sorted([(len(srv["_deps"]), name) for name, srv in services.items()])
         resolve_extends(services, [name for _, name in service_names], self.environ)
         flat_deps(services)
+
+        # ``merged_yaml`` backs ``podman-compose config``.  It is produced after
+        # ``extends`` has been resolved so that the command shows the fully
+        # merged services, matching docker compose.  Internal bookkeeping keys
+        # (``_deps``, ``_dependents``, ``_aliases``, ...) are stripped because
+        # they are not part of the compose model and are not YAML-serializable.
+        compose["services"] = services
+        display_compose = dict(compose)
+        display_compose.pop("_dirname", None)
+        display_compose["services"] = {
+            sname: (
+                {
+                    key: value
+                    for key, value in srv.items()
+                    if not (isinstance(key, str) and key.startswith("_"))
+                }
+                if isinstance(srv, dict)
+                else srv
+            )
+            for sname, srv in services.items()
+        }
+        self.merged_yaml = yaml.safe_dump(display_compose)
 
         # networks: [...]
         nets = compose.get("networks") or {}

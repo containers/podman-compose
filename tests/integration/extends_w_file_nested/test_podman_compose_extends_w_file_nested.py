@@ -2,6 +2,7 @@
 
 import json
 import os
+import textwrap
 import unittest
 from io import BytesIO
 
@@ -47,6 +48,32 @@ class TestComposeExtendsWithFileNested(unittest.TestCase, RunSubprocessMixin):
                 compose_yaml_path(),
                 "down",
             ])
+
+    def test_config_shows_resolved_extends(self) -> None:
+        out, _ = self.run_subprocess_assert_returncode([
+            podman_compose_path(),
+            "-f",
+            compose_yaml_path(),
+            "config",
+        ])
+        expected = textwrap.dedent("""\
+            services:
+              important_web:
+                command:
+                - /bin/sh
+                image: nopush/podman-compose-test
+                volumes:
+                - /data
+                - /logs
+              web:
+                command:
+                - /bin/sh
+                image: nopush/podman-compose-test
+                volumes:
+                - /data
+
+            """)
+        self.assertEqual(out.decode("utf-8"), expected)
 
     def _inspect(self, container_name: str) -> dict:
         output, _ = self.run_subprocess_assert_returncode([
