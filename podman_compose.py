@@ -2168,11 +2168,9 @@ def normalize_service(service: dict[str, Any], sub_dir: str = "") -> dict[str, A
         if isinstance(extends, str):
             extends = {"service": extends}
             service["extends"] = extends
-    if "depends_on" in service:
+    if "depends_on" in service and not isinstance(service["depends_on"], ResetTag):
         # deps should become a dictionary of dependencies
         deps = service["depends_on"]
-        if isinstance(deps, ResetTag):
-            return service
         if isinstance(deps, str):
             deps = {deps: {}}
         elif is_list(deps):
@@ -2182,7 +2180,12 @@ def normalize_service(service: dict[str, Any], sub_dir: str = "") -> dict[str, A
 
         # the dependency service_started is set by default
         # unless requested otherwise.
-        for k, v in deps.items() if not isinstance(deps, OverrideTag) else deps.value.items():  # type: ignore[union-attr]
+        entries = deps.value if isinstance(deps, OverrideTag) else deps
+        for v in entries.values() if isinstance(entries, dict) else []:
+            if isinstance(v, ResetTag):
+                continue
+            if isinstance(v, OverrideTag):
+                v = v.value
             v.setdefault('condition', 'service_started')
         service["depends_on"] = deps
     if "volumes" in service and sub_dir:
