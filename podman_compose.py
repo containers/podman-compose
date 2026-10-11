@@ -3590,12 +3590,18 @@ async def compose_pull(compose: PodmanCompose, args: argparse.Namespace) -> int 
     if args.services:
         services = set(args.services)
         img_containers = [cnt for cnt in img_containers if cnt["_service"] in services]
-    images = {cnt["image"] for cnt in img_containers}
     if not args.force_local:
-        local_images = {cnt["image"] for cnt in img_containers if is_local(cnt)}
-        images -= local_images
+        img_containers = [cnt for cnt in img_containers if not is_local(cnt)]
+    pull_targets = {(cnt["image"], cnt.get("platform")) for cnt in img_containers}
     status = 0
-    statuses = await asyncio.gather(*[compose.podman.run([], "pull", [image]) for image in images])
+    statuses = await asyncio.gather(*[
+        compose.podman.run(
+            [],
+            "pull",
+            ["--platform", platform, image] if platform else [image],
+        )
+        for image, platform in pull_targets
+    ])
     for s in statuses:
         if s is not None and s != 0:
             status = s
@@ -4077,6 +4083,8 @@ class PullImageSettings:
 
     ignore_pull_error: bool = False
 
+    platform: str | None = None
+
     def __post_init__(self) -> None:
         if self.policy not in self.POLICY_PRIORITY:
             log.debug("Pull policy %s is not valid, using 'missing' instead", self.policy)
@@ -4095,6 +4103,8 @@ def settings_to_pull_args(settings: PullImageSettings) -> list[str]:
     args = ["--policy", settings.policy]
     if settings.quiet:
         args.append("--quiet")
+    if settings.platform:
+        args.extend(["--platform", settings.platform])
 
     args.append(settings.image)
     return args
@@ -4115,17 +4125,21 @@ async def pull_images(
     services: list[dict[str, Any]],
 ) -> int | None:
     pull_tasks = []
-    settings: dict[str, PullImageSettings] = {}
+    # The same image may be required for several platforms, so deduplicate on the
+    # (image, platform) pair rather than the image name alone.
+    settings: dict[tuple[str, str | None], PullImageSettings] = {}
     for pull_service in services:
         if not is_local(pull_service):
             image = str(pull_service.get("image", ""))
+            platform = pull_service.get("platform")
             policy = getattr(args, "pull", None) or pull_service.get("pull_policy", "missing")
 
-            if image in settings:
-                settings[image].update_policy(policy)
+            key = (image, platform)
+            if key in settings:
+                settings[key].update_policy(policy)
             else:
-                settings[image] = PullImageSettings(
-                    image, policy, getattr(args, "quiet_pull", False)
+                settings[key] = PullImageSettings(
+                    image, policy, getattr(args, "quiet_pull", False), platform=platform
                 )
 
             if "build" in pull_service:
@@ -4134,7 +4148,7 @@ async def pull_images(
                 # we should try to pull the image first,
                 # and then build it if it does not exist.
                 # we should not stop here if pull fails.
-                settings[image].ignore_pull_error = True
+                settings[key].ignore_pull_error = True
 
     for s in settings.values():
         pull_tasks.append(pull_image(podman, s))

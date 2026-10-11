@@ -1,0 +1,4 @@
+services:
+  platform_service:
+    image: docker.io/library/alpine:latest
+    platform: linux/amd64
