@@ -3025,13 +3025,15 @@ class PodmanCompose:
         given_containers = []
         container_names_by_service: dict[str, list[str]] = {}
         self.services = services
+        # `--scale SERVICE=NUM` args from CLI command, the flag can be repeated
+        cli_scale: dict[str, str] = {}
+        for scale_arg in getattr(args, "scale", None) or []:
+            scale_service, _, scale_num = scale_arg.partition("=")
+            cli_scale[scale_service] = scale_num
         for service_name, service_desc in services.items():
             replicas = 1
-            if "scale" in args and args.scale is not None:
-                # Check `--scale` args from CLI command
-                scale_args = args.scale.split('=')
-                if service_name == scale_args[0]:
-                    replicas = try_int(scale_args[1], fallback=1)
+            if service_name in cli_scale:
+                replicas = try_int(cli_scale[service_name], fallback=1)
             elif "scale" in service_desc:
                 # Check `scale` value from compose yaml file
                 replicas = try_int(service_desc.get("scale"), fallback=1)
@@ -5112,13 +5114,13 @@ def compose_up_parse(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Remove containers for services not defined in the Compose file.",
     )
-    # `--scale` argument needs to store as single value and not append,
-    # as multiple scale values could be confusing.
     parser.add_argument(
         "--scale",
         metavar="SERVICE=NUM",
+        action="append",
         help="Scale SERVICE to NUM instances. "
-        "Overrides the `scale` setting in the Compose file if present.",
+        "Overrides the `scale` setting in the Compose file if present. "
+        "Can be specified multiple times.",
     )
     parser.add_argument(
         "--exit-code-from",
