@@ -1,0 +1,4 @@
+services:
+  container:
+    image: nopush/podman-compose-test
+    command: ["dumb-init", "/bin/busybox", "sh", "-c", "exit 0"]

@@ -1,0 +1,9 @@
+services:
+  exit_code:
+    image: nopush/podman-compose-test
+    command: ["dumb-init", "/bin/busybox", "sh", "-c", "sleep 1; exit 42"]
+  fail_create:
+    image: nopush/podman-compose-test
+    command: ["dumb-init", "/bin/busybox", "sh", "-c", "exit 0"]
+    devices:
+      - "/dev/nonexistent-podman-compose-test:/dev/foo"

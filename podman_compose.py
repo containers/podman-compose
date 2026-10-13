@@ -4404,6 +4404,15 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
         # return first error code from start calls, if any
         return next((code for code in start_error_codes if code is not None and code != 0), 0)
 
+    # In attached mode, a failure to create a container means `up` failed. Return the first
+    # create error instead of entering the attach loop, which would otherwise swallow the
+    # exit code (and could hang waiting on other containers).
+    create_error = next(
+        (code for code in create_error_codes if code is not None and code != 0), None
+    )
+    if create_error is not None:
+        return create_error
+
     log.info("starting containers (attached): ...")
 
     # TODO: handle already existing
