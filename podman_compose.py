@@ -3228,6 +3228,11 @@ class PodmanCompose:
                 raise PodmanComposeError(f"--wait cannot be combined with {incompatible_options}")
             self.global_args.detach = True
 
+        if self.global_args.command == "run":
+            for env_file in self.global_args.env_from_file or []:
+                if not os.path.isfile(env_file):
+                    raise PodmanComposeError(f"Couldn't find env file: {env_file}")
+
         compose_env_files = os.environ.get("COMPOSE_ENV_FILES")
         if not self.global_args.env_file and compose_env_files:
             self.global_args.env_file = compose_env_files.split(",")
@@ -4677,6 +4682,17 @@ def compose_run_update_container_from_args(
     if args.workdir:
         cnt["working_dir"] = args.workdir
     env = dict(cnt.get("environment", {}))
+    if args.env_from_file:
+        # As in docker compose, a variable set by an earlier file is not overridden by a later
+        # one, a bare KEY line without a value is ignored, and values given with -e (applied
+        # below) take precedence over all files. Missing files are rejected in _parse_args().
+        file_env: dict[str, str] = {}
+        for env_file in args.env_from_file:
+            for key, value in dotenv_to_dict(env_file).items():
+                if value is not None:
+                    file_env.setdefault(key, value)
+        env.update(file_env)
+        cnt["environment"] = env
     if args.env:
         additional_env_vars = dict(map(lambda each: each.split("=", maxsplit=1), args.env))
         env.update(additional_env_vars)
@@ -5185,6 +5201,15 @@ def compose_run_parse(parser: argparse.ArgumentParser) -> None:
         metavar="KEY=VAL",
         action="append",
         help="Set an environment variable (can be used multiple times)",
+    )
+    parser.add_argument(
+        "--env-from-file",
+        metavar="FILE",
+        action="append",
+        # Resolve relative paths now: the working directory may later be changed to the
+        # directory where the compose file was found.
+        type=os.path.abspath,
+        help="Set environment variables from a file (can be used multiple times)",
     )
     parser.add_argument(
         "-l",
