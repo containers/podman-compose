@@ -2260,6 +2260,25 @@ def normalize_final(compose: dict[str, Any], project_dir: str) -> dict[str, Any]
     return compose
 
 
+def check_misplaced_top_level_sections(services: dict[str, Any]) -> None:
+    # A top-level section that is indented under `services` by mistake is parsed as a service.
+    # A service may still be named like a section, so only report one that has none of the
+    # keys that give a service something to run. `image` and `x-podman.rootfs` only count as
+    # strings, because an entry of a section is a mapping or null.
+    for name in ("networks", "volumes", "secrets", "configs"):
+        service = services.get(name)
+        if service is None:
+            continue
+        if "build" in service or "extends" in service:
+            continue
+        if any(isinstance(service.get(key), str) for key in ("image", "x-podman.rootfs")):
+            continue
+        raise PodmanComposeError(
+            f"service `{name}` has no `image` or `build`. If it is meant to be the top-level "
+            f"`{name}` section, it is indented under `services` by mistake."
+        )
+
+
 def clone(value: Any) -> Any:
     return value.copy() if is_list(value) or isinstance(value, dict) else value
 
@@ -2960,6 +2979,7 @@ class PodmanCompose:
         services: dict = compose.get("services", {})
         if not services:
             log.warning("WARNING: No services defined")
+        check_misplaced_top_level_sections(services)
         # include services with no profile defined or the selected profiles
         services = self._resolve_profiles(services, target, requested_profiles)
 

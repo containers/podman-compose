@@ -1,0 +1,1 @@
+Show a clear error when a top-level `networks`, `volumes`, `secrets` or `configs` section is indented under `services` by mistake, instead of treating it as a service.
