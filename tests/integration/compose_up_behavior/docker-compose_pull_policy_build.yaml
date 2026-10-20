@@ -1,0 +1,7 @@
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.pull_policy_build
+    image: localhost/pull-policy-build-test
+    pull_policy: build

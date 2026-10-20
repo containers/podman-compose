@@ -3767,7 +3767,10 @@ def container_to_build_args(
 async def build_one(compose: PodmanCompose, args: argparse.Namespace, cnt: dict) -> int | None:
     if "build" not in cnt:
         return None
-    if getattr(args, "if_not_exists", None):
+    # A service with `pull_policy: build` must always be (re)built, even when the
+    # image already exists locally.
+    force_build = cnt.get("pull_policy") == "build"
+    if getattr(args, "if_not_exists", None) and not force_build:
         try:
             img_id = await compose.podman.output(
                 [], "inspect", ["-t", "image", "-f", "{{.Id}}", cnt["image"]]
