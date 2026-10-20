@@ -1,0 +1,6 @@
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.pull_policy_missing
+    image: localhost/pull-policy-missing-test
