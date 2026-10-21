@@ -2192,8 +2192,8 @@ def normalize_service(service: dict[str, Any], sub_dir: str = "") -> dict[str, A
                 if is_relative_ref(v):
                     v = os.path.join(sub_dir, v)
             elif isinstance(v, dict):
-                source = v["source"]
-                if is_relative_ref(source):
+                source = v.get("source")
+                if source and is_relative_ref(source):
                     v["source"] = os.path.join(sub_dir, source)
 
             new_volumes.append(v)
@@ -3088,7 +3088,7 @@ class PodmanCompose:
                     mnt_dict = get_mnt_dict(self, cnt, volume)
                     if (
                         mnt_dict.get("type") == "volume"
-                        and mnt_dict["source"]
+                        and mnt_dict.get("source")
                         and mnt_dict["source"] not in self.vols  # type: ignore[operator]
                     ):
                         vol_name = mnt_dict["source"]
