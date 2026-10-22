@@ -1,0 +1,5 @@
+services:
+  test:
+    image: docker.io/library/alpine:latest
+    pull_policy: build
+    command: ["sleep", "infinity"]
