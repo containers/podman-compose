@@ -1581,9 +1581,12 @@ async def container_to_args(
     if cli_pull is not None and is_local(cnt):
         cli_pull = None
     pull_policy = cli_pull or cnt.get("pull_policy")
-    # podman has no `build` pull policy; per the Compose spec `build` means the
-    # image is built rather than pulled, so the flag is dropped here.
-    if pull_policy is not None and pull_policy != "build":
+    # podman has no `build` pull policy. Per the Compose spec `build` means the
+    # image is built rather than pulled, so map it to `never` instead of
+    # dropping the flag (which would let podman default to `--pull=missing`).
+    if pull_policy == "build":
+        pull_policy = "never"
+    if pull_policy is not None:
         podman_args.append(f"--pull={pull_policy}")
     if cnt.get("restart") is not None:
         podman_args.extend(["--restart", cnt["restart"]])

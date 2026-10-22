@@ -767,3 +767,77 @@ class TestComposeUpBehavior(unittest.TestCase, RunSubprocessMixin):
         )
         self.assertIn(b"podman build", error)
         self.assertNotEqual(original_image_id, self.get_image_id(image))
+
+    def test_pull_policy_build_without_build_section_does_not_pull(self) -> None:
+        compose_file = compose_yaml_path("pull_policy_build_no_build_section")
+        image = "docker.io/library/alpine:latest"
+
+        try:
+            # make sure the image is absent so the pull decision actually matters
+            self.run_subprocess_assert_returncode(["podman", "rmi", "--ignore", "-f", image])
+            self.run_subprocess_assert_returncode(["podman", "image", "exists", image], 1)
+
+            # `up` must not pull the image: podman is told --pull=never
+            _, error, _ = self.run_subprocess([
+                podman_compose_path(),
+                "--verbose",
+                "-f",
+                compose_file,
+                "up",
+                "-d",
+            ])
+            self.assertIn(b"--pull=never", error)
+
+            # the image must not have been pulled
+            self.run_subprocess_assert_returncode(["podman", "image", "exists", image], 1)
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_file,
+                "down",
+                "-t",
+                "0",
+            ])
+            self.run_subprocess_assert_returncode(["podman", "rmi", "--ignore", "-f", image])
+
+    def test_cli_pull_always_ignored_for_localhost_image(self) -> None:
+        compose_file = compose_yaml_path("build_localhost_image")
+        image = "localhost/not-exists"
+
+        try:
+            # `--pull=always` must not break a locally built image
+            _, error = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "--verbose",
+                "-f",
+                compose_file,
+                "up",
+                "--pull=always",
+                "-d",
+            ])
+            # the CLI pull policy must not be forwarded to `podman create`
+            create_line = next(line for line in error.splitlines() if b"podman create" in line)
+            self.assertEqual(create_line.count(b"--pull="), 0)
+
+            # the container was created from the local image
+            output, _ = self.run_subprocess_assert_returncode([
+                "podman",
+                "ps",
+                "-a",
+                "--filter",
+                f"ancestor={image}",
+                "--format",
+                "{{.Image}}",
+            ])
+            self.assertIn(image.encode(), output)
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_file,
+                "down",
+                "-t",
+                "0",
+            ])
+            self.run_subprocess_assert_returncode(["podman", "rmi", "--ignore", "-f", image])

@@ -1399,6 +1399,15 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
+    async def test_pull_policy_build_maps_to_never(self) -> None:
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+        cnt["pull_policy"] = "build"
+
+        args = await container_to_args(c, cnt)
+        self.assertIn("--pull=never", args)
+        self.assertNotIn("--pull=build", args)
+
     async def test_cli_pull_overrides_service_pull_policy(self) -> None:
         c = create_compose_mock()
         cnt = get_minimal_container()
@@ -1409,6 +1418,16 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
         self.assertIn("--pull=never", args)
         self.assertNotIn("--pull=always", args)
 
+    async def test_cli_pull_build_overrides_service_pull_policy(self) -> None:
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+        cnt["pull_policy"] = "always"
+        args_ns = argparse.Namespace(pull="build")
+
+        args = await container_to_args(c, cnt, args=args_ns)
+        self.assertIn("--pull=never", args)
+        self.assertNotIn("--pull=build", args)
+
     async def test_cli_pull_ignored_for_localhost_image(self) -> None:
         c = create_compose_mock()
         cnt = get_minimal_container()
@@ -1417,3 +1436,12 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
 
         args = await container_to_args(c, cnt, args=args_ns)
         self.assertFalse(any(a.startswith("--pull=") for a in args))
+
+    async def test_service_pull_policy_kept_for_localhost_image(self) -> None:
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+        cnt["image"] = "localhost/my-image"
+        cnt["pull_policy"] = "build"
+
+        args = await container_to_args(c, cnt)
+        self.assertIn("--pull=never", args)
