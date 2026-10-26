@@ -1574,11 +1574,12 @@ async def container_to_args(
     if cnt.get("pid"):
         podman_args.extend(["--pid", cnt["pid"]])
     # An explicit `--pull` on the command line overrides the service's
-    # `pull_policy`. It is not forwarded for local images
-    # (localhost/ or built without a registry prefix), because
-    # podman would otherwise try to pull them from a registry and fail.
+    # `pull_policy`. For local images (localhost/ or built without a registry
+    # prefix) a pull-triggering policy is not forwarded, because podman would
+    # otherwise try to pull them from a registry and fail. `never`/`build` are
+    # still honored since they only prevent pulling.
     cli_pull = getattr(args, "pull", None)
-    if cli_pull is not None and is_local(cnt):
+    if cli_pull is not None and cli_pull not in ("never", "build") and is_local(cnt):
         cli_pull = None
     pull_policy = cli_pull or cnt.get("pull_policy")
     # podman has no `build` pull policy. Per the Compose spec `build` means the
@@ -5204,6 +5205,15 @@ def compose_down_parse(parser: argparse.ArgumentParser) -> None:
 def compose_run_parse(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--build", action="store_true", help="Build images before starting containers."
+    )
+    parser.add_argument(
+        "--pull",
+        help="Pull image policy (always|missing|never|newer|build)."
+        " Set to 'newer' if specify --pull without a value."
+        " default (pull_policy in compose file).",
+        action=PullPolicyAction,
+        nargs="?",
+        choices=["always", "missing", "never", "newer", "build"],
     )
     parser.add_argument(
         "-d",

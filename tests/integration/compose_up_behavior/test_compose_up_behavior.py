@@ -841,3 +841,47 @@ class TestComposeUpBehavior(unittest.TestCase, RunSubprocessMixin):
                 "0",
             ])
             self.run_subprocess_assert_returncode(["podman", "rmi", "--ignore", "-f", image])
+
+    def test_run_pull_never_does_not_pull_image(self) -> None:
+        """Verify `run --pull=never` forwards the policy to `podman run`.
+        With `--pull=never`, podman-compose must pass the policy through to
+        `podman run` so that podman fails immediately when the image is not
+        available locally, instead of trying to reach a registry.
+        """
+        compose_file = compose_yaml_path("pull_never_run")
+        image = "localhost/does-not-exist:latest"
+
+        # make sure the image does not exist locally
+        self.run_subprocess_assert_returncode(
+            ["podman", "image", "exists", image],
+            expected_returncode=1,
+        )
+
+        try:
+            # the command is expected to fail because the image is missing,
+            # but it must fail without attempting to pull from a registry
+            _, error, _ = self.run_subprocess([
+                podman_compose_path(),
+                "--verbose",
+                "-f",
+                compose_file,
+                "run",
+                "--pull=never",
+                "test",
+                "echo",
+                "hi",
+            ])
+
+            # the pull policy must be forwarded to podman run
+            self.assertIn(b"--pull=never", error)
+            # podman must not try to reach a registry
+            self.assertNotIn(b"Trying to pull", error)
+        finally:
+            self.run_subprocess([
+                podman_compose_path(),
+                "-f",
+                compose_file,
+                "down",
+                "-t",
+                "0",
+            ])

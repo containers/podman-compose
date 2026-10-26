@@ -1437,6 +1437,15 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
         args = await container_to_args(c, cnt, args=args_ns)
         self.assertFalse(any(a.startswith("--pull=") for a in args))
 
+    async def test_cli_pull_never_kept_for_localhost_image(self) -> None:
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+        cnt["image"] = "localhost/my-image"
+        args_ns = argparse.Namespace(pull="never")
+
+        args = await container_to_args(c, cnt, args=args_ns)
+        self.assertIn("--pull=never", args)
+
     async def test_service_pull_policy_kept_for_localhost_image(self) -> None:
         c = create_compose_mock()
         cnt = get_minimal_container()
