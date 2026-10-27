@@ -1,0 +1,1 @@
+Raise a clear error instead of an ``AttributeError`` traceback when a non-string entry (e.g. a mapping such as ``- FOO: bar``) is used in the list form of ``environment`` or ``labels``.

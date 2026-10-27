@@ -602,7 +602,14 @@ def norm_as_dict(src: None | dict[str, str | None] | list[str] | str) -> dict[st
     elif isinstance(src, dict):
         dst = dict(src)
     elif is_list(src):
-        dst = [i.split("=", 1) for i in src if i]  # type: ignore[assignment]
+        items = list(src)
+        for item in items:
+            if not isinstance(item, str):
+                raise PodmanComposeError(
+                    f"unexpected type {type(item).__name__} in list entry: {item!r}; "
+                    'expected a "KEY=value" string'
+                )
+        dst = [i.split("=", 1) for i in items if i]  # type: ignore[assignment]
         dst = [(a if len(a) == 2 else (a[0], None)) for a in dst]  # type: ignore[assignment]
         dst = dict(dst)
     elif isinstance(src, str):
