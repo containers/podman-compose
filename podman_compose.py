@@ -2411,6 +2411,8 @@ def resolve_extends(
                 del from_service["extends"]
             except KeyError:
                 pass
+            # In a chain, the base already carries its own dependents.
+            from_service.pop(DependField.DEPENDENTS, None)
         new_service = rec_merge({}, from_service, service)
         services[name] = new_service
 
@@ -2464,6 +2466,55 @@ def find_compose_files_recursively(
         current_dir = parent_dir
 
     return None
+
+
+def extends_base_name(config: Any) -> str | None:
+    """Name of the base service when `extends` points into the same file."""
+    if not isinstance(config, dict):
+        return None
+    ext = config.get("extends")
+    if isinstance(ext, str):
+        return ext
+    if isinstance(ext, dict) and not ext.get("file"):
+        return ext.get("service")
+    return None
+
+
+def effective_profiles(services: dict[str, Any]) -> dict[str, list[str]]:
+    """Profiles of each service, including those inherited through same-file `extends`."""
+    resolved: dict[str, list[str]] = {}
+
+    def resolve(name: str, seen: frozenset[str]) -> list[str]:
+        if name in resolved:
+            return resolved[name]
+        config = services.get(name)
+        if not isinstance(config, dict):
+            return []
+        own = config.get("profiles") or []
+        if not isinstance(own, list):
+            own = []
+        base = extends_base_name(config)
+        inherited = resolve(base, seen | {name}) if base and base not in seen else []
+        profiles = list(dict.fromkeys([*inherited, *own]))
+        resolved[name] = profiles
+        return profiles
+
+    for name in services:
+        resolve(name, frozenset())
+    return resolved
+
+
+def extends_bases(services: dict[str, Any], candidates: dict[str, Any]) -> dict[str, Any]:
+    """Services in `candidates` that `services` extend, directly or through a chain."""
+    bases: dict[str, Any] = {}
+    pending = [extends_base_name(config) for config in services.values()]
+    while pending:
+        name = pending.pop()
+        if not name or name in services or name in bases or name not in candidates:
+            continue
+        bases[name] = candidates[name]
+        pending.append(extends_base_name(candidates[name]))
+    return bases
 
 
 def declared_profile_names(services: dict[str, Any]) -> list[str]:
@@ -2957,9 +3008,15 @@ class PodmanCompose:
         defined_services = compose.get("services") or {}
         self.declared_profiles = declared_profile_names(defined_services)
         resolved_services = self._resolve_profiles(defined_services, target, requested_profiles)
+        inactive_services = {
+            name: config
+            for name, config in defined_services.items()
+            if name not in resolved_services
+        }
         compose["services"] = resolved_services
         if not getattr(args, "no_normalize", None):
             compose = normalize_final(compose, self.dirname)
+            normalize_final({"services": inactive_services}, self.dirname)
         compose.pop("version", None)
         self.merged_yaml = yaml.safe_dump(compose)
         merged_json_b = json.dumps(
@@ -2983,10 +3040,14 @@ class PodmanCompose:
         # include services with no profile defined or the selected profiles
         services = self._resolve_profiles(services, target, requested_profiles)
 
+        # An inactive service can still be the `extends` base of an active one.
+        # Resolve against it, then drop it.
+        pool = {**extends_bases(services, inactive_services), **services}
         # NOTE: maybe add "extends.service" to _deps at this stage
-        flat_deps(services, with_extends=True)
-        service_names = sorted([(len(srv["_deps"]), name) for name, srv in services.items()])
-        resolve_extends(services, [name for _, name in service_names], self.environ)
+        flat_deps(pool, with_extends=True)
+        service_names = sorted([(len(srv["_deps"]), name) for name, srv in pool.items()])
+        resolve_extends(pool, [name for _, name in service_names], self.environ)
+        services = {name: pool[name] for name in services}
         flat_deps(services)
 
         # networks: [...]
@@ -3146,13 +3207,15 @@ class PodmanCompose:
         if requested_profiles is None:
             requested_profiles = set()
 
+        profiles_by_service = effective_profiles(defined_services)
+
         for service in target:
-            requested_profiles.update(defined_services.get(service, {}).get("profiles", []))
+            requested_profiles.update(profiles_by_service.get(service, []))
 
         services = {}
 
         for name, config in defined_services.items():
-            service_profiles = set(config.get("profiles", []))
+            service_profiles = set(profiles_by_service.get(name, []))
             if not service_profiles or requested_profiles.intersection(service_profiles):
                 services[name] = config
         return services
