@@ -118,3 +118,78 @@ class TestComposeConfigProfiles(unittest.TestCase):
         self.assertEqual(unset.stdout, "fallback\nliteral\n")
         self.assertEqual(set_name.returncode, 0, set_name.stderr)
         self.assertEqual(set_name.stdout, "fromenv\nliteral\n")
+
+
+LISTS = """\
+services:
+  web:
+    image: nginx:1.27
+    networks: [front]
+    volumes: [data:/data, ./src:/src]
+  builder:
+    build: .
+    networks: [front]
+  tool:
+    image: alpine
+    profiles: [tools]
+    networks: [front]
+    volumes: [cache:/cache]
+volumes:
+  data:
+  cache:
+  unused:
+networks:
+  front:
+"""
+
+
+class TestComposeConfigLists(unittest.TestCase):
+    def test_services_ignore_quiet(self) -> None:
+        result = _run(LISTS, ["config", "--services", "--quiet"])
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "web\nbuilder\n")
+
+    def test_images_of_active_services(self) -> None:
+        result = _run(LISTS, ["config", "--images"])
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "nginx:1.27\nprofiles-test_builder\n")
+
+    def test_images_follow_enabled_profile(self) -> None:
+        result = _run(LISTS, ["--profile", "tools", "config", "--images"])
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "nginx:1.27\nprofiles-test_builder\nalpine\n")
+
+    def test_volumes_used_by_active_services(self) -> None:
+        result = _run(LISTS, ["config", "--volumes"])
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "data\n")
+
+    def test_volumes_follow_enabled_profile(self) -> None:
+        result = _run(LISTS, ["--profile", "tools", "config", "--volumes"])
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "data\ncache\n")
+
+    def test_networks_used_by_active_services(self) -> None:
+        result = _run(LISTS, ["config", "--networks"])
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "front\n")
+
+    def test_volumes_win_over_networks_profiles_and_images(self) -> None:
+        result = _run(
+            LISTS, ["config", "--images", "--profiles", "--networks", "--volumes", "--quiet"]
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "data\n")
+
+    def test_profiles_win_over_images(self) -> None:
+        result = _run(LISTS, ["config", "--images", "--profiles"])
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "tools\n")

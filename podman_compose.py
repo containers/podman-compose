@@ -2567,6 +2567,7 @@ class PodmanCompose:
         self.container_by_name: dict[str, Any]
         self.services: dict[str, Any]
         self.declared_profiles: list[str] = []
+        self.used_networks: list[str] = []
         self.all_services: set[Any] = set()
         self.prefer_volume_over_mount = True
         self.x_podman: dict[PodmanCompose.XPodmanSettingKey, Any] = {}
@@ -3092,6 +3093,7 @@ class PodmanCompose:
             )
             allnets.update(srv_nets)
         given_nets = set(nets.keys())
+        self.used_networks = [name for name in nets if name in allnets]
         missing_nets = allnets - given_nets
         unused_nets = given_nets - allnets - set(["default"])
         if len(unused_nets):
@@ -4958,16 +4960,42 @@ async def compose_logs(compose: PodmanCompose, args: argparse.Namespace) -> None
     await asyncio.gather(*tasks)
 
 
+def config_volume_names(compose: PodmanCompose) -> list[str]:
+    """Top-level volumes that an active service mounts, in declaration order."""
+    used: set[str] = set()
+    for cnt in compose.containers:
+        for volume in cnt.get("volumes", []):
+            mnt_dict = get_mnt_dict(compose, cnt, volume)
+            if mnt_dict.get("type") == "volume" and mnt_dict.get("source"):
+                used.add(mnt_dict["source"])
+    return [name for name in compose.vols or {} if name in used]
+
+
 @cmd_run(podman_compose, "config", "displays the compose file")
 async def compose_config(compose: PodmanCompose, args: argparse.Namespace) -> None:
+    # Precedence follows Docker Compose. --quiet does not hide these lists.
     if args.services:
         for service in compose.services:
-            if not args.quiet:
-                print(service)
+            print(service)
+        return
+    if getattr(args, "volumes", False):
+        for volume in config_volume_names(compose):
+            print(volume)
+        return
+    if getattr(args, "networks", False):
+        for network in compose.used_networks:
+            print(network)
         return
     if getattr(args, "profiles", False):
         for profile in compose.declared_profiles:
             print(profile)
+        return
+    if getattr(args, "images", False):
+        for service in compose.services:
+            names = compose.container_names_by_service.get(service) or []
+            image = compose.container_by_name[names[0]].get("image") if names else None
+            if image:
+                print(image)
         return
     if not args.quiet:
         print(compose.merged_yaml)
@@ -5590,6 +5618,15 @@ def compose_config_parse(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--profiles", help="Print the profile names, one per line.", action="store_true"
+    )
+    parser.add_argument(
+        "--images", help="Print the image names, one per line.", action="store_true"
+    )
+    parser.add_argument(
+        "--volumes", help="Print the volume names, one per line.", action="store_true"
+    )
+    parser.add_argument(
+        "--networks", help="Print the network names, one per line.", action="store_true"
     )
     parser.add_argument(
         "-q",
