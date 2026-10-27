@@ -2517,6 +2517,13 @@ def extends_bases(services: dict[str, Any], candidates: dict[str, Any]) -> dict[
     return bases
 
 
+def printable_service(service: dict[str, Any]) -> dict[str, Any]:
+    """A resolved service as `config` prints it, without `extends` or internal keys."""
+    return {
+        key: value for key, value in service.items() if key != "extends" and not key.startswith("_")
+    }
+
+
 def declared_profile_names(services: dict[str, Any]) -> list[str]:
     """Sorted unique profile names from every service, active or not."""
     names: set[str] = set()
@@ -3018,7 +3025,6 @@ class PodmanCompose:
             compose = normalize_final(compose, self.dirname)
             normalize_final({"services": inactive_services}, self.dirname)
         compose.pop("version", None)
-        self.merged_yaml = yaml.safe_dump(compose)
         merged_json_b = json.dumps(
             self.original_configuration(compose), separators=(",", ":")
         ).encode("utf-8")
@@ -3048,6 +3054,10 @@ class PodmanCompose:
         service_names = sorted([(len(srv["_deps"]), name) for name, srv in pool.items()])
         resolve_extends(pool, [name for _, name in service_names], self.environ)
         services = {name: pool[name] for name in services}
+        self.merged_yaml = yaml.safe_dump({
+            **{key: value for key, value in compose.items() if not key.startswith("_")},
+            "services": {name: printable_service(srv) for name, srv in services.items()},
+        })
         flat_deps(services)
 
         # networks: [...]
