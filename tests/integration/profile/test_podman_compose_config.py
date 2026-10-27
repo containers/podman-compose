@@ -80,3 +80,35 @@ class TestComposeConfig(unittest.TestCase, RunSubprocessMixin):
             actual_services[service] = service in actual_output
 
         self.assertEqual(expected_services, actual_services)
+
+    def test_config_profiles_flag_lists_declared_profiles(self) -> None:
+        config_cmd = [
+            "coverage",
+            "run",
+            podman_compose_path(),
+            "-f",
+            profile_compose_file(),
+            "config",
+            "--profiles",
+        ]
+
+        out, _ = self.run_subprocess_assert_returncode(config_cmd)
+
+        self.assertEqual(out.decode("utf-8").splitlines(), ["profile-1", "profile-2"])
+
+    def test_config_profiles_flag_ignores_enabled_profile(self) -> None:
+        config_cmd = [
+            "coverage",
+            "run",
+            podman_compose_path(),
+            "--profile",
+            "profile-1",
+            "-f",
+            profile_compose_file(),
+            "config",
+            "--profiles",
+        ]
+
+        out, _ = self.run_subprocess_assert_returncode(config_cmd)
+
+        self.assertEqual(out.decode("utf-8").splitlines(), ["profile-1", "profile-2"])

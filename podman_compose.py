@@ -2466,6 +2466,21 @@ def find_compose_files_recursively(
     return None
 
 
+def declared_profile_names(services: dict[str, Any]) -> list[str]:
+    """Sorted unique profile names from every service, active or not."""
+    names: set[str] = set()
+    for config in services.values():
+        if not isinstance(config, dict):
+            continue
+        profiles = config.get("profiles") or []
+        if not isinstance(profiles, list):
+            continue
+        for profile in profiles:
+            if isinstance(profile, str):
+                names.add(profile)
+    return sorted(names)
+
+
 class PodmanCompose:
     class XPodmanSettingKey(Enum):
         DOCKER_COMPOSE_COMPAT = "docker_compose_compat"
@@ -2493,6 +2508,7 @@ class PodmanCompose:
         self.container_names_by_service: dict[str, list[str]]
         self.container_by_name: dict[str, Any]
         self.services: dict[str, Any]
+        self.declared_profiles: list[str] = []
         self.all_services: set[Any] = set()
         self.prefer_volume_over_mount = True
         self.x_podman: dict[PodmanCompose.XPodmanSettingKey, Any] = {}
@@ -2816,8 +2832,11 @@ class PodmanCompose:
         target_services = getattr(
             args, "services", None
         )  # example: command `build` can have several services
+        # `config --services` is a boolean flag, not a list of service names.
+        if not isinstance(target_services, list):
+            target_services = []
 
-        target = [target_service] if target_service else target_services or []
+        target = [target_service] if target_service else target_services
 
         compose: dict[str, Any] = {}
         # Iterate over files primitively to allow appending to files in-loop
@@ -2935,9 +2954,9 @@ class PodmanCompose:
                 # Solution is to remove 'include' key from compose obj. This doesn't break
                 # having `include` present and correctly processed in included files
                 del compose["include"]
-        resolved_services = self._resolve_profiles(
-            compose.get("services") or {}, target, requested_profiles
-        )
+        defined_services = compose.get("services") or {}
+        self.declared_profiles = declared_profile_names(defined_services)
+        resolved_services = self._resolve_profiles(defined_services, target, requested_profiles)
         compose["services"] = resolved_services
         if not getattr(args, "no_normalize", None):
             compose = normalize_final(compose, self.dirname)
@@ -2958,7 +2977,8 @@ class PodmanCompose:
         pod_name = self.resolve_pod_name()
 
         services: dict = compose.get("services", {})
-        if not services:
+        listing_profiles = getattr(args, "profiles", False)
+        if not services and not listing_profiles:
             log.warning("WARNING: No services defined")
         # include services with no profile defined or the selected profiles
         services = self._resolve_profiles(services, target, requested_profiles)
@@ -4872,6 +4892,10 @@ async def compose_config(compose: PodmanCompose, args: argparse.Namespace) -> No
             if not args.quiet:
                 print(service)
         return
+    if getattr(args, "profiles", False):
+        for profile in compose.declared_profiles:
+            print(profile)
+        return
     if not args.quiet:
         print(compose.merged_yaml)
 
@@ -5490,6 +5514,9 @@ def compose_config_parse(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--services", help="Print the service names, one per line.", action="store_true"
+    )
+    parser.add_argument(
+        "--profiles", help="Print the profile names, one per line.", action="store_true"
     )
     parser.add_argument(
         "-q",
