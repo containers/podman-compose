@@ -6,6 +6,7 @@ import os
 import tempfile
 import unittest
 
+from podman_compose import DependField
 from podman_compose import PodmanCompose
 from podman_compose import effective_profiles
 
@@ -141,3 +142,21 @@ services:
         )
         self.assertEqual(sorted(compose.services), ["a", "b", "c", "d"])
         self.assertEqual(compose.services["d"]["image"], "busybox")
+
+
+class TestExtendsDependents(unittest.TestCase):
+    def test_child_keeps_dependents_of_its_base(self) -> None:
+        compose = _parse(
+            """
+services:
+    base:
+        image: busybox
+    child:
+        extends: base
+    app:
+        image: busybox
+        depends_on: [base]
+"""
+        )
+        dependents = {dep.name for dep in compose.services["child"][DependField.DEPENDENTS]}
+        self.assertIn("app", dependents)

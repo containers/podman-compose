@@ -2411,9 +2411,15 @@ def resolve_extends(
                 del from_service["extends"]
             except KeyError:
                 pass
-            # In a chain, the base already carries its own dependents.
-            from_service.pop(DependField.DEPENDENTS, None)
+        # In a chain the base and the child can both carry dependents, which
+        # rec_merge cannot merge. Combine them.
+        dependents = None
+        if DependField.DEPENDENTS in from_service and DependField.DEPENDENTS in service:
+            from_service = dict(from_service)
+            dependents = from_service.pop(DependField.DEPENDENTS) | service[DependField.DEPENDENTS]
         new_service = rec_merge({}, from_service, service)
+        if dependents is not None:
+            new_service[DependField.DEPENDENTS] = dependents
         services[name] = new_service
 
 
