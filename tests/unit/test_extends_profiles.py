@@ -202,3 +202,49 @@ services:
         )
         dependents = {dep.name for dep in compose.services["child"][DependField.DEPENDENTS]}
         self.assertIn("app", dependents)
+
+
+class TestUnusualProfileValues(unittest.TestCase):
+    def test_string_profiles_on_extends_child_and_base(self) -> None:
+        child_string = """
+services:
+    base:
+        image: busybox
+        profiles: [p1]
+    child:
+        extends: base
+        profiles: p2
+"""
+        compose = _parse(child_string, ["p2"])
+        self.assertEqual(list(compose.services), ["child"])
+        self.assertEqual(compose.services["child"]["profiles"], ["p1", "p2"])
+
+        base_string = child_string.replace("[p1]", "p1").replace("profiles: p2", "profiles: [p2]")
+        self.assertEqual(list(_parse(base_string, ["p2"]).services), ["child"])
+
+    def test_non_string_profiles_stay_inactive(self) -> None:
+        for profiles in ("[2024]", "{debug: }"):
+            compose_yaml = f"""
+services:
+    web:
+        image: busybox
+    other:
+        image: busybox
+        profiles: {profiles}
+"""
+            self.assertEqual(list(_parse(compose_yaml).services), ["web"], profiles)
+
+    def test_unused_inactive_service_is_not_normalized(self) -> None:
+        compose = _parse(
+            """
+services:
+    web:
+        image: busybox
+    tool:
+        image: tool
+        profiles: [tools]
+        build:
+            context:
+"""
+        )
+        self.assertEqual(list(compose.services), ["web"])

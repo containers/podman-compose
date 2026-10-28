@@ -12,6 +12,7 @@ import argparse
 import asyncio.exceptions
 import asyncio.subprocess
 import codecs
+import copy
 import getpass
 import glob
 import hashlib
@@ -2142,7 +2143,7 @@ def normalize_service(service: dict[str, Any], sub_dir: str = "") -> dict[str, A
     if "build" in service and "args" in service["build"]:
         if isinstance(build["args"], dict):
             build["args"] = norm_as_list(build["args"])
-    for key in ("env_file", "security_opt", "volumes"):
+    for key in ("env_file", "security_opt", "volumes", "profiles"):
         if key not in service:
             continue
         if key == "volumes" and service[key] is None:
@@ -2377,8 +2378,16 @@ def load_yaml_or_die(file_path: str, stream: Any) -> dict[str, Any]:
 
 
 def resolve_extends(
-    services: dict[str, Any], service_names: list[str], environ: dict[str, Any]
+    services: dict[str, Any],
+    service_names: list[str],
+    environ: dict[str, Any],
+    isolate: bool = False,
 ) -> None:
+    """Merge each service with the service it extends, in place.
+
+    rec_merge copies only one level, so by default merging a child also changes
+    nested values of its base. `isolate` deep-copies the base to avoid that.
+    """
     for name in service_names:
         service = services[name]
         ext = service.get("extends", {})
@@ -2391,7 +2400,8 @@ def resolve_extends(
         if filename:
             from_service = load_extends_file_service(filename, from_service_name, environ)
         else:
-            from_service = services.get(from_service_name, {}).copy()
+            from_service = services.get(from_service_name, {})
+            from_service = copy.deepcopy(from_service) if isolate else from_service.copy()
             try:
                 del from_service["_deps"]
             except KeyError as e:
@@ -2498,8 +2508,12 @@ def extends_base_name(config: Any) -> str | None:
     return None
 
 
-def own_profiles(config: dict[str, Any]) -> tuple[list[str], bool]:
-    """A service's own profiles, and whether they replace inherited ones (!reset, !override)."""
+def own_profiles(config: dict[str, Any]) -> tuple[list[Any], bool]:
+    """A service's own profiles, and whether they replace inherited ones (!reset, !override).
+
+    Values that are not a list of names are read as before profiles could be inherited:
+    every item or key counts, so such a service stays inactive unless one is requested.
+    """
     value = config.get("profiles")
     replace = isinstance(value, (ResetTag, OverrideTag))
     if isinstance(value, ResetTag):
@@ -2508,16 +2522,16 @@ def own_profiles(config: dict[str, Any]) -> tuple[list[str], bool]:
         value = value.value
     if isinstance(value, str):
         value = [value]
-    if not isinstance(value, list):
+    if not isinstance(value, (list, dict)):
         value = []
-    return [profile for profile in value if isinstance(profile, str)], replace
+    return list(value), replace
 
 
-def effective_profiles(services: dict[str, Any]) -> dict[str, list[str]]:
+def effective_profiles(services: dict[str, Any]) -> dict[str, list[Any]]:
     """Profiles of each service, including those inherited through same-file `extends`."""
-    resolved: dict[str, list[str]] = {}
+    resolved: dict[str, list[Any]] = {}
 
-    def resolve(name: str, seen: frozenset[str]) -> list[str]:
+    def resolve(name: str, seen: frozenset[str]) -> list[Any]:
         if name in resolved:
             return resolved[name]
         config = services.get(name)
@@ -2567,14 +2581,16 @@ def declared_profile_names(services: dict[str, Any], environ: dict[str, Any]) ->
     for config in services.values():
         if not isinstance(config, dict):
             continue
-        names.update(own_profiles(config)[0])
+        own, replace = own_profiles(config)
+        names.update(p for p in own if isinstance(p, str))
         ext = config.get("extends")
-        if isinstance(ext, dict) and ext.get("file") and ext.get("service"):
+        if not replace and isinstance(ext, dict) and ext.get("file") and ext.get("service"):
             try:
                 base_file_services = load_extends_file(ext["file"], environ)
             except OSError:
                 continue
-            names.update(effective_profiles(base_file_services).get(ext["service"], []))
+            inherited = effective_profiles(base_file_services).get(ext["service"], [])
+            names.update(p for p in inherited if isinstance(p, str))
     return sorted(names)
 
 
@@ -3065,7 +3081,6 @@ class PodmanCompose:
         compose["services"] = resolved_services
         if not getattr(args, "no_normalize", None):
             compose = normalize_final(compose, self.dirname)
-            normalize_final({"services": inactive_services}, self.dirname)
         compose.pop("version", None)
         merged_json_b = json.dumps(
             self.original_configuration(compose), separators=(",", ":")
@@ -3090,15 +3105,22 @@ class PodmanCompose:
 
         # An inactive service can still be the `extends` base of an active one.
         # Resolve against it, then drop it.
-        pool = {**extends_bases(services, inactive_services), **services}
+        bases = extends_bases(services, inactive_services)
+        if not getattr(args, "no_normalize", None):
+            normalize_final({"services": bases}, self.dirname)
+        pool = {**bases, **services}
         # NOTE: maybe add "extends.service" to _deps at this stage
         flat_deps(pool, with_extends=True)
         service_names = sorted([(len(srv["_deps"]), name) for name, srv in pool.items()])
+        # `config` prints a separate, isolated resolution, so a base shows only
+        # its own values. Containers keep using the resolution below, unchanged.
+        output_pool = copy.deepcopy(pool)
+        resolve_extends(output_pool, [name for _, name in service_names], self.environ, True)
         resolve_extends(pool, [name for _, name in service_names], self.environ)
         services = {name: pool[name] for name in services}
         self.merged_yaml = yaml.safe_dump({
             **{key: value for key, value in compose.items() if not key.startswith("_")},
-            "services": {name: printable_service(srv) for name, srv in services.items()},
+            "services": {name: printable_service(output_pool[name]) for name in services},
         })
         flat_deps(services)
 
@@ -3135,7 +3157,11 @@ class PodmanCompose:
             )
             allnets.update(srv_nets)
             if not srv.get("network_mode"):
-                joined_nets.update(srv_nets)
+                # Like the container code, an empty `networks` means the default network.
+                joined: Any = srv.get("networks") or self.default_net
+                joined_nets.update(
+                    list(joined.keys()) if isinstance(joined, dict) else norm_as_list(joined)
+                )
         given_nets = set(nets.keys())
         self.used_networks = [name for name in nets if name in joined_nets]
         missing_nets = allnets - given_nets

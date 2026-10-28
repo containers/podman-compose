@@ -11,7 +11,7 @@ import yaml
 from podman_compose import PodmanCompose
 
 
-def _merged(compose_yaml: str, profile: list[str] | None = None) -> dict:
+def _merged_text(compose_yaml: str, profile: list[str] | None = None) -> str:
     with tempfile.TemporaryDirectory() as tmp_dir:
         path = os.path.join(tmp_dir, "docker-compose.yaml")
         with open(path, "w", encoding="utf-8") as f:
@@ -27,7 +27,11 @@ def _merged(compose_yaml: str, profile: list[str] | None = None) -> dict:
             no_normalize=False,
         )
         podman_compose._parse_compose_file()
-        return yaml.safe_load(podman_compose.merged_yaml)
+        return podman_compose.merged_yaml
+
+
+def _merged(compose_yaml: str, profile: list[str] | None = None) -> dict:
+    return yaml.safe_load(_merged_text(compose_yaml, profile))
 
 
 class TestConfigExtendsOutput(unittest.TestCase):
@@ -99,3 +103,30 @@ services:
         self.assertEqual(list(merged["services"]), ["child"])
         self.assertEqual(merged["services"]["child"]["image"], "busybox")
         self.assertEqual(merged["services"]["child"]["profiles"], ["p1", "p2"])
+
+    def test_base_keeps_only_its_own_nested_settings(self) -> None:
+        compose = """
+services:
+    base:
+        image: busybox
+        deploy:
+            resources:
+                limits:
+                    cpus: "1"
+    child:
+        extends: base
+        deploy:
+            resources:
+                limits:
+                    memory: 1g
+"""
+        text = _merged_text(compose)
+        merged = yaml.safe_load(text)
+        self.assertEqual(
+            merged["services"]["base"]["deploy"], {"resources": {"limits": {"cpus": "1"}}}
+        )
+        self.assertEqual(
+            merged["services"]["child"]["deploy"],
+            {"resources": {"limits": {"cpus": "1", "memory": "1g"}}},
+        )
+        self.assertNotIn("&id", text)

@@ -148,6 +148,9 @@ networks:
 """
 
 
+EXT_BASE = "services:\n  base:\n    image: busybox\n    profiles: [ext]\n"
+
+
 class TestComposeConfigLists(unittest.TestCase):
     def test_services_ignore_quiet(self) -> None:
         result = _run(LISTS, ["config", "--services", "--quiet"])
@@ -213,6 +216,15 @@ class TestComposeConfigLists(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "")
 
+    def test_networks_list_default_for_empty_networks(self) -> None:
+        result = _run(
+            "services:\n  web:\n    image: busybox\n    networks: []\n",
+            ["config", "--networks"],
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "default\n")
+
     def test_images_and_volumes_include_services_scaled_to_zero(self) -> None:
         compose = (
             "services:\n"
@@ -252,6 +264,23 @@ class TestComposeConfigLists(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "ext\n")
+
+    def test_profiles_skip_extends_file_base_replaced_by_child(self) -> None:
+        for tag in ("!reset []", "!override [mine]"):
+            with self.subTest(tag=tag):
+                result = _run(
+                    "services:\n"
+                    "  child:\n"
+                    f"    profiles: {tag}\n"
+                    "    extends:\n"
+                    "      file: common.yml\n"
+                    "      service: base\n",
+                    ["config", "--profiles"],
+                    extra_files={"common.yml": EXT_BASE},
+                )
+
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, "" if tag.startswith("!reset") else "mine\n")
 
     def test_profiles_follow_chain_inside_extends_file(self) -> None:
         result = _run(
