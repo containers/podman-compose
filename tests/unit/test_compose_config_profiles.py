@@ -252,3 +252,45 @@ class TestComposeConfigLists(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "ext\n")
+
+    def test_profiles_follow_chain_inside_extends_file(self) -> None:
+        result = _run(
+            "services:\n"
+            "  c:\n"
+            "    extends:\n"
+            "      file: base.yml\n"
+            "      service: b\n"
+            "  d:\n"
+            "    image: alpine\n",
+            ["config", "--profiles"],
+            extra_files={
+                "base.yml": "services:\n"
+                "  root:\n"
+                "    image: busybox\n"
+                "    profiles: [deep]\n"
+                "  b:\n"
+                "    extends: root\n"
+            },
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "deep\n")
+
+    def test_other_commands_skip_extends_file_of_inactive_service(self) -> None:
+        compose = (
+            "services:\n"
+            "  app:\n"
+            "    image: alpine\n"
+            "  debug:\n"
+            "    profiles: [debug]\n"
+            "    extends:\n"
+            "      file: debug.yml\n"
+            "      service: dbg\n"
+        )
+        debug = (
+            "services:\n  dbg:\n    image: busybox\n    environment:\n      T: ${NEEDED:?unset}\n"
+        )
+        result = _run(compose, ["config", "--services"], extra_files={"debug.yml": debug})
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "app\n")

@@ -11,7 +11,9 @@ from podman_compose import PodmanCompose
 from podman_compose import effective_profiles
 
 
-def _parse(compose_yaml: str, profile: list[str] | None = None) -> PodmanCompose:
+def _parse(
+    compose_yaml: str, profile: list[str] | None = None, list_profiles: bool = False
+) -> PodmanCompose:
     with tempfile.TemporaryDirectory() as tmp_dir:
         path = os.path.join(tmp_dir, "docker-compose.yaml")
         with open(path, "w", encoding="utf-8") as f:
@@ -25,6 +27,7 @@ def _parse(compose_yaml: str, profile: list[str] | None = None) -> PodmanCompose
             in_pod="false",
             pod_args=None,
             no_normalize=False,
+            profiles=list_profiles,
         )
         podman_compose._parse_compose_file()
         return podman_compose
@@ -118,7 +121,7 @@ class TestExtendsWithProfiles(unittest.TestCase):
         self.assertEqual(compose.services["child"]["profiles"], ["p1", "p2"])
 
     def test_declared_profiles_include_inherited(self) -> None:
-        compose = _parse(INHERITED)
+        compose = _parse(INHERITED, list_profiles=True)
         self.assertEqual(compose.declared_profiles, ["inherited"])
 
     def test_chain_through_inactive_services(self) -> None:
@@ -168,7 +171,7 @@ class TestProfileValues(unittest.TestCase):
         self.assertEqual(sorted(_parse(TAGS, ["debug"]).services), ["base", "child_reset"])
 
     def test_override_profile_is_declared(self) -> None:
-        self.assertEqual(_parse(TAGS).declared_profiles, ["debug", "prod"])
+        self.assertEqual(_parse(TAGS, list_profiles=True).declared_profiles, ["debug", "prod"])
 
     def test_string_is_a_single_profile(self) -> None:
         compose_yaml = """

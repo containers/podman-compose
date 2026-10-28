@@ -2414,19 +2414,24 @@ def resolve_extends(
         services[name] = new_service
 
 
-def load_extends_file_service(
-    filename: str, service_name: str, environ: dict[str, Any]
-) -> dict[str, Any]:
+def load_extends_file(filename: str, environ: dict[str, Any]) -> dict[str, Any]:
+    """The services of a file named by `extends.file`, with variables substituted."""
     if filename.startswith("./"):
         filename = filename[2:]
     with open(filename, encoding="utf-8") as f:
         content = load_yaml_or_die(filename, f) or {}
     if "services" in content:
         content = content["services"]
-    subdirectory = os.path.dirname(filename)
-    content = rec_subs(content, environ)
-    service = content.get(service_name, {}) or {}
-    normalize_service(service, subdirectory)
+    return rec_subs(content, environ)
+
+
+def load_extends_file_service(
+    filename: str, service_name: str, environ: dict[str, Any]
+) -> dict[str, Any]:
+    if filename.startswith("./"):
+        filename = filename[2:]
+    service = load_extends_file(filename, environ).get(service_name, {}) or {}
+    normalize_service(service, os.path.dirname(filename))
     return service
 
 
@@ -2555,7 +2560,8 @@ def printable_service(service: dict[str, Any]) -> dict[str, Any]:
 def declared_profile_names(services: dict[str, Any], environ: dict[str, Any]) -> list[str]:
     """Sorted unique profile names from every service, active or not.
 
-    Includes profiles of a base service in another file, named by `extends.file`.
+    Includes profiles of a base service in another file, named by `extends.file`,
+    and those it inherits within that file.
     """
     names: set[str] = set()
     for config in services.values():
@@ -2565,10 +2571,10 @@ def declared_profile_names(services: dict[str, Any], environ: dict[str, Any]) ->
         ext = config.get("extends")
         if isinstance(ext, dict) and ext.get("file") and ext.get("service"):
             try:
-                base = load_extends_file_service(ext["file"], ext["service"], environ)
+                base_file_services = load_extends_file(ext["file"], environ)
             except OSError:
                 continue
-            names.update(own_profiles(base)[0])
+            names.update(effective_profiles(base_file_services).get(ext["service"], []))
     return sorted(names)
 
 
@@ -3047,7 +3053,9 @@ class PodmanCompose:
                 # having `include` present and correctly processed in included files
                 del compose["include"]
         defined_services = compose.get("services") or {}
-        self.declared_profiles = declared_profile_names(defined_services, self.environ)
+        if getattr(args, "profiles", False):
+            # Only `config --profiles` reads the files of inactive services.
+            self.declared_profiles = declared_profile_names(defined_services, self.environ)
         resolved_services = self._resolve_profiles(defined_services, target, requested_profiles)
         inactive_services = {
             name: config
