@@ -3119,14 +3119,17 @@ class PodmanCompose:
                 self.default_net = None
 
         allnets = set()
+        joined_nets = set()
         for name, srv in services.items():
             srv_nets = srv.get("networks", self.default_net)
             srv_nets = (
                 list(srv_nets.keys()) if isinstance(srv_nets, dict) else norm_as_list(srv_nets)
             )
             allnets.update(srv_nets)
+            if not srv.get("network_mode"):
+                joined_nets.update(srv_nets)
         given_nets = set(nets.keys())
-        self.used_networks = [name for name in nets if name in allnets]
+        self.used_networks = [name for name in nets if name in joined_nets]
         missing_nets = allnets - given_nets
         unused_nets = given_nets - allnets - set(["default"])
         if len(unused_nets):
@@ -4996,12 +4999,25 @@ async def compose_logs(compose: PodmanCompose, args: argparse.Namespace) -> None
 def config_volume_names(compose: PodmanCompose) -> list[str]:
     """Top-level volumes that an active service mounts, in declaration order."""
     used: set[str] = set()
-    for cnt in compose.containers:
-        for volume in cnt.get("volumes", []):
-            mnt_dict = get_mnt_dict(compose, cnt, volume)
-            if mnt_dict.get("type") == "volume" and mnt_dict.get("source"):
-                used.add(mnt_dict["source"])
+    for service in compose.services.values():
+        for volume in service.get("volumes", []):
+            if isinstance(volume, str):
+                volume = parse_short_mount(volume, compose.dirname)
+            if volume.get("type") == "volume" and volume.get("source"):
+                used.add(volume["source"])
     return [name for name in compose.vols or {} if name in used]
+
+
+def config_image_names(compose: PodmanCompose) -> list[str]:
+    """The image of each active service, as podman-compose would run it."""
+    images = []
+    for name, service in compose.services.items():
+        x_podman = service.get("x-podman")
+        if "image" in service:
+            images.append(service["image"])
+        elif x_podman is None or x_podman.get("rootfs") is None:
+            images.append(compose.format_name(name))
+    return images
 
 
 @cmd_run(podman_compose, "config", "displays the compose file")
@@ -5024,11 +5040,8 @@ async def compose_config(compose: PodmanCompose, args: argparse.Namespace) -> No
             print(profile)
         return
     if getattr(args, "images", False):
-        for service in compose.services:
-            names = compose.container_names_by_service.get(service) or []
-            image = compose.container_by_name[names[0]].get("image") if names else None
-            if image:
-                print(image)
+        for image in config_image_names(compose):
+            print(image)
         return
     if not args.quiet:
         print(compose.merged_yaml)

@@ -199,6 +199,42 @@ class TestComposeConfigLists(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "tools\n")
 
+    def test_networks_skip_network_mode(self) -> None:
+        result = _run(
+            "services:\n"
+            "  hostnet:\n"
+            "    image: busybox\n"
+            "    network_mode: host\n"
+            "networks:\n"
+            "  front: {}\n",
+            ["config", "--networks"],
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "")
+
+    def test_images_and_volumes_include_services_scaled_to_zero(self) -> None:
+        compose = (
+            "services:\n"
+            "  web:\n"
+            "    image: nginx:1.27\n"
+            "    volumes: [webdata:/data]\n"
+            "  worker:\n"
+            "    image: busybox:1.36\n"
+            "    scale: 0\n"
+            "    volumes: [workerdata:/data]\n"
+            "volumes:\n"
+            "  webdata: {}\n"
+            "  workerdata: {}\n"
+        )
+        images = _run(compose, ["config", "--images"])
+        volumes = _run(compose, ["config", "--volumes"])
+
+        self.assertEqual(images.returncode, 0, images.stderr)
+        self.assertEqual(images.stdout, "nginx:1.27\nbusybox:1.36\n")
+        self.assertEqual(volumes.returncode, 0, volumes.stderr)
+        self.assertEqual(volumes.stdout, "webdata\nworkerdata\n")
+
     def test_profiles_include_extends_file_base(self) -> None:
         result = _run(
             "services:\n"
