@@ -12,7 +12,7 @@ services:
       context: ./
       dockerfile: Dockerfile
       ulimits:
-        - nproc=1002:2002
+        - nproc=10002:20002
         - nofile=1002
   ulimit3:
     image: ulimit_build_test
@@ -22,5 +22,5 @@ services:
       ulimits:
         nofile: 1003
         nproc:
-          soft: 1003
-          hard: 2003
+          soft: 10003
+          hard: 20003

@@ -60,9 +60,9 @@ class TestComposeBuildUlimits(unittest.TestCase):
 
         self.assertEqual(p.returncode, 0)
         self.assertIn("--ulimit nofile=1002", p.stdout)
-        self.assertIn("--ulimit nproc=1002:2002", p.stdout)
-        self.assertIn("soft process limit: 1002", p.stdout)
-        self.assertIn("hard process limit: 2002", p.stdout)
+        self.assertIn("--ulimit nproc=10002:20002", p.stdout)
+        self.assertIn("soft process limit: 10002", p.stdout)
+        self.assertIn("hard process limit: 20002", p.stdout)
         self.assertIn("soft nofile limit: 1002", p.stdout)
         self.assertIn("hard nofile limit: 1002", p.stdout)
 
@@ -86,8 +86,8 @@ class TestComposeBuildUlimits(unittest.TestCase):
 
         self.assertEqual(p.returncode, 0)
         self.assertIn("--ulimit nofile=1003", p.stdout)
-        self.assertIn("--ulimit nproc=1003:2003", p.stdout)
-        self.assertIn("soft process limit: 1003", p.stdout)
-        self.assertIn("hard process limit: 2003", p.stdout)
+        self.assertIn("--ulimit nproc=10003:20003", p.stdout)
+        self.assertIn("soft process limit: 10003", p.stdout)
+        self.assertIn("hard process limit: 20003", p.stdout)
         self.assertIn("soft nofile limit: 1003", p.stdout)
         self.assertIn("hard nofile limit: 1003", p.stdout)

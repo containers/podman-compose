@@ -1,0 +1,1 @@
+Fixed crashes when a service `extends` a service that has `profiles`, or extends through a chain of services. Inherited profiles now decide whether the service is active, as in Docker Compose.

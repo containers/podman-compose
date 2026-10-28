@@ -47,7 +47,9 @@ jobs:
       image: "docker.io/library/python:${{ matrix.conf.python }}-${{ matrix.conf.dist }}"
       # cgroupns needed to address the following error:
       # write /sys/fs/cgroup/cgroup.subtree_control: operation not supported
-      options: --privileged --cgroupns=host
+      # init reaps exited aardvark-dns processes. netavark 1.4 (podman 4.3.1) takes a
+      # zombie for a running aardvark-dns, and container name resolution stops working.
+      options: --privileged --cgroupns=host --init
     steps:
     - uses: actions/checkout@v7
     - name: Install podman-4.3.1

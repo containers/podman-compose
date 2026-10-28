@@ -1,0 +1,1 @@
+`podman-compose config` now prints services that use `extends` with the inherited settings merged in, instead of the raw `extends` key.

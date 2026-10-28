@@ -1,0 +1,1 @@
+`podman-compose config --services --quiet` now prints the service names, as Docker Compose does.
