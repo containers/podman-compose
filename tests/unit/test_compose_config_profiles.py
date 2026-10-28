@@ -27,11 +27,16 @@ def _env(extra: dict[str, str] | None = None) -> dict[str, str]:
 
 
 def _run(
-    compose: str, args: list[str], env: dict[str, str] | None = None
+    compose: str,
+    args: list[str],
+    env: dict[str, str] | None = None,
+    extra_files: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "compose.yml"
         path.write_text(compose, encoding="utf-8")
+        for name, content in (extra_files or {}).items():
+            (Path(tmp) / name).write_text(content, encoding="utf-8")
         return subprocess.run(
             ["python3", str(SCRIPT), "--dry-run", "-f", str(path), "-p", "profiles-test", *args],
             cwd=tmp,
@@ -193,3 +198,21 @@ class TestComposeConfigLists(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "tools\n")
+
+    def test_profiles_include_extends_file_base(self) -> None:
+        result = _run(
+            "services:\n"
+            "  child:\n"
+            "    extends:\n"
+            "      file: common.yml\n"
+            "      service: base\n"
+            "  plain:\n"
+            "    image: alpine\n",
+            ["config", "--profiles"],
+            extra_files={
+                "common.yml": "services:\n  base:\n    image: busybox\n    profiles: [ext]\n"
+            },
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "ext\n")

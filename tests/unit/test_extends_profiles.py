@@ -144,6 +144,45 @@ services:
         self.assertEqual(compose.services["d"]["image"], "busybox")
 
 
+TAGS = """
+services:
+    base:
+        image: busybox
+        profiles: [debug]
+    child_reset:
+        extends: base
+        profiles: !reset []
+    child_override:
+        extends: base
+        profiles: !override [prod]
+"""
+
+
+class TestProfileValues(unittest.TestCase):
+    def test_reset_drops_inherited_profiles(self) -> None:
+        compose = _parse(TAGS)
+        self.assertEqual(list(compose.services), ["child_reset"])
+
+    def test_override_replaces_inherited_profiles(self) -> None:
+        self.assertEqual(sorted(_parse(TAGS, ["prod"]).services), ["child_override", "child_reset"])
+        self.assertEqual(sorted(_parse(TAGS, ["debug"]).services), ["base", "child_reset"])
+
+    def test_override_profile_is_declared(self) -> None:
+        self.assertEqual(_parse(TAGS).declared_profiles, ["debug", "prod"])
+
+    def test_string_is_a_single_profile(self) -> None:
+        compose_yaml = """
+services:
+    app:
+        image: busybox
+    debug:
+        image: busybox
+        profiles: debug
+"""
+        self.assertEqual(list(_parse(compose_yaml).services), ["app"])
+        self.assertEqual(sorted(_parse(compose_yaml, ["debug"]).services), ["app", "debug"])
+
+
 class TestExtendsDependents(unittest.TestCase):
     def test_child_keeps_dependents_of_its_base(self) -> None:
         compose = _parse(
