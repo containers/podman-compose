@@ -96,6 +96,58 @@ class TestNormalizeFinalBuild(unittest.TestCase):
                 },
             },
         ),
+        # volume short syntax relative path
+        (
+            {"volumes": ["./data:/container:ro"]},
+            {"volumes": [os.path.join(cwd, "data") + ":/container:ro"]},
+        ),
+        (
+            {"volumes": ["../data:/container"]},
+            {"volumes": [os.path.abspath(os.path.join(cwd, "../data")) + ":/container"]},
+        ),
+        # volume short syntax absolute should stay unchanged
+        (
+            {"volumes": ["/absolute/data:/container"]},
+            {"volumes": ["/absolute/data:/container"]},
+        ),
+        # volume long syntax relative path
+        (
+            {"volumes": [{"type": "bind", "source": "./data", "target": "/container"}]},
+            {
+                "volumes": [
+                    {
+                        "type": "bind",
+                        "source": os.path.join(cwd, "data"),
+                        "target": "/container",
+                    }
+                ]
+            },
+        ),
+        (
+            {"volumes": [{"type": "bind", "source": "../data", "target": "/container"}]},
+            {
+                "volumes": [
+                    {
+                        "type": "bind",
+                        "source": os.path.abspath(os.path.join(cwd, "../data")),
+                        "target": "/container",
+                    }
+                ]
+            },
+        ),
+        # volume long syntax absolute should stay unchanged
+        (
+            {"volumes": [{"type": "bind", "source": "/absolute/data", "target": "/container"}]},
+            {
+                "volumes": [
+                    {
+                        "type": "bind",
+                        "source": "/absolute/data",
+                        "target": "/container",
+                    }
+                ]
+            },
+        ),
     ]
 
     @parameterized.expand(cases_simple_normalization)
