@@ -12,6 +12,7 @@ import argparse
 import asyncio.exceptions
 import asyncio.subprocess
 import codecs
+import copy
 import getpass
 import glob
 import hashlib
@@ -36,6 +37,7 @@ from typing import Callable
 from typing import ClassVar
 from typing import Iterable
 from typing import Sequence
+from typing import cast
 from typing import overload
 from urllib.parse import quote
 
@@ -2235,8 +2237,10 @@ def normalize(compose: dict[str, Any], sub_dir: str = "") -> dict[str, Any]:
     Compose Spec resolution of paths in ``include:``d files).
     """
     services = compose.get("services", {}) or {}
-    for service in services.values():
-        normalize_service(service, sub_dir)
+    for name, service in services.items():
+        if not isinstance(service, (dict, ResetTag, OverrideTag)):
+            raise PodmanComposeError(f"services.{name} must be a mapping")
+        normalize_service(cast(dict[str, Any], service), sub_dir)
     return compose
 
 
@@ -2379,40 +2383,101 @@ def load_yaml_or_die(file_path: str, stream: Any) -> dict[str, Any]:
 def resolve_extends(
     services: dict[str, Any], service_names: list[str], environ: dict[str, Any]
 ) -> None:
-    for name in service_names:
-        service = services[name]
+    # Cache of already loaded external files (keyed by file name) so that a file
+    # referenced by several services is only read and interpolated once.
+    file_services_cache: dict[str, dict[str, Any]] = {}
+
+    def load_file_services(filename: str) -> dict[str, Any]:
+        if filename not in file_services_cache:
+            with open(filename, encoding="utf-8") as f:
+                content = load_yaml_or_die(filename, f) or {}
+            if "services" in content:
+                content = content["services"]
+            file_services_cache[filename] = rec_subs(content, environ)
+        return file_services_cache[filename]
+
+    def resolve_service(
+        name: str,
+        service: dict[str, Any],
+        stack: list[tuple[str, str]],
+        file_services: dict[str, Any] | None = None,
+        subdirectory: str = "",
+        file_id: str = "",
+    ) -> dict[str, Any]:
+        """Resolve the ``extends`` chain of a single service.
+
+        ``extends`` may point to a service in the same file or in an external
+        file, and that base service may itself use ``extends``. The chain is
+        resolved recursively so that every level is merged, not only the first
+        one.
+        ``stack`` holds the ``(file_id, service)`` pairs of the chain currently
+        being resolved and is used to detect cycles.
+        ``file_services``, ``subdirectory`` and ``file_id`` describe the file
+        ``service`` belongs to, so that same-file references are resolved
+        against the right services, relative paths against the right directory
+        and cycles are detected per file rather than per service name.
+        """
         ext = service.get("extends", {})
         if isinstance(ext, str):
             ext = {"service": ext}
         from_service_name = ext.get("service")
         if not from_service_name:
-            continue
+            return service
         filename = ext.get("file")
         if filename:
-            if filename.startswith("./"):
-                filename = filename[2:]
-            with open(filename, encoding="utf-8") as f:
-                content = load_yaml_or_die(filename, f) or {}
-            if "services" in content:
-                content = content["services"]
-            subdirectory = os.path.dirname(filename)
-            content = rec_subs(content, environ)
-            from_service = content.get(from_service_name, {}) or {}
-            normalize_service(from_service, subdirectory)
+            # A nested ``extends.file`` is relative to the file that declares
+            # it, not to the current working directory.
+            if not os.path.isabs(filename):
+                filename = os.path.normpath(os.path.join(subdirectory, filename))
+            from_services = load_file_services(filename)
+            from_subdirectory = os.path.dirname(filename)
+            key = (filename, from_service_name)
         else:
-            from_service = services.get(from_service_name, {}).copy()
-            try:
-                del from_service["_deps"]
-            except KeyError as e:
-                raise KeyError(
-                    f"{from_service_name} not found at services.{name}.extends definition"
-                ) from e
-            try:
-                del from_service["extends"]
-            except KeyError:
-                pass
+            from_services = services if file_services is None else file_services
+            from_subdirectory = subdirectory
+            key = (file_id, from_service_name)
+
+        if key in stack:
+            chain = " -> ".join(f"{s} ({f or 'this file'})" for f, s in [*stack, key])
+            raise PodmanComposeError(f"circular extends chain detected: {chain}")
+
+        if from_service_name not in from_services:
+            where = f"file '{filename}'" if filename else "this file"
+            raise PodmanComposeError(
+                f"service '{from_service_name}' not found in {where} "
+                f"(referenced by services.{name}.extends)"
+            )
+
+        # An empty service in YAML parses to ``None``; treat it as an empty
+        # mapping so that extending it is a no-op rather than an error.
+        from_service = from_services[from_service_name] or {}
+        # Work on a copy so that neither the referenced service nor the cached
+        # external file is mutated while resolving the chain.
+        from_service = copy.deepcopy(from_service)
+        # Services coming from an external file still need to be normalized
+        # (relative paths resolved against that file's directory).
+        if from_subdirectory:
+            normalize_service(from_service, from_subdirectory)
+        # Computed dependency metadata is recalculated by flat_deps() after all
+        # extends references have been resolved.
+        for field in DependField:
+            from_service.pop(field, None)
+        # Recursively resolve the base service's own extends chain first.
+        from_service = resolve_service(
+            from_service_name,
+            from_service,
+            [*stack, key],
+            from_services,
+            from_subdirectory,
+            file_id=filename or file_id,
+        )
+
         new_service = rec_merge({}, from_service, service)
-        services[name] = new_service
+        new_service.pop("extends", None)
+        return new_service
+
+    for name in service_names:
+        services[name] = resolve_service(name, services[name], [])
 
 
 def dotenv_to_dict(dotenv_path: str) -> dict[str, str | None]:
@@ -2497,7 +2562,6 @@ class PodmanCompose:
         self.prefer_volume_over_mount = True
         self.x_podman: dict[PodmanCompose.XPodmanSettingKey, Any] = {}
         self.merged_yaml: Any
-        self.yaml_hash = ""
         self.console_colors = [
             "\x1b[1;32m",
             "\x1b[1;33m",
@@ -2942,11 +3006,6 @@ class PodmanCompose:
         if not getattr(args, "no_normalize", None):
             compose = normalize_final(compose, self.dirname)
         compose.pop("version", None)
-        self.merged_yaml = yaml.safe_dump(compose)
-        merged_json_b = json.dumps(
-            self.original_configuration(compose), separators=(",", ":")
-        ).encode("utf-8")
-        self.yaml_hash = hashlib.sha256(merged_json_b).hexdigest()
         compose["_dirname"] = dirname
         # debug mode
         if len(files) > 1:
@@ -2968,6 +3027,28 @@ class PodmanCompose:
         service_names = sorted([(len(srv["_deps"]), name) for name, srv in services.items()])
         resolve_extends(services, [name for _, name in service_names], self.environ)
         flat_deps(services)
+
+        # ``merged_yaml`` backs ``podman-compose config``.  It is produced after
+        # ``extends`` has been resolved so that the command shows the fully
+        # merged services, matching docker compose.  Internal bookkeeping keys
+        # (``_deps``, ``_dependents``, ``_aliases``, ...) are stripped because
+        # they are not part of the compose model and are not YAML-serializable.
+        compose["services"] = services
+        display_compose = dict(compose)
+        display_compose.pop("_dirname", None)
+        display_compose["services"] = {
+            sname: (
+                {
+                    key: value
+                    for key, value in srv.items()
+                    if not (isinstance(key, str) and key.startswith("_"))
+                }
+                if isinstance(srv, dict)
+                else srv
+            )
+            for sname, srv in services.items()
+        }
+        self.merged_yaml = yaml.safe_dump(display_compose)
 
         # networks: [...]
         nets = compose.get("networks") or {}
