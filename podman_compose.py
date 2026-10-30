@@ -1994,6 +1994,9 @@ class Podman:
         async with self.semaphore:
             cmd_args = list(map(str, cmd_args or []))
             xargs = self.compose.get_podman_args(cmd) if cmd else []
+            if cmd == "build" and cmd_args:
+                # keep the build context as the last argument
+                cmd_args[-1:-1] = self.compose.get_podman_cmd_args(cmd)
             cmd_ls = [self.podman_path, *podman_args] + xargs + cmd_args
             log.info(" ".join([str(i) for i in cmd_ls]))
             if self.dry_run:
@@ -2550,15 +2553,23 @@ class PodmanCompose:
             log.warning("missing services [%s]", missing_csv)
             sys.exit(1)
 
+    def get_podman_cmd_args(self, cmd: str) -> list[str]:
+        xargs: list[str] = []
+        cmd_norm = cmd if cmd != "create" else "run"
+        cmd_args = self.global_args.__dict__.get(f"podman_{cmd_norm}_args", [])
+        for args in cmd_args:
+            xargs.extend(shlex.split(args))
+        return xargs
+
     def get_podman_args(self, cmd: str) -> list[str]:
         xargs = []
         for args in self.global_args.podman_args:
             xargs.extend(shlex.split(args))
         xargs += [cmd]
-        cmd_norm = cmd if cmd != "create" else "run"
-        cmd_args = self.global_args.__dict__.get(f"podman_{cmd_norm}_args", [])
-        for args in cmd_args:
-            xargs.extend(shlex.split(args))
+        # `build` inserts these itself, after the compose file's options, so that they take
+        # precedence (the last occurrence of an option wins).
+        if cmd != "build":
+            xargs += self.get_podman_cmd_args(cmd)
         return xargs
 
     async def run(self, argv: list[str] | None = None) -> None:
