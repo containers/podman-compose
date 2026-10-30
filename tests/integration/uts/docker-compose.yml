@@ -1,0 +1,6 @@
+version: "3"
+services:
+  serv:
+    image: busybox
+    uts: host
+    command: sh -c "cat /proc/sys/kernel/hostname"
