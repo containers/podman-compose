@@ -1,0 +1,1 @@
+Honor the service `platform` option when pulling images, so the correct image variant is fetched for the declared platform instead of the host OS/architecture.

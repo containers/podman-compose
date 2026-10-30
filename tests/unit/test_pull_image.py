@@ -5,6 +5,7 @@ from unittest import mock
 from parameterized import parameterized
 
 from podman_compose import PullImageSettings
+from podman_compose import compose_pull
 from podman_compose import pull_image
 from podman_compose import pull_images
 from podman_compose import settings_to_pull_args
@@ -47,6 +48,16 @@ class TestPullImageSettings(IsolatedAsyncioTestCase):
 
         settings.quiet = False
         assert settings_to_pull_args(settings) == ["--policy", "always", "localhost/test:1"]
+
+    def test_pull_args_with_platform(self) -> None:
+        settings = PullImageSettings("localhost/test:1", policy="always", platform="linux/amd64")
+        assert settings_to_pull_args(settings) == [
+            "--policy",
+            "always",
+            "--platform",
+            "linux/amd64",
+            "localhost/test:1",
+        ]
 
     @mock.patch("podman_compose.Podman")
     async def test_pull_success(self, podman_mock: mock.Mock) -> None:
@@ -122,6 +133,36 @@ class TestPullImageSettings(IsolatedAsyncioTestCase):
                 mock.call([], "pull", ["--policy", "missing", "ghcr.io/b:latest"]),
             ],
         ),
+        (
+            "Service platform should be passed to pull",
+            [{"image": "ghcr.io/a:latest", "platform": "linux/amd64"}],
+            [
+                mock.call(
+                    [],
+                    "pull",
+                    ["--policy", "missing", "--platform", "linux/amd64", "ghcr.io/a:latest"],
+                ),
+            ],
+        ),
+        (
+            "The same image with different platforms should be pulled for each",
+            [
+                {"image": "ghcr.io/a:latest", "platform": "linux/amd64"},
+                {"image": "ghcr.io/a:latest", "platform": "linux/arm64"},
+            ],
+            [
+                mock.call(
+                    [],
+                    "pull",
+                    ["--policy", "missing", "--platform", "linux/amd64", "ghcr.io/a:latest"],
+                ),
+                mock.call(
+                    [],
+                    "pull",
+                    ["--policy", "missing", "--platform", "linux/arm64", "ghcr.io/a:latest"],
+                ),
+            ],
+        ),
     ])
     @mock.patch("podman_compose.Podman")
     async def test_pull_image(
@@ -159,3 +200,46 @@ class TestPullImageSettings(IsolatedAsyncioTestCase):
         )
         assert run_mock.call_count == 1
         run_mock.assert_called_with([], "pull", ["--policy", "missing", "ghcr.io/a:latest"])
+
+
+class TestComposePull(IsolatedAsyncioTestCase):
+    def _compose_mock(self, containers: list[dict]) -> mock.Mock:
+        compose = mock.Mock()
+        compose.containers = containers
+        compose.podman.run = mock.AsyncMock(return_value=0)
+        return compose
+
+    async def test_platform_is_passed_to_pull(self) -> None:
+        compose = self._compose_mock([
+            {"image": "ghcr.io/a:latest", "platform": "linux/amd64"},
+        ])
+
+        await compose_pull(compose, Namespace(services=[], force_local=False))
+
+        compose.podman.run.assert_called_once_with(
+            [], "pull", ["--platform", "linux/amd64", "ghcr.io/a:latest"]
+        )
+
+    async def test_no_platform_flag_when_unset(self) -> None:
+        compose = self._compose_mock([{"image": "ghcr.io/a:latest"}])
+
+        await compose_pull(compose, Namespace(services=[], force_local=False))
+
+        compose.podman.run.assert_called_once_with([], "pull", ["ghcr.io/a:latest"])
+
+    async def test_same_image_different_platforms_pulled_for_each(self) -> None:
+        compose = self._compose_mock([
+            {"image": "ghcr.io/a:latest", "platform": "linux/amd64"},
+            {"image": "ghcr.io/a:latest", "platform": "linux/arm64"},
+        ])
+
+        await compose_pull(compose, Namespace(services=[], force_local=False))
+
+        assert compose.podman.run.call_count == 2
+        compose.podman.run.assert_has_calls(
+            [
+                mock.call([], "pull", ["--platform", "linux/amd64", "ghcr.io/a:latest"]),
+                mock.call([], "pull", ["--platform", "linux/arm64", "ghcr.io/a:latest"]),
+            ],
+            any_order=True,
+        )
