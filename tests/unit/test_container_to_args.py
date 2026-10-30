@@ -1373,3 +1373,81 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "busybox",
             ],
         )
+
+    @parameterized.expand([
+        "1g",
+        "1024k",
+        "512m",
+        536870912,
+        "300M",
+        -1,
+    ])
+    async def test_memswap_limit(self, memswap: object) -> None:
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+        cnt["memswap_limit"] = memswap
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge:alias=service_name",
+                "--memory-swap",
+                str(memswap).lower(),
+                "busybox",
+            ],
+        )
+
+    async def test_memswap_limit_zero_ignored(self) -> None:
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+        cnt["memswap_limit"] = 0
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge:alias=service_name",
+                "busybox",
+            ],
+        )
+
+    async def test_memswap_limit_not_set(self) -> None:
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge:alias=service_name",
+                "busybox",
+            ],
+        )
+
+    async def test_memswap_limit_with_mem_limit(self) -> None:
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+        cnt["mem_limit"] = "512m"
+        cnt["memswap_limit"] = "1g"
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge:alias=service_name",
+                "-m",
+                "512m",
+                "--memory-swap",
+                "1g",
+                "busybox",
+            ],
+        )
