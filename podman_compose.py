@@ -2935,12 +2935,17 @@ class PodmanCompose:
                 # Solution is to remove 'include' key from compose obj. This doesn't break
                 # having `include` present and correctly processed in included files
                 del compose["include"]
-        resolved_services = self._resolve_profiles(
-            compose.get("services") or {}, target, requested_profiles
+        defined_services = compose.get("services") or {}
+        resolved_services = self._resolve_profiles(defined_services, target, requested_profiles)
+        # services that are disabled by their profiles can still be used as a base in `extends`
+        extends_only_services = self._resolve_extends_only_services(
+            defined_services, resolved_services
         )
         compose["services"] = resolved_services
         if not getattr(args, "no_normalize", None):
             compose = normalize_final(compose, self.dirname)
+            for extends_only_service in extends_only_services.values():
+                normalize_service_final(extends_only_service, self.dirname)
         compose.pop("version", None)
         self.merged_yaml = yaml.safe_dump(compose)
         merged_json_b = json.dumps(
@@ -2964,9 +2969,12 @@ class PodmanCompose:
         services = self._resolve_profiles(services, target, requested_profiles)
 
         # NOTE: maybe add "extends.service" to _deps at this stage
+        services.update(extends_only_services)
         flat_deps(services, with_extends=True)
         service_names = sorted([(len(srv["_deps"]), name) for name, srv in services.items()])
         resolve_extends(services, [name for _, name in service_names], self.environ)
+        for name in extends_only_services:
+            del services[name]
         flat_deps(services)
 
         # networks: [...]
@@ -3136,6 +3144,34 @@ class PodmanCompose:
             if not service_profiles or requested_profiles.intersection(service_profiles):
                 services[name] = config
         return services
+
+    @staticmethod
+    def _resolve_extends_only_services(
+        defined_services: dict[str, Any], enabled_services: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Returns the services that are not enabled, but are extended by an enabled service, either
+        directly or through other extended services.
+
+        :param defined_services: All services defined in the compose file
+        :param enabled_services: The services left after resolving the profiles
+        """
+        extends_only: dict[str, Any] = {}
+        pending = list(enabled_services.values())
+        while pending:
+            ext = pending.pop().get("extends") or {}
+            if isinstance(ext, str):
+                ext = {"service": ext}
+            name = ext.get("service")
+            if not name or ext.get("file"):
+                continue
+            if name in enabled_services or name in extends_only:
+                continue
+            if name not in defined_services:
+                continue
+            extends_only[name] = defined_services[name]
+            pending.append(defined_services[name])
+        return extends_only
 
     # Docker Compose specifies that services can have build-time dependencies on each other
     # through the "additional_contexts" that can refer to the other services' images.

@@ -1,0 +1,1 @@
+Fixed `KeyError` when a service extends another service that is disabled by its profiles.
