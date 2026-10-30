@@ -12,6 +12,26 @@ from tests.integration.test_utils import test_path
 class TestUlimit(unittest.TestCase, RunSubprocessMixin):
     def test_ulimit(self) -> None:
         compose_path = os.path.join(test_path(), "ulimit/docker-compose.yaml")
+
+        _, err = self.run_subprocess_assert_returncode([
+            podman_compose_path(),
+            "--verbose",
+            "--dry-run",
+            "-f",
+            compose_path,
+            "up",
+            "-d",
+        ])
+        forwarded = err.decode("utf-8")
+        self.assertIn("--ulimit nofile=1001", forwarded)
+        self.assertIn("--ulimit nproc=1002:2002", forwarded)
+        self.assertIn("--ulimit nofile=1002", forwarded)
+        self.assertIn("--ulimit nproc=1003:2003", forwarded)
+        self.assertIn("--ulimit nofile=1003", forwarded)
+
+        if os.geteuid() != 0:
+            return
+        # when running as root, also check whether the kernel enforces ulimits
         try:
             self.run_subprocess_assert_returncode([
                 podman_compose_path(),
@@ -28,7 +48,7 @@ class TestUlimit(unittest.TestCase, RunSubprocessMixin):
             ])
             split_output = out.strip(b"\n").split(b"\n")
 
-            # trow away system specific default ulimit values
+            # throw away system specific default ulimit values
             output_part = [
                 el
                 for el in split_output
