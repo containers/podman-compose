@@ -80,6 +80,10 @@ class TestNormalizeService(unittest.TestCase):
             },
         ),
         (
+            {"volumes": [{"type": "volume", "target": "/mnt"}]},
+            {"volumes": [{"type": "volume", "target": "/mnt"}]},
+        ),
+        (
             {"env_file": "./.env"},
             {"env_file": ["./sub_dir/./.env"]},
         ),
