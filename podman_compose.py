@@ -1420,7 +1420,11 @@ def get_net_args_from_networks(compose: PodmanCompose, cnt: dict[str, Any]) -> l
 
 
 async def container_to_args(
-    compose: PodmanCompose, cnt: dict[str, Any], detached: bool = True, no_deps: bool = False
+    compose: PodmanCompose,
+    cnt: dict[str, Any],
+    detached: bool = True,
+    no_deps: bool = False,
+    args: argparse.Namespace | None = None,
 ) -> list[str]:
     # TODO: double check -e , --add-host, -v, --read-only
     dirname = compose.dirname
@@ -1569,8 +1573,21 @@ async def container_to_args(
         podman_args.append("--privileged")
     if cnt.get("pid"):
         podman_args.extend(["--pid", cnt["pid"]])
-    pull_policy = cnt.get("pull_policy")
-    if pull_policy is not None and pull_policy != "build":
+    # An explicit `--pull` on the command line overrides the service's
+    # `pull_policy`. For local images (localhost/ or built without a registry
+    # prefix) a pull-triggering policy is not forwarded, because podman would
+    # otherwise try to pull them from a registry and fail. `never`/`build` are
+    # still honored since they only prevent pulling.
+    cli_pull = getattr(args, "pull", None)
+    if cli_pull is not None and cli_pull not in ("never", "build") and is_local(cnt):
+        cli_pull = None
+    pull_policy = cli_pull or cnt.get("pull_policy")
+    # podman has no `build` pull policy. Per the Compose spec `build` means the
+    # image is built rather than pulled, so map it to `never` instead of
+    # dropping the flag (which would let podman default to `--pull=missing`).
+    if pull_policy == "build":
+        pull_policy = "never"
+    if pull_policy is not None:
         podman_args.append(f"--pull={pull_policy}")
     if cnt.get("restart") is not None:
         podman_args.extend(["--restart", cnt["restart"]])
@@ -3747,7 +3764,9 @@ def container_to_build_args(
         build_args.append("--no-cache")
 
     pull_policy = getattr(args, "pull", None)
-    if pull_policy:
+    # `build` is a compose-level policy; it is not a valid value for
+    # `podman build --pull`, so it must not be forwarded.
+    if pull_policy and pull_policy != "build":
         build_args.append(f"--pull={pull_policy}")
 
     args_list = norm_as_list(build_desc.get("args", {}))
@@ -3767,7 +3786,12 @@ def container_to_build_args(
 async def build_one(compose: PodmanCompose, args: argparse.Namespace, cnt: dict) -> int | None:
     if "build" not in cnt:
         return None
-    if getattr(args, "if_not_exists", None):
+    # A service with `pull_policy: build` must always be (re)built, even when the
+    # image already exists locally. An explicit `--pull` on the command line
+    # overrides the service's `pull_policy`
+    effective_pull_policy = getattr(args, "pull", None) or cnt.get("pull_policy")
+    force_build = effective_pull_policy == "build"
+    if getattr(args, "if_not_exists", None) and not force_build:
         try:
             img_id = await compose.podman.output(
                 [], "inspect", ["-t", "image", "-f", "{{.Id}}", cnt["image"]]
@@ -4368,7 +4392,9 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
             continue
         if getattr(args, "no_hosts", False):
             cnt["x-podman.no_hosts"] = True
-        podman_args = await container_to_args(compose, cnt, detached=False, no_deps=args.no_deps)
+        podman_args = await container_to_args(
+            compose, cnt, detached=False, no_deps=args.no_deps, args=args
+        )
         exit_code = await compose.podman.run([], "create", podman_args)
         create_error_codes.append(exit_code)
 
@@ -4669,7 +4695,7 @@ async def compose_run(compose: PodmanCompose, args: argparse.Namespace) -> None:
 
     compose_run_update_container_from_args(compose, cnt, args)
     # run podman
-    podman_args = await container_to_args(compose, cnt, args.detach, args.no_deps)
+    podman_args = await container_to_args(compose, cnt, args.detach, args.no_deps, args=args)
     if not args.detach:
         podman_args.insert(1, "-i")
         if args.rm:
@@ -5181,6 +5207,15 @@ def compose_run_parse(parser: argparse.ArgumentParser) -> None:
         "--build", action="store_true", help="Build images before starting containers."
     )
     parser.add_argument(
+        "--pull",
+        help="Pull image policy (always|missing|never|newer|build)."
+        " Set to 'newer' if specify --pull without a value."
+        " default (pull_policy in compose file).",
+        action=PullPolicyAction,
+        nargs="?",
+        choices=["always", "missing", "never", "newer", "build"],
+    )
+    parser.add_argument(
         "-d",
         "--detach",
         action="store_true",
@@ -5443,12 +5478,12 @@ class PullPolicyAction(argparse.Action):
 def compose_build_up_parse(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--pull",
-        help="Pull image policy (always|missing|never|newer)."
+        help="Pull image policy (always|missing|never|newer|build)."
         " Set to 'newer' if specify --pull without a value."
         " default (pull_policy in compose file).",
         action=PullPolicyAction,
         nargs="?",
-        choices=["always", "missing", "never", "newer"],
+        choices=["always", "missing", "never", "newer", "build"],
     )
     parser.add_argument(
         "--pull-always",

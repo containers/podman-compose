@@ -20,6 +20,11 @@ def compose_yaml_path(scenario: str) -> str:
     )
 
 
+def remove_file_if_exists(path: str) -> None:
+    if os.path.exists(path):
+        os.remove(path)
+
+
 class TestComposeUpBehavior(unittest.TestCase, RunSubprocessMixin):
     def get_existing_containers(self, scenario: str) -> dict[str, Any]:
         out, _ = self.run_subprocess_assert_returncode(
@@ -43,6 +48,17 @@ class TestComposeUpBehavior(unittest.TestCase, RunSubprocessMixin):
             }
             for c in containers
         }
+
+    def get_image_id(self, image: str) -> str:
+        out, _ = self.run_subprocess_assert_returncode([
+            "podman",
+            "image",
+            "inspect",
+            "-f",
+            "{{.Id}}",
+            image,
+        ])
+        return out.decode("utf-8").strip()
 
     @parameterized.expand([
         (
@@ -647,3 +663,225 @@ class TestComposeUpBehavior(unittest.TestCase, RunSubprocessMixin):
                 ["podman", "rmi", "-f", tag],
             )
             os.remove(dockerfile)
+
+    def run_pull_policy_up_twice(
+        self, scenario: str, image: str, dockerfile_name: str, *extra_up_args: str
+    ) -> tuple[str, bytes]:
+        """
+        Run `up` twice for a build-based service, modifying the Dockerfile in between.
+        """
+        compose_file = compose_yaml_path(scenario)
+        dockerfile = os.path.join(os.path.join(test_path(), "compose_up_behavior"), dockerfile_name)
+        self.addCleanup(remove_file_if_exists, dockerfile)
+        self.addCleanup(self._cleanup_pull_policy, compose_file, image)
+
+        # create the Dockerfile for the initial build
+        with open(dockerfile, "w") as f:
+            f.write("FROM alpine:latest\n")
+
+        # first up builds the image
+        self.run_subprocess_assert_returncode(
+            [podman_compose_path(), "-f", compose_file, "up", "-d"],
+        )
+
+        # image now exists locally
+        self.run_subprocess_assert_returncode(["podman", "image", "exists", image])
+        original_image_id = self.get_image_id(image)
+
+        # modify the Dockerfile so a rebuild yields a different image
+        with open(dockerfile, "w") as f:
+            f.write("FROM alpine:latest\nRUN touch /marker\n")
+
+        # second up, with the caller-provided extra arguments
+        _, error = self.run_subprocess_assert_returncode([
+            podman_compose_path(),
+            "--verbose",
+            "-f",
+            compose_file,
+            "up",
+            *extra_up_args,
+            "-d",
+        ])
+        return original_image_id, error
+
+    def _cleanup_pull_policy(self, compose_file: str, image: str) -> None:
+        self.run_subprocess_assert_returncode([
+            podman_compose_path(),
+            "-f",
+            compose_file,
+            "down",
+            "-t",
+            "0",
+        ])
+        if self.run_subprocess(["podman", "image", "exists", image])[2] == 0:
+            self.run_subprocess_assert_returncode(["podman", "rmi", "-f", image])
+
+    def test_pull_policy_build_rebuilds_existing_image(self) -> None:
+        """
+        The Dockerfile is modified between the two `up` invocations so that a
+        rebuild produces a different image ID; the second `up` must rebuild and
+        therefore replace the local image.
+        """
+        image = "localhost/pull-policy-build-test"
+        original_image_id, error = self.run_pull_policy_up_twice(
+            "pull_policy_build", image, "Dockerfile.pull_policy_build"
+        )
+        self.assertIn(b"podman build", error)
+        self.assertNotEqual(
+            original_image_id,
+            self.get_image_id(image),
+        )
+
+    def test_pull_policy_missing_reuses_existing_image(self) -> None:
+        """
+        The Dockerfile is modified between the two `up` invocations; because the
+        service does not request `pull_policy: build`, the existing local image
+        must be reused and its ID must stay the same.
+        """
+        image = "localhost/pull-policy-missing-test"
+        original_image_id, error = self.run_pull_policy_up_twice(
+            "pull_policy_missing", image, "Dockerfile.pull_policy_missing"
+        )
+        self.assertNotIn(b"podman build", error)
+        self.assertEqual(
+            original_image_id,
+            self.get_image_id(image),
+        )
+
+    def test_cli_pull_never_overrides_pull_policy_build(self) -> None:
+        """
+        CLI `--pull=never` must suppress the rebuild that `pull_policy: build`
+        would otherwise force.
+        """
+        image = "localhost/pull-policy-build-test"
+        original_image_id, error = self.run_pull_policy_up_twice(
+            "pull_policy_build", image, "Dockerfile.pull_policy_build", "--pull=never"
+        )
+        self.assertNotIn(b"podman build", error)
+        self.assertEqual(original_image_id, self.get_image_id(image))
+
+    def test_cli_pull_build_forces_rebuild_no_pull_policy_build(self) -> None:
+        image = "localhost/pull-policy-missing-test"
+        original_image_id, error = self.run_pull_policy_up_twice(
+            "pull_policy_missing", image, "Dockerfile.pull_policy_missing", "--pull=build"
+        )
+        self.assertIn(b"podman build", error)
+        self.assertNotEqual(original_image_id, self.get_image_id(image))
+
+    def test_pull_policy_build_without_build_section_does_not_pull(self) -> None:
+        compose_file = compose_yaml_path("pull_policy_build_no_build_section")
+        image = "docker.io/library/alpine:latest"
+
+        try:
+            # make sure the image is absent so the pull decision actually matters
+            self.run_subprocess_assert_returncode(["podman", "rmi", "--ignore", "-f", image])
+            self.run_subprocess_assert_returncode(["podman", "image", "exists", image], 1)
+
+            # `up` must not pull the image: podman is told --pull=never
+            _, error, _ = self.run_subprocess([
+                podman_compose_path(),
+                "--verbose",
+                "-f",
+                compose_file,
+                "up",
+                "-d",
+            ])
+            self.assertIn(b"--pull=never", error)
+
+            # the image must not have been pulled
+            self.run_subprocess_assert_returncode(["podman", "image", "exists", image], 1)
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_file,
+                "down",
+                "-t",
+                "0",
+            ])
+            self.run_subprocess_assert_returncode(["podman", "rmi", "--ignore", "-f", image])
+
+    def test_cli_pull_always_ignored_for_localhost_image(self) -> None:
+        compose_file = compose_yaml_path("build_localhost_image")
+        image = "localhost/not-exists"
+
+        try:
+            # `--pull=always` must not break a locally built image
+            _, error = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "--verbose",
+                "-f",
+                compose_file,
+                "up",
+                "--pull=always",
+                "-d",
+            ])
+            # the CLI pull policy must not be forwarded to `podman create`
+            create_line = next(line for line in error.splitlines() if b"podman create" in line)
+            self.assertEqual(create_line.count(b"--pull="), 0)
+
+            # the container was created from the local image
+            output, _ = self.run_subprocess_assert_returncode([
+                "podman",
+                "ps",
+                "-a",
+                "--filter",
+                f"ancestor={image}",
+                "--format",
+                "{{.Image}}",
+            ])
+            self.assertIn(image.encode(), output)
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_file,
+                "down",
+                "-t",
+                "0",
+            ])
+            self.run_subprocess_assert_returncode(["podman", "rmi", "--ignore", "-f", image])
+
+    def test_run_pull_never_does_not_pull_image(self) -> None:
+        """Verify `run --pull=never` forwards the policy to `podman run`.
+        With `--pull=never`, podman-compose must pass the policy through to
+        `podman run` so that podman fails immediately when the image is not
+        available locally, instead of trying to reach a registry.
+        """
+        compose_file = compose_yaml_path("pull_never_run")
+        image = "localhost/does-not-exist:latest"
+
+        # make sure the image does not exist locally
+        self.run_subprocess_assert_returncode(
+            ["podman", "image", "exists", image],
+            expected_returncode=1,
+        )
+
+        try:
+            # the command is expected to fail because the image is missing,
+            # but it must fail without attempting to pull from a registry
+            _, error, _ = self.run_subprocess([
+                podman_compose_path(),
+                "--verbose",
+                "-f",
+                compose_file,
+                "run",
+                "--pull=never",
+                "test",
+                "echo",
+                "hi",
+            ])
+
+            # the pull policy must be forwarded to podman run
+            self.assertIn(b"--pull=never", error)
+            # podman must not try to reach a registry
+            self.assertNotIn(b"Trying to pull", error)
+        finally:
+            self.run_subprocess([
+                podman_compose_path(),
+                "-f",
+                compose_file,
+                "down",
+                "-t",
+                "0",
+            ])
