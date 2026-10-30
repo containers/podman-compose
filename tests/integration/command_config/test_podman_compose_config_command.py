@@ -46,6 +46,7 @@ class TestConfigCommand(unittest.TestCase, RunSubprocessMixin):
         expected = textwrap.dedent("""\
             services:
               app:
+                image: nopush/podman-compose-test
                 command:
                 - /bin/busybox
                 - sh
@@ -53,7 +54,11 @@ class TestConfigCommand(unittest.TestCase, RunSubprocessMixin):
                 - env | grep ZZVAR3
                 environment:
                   ZZVAR3: TEST
-                image: nopush/podman-compose-test
+                networks:
+                  default: null
+            networks:
+              default:
+                name: command_config_default
 
             """)
         self.assertEqual(out.decode("utf-8"), expected)
@@ -74,4 +79,104 @@ class TestConfigCommand(unittest.TestCase, RunSubprocessMixin):
             b'please remove it to avoid potential confusion\n',
             err,
         )
-        self.assertEqual(out, b'services:\n  test:\n    image: nopush/podman-compose-test\n\n')
+        self.assertEqual(
+            out.decode("utf-8"),
+            'services:\n'
+            '  test:\n'
+            '    image: nopush/podman-compose-test\n'
+            '    networks:\n'
+            '      default: null\n'
+            'networks:\n'
+            '  default:\n'
+            '    name: command_config_default\n'
+            '\n',
+        )
+
+    def test_config_shows_networks_and_default_network(self) -> None:
+        out, _ = self.run_subprocess_assert_returncode(
+            [
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(""),
+                "config",
+            ],
+            0,
+        )
+
+        self.assertEqual(
+            out.decode("utf-8"),
+            'services:\n'
+            '  test:\n'
+            '    image: nopush/podman-compose-test\n'
+            '    networks:\n'
+            '      default: null\n'
+            'networks:\n'
+            '  default:\n'
+            '    name: command_config_default\n'
+            '\n',
+        )
+
+    def test_config_with_named_network(self) -> None:
+        out, _ = self.run_subprocess_assert_returncode(
+            [
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path("_one_net"),
+                "config",
+            ],
+            0,
+        )
+
+        self.assertEqual(
+            out.decode("utf-8"),
+            'services:\n'
+            '  test:\n'
+            '    image: nopush/podman-compose-test\n'
+            '    networks:\n'
+            '      net0: null\n'
+            'networks:\n'
+            '  net0:\n'
+            '    name: command_config_net0\n'
+            '\n',
+        )
+
+    def test_config_with_external_network(self) -> None:
+        out, _ = self.run_subprocess_assert_returncode(
+            [
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path("_external_net"),
+                "config",
+            ],
+            0,
+        )
+        self.assertEqual(
+            out.decode("utf-8"),
+            'services:\n'
+            '  test:\n'
+            '    image: nopush/podman-compose-test\n'
+            '    networks:\n'
+            '      extnet: null\n'
+            'networks:\n'
+            '  extnet:\n'
+            '    external: true\n'
+            '    name: extnet\n'
+            '\n',
+        )
+
+    def test_config_with_network_mode(self) -> None:
+        out, _ = self.run_subprocess_assert_returncode(
+            [
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path("_network_mode"),
+                "config",
+            ],
+            0,
+        )
+
+        # The service itself must not have a networks key injected
+        self.assertEqual(
+            out.decode("utf-8"),
+            'services:\n  test:\n    image: nopush/podman-compose-test\n    network_mode: host\n\n',
+        )
