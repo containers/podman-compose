@@ -1,0 +1,4 @@
+services:
+  explicitchild:
+    image: localhost/${PD_EXPLICIT_VAR:-unset}
+    command: ["true"]

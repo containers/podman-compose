@@ -2699,6 +2699,97 @@ class PodmanCompose:
             set_if_not_already_set(PodmanCompose.XPodmanSettingKey.NAME_SEPARATOR_COMPAT, True)
             set_if_not_already_set(PodmanCompose.XPodmanSettingKey.IN_POD, False)
 
+    @staticmethod
+    def _resolve_include_entries(
+        include: list[Any],
+        base_dir: str,
+        inherited_env: dict[str, str | None] | None = None,
+    ) -> list[tuple[str, dict[str, str | None] | None, str]]:
+        """
+        Turn a compose `include` list into (filename, env_override, project_dir)
+        triples.
+
+        ``inherited_env`` holds the env_file variables that applied to the file
+        containing this include directive (``None`` for top-level files). Like
+        docker compose, nested includes inherit these so a variable declared in
+        a parent include's env_file stays visible in its nested includes. The
+        nested include's own env_file (or default `.env`) is layered on top.
+
+        Each item may be a string (short form) or a mapping with `path` (string
+        or list of strings), optional `env_file` (string or list of strings),
+        and optional `project_directory` (string). The `path` and explicit
+        `env_file` paths are resolved relative to ``base_dir`` — the directory
+        of the compose file in which this include directive appears. Variable
+        interpolation inside them is expected to have happened already.
+
+        ``project_directory`` is itself resolved relative to ``base_dir`` and
+        defaults to the directory of the included file. It becomes the base
+        directory for resolving relative paths *inside* the included file
+        (nested includes, ``extends.file`` references, and the default `.env`
+        lookup).
+        """
+        entries: list[tuple[str, dict[str, str | None] | None, str]] = []
+        for inc in include:
+            if isinstance(inc, str):
+                inc = {"path": inc}
+            elif not isinstance(inc, dict):
+                raise RuntimeError(
+                    "Items in `include` must be strings or dictionaries with a 'path' key"
+                )
+            path_val = inc.get("path")
+            if path_val is None:
+                raise RuntimeError("Missing required 'path' key in `include` block")
+            if isinstance(path_val, str):
+                paths = [path_val]
+            elif isinstance(path_val, list):
+                paths = list(path_val)
+            else:
+                raise RuntimeError("'path' must be a string or a list of strings")
+
+            if "env_file" in inc:
+                env_file_val = inc["env_file"]
+                if env_file_val is None:
+                    env_files: list[str] = []
+                elif isinstance(env_file_val, str):
+                    env_files = [env_file_val]
+                elif isinstance(env_file_val, list):
+                    env_files = list(env_file_val)
+                else:
+                    raise RuntimeError("include.env_file must be a string or list of strings")
+                env_file_explicit = True
+            else:
+                env_files = []
+                env_file_explicit = False
+
+            project_directory_val = inc.get("project_directory")
+            if project_directory_val is not None and not isinstance(project_directory_val, str):
+                raise RuntimeError("include.project_directory must be a string")
+
+            for p in paths:
+                resolved_path = os.path.join(base_dir, p)
+                if project_directory_val is None:
+                    project_dir = os.path.dirname(resolved_path)
+                else:
+                    project_dir = os.path.join(base_dir, project_directory_val)
+                env_override: dict[str, str | None] | None
+                if env_file_explicit:
+                    env_override = {}
+                    for ef in env_files:
+                        ef_path = os.path.join(base_dir, ef)
+                        if not os.path.isfile(ef_path):
+                            raise RuntimeError(f"include.env_file {ef!r} not found at {ef_path}")
+                        env_override.update(dotenv_to_dict(ef_path))
+                else:
+                    default_dotenv = os.path.join(project_dir, ".env")
+                    if os.path.isfile(default_dotenv):
+                        env_override = dict(dotenv_to_dict(default_dotenv))
+                    else:
+                        env_override = None
+                if inherited_env:
+                    env_override = {**inherited_env, **(env_override or {})}
+                entries.append((resolved_path, env_override, project_dir))
+        return entries
+
     def _parse_compose_file(self) -> None:
         args = self.global_args
         # cmd = args.command
@@ -2820,8 +2911,20 @@ class PodmanCompose:
         target = [target_service] if target_service else target_services or []
 
         compose: dict[str, Any] = {}
-        # Iterate over files primitively to allow appending to files in-loop
-        files_iter = iter(files)
+        # Each entry is (filename, env_override, project_dir):
+        # - env_override: variables loaded from an include's env_file (or
+        #   None when inheriting the parent environment). Applied as defaults
+        #   with self.environ (shell + parent .env) taking precedence.
+        # - project_dir: base directory for resolving relative paths *inside*
+        #   the file (nested include paths, extends.file). For top-level
+        #   files it is the file's own directory; for included files it is
+        #   the include entry's project_directory (defaulting to the directory
+        #   of the included file).
+        # Iterate primitively to allow appending to entries in-loop.
+        entries: list[tuple[str, dict[str, str | None] | None, str]] = [
+            (f, None, os.path.dirname(f)) for f in files
+        ]
+        entries_iter = iter(entries)
         # Track files appended by ``include:`` so we can resolve their
         # relative paths against the included file's directory per the
         # Compose Spec, without changing the legacy merge behavior of
@@ -2830,7 +2933,7 @@ class PodmanCompose:
 
         while True:
             try:
-                filename = next(files_iter)
+                filename, env_override, project_dir = next(entries_iter)
             except StopIteration:
                 break
 
@@ -2850,13 +2953,13 @@ class PodmanCompose:
                     filename,
                 )
             # For files arriving via ``include:``, paths inside the file must
-            # resolve against the included file's directory rather than the
-            # project root (Compose Spec, ``include`` section). Pass that as
-            # sub_dir so volumes / env_file / build.context get rewritten.
+            # resolve against the include's project_directory (defaulting to
+            # the included file's directory) rather than the project root
+            # (Compose Spec, ``include`` section). Pass that as sub_dir so
+            # volumes / env_file / build.context get rewritten.
             file_sub_dir = ""
             if filename in include_origin_files:
-                file_dir = os.path.dirname(os.path.abspath(filename))
-                file_sub_dir = os.path.relpath(file_dir, self.dirname)
+                file_sub_dir = os.path.relpath(os.path.abspath(project_dir), self.dirname)
                 if file_sub_dir == ".":
                     file_sub_dir = ""
                 elif not file_sub_dir.startswith((".", "/")):
@@ -2887,16 +2990,18 @@ class PodmanCompose:
             assert self.project_name is not None
             self.environ.update({"COMPOSE_PROJECT_NAME": self.project_name})
 
-            content = rec_subs(content, self.environ)
+            if env_override:
+                interp_env: dict[str, Any] = {**env_override, **self.environ}
+            else:
+                interp_env = self.environ
+            content = rec_subs(content, interp_env)
             if isinstance(content_services := content.get('services'), dict):
                 for service in content_services.values():
                     if not isinstance(service, OverrideTag) and not isinstance(service, ResetTag):
                         if 'extends' in service and (
                             service_file := service['extends'].get('file')
                         ):
-                            service['extends']['file'] = os.path.join(
-                                os.path.dirname(filename), service_file
-                            )
+                            service['extends']['file'] = os.path.join(project_dir, service_file)
 
             rec_merge(compose, content)
             # If `include` is used, append included files to files
@@ -2907,28 +3012,11 @@ class PodmanCompose:
                 if not isinstance(include, list):
                     raise RuntimeError("`include` must be a list")
 
-                new_includes: list[str] = []
-                for item in include:
-                    if isinstance(item, str):
-                        new_includes.append(os.path.join(os.path.dirname(filename), item))
-                    elif isinstance(item, dict):
-                        if "path" not in item:
-                            raise RuntimeError("Missing required 'path' key in `include` block")
-                        path = item["path"]
-                        if isinstance(path, str):
-                            new_includes.append(os.path.join(os.path.dirname(filename), path))
-                        elif isinstance(path, list):
-                            new_includes.extend(
-                                os.path.join(os.path.dirname(filename), p) for p in path
-                            )
-                        else:
-                            raise RuntimeError("'path' must be a string or a list of strings")
-                    else:
-                        raise RuntimeError(
-                            "Items in `include` must be strings or dictionaries with a 'path' key"
-                        )
-                files.extend(new_includes)
-                include_origin_files.update(new_includes)
+                new_entries = self._resolve_include_entries(
+                    include, project_dir, inherited_env=env_override
+                )
+                entries.extend(new_entries)
+                include_origin_files.update(fn for fn, _, _ in new_entries)
                 # As compose obj is updated and tested with every loop, not deleting `include`
                 # from it, results in it being tested again and again, original values for
                 # `include` be appended to `files`, and, included files be processed for ever.
@@ -2942,6 +3030,18 @@ class PodmanCompose:
         if not getattr(args, "no_normalize", None):
             compose = normalize_final(compose, self.dirname)
         compose.pop("version", None)
+        # Resolve `extends` before dumping merged_yaml so `config` output (and
+        # the hash derived from it) reflects merged service definitions, the
+        # way docker compose renders.
+        flat_deps(resolved_services, with_extends=True)
+        extends_order = sorted([
+            (len(srv["_deps"]), name) for name, srv in resolved_services.items()
+        ])
+        resolve_extends(resolved_services, [name for _, name in extends_order], self.environ)
+        for srv in resolved_services.values():
+            for k in [key for key in srv if key.startswith("_")]:
+                srv.pop(k, None)
+            srv.pop("extends", None)
         self.merged_yaml = yaml.safe_dump(compose)
         merged_json_b = json.dumps(
             self.original_configuration(compose), separators=(",", ":")
@@ -2949,7 +3049,7 @@ class PodmanCompose:
         self.yaml_hash = hashlib.sha256(merged_json_b).hexdigest()
         compose["_dirname"] = dirname
         # debug mode
-        if len(files) > 1:
+        if len(entries) > 1:
             log.debug(" ** merged:\n%s", json.dumps(self.original_configuration(compose), indent=2))
         # ver = compose.get('version')
 
@@ -2963,10 +3063,6 @@ class PodmanCompose:
         # include services with no profile defined or the selected profiles
         services = self._resolve_profiles(services, target, requested_profiles)
 
-        # NOTE: maybe add "extends.service" to _deps at this stage
-        flat_deps(services, with_extends=True)
-        service_names = sorted([(len(srv["_deps"]), name) for name, srv in services.items()])
-        resolve_extends(services, [name for _, name in service_names], self.environ)
         flat_deps(services)
 
         # networks: [...]

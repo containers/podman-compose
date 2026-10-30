@@ -1,0 +1,5 @@
+name: include-envfile-missing
+
+include:
+  - path: child.yaml
+    env_file: nope.env

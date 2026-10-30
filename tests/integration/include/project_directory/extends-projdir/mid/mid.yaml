@@ -1,0 +1,6 @@
+services:
+  extendedservice:
+    extends:
+      file: base.yaml
+      service: webapp
+    command: ["true"]

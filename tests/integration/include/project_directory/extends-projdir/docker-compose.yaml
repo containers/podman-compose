@@ -1,0 +1,5 @@
+name: include-projdir-extends
+
+include:
+  - path: mid/mid.yaml
+    project_directory: alt

@@ -1,0 +1,4 @@
+name: include-envfile-default
+
+include:
+  - child/child.yaml

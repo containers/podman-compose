@@ -1,0 +1,4 @@
+services:
+  missingchild:
+    image: localhost/never
+    command: ["true"]

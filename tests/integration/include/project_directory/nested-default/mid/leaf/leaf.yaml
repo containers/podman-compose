@@ -1,0 +1,4 @@
+services:
+  nesteddefaultleaf:
+    image: localhost/${NESTED_DEFAULT_VAR:-unset}
+    command: ["true"]
