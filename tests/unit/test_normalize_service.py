@@ -149,3 +149,39 @@ class TestNormalizeService(unittest.TestCase):
         with self.assertRaises(PodmanComposeError) as context:
             normalize_service({"volumes": None})
         self.assertEqual("ERROR: volumes must be a list", str(context.exception))
+
+    @parameterized.expand([
+        (
+            "environment_dict_in_list",
+            {"environment": ["FOO=bar", {"http.port": 9200}]},
+            "unexpected type dict in list entry: {'http.port': 9200}; "
+            'expected a "KEY=value" string',
+        ),
+        (
+            "environment_int_in_list",
+            {"environment": ["FOO=bar", 123]},
+            'unexpected type int in list entry: 123; expected a "KEY=value" string',
+        ),
+        (
+            "labels_dict_in_list",
+            {"labels": [{"com.example.foo": "bar"}]},
+            "unexpected type dict in list entry: {'com.example.foo': 'bar'}; "
+            'expected a "KEY=value" string',
+        ),
+    ])
+    def test_malformed_list_entry_raises(
+        self, test_name: str, input_service: dict[str, Any], expected_message: str
+    ) -> None:
+        with self.assertRaises(PodmanComposeError) as context:
+            normalize_service(input_service)
+        self.assertEqual(expected_message, str(context.exception))
+
+    @parameterized.expand([
+        ("list_form", {"environment": ["FOO=bar", "BAZ"]}, {"FOO": "bar", "BAZ": None}),
+        ("dict_form", {"environment": {"FOO": "bar", "BAZ": None}}, {"FOO": "bar", "BAZ": None}),
+    ])
+    def test_valid_environment_forms(
+        self, test_name: str, input_service: dict[str, Any], expected_env: dict[str, Any]
+    ) -> None:
+        normalized = normalize_service(input_service)
+        self.assertEqual(normalized["environment"], expected_env)
