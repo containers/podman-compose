@@ -4648,14 +4648,14 @@ async def compose_down(compose: PodmanCompose, args: argparse.Namespace) -> None
 
 
 @cmd_run(podman_compose, "ps", "show status of containers")
-async def compose_ps(compose: PodmanCompose, args: argparse.Namespace) -> None:
+async def compose_ps(compose: PodmanCompose, args: argparse.Namespace) -> int | None:
     ps_args = ["-a", "--filter", f"label=io.podman.compose.project={compose.project_name}"]
     if args.quiet is True:
         ps_args.extend(["--format", "{{.ID}}"])
     elif args.format:
         ps_args.extend(["--format", args.format])
 
-    await compose.podman.run(
+    return await compose.podman.run(
         [],
         "ps",
         ps_args,
@@ -4828,7 +4828,7 @@ def compose_exec_args(cnt: dict, container_name: str, args: argparse.Namespace) 
 
 async def transfer_service_status(
     compose: PodmanCompose, args: argparse.Namespace, action: str
-) -> None:
+) -> int:
     # TODO: handle dependencies, handle creations
     container_names_by_service = compose.container_names_by_service
     if not args.services:
@@ -4855,25 +4855,29 @@ async def transfer_service_status(
             if timeout is not None:
                 podman_args.extend(["-t", str(timeout)])
         tasks.append(asyncio.create_task(compose.podman.run([], action, podman_args + [target])))
-    await asyncio.gather(*tasks)
+    statuses = await asyncio.gather(*tasks)
+    return next((s for s in statuses if s), 0)
 
 
 @cmd_run(podman_compose, "start", "start specific services")
-async def compose_start(compose: PodmanCompose, args: argparse.Namespace) -> None:
-    await transfer_service_status(compose, args, "start")
+async def compose_start(compose: PodmanCompose, args: argparse.Namespace) -> int:
+    status = await transfer_service_status(compose, args, "start")
+    if status:
+        return status
 
     if args.wait:
         await wait_for_container_running_healthy(compose, args)
+    return 0
 
 
 @cmd_run(podman_compose, "stop", "stop specific services")
-async def compose_stop(compose: PodmanCompose, args: argparse.Namespace) -> None:
-    await transfer_service_status(compose, args, "stop")
+async def compose_stop(compose: PodmanCompose, args: argparse.Namespace) -> int:
+    return await transfer_service_status(compose, args, "stop")
 
 
 @cmd_run(podman_compose, "restart", "restart specific services")
-async def compose_restart(compose: PodmanCompose, args: argparse.Namespace) -> None:
-    await transfer_service_status(compose, args, "restart")
+async def compose_restart(compose: PodmanCompose, args: argparse.Namespace) -> int:
+    return await transfer_service_status(compose, args, "restart")
 
 
 @cmd_run(podman_compose, "logs", "show logs from services")
@@ -4936,29 +4940,29 @@ async def compose_port(compose: PodmanCompose, args: argparse.Namespace) -> None
 
 
 @cmd_run(podman_compose, "pause", "Pause all running containers")
-async def compose_pause(compose: PodmanCompose, args: argparse.Namespace) -> None:
+async def compose_pause(compose: PodmanCompose, args: argparse.Namespace) -> int | None:
     container_names_by_service = compose.container_names_by_service
     if not args.services:
         args.services = container_names_by_service.keys()
     targets = []
     for service in args.services:
         targets.extend(container_names_by_service[service])
-    await compose.podman.run([], "pause", targets)
+    return await compose.podman.run([], "pause", targets)
 
 
 @cmd_run(podman_compose, "unpause", "Unpause all running containers")
-async def compose_unpause(compose: PodmanCompose, args: argparse.Namespace) -> None:
+async def compose_unpause(compose: PodmanCompose, args: argparse.Namespace) -> int | None:
     container_names_by_service = compose.container_names_by_service
     if not args.services:
         args.services = container_names_by_service.keys()
     targets = []
     for service in args.services:
         targets.extend(container_names_by_service[service])
-    await compose.podman.run([], "unpause", targets)
+    return await compose.podman.run([], "unpause", targets)
 
 
 @cmd_run(podman_compose, "kill", "Kill one or more running containers with a specific signal")
-async def compose_kill(compose: PodmanCompose, args: argparse.Namespace) -> None:
+async def compose_kill(compose: PodmanCompose, args: argparse.Namespace) -> int | None:
     # to ensure that the user did not execute the command by mistake
     if not args.services and not args.all:
         log.fatal(
@@ -4979,14 +4983,13 @@ async def compose_kill(compose: PodmanCompose, args: argparse.Namespace) -> None
             targets.extend(container_names_by_service[service])
         for target in targets:
             podman_args.append(target)
-        await compose.podman.run([], "kill", podman_args)
-    elif args.services:
-        targets = []
-        for service in args.services:
-            targets.extend(container_names_by_service[service])
-        for target in targets:
-            podman_args.append(target)
-        await compose.podman.run([], "kill", podman_args)
+        return await compose.podman.run([], "kill", podman_args)
+    targets = []
+    for service in args.services:
+        targets.extend(container_names_by_service[service])
+    for target in targets:
+        podman_args.append(target)
+    return await compose.podman.run([], "kill", podman_args)
 
 
 @cmd_run(
