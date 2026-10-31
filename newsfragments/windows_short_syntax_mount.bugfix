@@ -1,0 +1,1 @@
+Fixed `unknown mount option` error for Windows absolute host paths in the short volume syntax (e.g. `C:\data:/data`).
