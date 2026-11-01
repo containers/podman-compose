@@ -3922,11 +3922,12 @@ def get_excluded(
     return excluded
 
 
-async def _validate_completed_successfully(
-    compose: PodmanCompose, container_names: list[str]
-) -> None:
-    # Poll until all containers have left the 'created' state
-    # This prevents podman wait from racing against container startup
+async def _wait_until_not_created(compose: PodmanCompose, container_names: list[str]) -> None:
+    """Poll until all containers have left the 'created' state
+
+    This prevents podman wait from racing against container startup: for a container that was
+    created but not started yet, some conditions are reported as fulfilled right away.
+    """
     last_log_time = 0.0
     while True:
         try:
@@ -3950,6 +3951,12 @@ async def _validate_completed_successfully(
             )
             last_log_time = now
         await asyncio.sleep(0.05)
+
+
+async def _validate_completed_successfully(
+    compose: PodmanCompose, container_names: list[str]
+) -> None:
+    await _wait_until_not_created(compose, container_names)
 
     # podman does not actually support value "service_completed_successfully"
     # default value "stopped" is sent instead
@@ -4009,6 +4016,11 @@ async def check_dep_conditions(compose: PodmanCompose, deps: set) -> None:
                         if condition == ServiceDependencyCondition.SERVICE_COMPLETED_SUCCESSFULLY:
                             await _validate_completed_successfully(compose, [d_cnt])
                         else:
+                            if condition in (
+                                ServiceDependencyCondition.HEALTHY,
+                                ServiceDependencyCondition.UNHEALTHY,
+                            ):
+                                await _wait_until_not_created(compose, [d_cnt])
                             await compose.podman.output(
                                 [], "wait", [f"--condition={condition.value}", d_cnt]
                             )
