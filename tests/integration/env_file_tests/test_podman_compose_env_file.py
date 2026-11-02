@@ -78,6 +78,38 @@ class TestComposeEnvFile(unittest.TestCase, RunSubprocessMixin):
                 "down",
             ])
 
+    def test_env_file_interpolates_from_earlier_env_file(self) -> None:
+        base_path = compose_base_path()
+        path_compose_file = os.path.join(base_path, "project/container-compose.cross-file-env.yaml")
+        try:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                path_compose_file,
+                "--env-file",
+                os.path.join(base_path, "env-files/cross-file-base.env"),
+                "--env-file",
+                os.path.join(base_path, "env-files/cross-file-ref.env"),
+                "up",
+            ])
+            output, _ = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                path_compose_file,
+                "logs",
+                "--no-log-prefix",
+                "--no-color",
+            ])
+            # ZZCROSSREF is resolved from ZZCROSS in the earlier --env-file
+            self.assertEqual(output, b"ZZCROSSREF=bar\n")
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                path_compose_file,
+                "down",
+            ])
+
     def test_path_env_file_inline_missing_fails(self) -> None:
         base_path = compose_base_path()
         path_compose_file = os.path.join(base_path, "project/container-compose.yaml")

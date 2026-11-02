@@ -16,6 +16,7 @@ import getpass
 import glob
 import hashlib
 import inspect
+import io
 import json
 import logging
 import os
@@ -35,6 +36,7 @@ from typing import Any
 from typing import Callable
 from typing import ClassVar
 from typing import Iterable
+from typing import Mapping
 from typing import Sequence
 from typing import overload
 from urllib.parse import quote
@@ -42,7 +44,7 @@ from urllib.parse import quote
 # import fnmatch
 # fnmatch.fnmatchcase(env, "*_HOST")
 import yaml
-from dotenv import dotenv_values
+from dotenv.parser import parse_stream
 
 # Python loads the appropriate path module based on the OS, but we need to be able
 # to check if a path is absolute according to BOTH major OS's rules.
@@ -2490,10 +2492,64 @@ def resolve_extends(
         services[name] = new_service
 
 
-def dotenv_to_dict(dotenv_path: str) -> dict[str, str | None]:
+def _value_is_single_quoted(original_line: str) -> bool:
+    """Return whether a dotenv value was written single-quoted.
+
+    python-dotenv strips quotes and does not expose the quote style on
+    ``Binding``, so the raw source line must be re-inspected to tell a
+    single-quoted value (taken literally, not interpolated) from a
+    double-quoted or unquoted one (interpolated).
+    """
+    eq = original_line.find("=")
+    if eq == -1:
+        return False
+    return original_line[eq + 1 :].lstrip().startswith("'")
+
+
+def dotenv_to_dict(
+    dotenv_path: str, environ: Mapping[str, str | None] | None = None
+) -> dict[str, str | None]:
+    """Read a dotenv file and interpolate ``$VAR`` / ``${VAR}`` references.
+
+    ``environ`` supplies the base variables for interpolation. When it is
+    ``None``, ``os.environ`` is used. Values defined earlier in the same file
+    are available to later entries.
+    """
     if not os.path.isfile(dotenv_path):
         return {}
-    return dotenv_values(dotenv_path)
+    try:
+        with open(dotenv_path, encoding="utf-8") as fh:
+            content = fh.read()
+    except OSError as exc:
+        raise PodmanComposeError(f"Could not read env file {dotenv_path}: {exc}") from exc
+
+    if environ is None:
+        environ = os.environ
+
+    base_env: dict[str, str | None] = {k: v for k, v in environ.items() if v is not None}
+
+    resolved: dict[str, str | None] = {}
+    for binding in parse_stream(io.StringIO(content)):
+        if binding.error:
+            log.warning(
+                "%s: could not parse statement starting at line %s",
+                dotenv_path,
+                binding.original.line,
+            )
+            continue
+        if binding.key is None:
+            continue
+        if binding.value is None:
+            resolved[binding.key] = None
+        elif _value_is_single_quoted(binding.original.string):
+            resolved[binding.key] = binding.value
+        else:
+            env = {**resolved, **base_env}
+            try:
+                resolved[binding.key] = var_interpolate(binding.value, env)
+            except (ValueError, PodmanComposeError) as exc:
+                raise PodmanComposeError(f"{dotenv_path}:{binding.original.line}: {exc}") from exc
+    return resolved
 
 
 COMPOSE_DEFAULT_LS = [
@@ -2802,7 +2858,7 @@ class PodmanCompose:
                 if not os.path.exists(dotenv_path):
                     log.fatal("Couldn't find env file: %s", dotenv_path)
                     sys.exit(1)
-                early_dotenv.update(dotenv_to_dict(dotenv_path))
+                early_dotenv.update(dotenv_to_dict(dotenv_path, {**early_dotenv, **os.environ}))
 
         if not args.file:
             default_str = os.environ.get("COMPOSE_FILE")
@@ -2867,7 +2923,7 @@ class PodmanCompose:
                 if not os.path.exists(dotenv_path):
                     log.fatal("Couldn't find env file: %s", dotenv_path)
                     sys.exit(1)
-                dotenv_dict.update(dotenv_to_dict(dotenv_path))
+                dotenv_dict.update(dotenv_to_dict(dotenv_path, {**dotenv_dict, **os.environ}))
 
         os.environ.update({
             key: value  # type: ignore[misc]
