@@ -1,0 +1,1 @@
+Environment variables now take precedence over values defined in the same `.env` / `--env-file` file when interpolating `$VAR` / `${VAR}` references.
