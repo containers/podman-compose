@@ -1504,6 +1504,10 @@ async def container_to_args(
             i = {"path": i}
         path = i["path"]
         required = i.get("required", True)
+        format_ = i.get("format")
+        if format_ not in (None, "", "raw"):
+            raise PodmanComposeError(f'unsupported env_file format "{format_}"')
+        raw = format_ == "raw"
         i = os.path.realpath(os.path.join(dirname, path))
         if not os.path.exists(i):
             if not required:
@@ -1513,7 +1517,7 @@ async def container_to_args(
         # earlier env_file entries, then the service environment, then the
         # project environment (matching compose-go).
         base = {**env_file_vars, **service_env, **compose.environ}
-        parsed = dotenv_to_dict(i, base)
+        parsed = dotenv_to_dict(i, base, raw=raw)
         env_file_vars.update(parsed)
         for e in norm_as_list(parsed):
             podman_args.extend(["-e", e])
@@ -2489,14 +2493,36 @@ def _value_is_single_quoted(original_line: str) -> bool:
     return original_line[eq + 1 :].lstrip().startswith("'")
 
 
+def _parse_raw_env_file(content: str) -> dict[str, str]:
+    """Parse a Compose ``format: raw`` env file.
+
+    Values are taken verbatim, so only ``key=value`` lines are handled;
+    ``export``, ``:`` delimiters, quotes and inline comments are not.
+    """
+    result: dict[str, str] = {}
+    for line in content.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        result[key.strip()] = value
+    return result
+
+
 def dotenv_to_dict(
-    dotenv_path: str, environ: Mapping[str, str | None] | None = None
+    dotenv_path: str,
+    environ: Mapping[str, str | None] | None = None,
+    raw: bool = False,
 ) -> dict[str, str | None]:
     """Read a dotenv file and interpolate ``$VAR`` / ``${VAR}`` references.
 
     ``environ`` supplies the base variables for interpolation. When it is
     ``None``, ``os.environ`` is used. Values defined earlier in the same file
     are available to later entries.
+    When ``raw`` is true the file is parsed without interpolation and values
+    are used verbatim, including quotes and ``$`` signs (Compose ``format: raw``).
     """
     if not os.path.isfile(dotenv_path):
         return {}
@@ -2505,6 +2531,9 @@ def dotenv_to_dict(
             content = fh.read()
     except OSError as exc:
         raise PodmanComposeError(f"Could not read env file {dotenv_path}: {exc}") from exc
+
+    if raw:
+        return dict(_parse_raw_env_file(content))
 
     if environ is None:
         environ = os.environ

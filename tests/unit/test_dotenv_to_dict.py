@@ -111,3 +111,23 @@ class TestDotenvToDict(unittest.TestCase):
             ctx.output[0],
             f"WARNING:podman_compose:{path}: could not parse statement starting at line 2",
         )
+
+    def test_raw_format_keeps_values_verbatim(self) -> None:
+        path = self.write_env('A=$BAR\nB="quoted"\nC=\'single\'\nD=plain # comment\nE=has=equals\n')
+        self.assertEqual(
+            dotenv_to_dict(path, {"BAR": "bar"}, raw=True),
+            {
+                "A": "$BAR",
+                "B": '"quoted"',
+                "C": "'single'",
+                "D": "plain # comment",
+                "E": "has=equals",
+            },
+        )
+
+    def test_raw_format_preserves_whitespace_and_skips_invalid_lines(self) -> None:
+        path = self.write_env("A=trail   \nB=  lead\nC=\nBARE\n# comment\nD=bare\n")
+        self.assertEqual(
+            dotenv_to_dict(path, {}, raw=True),
+            {"A": "trail   ", "B": "  lead", "C": "", "D": "bare"},
+        )
