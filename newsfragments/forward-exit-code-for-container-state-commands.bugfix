@@ -1,0 +1,1 @@
+Fixed `ps`, `start`, `stop`, `restart`, `pause`, `unpause` and `kill` to return the podman exit code instead of 0 when podman fails.
