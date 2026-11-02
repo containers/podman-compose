@@ -93,3 +93,30 @@ class TestEnvFileInterpolation(unittest.TestCase, RunSubprocessMixin):
                 path_compose_file,
                 "down",
             ])
+
+    def test_env_file_format_raw_keeps_value_verbatim(self) -> None:
+        base_path = compose_base_path()
+        path_compose_file = os.path.join(base_path, "docker-compose-raw.yml")
+        try:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                path_compose_file,
+                "up",
+            ])
+            output, _ = self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                path_compose_file,
+                "logs",
+                "--no-log-prefix",
+                "--no-color",
+            ])
+            self.assertEqual(output, b"FOO=$BAR\n")
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                path_compose_file,
+                "down",
+            ])
