@@ -126,9 +126,14 @@ class TestStdinBehavior(unittest.TestCase, RunSubprocessMixin):
             out.decode("utf-8"),
             'services:\n'
             '  test:\n'
+            '    image: nopush/podman-compose-test\n'
             '    command:\n'
             '    - echo\n'
             '    - from-stdin-compose\n'
-            '    image: nopush/podman-compose-test\n'
+            '    networks:\n'
+            '      default: null\n'
+            'networks:\n'
+            '  default:\n'
+            '    name: podman-compose_default\n'
             '\n',
         )

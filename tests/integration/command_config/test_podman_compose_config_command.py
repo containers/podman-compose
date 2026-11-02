@@ -46,6 +46,7 @@ class TestConfigCommand(unittest.TestCase, RunSubprocessMixin):
         expected = textwrap.dedent("""\
             services:
               app:
+                image: nopush/podman-compose-test
                 command:
                 - /bin/busybox
                 - sh
@@ -53,7 +54,11 @@ class TestConfigCommand(unittest.TestCase, RunSubprocessMixin):
                 - env | grep ZZVAR3
                 environment:
                   ZZVAR3: TEST
-                image: nopush/podman-compose-test
+                networks:
+                  default: null
+            networks:
+              default:
+                name: command_config_default
 
             """)
         self.assertEqual(out.decode("utf-8"), expected)
@@ -74,4 +79,15 @@ class TestConfigCommand(unittest.TestCase, RunSubprocessMixin):
             b'please remove it to avoid potential confusion\n',
             err,
         )
-        self.assertEqual(out, b'services:\n  test:\n    image: nopush/podman-compose-test\n\n')
+        self.assertEqual(
+            out.decode("utf-8"),
+            'services:\n'
+            '  test:\n'
+            '    image: nopush/podman-compose-test\n'
+            '    networks:\n'
+            '      default: null\n'
+            'networks:\n'
+            '  default:\n'
+            '    name: command_config_default\n'
+            '\n',
+        )

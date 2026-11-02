@@ -5,6 +5,7 @@ import unittest
 
 from packaging import version
 
+from tests.integration.test_utils import EnsureHealthcheckRun
 from tests.integration.test_utils import PodmanAwareRunSubprocessMixin
 from tests.integration.test_utils import RunSubprocessMixin
 from tests.integration.test_utils import get_podman_version
@@ -406,4 +407,38 @@ class TestComposeConditionalDepsHealthy(unittest.TestCase, PodmanAwareRunSubproc
                 "-f",
                 compose_yaml_path(suffix),
                 "down",
+            ])
+
+    @unittest.skipIf(
+        get_podman_version() < version.parse("4.6.0"),
+        "podman wait --condition=healthy not supported below 4.6.0.",
+    )
+    def test_up_attached_waits_for_healthy(self) -> None:
+        # In attached mode all containers are started concurrently. The dependent service
+        # must not start until the dependency is healthy, even though the dependency container
+        # has only been created (and not started yet) when the condition is first checked.
+        suffix = "-conditional-healthy-delayed"
+        try:
+            with EnsureHealthcheckRun(runner=self, test_case=self, container_name="deps_web_1"):
+                output, _ = self.run_subprocess_assert_returncode(
+                    [
+                        podman_compose_path(),
+                        "-f",
+                        compose_yaml_path(suffix),
+                        "up",
+                        "--abort-on-container-exit",
+                    ],
+                    timeout=60,
+                )
+            self.assertIn(b"sleep-started", output)
+            self.assertIn(b"web-ready", output)
+            self.assertLess(output.index(b"web-ready"), output.index(b"sleep-started"))
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(suffix),
+                "down",
+                "-t",
+                "0",
             ])
