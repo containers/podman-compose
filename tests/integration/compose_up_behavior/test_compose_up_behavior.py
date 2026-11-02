@@ -747,3 +747,23 @@ class TestComposeUpBehavior(unittest.TestCase, RunSubprocessMixin):
             original_image_id,
             self.get_image_id(image),
         )
+
+    def test_cli_pull_never_overrides_pull_policy_build(self) -> None:
+        """
+        CLI `--pull=never` must suppress the rebuild that `pull_policy: build`
+        would otherwise force.
+        """
+        image = "localhost/pull-policy-build-test"
+        original_image_id, error = self.run_pull_policy_up_twice(
+            "pull_policy_build", image, "Dockerfile.pull_policy_build", "--pull=never"
+        )
+        self.assertEqual(error.count(b"podman build"), 0)
+        self.assertEqual(original_image_id, self.get_image_id(image))
+
+    def test_cli_pull_build_forces_rebuild_no_pull_policy_build(self) -> None:
+        image = "localhost/pull-policy-missing-test"
+        original_image_id, error = self.run_pull_policy_up_twice(
+            "pull_policy_missing", image, "Dockerfile.pull_policy_missing", "--pull=build"
+        )
+        self.assertEqual(error.count(b"podman build"), 1)
+        self.assertNotEqual(original_image_id, self.get_image_id(image))
