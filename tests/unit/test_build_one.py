@@ -73,3 +73,25 @@ class TestBuildOne(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(status, 0)
         compose.podman.run.assert_awaited_once_with([], "build", [])
+
+    @mock.patch("podman_compose.container_to_build_args", return_value=[])
+    async def test_cli_pull_never_overrides_pull_policy_build(
+        self, _container_to_build_args: mock.Mock
+    ) -> None:
+        compose = create_compose_mock()
+        args = argparse.Namespace(if_not_exists=True, pull="never", build_arg=[])
+
+        status = await build_one(compose, args, get_container(pull_policy="build"))
+
+        self.assertIsNone(status)
+        compose.podman.run.assert_not_called()
+
+    @mock.patch("podman_compose.container_to_build_args", return_value=[])
+    async def test_cli_pull_build_forces_rebuild(self, _container_to_build_args: mock.Mock) -> None:
+        compose = create_compose_mock()
+        args = argparse.Namespace(if_not_exists=True, pull="build", build_arg=[])
+
+        status = await build_one(compose, args, get_container())
+
+        self.assertEqual(status, 0)
+        compose.podman.run.assert_awaited_once_with([], "build", [])
