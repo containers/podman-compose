@@ -1474,6 +1474,43 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
+    async def test_env_file_format_raw_keeps_value_verbatim(self) -> None:
+        c = create_compose_mock()
+        c.environ = {"BAR": "bar"}
+
+        cnt = get_minimal_container()
+        cnt["env_file"] = {
+            "path": get_test_file_path('tests/integration/env_file_interpolation/.env.raw'),
+            "format": "raw",
+        }
+
+        args = await container_to_args(c, cnt)
+
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "-e",
+                "FOO=$BAR",
+                "--network=bridge:alias=service_name",
+                "busybox",
+            ],
+        )
+
+    async def test_env_file_unknown_format_raises(self) -> None:
+        c = create_compose_mock()
+        c.environ = {"BAR": "bar"}
+
+        cnt = get_minimal_container()
+        cnt["env_file"] = {
+            "path": get_test_file_path('tests/integration/env_file_interpolation/.env.raw'),
+            "format": "bogus",
+        }
+
+        with self.assertRaisesRegex(PodmanComposeError, 'unsupported env_file format "bogus"'):
+            await container_to_args(c, cnt)
+
     async def test_env_file_missing_variable(self) -> None:
         c = create_compose_mock()
         c.environ = {}
