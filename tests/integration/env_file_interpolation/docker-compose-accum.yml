@@ -1,0 +1,7 @@
+services:
+  app:
+    image: nopush/podman-compose-test
+    env_file:
+      - .env.accum-base
+      - .env.accum-ref
+    command: ["/bin/sh", "-c", "env | grep '^FOO='"]

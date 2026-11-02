@@ -1488,6 +1488,17 @@ async def container_to_args(
     env_file = cnt.get("env_file", [])
     if isinstance(env_file, (dict, str)):
         env_file = [env_file]
+    # Explicit service environment, with short-syntax entries resolved from the
+    # project environment. It is available to env_file interpolation and
+    # overrides env_file values.
+    service_env: dict[str, str | None] = norm_as_dict(cnt.get("environment", {}))
+    service_env = {
+        key: (compose.environ.get(key) if value is None else value)
+        for key, value in service_env.items()
+    }
+    # Variables accumulated from previously parsed env_file entries, so a later
+    # file can reference an earlier one.
+    env_file_vars: dict[str, str | None] = {}
     for i in env_file:
         if isinstance(i, str):
             i = {"path": i}
@@ -1498,10 +1509,13 @@ async def container_to_args(
             if not required:
                 continue
             raise ValueError(f"Env file at {i} does not exist")
-        dotenv_dict = {}
-        dotenv_dict = dotenv_to_dict(i)
-        env = norm_as_list(dotenv_dict)
-        for e in env:
+        # Interpolation base, from lowest to highest precedence: variables from
+        # earlier env_file entries, then the service environment, then the
+        # project environment (matching compose-go).
+        base = {**env_file_vars, **service_env, **compose.environ}
+        parsed = dotenv_to_dict(i, base)
+        env_file_vars.update(parsed)
+        for e in norm_as_list(parsed):
             podman_args.extend(["-e", e])
     env = norm_as_list(cnt.get("environment", {}))
     for e in env:
