@@ -1,0 +1,4 @@
+services:
+  explicitefchild:
+    image: localhost/${PD_EXPLICIT_EF_VAR:-unset}
+    command: ["true"]

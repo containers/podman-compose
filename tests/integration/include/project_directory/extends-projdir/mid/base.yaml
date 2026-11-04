@@ -1,0 +1,5 @@
+# Decoy: would be picked up if `extends.file` was resolved against mid/
+# (mid.yaml's own directory) instead of mid's project_directory (alt/).
+services:
+  webapp:
+    image: localhost/wrong-from-mid-base
