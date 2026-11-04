@@ -1,0 +1,1 @@
+Fixed `up --scale` being honored only for the last occurrence when the flag is given multiple times.
