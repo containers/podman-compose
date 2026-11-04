@@ -1,0 +1,1 @@
+Fixed `KeyError: 'source'` when a file pulled in with `include:` declares an anonymous volume in long syntax.
