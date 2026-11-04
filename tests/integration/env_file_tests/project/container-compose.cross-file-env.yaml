@@ -1,0 +1,7 @@
+services:
+  app:
+    image: nopush/podman-compose-test
+    command: ["/bin/sh", "-c", "env | grep ZZCROSSREF"]
+    environment:
+        # short syntax: value is taken from the accumulated --env-file environment
+        - ZZCROSSREF

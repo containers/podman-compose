@@ -1,0 +1,1 @@
+Interpolate `$VAR` / `${VAR}` references in service-level `env_file` files, using the project's `.env` / `--env-file` variables and the service's `environment` as the interpolation base. A later `env_file` entry can reference variables from an earlier one.

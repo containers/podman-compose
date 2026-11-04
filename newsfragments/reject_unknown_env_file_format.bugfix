@@ -1,0 +1,1 @@
+Reject unknown `env_file` `format` values with an error instead of silently treating them as the default interpolated format.

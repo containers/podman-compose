@@ -23,6 +23,7 @@ def create_compose_mock(project_name: str = "test_project_name") -> PodmanCompos
     compose.default_net = None
     compose.networks = {}
     compose.x_podman = {}
+    compose.environ = {}
     compose.join_name_parts = mock.Mock(side_effect=lambda *args: '_'.join(args))
     compose.format_name = mock.Mock(side_effect=lambda *args: '_'.join([project_name, *args]))
 
@@ -1448,6 +1449,137 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "512m",
                 "--memory-swap",
                 "1g",
+                "busybox",
+            ],
+        )
+
+    async def test_env_file_interpolates_from_project_dotenv(self) -> None:
+        c = create_compose_mock()
+        c.environ = {"BAR": "bar"}
+
+        cnt = get_minimal_container()
+        cnt["env_file"] = get_test_file_path('tests/integration/env_file_interpolation/.env.extra')
+
+        args = await container_to_args(c, cnt)
+
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "-e",
+                "FOO=bar",
+                "--network=bridge:alias=service_name",
+                "busybox",
+            ],
+        )
+
+    async def test_env_file_format_raw_keeps_value_verbatim(self) -> None:
+        c = create_compose_mock()
+        c.environ = {"BAR": "bar"}
+
+        cnt = get_minimal_container()
+        cnt["env_file"] = {
+            "path": get_test_file_path('tests/integration/env_file_interpolation/.env.raw'),
+            "format": "raw",
+        }
+
+        args = await container_to_args(c, cnt)
+
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "-e",
+                "FOO=$BAR",
+                "--network=bridge:alias=service_name",
+                "busybox",
+            ],
+        )
+
+    async def test_env_file_unknown_format_raises(self) -> None:
+        c = create_compose_mock()
+        c.environ = {"BAR": "bar"}
+
+        cnt = get_minimal_container()
+        cnt["env_file"] = {
+            "path": get_test_file_path('tests/integration/env_file_interpolation/.env.raw'),
+            "format": "bogus",
+        }
+
+        with self.assertRaisesRegex(PodmanComposeError, 'unsupported env_file format "bogus"'):
+            await container_to_args(c, cnt)
+
+    async def test_env_file_missing_variable(self) -> None:
+        c = create_compose_mock()
+        c.environ = {}
+
+        cnt = get_minimal_container()
+        cnt["env_file"] = get_test_file_path(
+            'tests/integration/env_file_interpolation/.env.missing'
+        )
+
+        args = await container_to_args(c, cnt)
+
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "-e",
+                "FOO=",
+                "--network=bridge:alias=service_name",
+                "busybox",
+            ],
+        )
+
+    async def test_env_file_interpolates_from_service_environment(self) -> None:
+        c = create_compose_mock()
+        c.environ = {}
+
+        cnt = get_minimal_container()
+        cnt["environment"] = {"BAR": "from-service-env"}
+        cnt["env_file"] = get_test_file_path('tests/integration/env_file_interpolation/.env.extra')
+
+        args = await container_to_args(c, cnt)
+
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "-e",
+                "FOO=from-service-env",
+                "-e",
+                "BAR=from-service-env",
+                "--network=bridge:alias=service_name",
+                "busybox",
+            ],
+        )
+
+    async def test_env_file_interpolates_from_earlier_env_file_entry(self) -> None:
+        c = create_compose_mock()
+        c.environ = {}
+
+        cnt = get_minimal_container()
+        cnt["env_file"] = [
+            get_test_file_path('tests/integration/env_file_interpolation/.env.accum-base'),
+            get_test_file_path('tests/integration/env_file_interpolation/.env.accum-ref'),
+        ]
+
+        args = await container_to_args(c, cnt)
+
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "-e",
+                "ACCUM=accumulated",
+                "-e",
+                "FOO=accumulated",
+                "--network=bridge:alias=service_name",
                 "busybox",
             ],
         )

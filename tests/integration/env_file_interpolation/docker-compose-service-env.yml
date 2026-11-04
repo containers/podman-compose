@@ -1,0 +1,7 @@
+services:
+  app:
+    image: nopush/podman-compose-test
+    environment:
+      SVCVAR: from-service-env
+    env_file: .env.svc-ref
+    command: ["/bin/sh", "-c", "env | grep '^FOO='"]
