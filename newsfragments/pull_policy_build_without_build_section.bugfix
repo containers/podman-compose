@@ -1,0 +1,1 @@
+Honor `pull_policy: build` by passing `--pull=never`, so the image is never pulled and `up` fails if it is missing.
