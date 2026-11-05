@@ -1,0 +1,1 @@
+Resolve the full `extends` chain, including services in external files that themselves use `extends`.

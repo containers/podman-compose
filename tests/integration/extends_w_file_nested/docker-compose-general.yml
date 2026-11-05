@@ -1,0 +1,12 @@
+services:
+  base:
+    command: [/bin/sh]
+    image: nopush/podman-compose-test
+    volumes:
+      - /data
+
+  child:
+    extends:
+      service: base
+    volumes:
+      - /logs
