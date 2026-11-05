@@ -1,0 +1,1 @@
+Fix transitive depends_on with oneshot and healthy conditions by only adding --requires for service_started dependencies, avoiding podman 5.x/6.x dependency graph failures when intermediate containers have exited.
