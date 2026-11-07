@@ -1,0 +1,1 @@
+Fix ``env_file`` given as a single mapping (object form) being corrupted when the service is defined in a file pulled in via ``include``.

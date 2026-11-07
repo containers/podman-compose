@@ -88,6 +88,10 @@ class TestNormalizeService(unittest.TestCase):
             {"env_file": ["./sub_dir/./.env", "./sub_dir/../shared.env"]},
         ),
         (
+            {"env_file": {"path": "./.env"}},
+            {"env_file": [{"path": "./sub_dir/./.env"}]},
+        ),
+        (
             {"env_file": [{"path": "./.env", "required": False}]},
             {"env_file": [{"path": "./sub_dir/./.env", "required": False}]},
         ),
