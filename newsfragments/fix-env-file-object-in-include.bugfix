@@ -1,0 +1,1 @@
+Fixed a single object-form `env_file` in an `include`d file being rewritten to a list of its keys.
