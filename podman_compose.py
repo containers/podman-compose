@@ -5069,8 +5069,13 @@ async def compose_port(compose: PodmanCompose, args: argparse.Namespace) -> None
     output = await compose.podman.output([], "inspect", [containers[args.index - 1]])
     inspect_json = json.loads(output.decode("utf-8"))
     private_port = str(args.private_port) + "/" + args.protocol
-    host_port = inspect_json[0]["NetworkSettings"]["Ports"][private_port][0]["HostPort"]
-    print(host_port)
+    binding = inspect_json[0]["NetworkSettings"]["Ports"][private_port][0]
+    # Print HOST_IP:HOST_PORT like `docker compose port` and `podman port`. An empty
+    # HostIp means the port is published on all interfaces.
+    host_ip = binding.get("HostIp") or "0.0.0.0"
+    if ":" in host_ip:
+        host_ip = f"[{host_ip}]"
+    print(f"{host_ip}:{binding['HostPort']}")
 
 
 @cmd_run(podman_compose, "pause", "Pause all running containers")
