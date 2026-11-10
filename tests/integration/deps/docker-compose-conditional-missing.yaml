@@ -1,0 +1,15 @@
+version: "3.7"
+services:
+  never_created:
+    image: nopush/podman-compose-test
+    command: ["sh", "-c", "sleep 3600"]
+    # makes `podman create` fail, so this container never exists
+    devices:
+      - /dev/podman-compose-test-does-not-exist
+  should_not_start:
+    image: nopush/podman-compose-test
+    command: ["sh", "-c", "sleep 3600"]
+    depends_on:
+      never_created:
+        # `service_started` (unlike `service_healthy`) is checked on all supported podman versions
+        condition: service_started
