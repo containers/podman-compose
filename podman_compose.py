@@ -2136,6 +2136,27 @@ class Podman:
         }
 
 
+def validate_service_definitions(services: Any) -> None:
+    """
+    Ensure the ``services`` section and every service definition is a mapping.
+
+    This validates the *section* and its *values*. A tag wrapping the whole
+    section (``services: !override``) is not a mapping at all, so callers that
+    may receive one handle it before calling this function.
+    """
+    if not isinstance(services, dict):
+        raise PodmanComposeError("services must be a mapping")
+    for name, config in services.items():
+        # A tag on an individual service value (``app: !override``) is not a
+        # mapping yet. This function also runs per file, before files are
+        # merged, so such a tag is legitimately still unresolved here and is
+        # not an error.
+        if isinstance(config, (OverrideTag, ResetTag)):
+            continue
+        if not isinstance(config, dict):
+            raise PodmanComposeError(f"services.{name} must be a mapping")
+
+
 def normalize_service(service: dict[str, Any], sub_dir: str = "") -> dict[str, Any]:
     if isinstance(service, ResetTag):
         return service
@@ -2261,6 +2282,12 @@ def normalize(compose: dict[str, Any], sub_dir: str = "") -> dict[str, Any]:
     Compose Spec resolution of paths in ``include:``d files).
     """
     services = compose.get("services", {}) or {}
+    if isinstance(services, (OverrideTag, ResetTag)):
+        # Note this is the *section* level, distinct from a tag on an
+        # individual service value, which is handled in
+        # validate_service_definitions().
+        return compose
+    validate_service_definitions(services)
     for service in services.values():
         normalize_service(service, sub_dir)
     return compose
@@ -2442,6 +2469,10 @@ def resolve_extends(
             subdirectory = os.path.dirname(filename)
             content = rec_subs(content, environ)
             from_service = content.get(from_service_name, {}) or {}
+            # An empty service definition (``name:``) is a valid placeholder in
+            # an extended file, but any other non-mapping value would crash
+            if not isinstance(from_service, dict):
+                raise PodmanComposeError(f"services.{from_service_name} must be a mapping")
             normalize_service(from_service, subdirectory)
         else:
             from_service = services.get(from_service_name, {}).copy()
@@ -2987,6 +3018,9 @@ class PodmanCompose:
                 # Solution is to remove 'include' key from compose obj. This doesn't break
                 # having `include` present and correctly processed in included files
                 del compose["include"]
+        merged_services = compose.get("services")
+        if merged_services is not None:
+            validate_service_definitions(merged_services)
         resolved_services = self._resolve_profiles(
             compose.get("services") or {}, target, requested_profiles
         )
