@@ -3974,6 +3974,18 @@ def get_excluded(
     return excluded
 
 
+async def _fail_if_missing(compose: PodmanCompose, container_names: list[str]) -> None:
+    """Raise when a dependency container does not exist (e.g. its create failed): no wait on it
+    can ever succeed, so retrying would hang forever"""
+    for container_name in container_names:
+        try:
+            await compose.podman.output([], "container", ["exists", container_name])
+        except subprocess.CalledProcessError as exc:
+            # `podman container exists` exits 1 for a missing container, 125 on other errors
+            if exc.returncode == 1:
+                raise RuntimeError(f"Dependency container {container_name} does not exist") from exc
+
+
 async def _wait_until_not_created(compose: PodmanCompose, container_names: list[str]) -> None:
     """Poll until all containers have left the 'created' state
 
@@ -3994,6 +4006,7 @@ async def _wait_until_not_created(compose: PodmanCompose, container_names: list[
                 "podman inspect failed while polling for created states: %s",
                 exc,
             )
+            await _fail_if_missing(compose, container_names)
 
         now = asyncio.get_event_loop().time()
         if now - last_log_time >= 1.0:
@@ -4092,6 +4105,7 @@ async def check_dep_conditions(compose: PodmanCompose, deps: set) -> None:
                             _exc.cmd,
                             output,
                         )
+                        await _fail_if_missing(compose, [d_cnt])
                     await asyncio.sleep(1)
 
             await asyncio.gather(*(wait_one(cnt) for cnt in deps_cd))

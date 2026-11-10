@@ -1,3 +1,4 @@
+import asyncio
 import subprocess
 import unittest
 from typing import Any
@@ -122,6 +123,7 @@ class TestCheckDepConditions(unittest.IsolatedAsyncioTestCase):
         compose.podman.output.side_effect = [
             b"running",  # inspect poll in _validate_completed_successfully
             subprocess.CalledProcessError(1, "podman wait", b"", b"error"),
+            b"",  # podman container exists: it does, so the wait is retried
             b"running",  # retry: inspect poll
             b'[{"State":{"ExitCode":0}}]',  # retry: wait succeeds
             b'[{"State":{"ExitCode":0}}]',  # inspect per container
@@ -295,3 +297,34 @@ class TestCheckDepConditions(unittest.IsolatedAsyncioTestCase):
 
         calls = [c.args for c in compose.podman.output.call_args_list]
         self.assertEqual(calls, [([], "wait", ["--condition=running", "cnt_a"])])
+
+    @parameterized.expand([
+        ("service_started",),
+        ("service_healthy",),
+        ("service_completed_successfully",),
+    ])
+    async def test_missing_dependency_container_fails_instead_of_waiting_forever(
+        self, condition: str
+    ) -> None:
+        """A dependency container that does not exist (e.g. its create failed) can never
+        fulfil a condition, so the wait must fail instead of retrying forever"""
+
+        async def output(podman_args: list[str], cmd: str = "", cmd_args: Any = None) -> bytes:
+            if cmd == "container":
+                raise subprocess.CalledProcessError(1, "podman container exists", b"", b"")
+            raise subprocess.CalledProcessError(
+                125, f"podman {cmd}", b"", b'Error: no container with name or ID "cnt_a" found'
+            )
+
+        compose = mock.Mock()
+        compose.podman.output = mock.AsyncMock(side_effect=output)
+        compose.podman_version = None
+        compose.container_names_by_service = {
+            "srva": ["cnt_a"],
+        }
+        deps = {
+            ServiceDependency("srva", condition),
+        }
+
+        with self.assertRaisesRegex(RuntimeError, "cnt_a does not exist"):
+            await asyncio.wait_for(check_dep_conditions(compose, deps), timeout=5)
