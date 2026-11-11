@@ -12,6 +12,7 @@ import argparse
 import asyncio.exceptions
 import asyncio.subprocess
 import codecs
+import copy
 import getpass
 import glob
 import hashlib
@@ -2475,7 +2476,9 @@ def resolve_extends(
                 raise PodmanComposeError(f"services.{from_service_name} must be a mapping")
             normalize_service(from_service, subdirectory)
         else:
-            from_service = services.get(from_service_name, {}).copy()
+            # rec_merge copies only the top level, so merging into a shallow copy would also
+            # change nested values of the base, such as deploy.resources.limits.
+            from_service = copy.deepcopy(services.get(from_service_name, {}))
             try:
                 del from_service["_deps"]
             except KeyError as e:

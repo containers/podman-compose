@@ -1,0 +1,1 @@
+Fixed a service that `extends` another changing the other service's nested settings, such as `deploy.resources.limits`.
