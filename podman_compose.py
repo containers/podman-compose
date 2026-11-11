@@ -1594,8 +1594,11 @@ async def container_to_args(
     if cli_pull is not None and is_local(cnt):
         cli_pull = None
     pull_policy = cli_pull or cnt.get("pull_policy")
-    # `build` is a compose-level policy and not a valid `podman create` value.
-    if pull_policy is not None and pull_policy != "build":
+    # podman has no `build` policy; map it to `never` so podman does not fall
+    # back to its default `--pull=missing`.
+    if pull_policy == "build":
+        pull_policy = "never"
+    if pull_policy is not None:
         podman_args.append(f"--pull={pull_policy}")
     if cnt.get("restart") is not None:
         podman_args.extend(["--restart", cnt["restart"]])
