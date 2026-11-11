@@ -647,3 +647,18 @@ class TestComposeUpBehavior(unittest.TestCase, RunSubprocessMixin):
                 ["podman", "rmi", "-f", tag],
             )
             os.remove(dockerfile)
+
+    def test_pull_policy_build_forwarded_to_podman_create(self) -> None:
+        """`pull_policy: build` must reach `podman create` as `--pull=never`."""
+        _, error = self.run_subprocess_assert_returncode([
+            podman_compose_path(),
+            "--verbose",
+            "--dry-run",
+            "-f",
+            compose_yaml_path("pull_policy_wiring"),
+            "up",
+            "-d",
+        ])
+        create_line = next(line for line in error.splitlines() if b"podman create" in line)
+        pull_args = [arg for arg in create_line.split() if arg.startswith(b"--pull=")]
+        self.assertEqual(pull_args, [b"--pull=never"])

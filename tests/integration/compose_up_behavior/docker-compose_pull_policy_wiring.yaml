@@ -1,0 +1,4 @@
+services:
+  test:
+    image: localhost/pull-policy-wiring-test
+    pull_policy: build
