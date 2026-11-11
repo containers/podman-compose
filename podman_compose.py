@@ -1590,8 +1590,9 @@ async def container_to_args(
     if cnt.get("pid"):
         podman_args.extend(["--pid", cnt["pid"]])
     cli_pull = getattr(args, "pull", None)
-    # Pulling a local image would make podman contact a registry and fail.
-    if cli_pull is not None and is_local(cnt):
+    # Pulling a local image would make podman contact a registry and fail, but
+    # `never`/`build` only prevent pulling, so they are kept.
+    if cli_pull is not None and cli_pull not in ("never", "build") and is_local(cnt):
         cli_pull = None
     pull_policy = cli_pull or cnt.get("pull_policy")
     # podman has no `build` policy; map it to `never` so podman does not fall
@@ -5427,6 +5428,15 @@ def compose_rm_parse(parser: argparse.ArgumentParser) -> None:
 def compose_run_parse(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--build", action="store_true", help="Build images before starting containers."
+    )
+    parser.add_argument(
+        "--pull",
+        help="Pull image policy (always|missing|never|newer|build)."
+        " Set to 'newer' if specify --pull without a value."
+        " default (pull_policy in compose file).",
+        action=PullPolicyAction,
+        nargs="?",
+        choices=["always", "missing", "never", "newer", "build"],
     )
     parser.add_argument(
         "-d",
