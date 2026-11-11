@@ -662,3 +662,21 @@ class TestComposeUpBehavior(unittest.TestCase, RunSubprocessMixin):
         create_line = next(line for line in error.splitlines() if b"podman create" in line)
         pull_args = [arg for arg in create_line.split() if arg.startswith(b"--pull=")]
         self.assertEqual(pull_args, [b"--pull=never"])
+
+    def test_run_pull_never_forwarded_to_podman_run(self) -> None:
+        """`run --pull=never` must reach `podman run` as `--pull=never`."""
+        _, error = self.run_subprocess_assert_returncode([
+            podman_compose_path(),
+            "--verbose",
+            "--dry-run",
+            "-f",
+            compose_yaml_path("pull_policy_wiring"),
+            "run",
+            "--pull=never",
+            "test",
+            "echo",
+            "hi",
+        ])
+        run_line = next(line for line in error.splitlines() if b"podman run" in line)
+        pull_args = [arg for arg in run_line.split() if arg.startswith(b"--pull=")]
+        self.assertEqual(pull_args, [b"--pull=never"])

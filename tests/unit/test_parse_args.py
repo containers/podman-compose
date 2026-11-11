@@ -5,6 +5,7 @@ import unittest
 from unittest import mock
 
 from podman_compose import PodmanCompose
+from podman_compose import podman_compose
 
 
 class TestParseArgs(unittest.TestCase):
@@ -31,3 +32,8 @@ class TestParseArgs(unittest.TestCase):
             )
 
         self.assertEqual(args.env_file, [".env.cli"])
+
+    def test_run_accepts_pull_option(self) -> None:
+        args = podman_compose._parse_args(["run", "--pull=never", "service"])
+
+        self.assertEqual(args.pull, "never")
