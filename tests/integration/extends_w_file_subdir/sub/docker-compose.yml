@@ -4,9 +4,10 @@ services:
     build:
       context: docker/example
       dockerfile: Dockerfile
+      args:
+        VERSION: 3.24
     image: localhost/subdir_test:me
     ports:
       - "8000:8000"
     volumes:
       - "/data"
-
