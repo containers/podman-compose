@@ -1,0 +1,10 @@
+services:
+  web:
+    extends:
+      file: docker-compose-general.yml
+      service: base
+
+  important_web:
+    extends:
+      file: docker-compose-general.yml
+      service: child
