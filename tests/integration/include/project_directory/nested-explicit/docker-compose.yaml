@@ -1,0 +1,9 @@
+name: include-projdir-nested-explicit
+
+# Top-level include of mid/mid.yaml with an explicit project_directory.
+# Under the compose-spec, "top_alt" becomes the base directory for resolving
+# relative paths inside mid.yaml (including its own nested `include`) and
+# the location of the default .env that feeds mid.yaml's interpolation.
+include:
+  - path: mid/mid.yaml
+    project_directory: top_alt

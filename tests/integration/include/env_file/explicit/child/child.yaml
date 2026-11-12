@@ -1,0 +1,4 @@
+services:
+  child:
+    image: localhost/child-${INCLUDE_ENVFILE_LEAK_VAR:-unset}
+    command: ["true"]

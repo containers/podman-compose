@@ -1,0 +1,4 @@
+name: include-projdir-nested-default
+
+include:
+  - mid/mid.yaml
