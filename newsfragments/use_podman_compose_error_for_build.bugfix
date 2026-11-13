@@ -1,0 +1,1 @@
+Use PodmanComposeError instead of a generic OSError when build-related validation fails to avoid printing the whole traceback.

@@ -45,7 +45,7 @@ class TestComposeBuildFail(unittest.TestCase, RunSubprocessMixin):
         result = '\n'.join(error.splitlines()[-1:])
 
         expected_path = os.path.join(os.path.dirname(__file__), "context_no_file")
-        expected = f'OSError: Dockerfile not found in {expected_path}'
+        expected = f'Error: Dockerfile not found in {expected_path}'
 
         self.assertEqual(expected, result)
 
@@ -64,6 +64,6 @@ class TestComposeBuildFail(unittest.TestCase, RunSubprocessMixin):
         result = '\n'.join(error.splitlines()[-1:])
 
         expected_path = os.path.join(os.path.dirname(__file__), "context_no_file/Dockerfile-alt")
-        expected = f'OSError: Dockerfile not found in {expected_path}'
+        expected = f'Error: Dockerfile not found in {expected_path}'
 
         self.assertEqual(expected, result)

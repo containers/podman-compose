@@ -1,0 +1,1 @@
+Fixed ``depends_on`` with ``condition: service_healthy`` (and ``unhealthy``) not waiting for the dependency when ``up`` starts containers concurrently: ``podman wait --condition=healthy`` returns immediately for a container that is created but not started yet, so dependent services were started before their dependency was healthy.

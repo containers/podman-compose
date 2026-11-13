@@ -30,6 +30,15 @@ class TestComposeExecArgs(unittest.TestCase):
         ]
         self.assertEqual(result, expected)
 
+    def test_detach(self) -> None:
+        cnt = get_minimal_container()
+        args = get_minimal_args()
+        args.detach = True
+
+        result = compose_exec_args(cnt, "container_name", args)
+        expected = ["--detach", "container_name"]
+        self.assertEqual(result, expected)
+
 
 def get_minimal_container() -> dict:
     return {}
@@ -39,6 +48,7 @@ def get_minimal_args() -> argparse.Namespace:
     return argparse.Namespace(
         T=None,
         cnt_command=None,
+        detach=False,
         env=None,
         privileged=None,
         user=None,

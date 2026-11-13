@@ -1,0 +1,1 @@
+Fix external networks with `name:` key being ignored, causing `podman-compose` to look up the wrong (auto-prefixed) network name instead of the explicitly provided one.

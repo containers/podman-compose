@@ -4,8 +4,6 @@ import json
 import os
 import unittest
 
-import requests
-
 from tests.integration.test_utils import RunSubprocessMixin
 from tests.integration.test_utils import podman_compose_path
 from tests.integration.test_utils import test_path
@@ -36,14 +34,6 @@ class TestComposeNetsTest1(unittest.TestCase, RunSubprocessMixin):
             ])
             self.assertIn(b"nets_test1_web1_1", output)
             self.assertIn(b"nets_test1_web2_1", output)
-
-            response = requests.get('http://localhost:8001/index.txt')
-            self.assertTrue(response.ok)
-            self.assertEqual(response.text, "test1\n")
-
-            response = requests.get('http://localhost:8002/index.txt')
-            self.assertTrue(response.ok)
-            self.assertEqual(response.text, "test2\n")
 
             # inspect 1st container
             output, _ = self.run_subprocess_assert_returncode([

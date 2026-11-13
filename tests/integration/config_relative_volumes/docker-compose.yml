@@ -1,0 +1,7 @@
+services:
+  test:
+    image: nopush/podman-compose-test
+    volumes:
+      - ./data:/container/data:ro
+      - ../outside:/container/outside
+    command: sleep infinity

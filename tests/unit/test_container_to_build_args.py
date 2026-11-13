@@ -4,6 +4,7 @@ import os
 import unittest
 from unittest import mock
 
+from podman_compose import PodmanComposeError
 from podman_compose import container_to_build_args
 
 
@@ -223,7 +224,7 @@ class TestContainerToBuildArgs(unittest.TestCase):
         cnt['build']['context'] = "not_prefix://github.com/test_repo"
         args = get_minimal_args()
 
-        with self.assertRaises(OSError):
+        with self.assertRaises(PodmanComposeError):
             container_to_build_args(c, cnt, args, lambda path: False)
 
     def test_build_ssh_absolute_path(self):

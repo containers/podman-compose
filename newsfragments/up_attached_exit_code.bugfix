@@ -1,0 +1,1 @@
+`podman-compose up` in attached mode now returns a non-zero exit code when a container fails to be created, instead of always returning 0.

@@ -1,0 +1,27 @@
+version: "3.7"
+services:
+  web:
+    image: nopush/podman-compose-test
+    command:
+      - "dumb-init"
+      - "/bin/busybox"
+      - "sh"
+      - "-c"
+      - "echo web-started; sleep 4; touch /tmp/ready; echo web-ready; sleep 3600"
+    tmpfs:
+      - /run
+      - /tmp
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/ready"]
+      interval: 3s
+      timeout: 2s
+      retries: 6
+  sleep:
+    image: nopush/podman-compose-test
+    command: ["dumb-init", "/bin/busybox", "echo", "sleep-started"]
+    depends_on:
+      web:
+        condition: service_healthy
+    tmpfs:
+      - /run
+      - /tmp
