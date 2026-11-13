@@ -46,16 +46,21 @@ class TestIncludeRelativePaths(unittest.TestCase, RunSubprocessMixin):
         assets_path = os.path.abspath(os.path.join(base_dir, "assets"))
 
         expected = textwrap.dedent(f"""\
-            name: include-relative-paths
             services:
               web:
+                image: nopush/podman-compose-test
                 env_file:
                 - ./sub/./local.env
                 - ./sub/../shared.env
-                image: nopush/podman-compose-test
                 volumes:
                 - {data_path}:/data:ro
                 - {assets_path}:/assets:ro
+                networks:
+                  default: null
+            name: include-relative-paths
+            networks:
+              default:
+                name: include-relative-paths_default
 
             """)
         self.assertEqual(out.decode("utf-8"), expected)

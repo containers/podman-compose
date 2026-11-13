@@ -1,0 +1,1 @@
+Show a clear "Compose file contains an error" message instead of an unhandled traceback when a compose file contains invalid YAML that raises a ``yaml.parser.ParserError``.
