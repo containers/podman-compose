@@ -1,0 +1,1 @@
+Report a clear `services.<name> must be a mapping` error instead of an unhandled `AttributeError` traceback when a service definition in a compose file is not a mapping.

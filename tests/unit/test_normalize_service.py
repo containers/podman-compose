@@ -5,8 +5,12 @@ from typing import Union
 
 from parameterized import parameterized
 
+from podman_compose import OverrideTag
 from podman_compose import PodmanComposeError
+from podman_compose import ResetTag
+from podman_compose import normalize
 from podman_compose import normalize_service
+from podman_compose import validate_service_definitions
 
 
 class TestNormalizeService(unittest.TestCase):
@@ -149,3 +153,88 @@ class TestNormalizeService(unittest.TestCase):
         with self.assertRaises(PodmanComposeError) as context:
             normalize_service({"volumes": None})
         self.assertEqual("ERROR: volumes must be a list", str(context.exception))
+
+    @parameterized.expand([
+        (
+            "environment_dict_in_list",
+            {"environment": ["FOO=bar", {"http.port": 9200}]},
+            "unexpected type dict in list entry: {'http.port': 9200}; "
+            'expected a "KEY=value" string',
+        ),
+        (
+            "environment_int_in_list",
+            {"environment": ["FOO=bar", 123]},
+            'unexpected type int in list entry: 123; expected a "KEY=value" string',
+        ),
+        (
+            "labels_dict_in_list",
+            {"labels": [{"com.example.foo": "bar"}]},
+            "unexpected type dict in list entry: {'com.example.foo': 'bar'}; "
+            'expected a "KEY=value" string',
+        ),
+    ])
+    def test_malformed_list_entry_raises(
+        self, test_name: str, input_service: dict[str, Any], expected_message: str
+    ) -> None:
+        with self.assertRaises(PodmanComposeError) as context:
+            normalize_service(input_service)
+        self.assertEqual(expected_message, str(context.exception))
+
+    @parameterized.expand([
+        ("list_form", {"environment": ["FOO=bar", "BAZ"]}, {"FOO": "bar", "BAZ": None}),
+        ("dict_form", {"environment": {"FOO": "bar", "BAZ": None}}, {"FOO": "bar", "BAZ": None}),
+    ])
+    def test_valid_environment_forms(
+        self, test_name: str, input_service: dict[str, Any], expected_env: dict[str, Any]
+    ) -> None:
+        normalized = normalize_service(input_service)
+        self.assertEqual(normalized["environment"], expected_env)
+
+
+class TestValidateServiceDefinitions(unittest.TestCase):
+    @parameterized.expand([
+        ("string", "just-a-string", "services must be a mapping"),
+        ("list", ["web"], "services must be a mapping"),
+        ("null", None, "services must be a mapping"),
+    ])
+    def test_services_not_a_mapping_raises(
+        self, test_name: str, services: Any, expected_message: str
+    ) -> None:
+        with self.assertRaises(PodmanComposeError) as context:
+            validate_service_definitions(services)
+        self.assertEqual(expected_message, str(context.exception))
+
+    @parameterized.expand([
+        ("string", "just-a-string"),
+        ("list", ["a", "b"]),
+        ("null", None),
+        ("int", 123),
+        ("bool", True),
+    ])
+    def test_service_not_a_mapping_raises(self, test_name: str, service: Any) -> None:
+        with self.assertRaises(PodmanComposeError) as context:
+            validate_service_definitions({"web": {"image": "alpine"}, "bad": service})
+        self.assertEqual("services.bad must be a mapping", str(context.exception))
+
+    def test_valid_services_pass(self) -> None:
+        validate_service_definitions({
+            "web": {"image": "alpine"},
+            "empty": {},
+        })
+
+    def test_override_and_reset_tags_are_allowed(self) -> None:
+        validate_service_definitions({
+            "web": {"image": "alpine"},
+            "overridden": OverrideTag({"image": "busybox"}),
+            "reset": ResetTag(),
+        })
+
+    def test_normalize_reports_clear_error_for_non_mapping_service(self) -> None:
+        with self.assertRaises(PodmanComposeError) as context:
+            normalize({"services": {"web": {"image": "alpine"}, "bad": "just-a-string"}})
+        self.assertEqual("services.bad must be a mapping", str(context.exception))
+
+    def test_normalize_reports_clear_error_when_services_not_a_mapping(self) -> None:
+        with self.assertRaises(PodmanComposeError) as context:
+            normalize({"services": "just-a-string"})
+        self.assertEqual("services must be a mapping", str(context.exception))

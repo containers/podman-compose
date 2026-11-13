@@ -1,0 +1,6 @@
+services:
+  app_with_vol:
+    image: nopush/podman-compose-test
+    command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-p", "8080"]
+    volumes:
+      - /data

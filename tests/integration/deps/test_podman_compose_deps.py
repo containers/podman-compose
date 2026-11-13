@@ -5,6 +5,7 @@ import unittest
 
 from packaging import version
 
+from tests.integration.test_utils import EnsureHealthcheckRun
 from tests.integration.test_utils import PodmanAwareRunSubprocessMixin
 from tests.integration.test_utils import RunSubprocessMixin
 from tests.integration.test_utils import get_podman_version
@@ -21,7 +22,7 @@ class TestComposeBaseDeps(unittest.TestCase, RunSubprocessMixin):
     @unittest.skipIf(get_podman_version() >= version.parse("5.0.0"), "Breaks as of podman-5.4.2.")
     def test_deps(self) -> None:
         try:
-            output, _ = self.run_subprocess_assert_returncode([
+            self.run_subprocess_assert_returncode([
                 podman_compose_path(),
                 "-f",
                 compose_yaml_path(),
@@ -30,9 +31,17 @@ class TestComposeBaseDeps(unittest.TestCase, RunSubprocessMixin):
                 "sleep",
                 "/bin/sh",
                 "-c",
-                "wget -O - http://web:8000/hosts",
+                "true",
             ])
-            self.assertIn(b"HTTP request sent, awaiting response... 200 OK", output)
+            # the dependency service must have been started by `run`
+            output, _ = self.run_subprocess_assert_returncode([
+                "podman",
+                "ps",
+                "--filter",
+                "name=deps_web_1",
+                "--format",
+                "{{.Names}}",
+            ])
             self.assertIn(b"deps_web_1", output)
         finally:
             self.run_subprocess_assert_returncode([
@@ -44,7 +53,7 @@ class TestComposeBaseDeps(unittest.TestCase, RunSubprocessMixin):
 
     def test_run_nodeps(self) -> None:
         try:
-            output, _ = self.run_subprocess_assert_returncode([
+            self.run_subprocess_assert_returncode([
                 podman_compose_path(),
                 "-f",
                 compose_yaml_path(),
@@ -54,11 +63,19 @@ class TestComposeBaseDeps(unittest.TestCase, RunSubprocessMixin):
                 "sleep",
                 "/bin/sh",
                 "-c",
-                "wget -O - http://web:8000/hosts || echo Failed to connect",
+                "true",
             ])
-            self.assertNotIn(b"HTTP request sent, awaiting response... 200 OK", output)
+            # with --no-deps the dependency service must not be started
+            output, _ = self.run_subprocess_assert_returncode([
+                "podman",
+                "ps",
+                "-a",
+                "--filter",
+                "name=deps_web_1",
+                "--format",
+                "{{.Names}}",
+            ])
             self.assertNotIn(b"deps_web_1", output)
-            self.assertIn(b"Failed to connect", output)
         finally:
             self.run_subprocess_assert_returncode([
                 podman_compose_path(),
@@ -110,30 +127,32 @@ class TestComposeBaseDeps(unittest.TestCase, RunSubprocessMixin):
             "sleep",
             "/bin/sh",
             "-c",
-            "wget -q -O - http://web:8000/hosts",
+            "true",
         ]
 
-        out, _ = self.run_subprocess_assert_returncode(run_cmd)
-        self.assertIn(b"127.0.0.1\tlocalhost", out)
+        self.run_subprocess_assert_returncode(run_cmd)
+        out, _ = self.run_subprocess_assert_returncode([
+            "podman",
+            "ps",
+            "--filter",
+            "name=deps_web_1",
+            "--format",
+            "{{.Names}}",
+        ])
+        self.assertIn(b"deps_web_1", out)
 
         # Run it again to make sure we can run it twice. I saw an issue where a second run, with
         # the container left up, would fail
-        run_cmd = [
-            "coverage",
-            "run",
-            podman_compose_path(),
-            "-f",
-            os.path.join(test_path(), "deps", "docker-compose.yaml"),
-            "run",
-            "--rm",
-            "sleep",
-            "/bin/sh",
-            "-c",
-            "wget -q -O - http://web:8000/hosts",
-        ]
-
-        out, _ = self.run_subprocess_assert_returncode(run_cmd)
-        self.assertIn(b"127.0.0.1\tlocalhost", out)
+        self.run_subprocess_assert_returncode(run_cmd)
+        out, _ = self.run_subprocess_assert_returncode([
+            "podman",
+            "ps",
+            "--filter",
+            "name=deps_web_1",
+            "--format",
+            "{{.Names}}",
+        ])
+        self.assertIn(b"deps_web_1", out)
 
         # This leaves a container running. Not sure it's intended, but it matches docker-compose
         down_cmd = [
@@ -153,7 +172,7 @@ class TestComposeConditionalDeps(unittest.TestCase, RunSubprocessMixin):
     def test_deps_succeeds(self) -> None:
         suffix = "-conditional-succeeds"
         try:
-            output, _ = self.run_subprocess_assert_returncode([
+            self.run_subprocess_assert_returncode([
                 podman_compose_path(),
                 "-f",
                 compose_yaml_path(suffix),
@@ -162,9 +181,17 @@ class TestComposeConditionalDeps(unittest.TestCase, RunSubprocessMixin):
                 "sleep",
                 "/bin/sh",
                 "-c",
-                "wget -O - http://web:8000/hosts",
+                "true",
             ])
-            self.assertIn(b"HTTP request sent, awaiting response... 200 OK", output)
+            # the healthy dependency service must have been started by `run`
+            output, _ = self.run_subprocess_assert_returncode([
+                "podman",
+                "ps",
+                "--filter",
+                "name=deps_web_1",
+                "--format",
+                "{{.Names}}",
+            ])
             self.assertIn(b"deps_web_1", output)
         finally:
             self.run_subprocess_assert_returncode([
@@ -406,4 +433,38 @@ class TestComposeConditionalDepsHealthy(unittest.TestCase, PodmanAwareRunSubproc
                 "-f",
                 compose_yaml_path(suffix),
                 "down",
+            ])
+
+    @unittest.skipIf(
+        get_podman_version() < version.parse("4.6.0"),
+        "podman wait --condition=healthy not supported below 4.6.0.",
+    )
+    def test_up_attached_waits_for_healthy(self) -> None:
+        # In attached mode all containers are started concurrently. The dependent service
+        # must not start until the dependency is healthy, even though the dependency container
+        # has only been created (and not started yet) when the condition is first checked.
+        suffix = "-conditional-healthy-delayed"
+        try:
+            with EnsureHealthcheckRun(runner=self, test_case=self, container_name="deps_web_1"):
+                output, _ = self.run_subprocess_assert_returncode(
+                    [
+                        podman_compose_path(),
+                        "-f",
+                        compose_yaml_path(suffix),
+                        "up",
+                        "--abort-on-container-exit",
+                    ],
+                    timeout=60,
+                )
+            self.assertIn(b"sleep-started", output)
+            self.assertIn(b"web-ready", output)
+            self.assertLess(output.index(b"web-ready"), output.index(b"sleep-started"))
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(suffix),
+                "down",
+                "-t",
+                "0",
             ])
