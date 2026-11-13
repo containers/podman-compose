@@ -1,0 +1,1 @@
+Recreate stopped dependents of a recreated service on `up` instead of leaving them removed. Start them only if they were running or are targeted by `up`, matching docker-compose behavior.
