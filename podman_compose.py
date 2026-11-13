@@ -2419,6 +2419,9 @@ def rec_merge_one(target: dict[str, Any], source: dict[str, Any]) -> dict[str, A
             else:
                 value.extend(value2)
         elif isinstance(value2, dict):
+            if key == "healthcheck" and "test" in value2:
+                # like command and entrypoint, healthcheck.test is replaced, not appended
+                value.pop("test", None)
             rec_merge_one(value, value2)
         else:
             target[key] = value2
