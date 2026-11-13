@@ -1,0 +1,1 @@
+Stop translating Compose `healthcheck.start_interval` to the unrelated Podman `--health-startup-interval` flag (which belongs to a separate startup-healthcheck mechanism). The field is now reported as unsupported with a warning until Podman gains a native equivalent (containers/podman#26505). Fixes #1500.

@@ -1189,7 +1189,6 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             "timeout": "10s",
             "retries": "3",
             "start_period": "5s",
-            "start_interval": "6s",
         }
 
         args = await container_to_args(c, cnt)
@@ -1207,13 +1206,36 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 '10s',
                 '--health-start-period',
                 '5s',
-                '--health-startup-interval',
-                '6s',
                 '--health-retries',
                 '3',
                 "busybox",
             ],
         )
+
+    async def test_healthcheck_start_interval_warns_and_omits_podman_flag(self) -> None:
+        """``start_interval`` has no Podman equivalent yet (containers/podman#26505).
+
+        The old behaviour silently mapped it to ``--health-startup-interval``,
+        but that flag belongs to a different mechanism gated by
+        ``--health-startup-cmd`` (which podman-compose never emits), so the
+        Compose-spec semantics were lost. The current contract is: emit a
+        warning, do not pass any ``--health-startup-interval`` flag.
+        """
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+        cnt["healthcheck"] = {
+            "test": ["CMD", "true"],
+            "start_interval": "1s",
+        }
+
+        with self.assertLogs("podman_compose", level="WARNING") as cm:
+            args = await container_to_args(c, cnt)
+
+        self.assertTrue(
+            any("start_interval" in msg for msg in cm.output),
+            f"expected a warning mentioning start_interval, got: {cm.output!r}",
+        )
+        self.assertNotIn("--health-startup-interval", args)
 
     @parameterized.expand([
         "",
