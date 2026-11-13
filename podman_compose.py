@@ -2194,7 +2194,7 @@ def normalize_service(service: dict[str, Any], sub_dir: str = "") -> dict[str, A
             continue
         if key == "volumes" and service[key] is None:
             raise PodmanComposeError("ERROR: volumes must be a list")
-        if isinstance(service[key], str):
+        if isinstance(service[key], str) or (key == "env_file" and isinstance(service[key], dict)):
             service[key] = [service[key]]
     if "security_opt" in service:
         sec_ls = service["security_opt"]

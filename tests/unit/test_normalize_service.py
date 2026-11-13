@@ -95,6 +95,10 @@ class TestNormalizeService(unittest.TestCase):
             {"env_file": [{"path": "./.env", "required": False}]},
             {"env_file": [{"path": "./sub_dir/./.env", "required": False}]},
         ),
+        (
+            {"env_file": {"path": "./.env", "required": False}},
+            {"env_file": [{"path": "./sub_dir/./.env", "required": False}]},
+        ),
     ])
     def test_normalize_service_with_sub_dir(
         self, input: dict[str, Any], expected: dict[str, Any]
