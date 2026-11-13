@@ -1,0 +1,5 @@
+services:
+  app_fail:
+    image: podman-compose-wait-test
+    build: .
+    entrypoint: ["dumb-init", "sh", "-c", "exit 1"]
