@@ -1,0 +1,1 @@
+Fixed `!reset` and `!override` tags on individual `depends_on` entries, which crashed with `AttributeError`. A `!reset` on all of `depends_on` no longer skips normalization of the rest of the service.
