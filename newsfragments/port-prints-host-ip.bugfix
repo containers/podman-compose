@@ -1,0 +1,1 @@
+Fixed `podman-compose port` to print `HOST_IP:HOST_PORT` like `docker compose port` and `podman port`, instead of only the host port.
