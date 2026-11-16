@@ -1,0 +1,4 @@
+services:
+  nestedexplicitleaf:
+    image: localhost/${NESTED_EXPLICIT_VAR:-unset}
+    command: ["true"]

@@ -1,0 +1,10 @@
+name: include-envfile-explicit
+
+services:
+  parent:
+    image: localhost/parent-${INCLUDE_ENVFILE_LEAK_VAR:-fallback}
+    command: ["true"]
+
+include:
+  - path: child/child.yaml
+    env_file: extra.env

@@ -1,0 +1,7 @@
+name: include-projdir-nested-inherit
+
+# mid.yaml has no env_file, so its default `.env` (mid/.env) is loaded.
+# Its nested include (leaf.yaml) has no `.env` of its own; like docker
+# compose, it must still see the variables from mid/.env.
+include:
+  - path: mid/mid.yaml

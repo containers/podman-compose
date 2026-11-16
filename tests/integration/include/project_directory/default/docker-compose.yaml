@@ -1,0 +1,4 @@
+name: include-projdir-default
+
+include:
+  - sub/child.yaml

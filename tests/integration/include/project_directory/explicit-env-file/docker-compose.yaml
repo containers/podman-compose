@@ -1,0 +1,6 @@
+name: include-projdir-explicit-envfile
+
+include:
+  - path: child/child.yaml
+    project_directory: proj
+    env_file: extra.env

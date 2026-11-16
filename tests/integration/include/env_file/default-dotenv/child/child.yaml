@@ -1,0 +1,4 @@
+services:
+  defaultchild:
+    image: localhost/${INCLUDE_ENVFILE_DEFAULT_VAR:-missing}
+    command: ["true"]

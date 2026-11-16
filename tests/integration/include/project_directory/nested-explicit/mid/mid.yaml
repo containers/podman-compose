@@ -1,0 +1,11 @@
+services:
+  midservice:
+    image: localhost/mid-${TOP_PROJDIR_VAR:-unset}
+    command: ["true"]
+
+# Nested include from mid.yaml. Under broader semantics, "leaf/leaf.yaml" is
+# resolved against mid's project_directory (top_alt/) — not against mid/
+# itself. And "inner_alt" is resolved the same way, giving top_alt/inner_alt.
+include:
+  - path: leaf/leaf.yaml
+    project_directory: inner_alt

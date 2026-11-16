@@ -1,0 +1,5 @@
+name: include-projdir-explicit
+
+include:
+  - path: child/child.yaml
+    project_directory: proj

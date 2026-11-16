@@ -1,0 +1,6 @@
+services:
+  multichild:
+    image: localhost/${INCLUDE_ENVFILE_MULTI_IMG}
+    command: ["true"]
+    labels:
+      - base=${INCLUDE_ENVFILE_BASE_ONLY}

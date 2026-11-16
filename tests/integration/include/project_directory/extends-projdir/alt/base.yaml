@@ -1,0 +1,3 @@
+services:
+  webapp:
+    image: localhost/from-alt-base
