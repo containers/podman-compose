@@ -40,6 +40,7 @@ class TestComposeUpBehavior(unittest.TestCase, RunSubprocessMixin):
                 "service_name": c.get("Labels", {}).get("io.podman.compose.service", ""),
                 "config_hash": c.get("Labels", {}).get("io.podman.compose.config-hash", ""),
                 "exited": c.get("Exited"),
+                "state": c.get("State"),
             }
             for c in containers
         }
@@ -124,6 +125,135 @@ class TestComposeUpBehavior(unittest.TestCase, RunSubprocessMixin):
             self.assertTrue(
                 all([c.get("exited") is False for c in new_containers.values()]),
                 msg="Not all containers are running after up command",
+            )
+
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(change_to),
+                "down",
+                "-t",
+                "0",
+            ])
+
+    @parameterized.expand([
+        (
+            "service_change_db",
+            "service_change_base",
+            ["stop"],
+            ["up"],
+            {"db", "app"},
+            {"db", "app", "no_deps"},
+        ),
+        (
+            "service_change_db",
+            "service_change_base",
+            ["stop"],
+            ["up", "app"],
+            {"db", "app"},
+            {"db", "app"},
+        ),
+        (
+            "service_change_db",
+            "service_change_base",
+            ["stop"],
+            ["up", "db"],
+            {"db", "app"},
+            {"db"},
+        ),
+        (
+            "service_change_db",
+            "service_change_base",
+            ["stop", "app"],
+            ["up"],
+            {"db", "app"},
+            {"db", "app", "no_deps"},
+        ),
+        (
+            "service_change_db",
+            "service_change_base",
+            ["stop", "app"],
+            ["up", "app"],
+            {"db", "app"},
+            {"db", "app", "no_deps"},
+        ),
+        (
+            "service_change_db",
+            "service_change_base",
+            ["stop", "app"],
+            ["up", "db"],
+            {"db", "app"},
+            {"db", "no_deps"},
+        ),
+    ])
+    def test_recreate_on_config_changed_with_stopped_dependents(
+        self,
+        change_to: str,
+        running_scenario: str,
+        stop_args: list[str],
+        command_args: list[str],
+        expect_recreated_services: set[str],
+        expect_running_services: set[str],
+    ) -> None:
+        try:
+            self.run_subprocess_assert_returncode(
+                [podman_compose_path(), "-f", compose_yaml_path(running_scenario), "up", "-d"],
+            )
+            self.run_subprocess_assert_returncode(
+                [
+                    podman_compose_path(),
+                    "-f",
+                    compose_yaml_path(running_scenario),
+                    *stop_args,
+                    "-t",
+                    "0",
+                ],
+            )
+
+            original_containers = self.get_existing_containers(running_scenario)
+
+            self.run_subprocess_assert_returncode(
+                [
+                    podman_compose_path(),
+                    "--verbose",
+                    "-f",
+                    compose_yaml_path(change_to),
+                    *command_args,
+                    "-d",
+                ],
+            )
+
+            new_containers = self.get_existing_containers(change_to)
+            recreated_services = {
+                c.get("service_name")
+                for c in original_containers.values()
+                if new_containers.get(c.get("name"), {}).get("id") != c.get("id")
+            }
+            running_services = {
+                c.get("service_name")
+                for c in new_containers.values()
+                if c.get("state") == "running"
+            }
+
+            self.assertEqual(
+                set(new_containers),
+                set(original_containers),
+                msg=f"Expected containers: {set(original_containers)}, "
+                f"but got: {set(new_containers)}",
+            )
+            self.assertEqual(
+                recreated_services,
+                expect_recreated_services,
+                msg=f"Expected services to be recreated: {expect_recreated_services}, "
+                f"but got: {recreated_services}, containers: "
+                f"[{original_containers}, {new_containers}]",
+            )
+            self.assertEqual(
+                running_services,
+                expect_running_services,
+                msg=f"Expected services to be running: {expect_running_services}, "
+                f"but got: {running_services}, containers: {new_containers}",
             )
 
         finally:
