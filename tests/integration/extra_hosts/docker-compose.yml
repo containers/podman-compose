@@ -6,3 +6,7 @@ services:
         dockerfile: Dockerfile
         extra_hosts:
           - "example.internal:127.0.0.1"
+          - "equals.example.internal=127.0.0.1"
+      extra_hosts:
+        - "example.internal:127.0.0.1"
+        - "equals.example.internal=127.0.0.1"
