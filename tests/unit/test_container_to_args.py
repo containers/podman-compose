@@ -86,6 +86,33 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
+    async def test_extra_hosts(self) -> None:
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["extra_hosts"] = [
+            "colon.example:10.1.2.3",
+            "equals.example=10.1.2.4",
+            "ipv6.example:::1",
+        ]
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge:alias=service_name",
+                "--add-host",
+                "colon.example:10.1.2.3",
+                "--add-host",
+                "equals.example:10.1.2.4",
+                "--add-host",
+                "ipv6.example:::1",
+                "busybox",
+            ],
+        )
+
     async def test_runtime(self) -> None:
         c = create_compose_mock()
 
