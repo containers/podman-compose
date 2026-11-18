@@ -1,0 +1,1 @@
+Fixed `extra_hosts` entries written as `HOSTNAME=IP` being passed to `podman --add-host` unchanged, which Podman rejects.

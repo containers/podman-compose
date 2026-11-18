@@ -56,6 +56,30 @@ class TestContainerToBuildArgs(unittest.TestCase):
             ],
         )
 
+    def test_extra_hosts(self):
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt['build']['extra_hosts'] = ['colon.example:10.1.2.3', 'equals.example=10.1.2.4']
+        args = get_minimal_args()
+
+        args = container_to_build_args(c, cnt, args, lambda path: True)
+        self.assertEqual(
+            args,
+            [
+                '-f',
+                'Containerfile',
+                '-t',
+                'new-image',
+                '--add-host',
+                'colon.example:10.1.2.3',
+                '--add-host',
+                'equals.example:10.1.2.4',
+                '--no-cache',
+                '.',
+            ],
+        )
+
     def test_platform(self):
         c = create_compose_mock()
 
