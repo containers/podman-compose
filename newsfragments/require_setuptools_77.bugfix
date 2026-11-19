@@ -1,0 +1,1 @@
+Declare the minimum required setuptools version (77) in the build requirements, so that building with an older setuptools fails with a clear error instead of silently producing an empty `UNKNOWN-0.0.0` package.
