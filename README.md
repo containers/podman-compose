@@ -96,6 +96,28 @@ sh -c "$(curl -sSL https://raw.githubusercontent.com/containers/podman-compose/m
 
 ### Manual
 
+The manual installation downloads only the `podman_compose.py` script, so its Python dependencies
+([pyyaml](https://pypi.org/project/PyYAML/) and [python-dotenv](https://pypi.org/project/python-dotenv/))
+must be installed separately, either from PyPI:
+
+```bash
+pip3 install pyyaml python-dotenv
+```
+
+or from your distribution's package repositories, e.g. on Debian/Ubuntu:
+
+```bash
+sudo apt install python3-yaml python3-dotenv
+```
+
+or on Fedora:
+
+```bash
+sudo dnf install python3-pyyaml python3-dotenv
+```
+
+Then download the script:
+
 ```bash
 curl -o /usr/local/bin/podman-compose https://raw.githubusercontent.com/containers/podman-compose/main/podman_compose.py
 chmod +x /usr/local/bin/podman-compose
