@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*.*.*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,9 +18,15 @@ jobs:
 
       - name: Build binary
         run: |
+          set -e
           mkdir -p release/
-          docker build -t podman-compose-bin -v "$PWD/release:/result" .
-          mv "$PWD/release/podman-compose" "$PWD/release/podman-compose-linux-x86"
+          docker build -t podman-compose-bin .
+          # The Dockerfile bakes the binary into /result inside the image.
+          # docker build has no volume flag (that is podman-only), so create a
+          # container from the image and copy the file out of it instead.
+          docker create --name podman-compose-bin podman-compose-bin
+          docker cp podman-compose-bin:/result/podman-compose release/podman-compose-linux-x86
+          docker rm podman-compose-bin
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v3
