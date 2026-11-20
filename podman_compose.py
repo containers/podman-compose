@@ -4665,7 +4665,7 @@ async def compose_down(compose: PodmanCompose, args: argparse.Namespace) -> None
         await compose.podman.run([], "rm", (["--volumes"] if args.volumes else []) + [cnt["name"]])
 
     orphaned_images = set()
-    if args.remove_orphans:
+    if getattr(args, 'remove_orphans', False):
         orphaned_containers = (
             (
                 await compose.podman.output(
