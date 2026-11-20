@@ -465,3 +465,127 @@ class TestContainerToBuildArgs(unittest.TestCase):
                 '.',
             ],
         )
+
+    def test_dockerfile_inline_and_dockerfile_conflict(self) -> None:
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["build"]["dockerfile"] = "Containerfile.custom"
+        cnt["build"]["dockerfile_inline"] = "FROM busybox"
+        args = get_minimal_args()
+
+        with self.assertRaises(PodmanComposeError) as cm:
+            container_to_build_args(c, cnt, args, lambda path: True)
+        self.assertEqual(
+            str(cm.exception), "dockerfile_inline and dockerfile can't be used simultaneously"
+        )
+
+    def test_custom_dockerfile_in_context(self) -> None:
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["build"]["context"] = "./subdir"
+        cnt["build"]["dockerfile"] = "Containerfile.custom"
+        args = get_minimal_args()
+
+        args = container_to_build_args(c, cnt, args, lambda path: True)
+        self.assertEqual(
+            args,
+            ["-f", "subdir/Containerfile.custom", "-t", "new-image", "--no-cache", "./subdir"],
+        )
+
+    def test_custom_dockerfile_not_found(self) -> None:
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["build"]["context"] = "./subdir"
+        cnt["build"]["dockerfile"] = "Containerfile.custom"
+        args = get_minimal_args()
+
+        with self.assertRaises(PodmanComposeError) as cm:
+            container_to_build_args(c, cnt, args, lambda path: False)
+        self.assertEqual(str(cm.exception), "Dockerfile not found in ./subdir/Containerfile.custom")
+
+    def test_default_dockerfile_not_found(self) -> None:
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["build"]["context"] = "./subdir"
+        args = get_minimal_args()
+
+        with self.assertRaises(PodmanComposeError) as cm:
+            container_to_build_args(c, cnt, args, lambda path: False)
+        self.assertEqual(str(cm.exception), "Dockerfile not found in ./subdir")
+
+    def test_additional_contexts(self) -> None:
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["build"]["additional_contexts"] = ["ctx_a=../a", "ctx_b=docker://image"]
+        args = get_minimal_args()
+
+        args = container_to_build_args(c, cnt, args, lambda path: True)
+        self.assertEqual(
+            args,
+            [
+                "-f",
+                "Containerfile",
+                "-t",
+                "new-image",
+                "--build-context=ctx_a=../a",
+                "--build-context=ctx_b=docker://image",
+                "--no-cache",
+                ".",
+            ],
+        )
+
+    def test_build_args_from_compose_and_cli(self) -> None:
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["build"]["args"] = ["FOO=1", "BAR=2"]
+        args = get_minimal_args()
+        args.build_arg = ["BAZ=3"]
+
+        args = container_to_build_args(c, cnt, args, lambda path: True)
+        self.assertEqual(
+            args,
+            [
+                "-f",
+                "Containerfile",
+                "-t",
+                "new-image",
+                "--no-cache",
+                "--build-arg",
+                "FOO=1",
+                "--build-arg",
+                "BAR=2",
+                "--build-arg",
+                "BAZ=3",
+                ".",
+            ],
+        )
+
+    def test_build_ulimits(self) -> None:
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["build"]["ulimits"] = {"nofile": {"soft": 1024, "hard": 2048}, "nproc": 65535}
+        args = get_minimal_args()
+
+        args = container_to_build_args(c, cnt, args, lambda path: True)
+        self.assertEqual(
+            args,
+            [
+                "-f",
+                "Containerfile",
+                "-t",
+                "new-image",
+                "--ulimit",
+                "nofile=1024:2048",
+                "--ulimit",
+                "nproc=65535",
+                "--no-cache",
+                ".",
+            ],
+        )
