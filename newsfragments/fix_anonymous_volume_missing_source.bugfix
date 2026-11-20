@@ -1,0 +1,1 @@
+Fixed `KeyError: 'source'` when a service declares an anonymous volume in long syntax, where `source` is intentionally absent.
