@@ -1,0 +1,1 @@
+Fixed merging service volumes written in the long syntax, which were duplicated instead of replaced when another compose file used the same mount target.
