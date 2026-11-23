@@ -1,0 +1,1 @@
+Fixed the release workflow so it actually builds and attaches the `podman-compose-linux-x86` binary: `docker build` no longer receives the podman-only `-v` flag, the binary is copied out of the built image, and the release upload job has the `contents: write` permission it needs.
