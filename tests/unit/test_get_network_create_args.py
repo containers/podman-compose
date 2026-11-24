@@ -25,9 +25,11 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
             f"io.podman.compose.project={proj_name}",
             "--label",
             f"com.docker.compose.project={proj_name}",
+            "--label",
+            "com.docker.compose.network=backend",
             net_name,
         ]
-        args = get_network_create_args(net_desc, proj_name, net_name)
+        args = get_network_create_args(net_desc, proj_name, net_name, network_key="backend")
         self.assertEqual(args, expected_args)
 
     def test_ipv6(self) -> None:
@@ -41,10 +43,12 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
             f"io.podman.compose.project={proj_name}",
             "--label",
             f"com.docker.compose.project={proj_name}",
+            "--label",
+            "com.docker.compose.network=backend",
             "--ipv6",
             net_name,
         ]
-        args = get_network_create_args(net_desc, proj_name, net_name)
+        args = get_network_create_args(net_desc, proj_name, net_name, network_key="backend")
         self.assertEqual(args, expected_args)
 
     def test_bridge(self) -> None:
@@ -59,6 +63,8 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
             f"io.podman.compose.project={proj_name}",
             "--label",
             f"com.docker.compose.project={proj_name}",
+            "--label",
+            "com.docker.compose.network=backend",
             "--driver",
             "bridge",
             "--opt",
@@ -67,7 +73,7 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
             "opt2=value2",
             net_name,
         ]
-        args = get_network_create_args(net_desc, proj_name, net_name)
+        args = get_network_create_args(net_desc, proj_name, net_name, network_key="backend")
         self.assertEqual(args, expected_args)
 
     def test_ipam_driver_default(self) -> None:
@@ -90,6 +96,8 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
             f"io.podman.compose.project={proj_name}",
             "--label",
             f"com.docker.compose.project={proj_name}",
+            "--label",
+            "com.docker.compose.network=backend",
             "--subnet",
             "192.168.0.0/24",
             "--ip-range",
@@ -98,7 +106,7 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
             "192.168.0.1",
             net_name,
         ]
-        args = get_network_create_args(net_desc, proj_name, net_name)
+        args = get_network_create_args(net_desc, proj_name, net_name, network_key="backend")
         self.assertEqual(args, expected_args)
 
     def test_ipam_driver(self) -> None:
@@ -121,6 +129,8 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
             f"io.podman.compose.project={proj_name}",
             "--label",
             f"com.docker.compose.project={proj_name}",
+            "--label",
+            "com.docker.compose.network=backend",
             "--ipam-driver",
             "someipamdriver",
             "--subnet",
@@ -131,7 +141,7 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
             "192.168.0.1",
             net_name,
         ]
-        args = get_network_create_args(net_desc, proj_name, net_name)
+        args = get_network_create_args(net_desc, proj_name, net_name, network_key="backend")
         self.assertEqual(args, expected_args)
 
     def test_complete(self) -> None:
@@ -164,6 +174,8 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
             "label1",
             "--label",
             "label2",
+            "--label",
+            "com.docker.compose.network=backend",
             "--internal",
             "--driver",
             "bridge",
@@ -182,7 +194,7 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
             "192.168.0.1",
             net_name,
         ]
-        args = get_network_create_args(net_desc, proj_name, net_name)
+        args = get_network_create_args(net_desc, proj_name, net_name, network_key="backend")
         self.assertEqual(args, expected_args)
 
     def test_disable_dns(self) -> None:
@@ -196,10 +208,12 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
             f"io.podman.compose.project={proj_name}",
             "--label",
             f"com.docker.compose.project={proj_name}",
+            "--label",
+            "com.docker.compose.network=backend",
             "--disable-dns",
             net_name,
         ]
-        args = get_network_create_args(net_desc, proj_name, net_name)
+        args = get_network_create_args(net_desc, proj_name, net_name, network_key="backend")
         self.assertEqual(args, expected_args)
 
     def test_dns_string(self) -> None:
@@ -213,11 +227,13 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
             f"io.podman.compose.project={proj_name}",
             "--label",
             f"com.docker.compose.project={proj_name}",
+            "--label",
+            "com.docker.compose.network=backend",
             "--dns",
             "192.168.1.2",
             net_name,
         ]
-        args = get_network_create_args(net_desc, proj_name, net_name)
+        args = get_network_create_args(net_desc, proj_name, net_name, network_key="backend")
         self.assertEqual(args, expected_args)
 
     def test_dns_list(self) -> None:
@@ -231,11 +247,13 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
             f"io.podman.compose.project={proj_name}",
             "--label",
             f"com.docker.compose.project={proj_name}",
+            "--label",
+            "com.docker.compose.network=backend",
             "--dns",
             "192.168.1.2,192.168.1.3",
             net_name,
         ]
-        args = get_network_create_args(net_desc, proj_name, net_name)
+        args = get_network_create_args(net_desc, proj_name, net_name, network_key="backend")
         self.assertEqual(args, expected_args)
 
     def test_routes_string(self) -> None:
@@ -249,11 +267,13 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
             f"io.podman.compose.project={proj_name}",
             "--label",
             f"com.docker.compose.project={proj_name}",
+            "--label",
+            "com.docker.compose.network=backend",
             "--route",
             "192.168.1.0/24",
             net_name,
         ]
-        args = get_network_create_args(net_desc, proj_name, net_name)
+        args = get_network_create_args(net_desc, proj_name, net_name, network_key="backend")
         self.assertEqual(args, expected_args)
 
     def test_routes_list(self) -> None:
@@ -267,11 +287,13 @@ class TestGetNetworkCreateArgs(unittest.TestCase):
             f"io.podman.compose.project={proj_name}",
             "--label",
             f"com.docker.compose.project={proj_name}",
+            "--label",
+            "com.docker.compose.network=backend",
             "--route",
             "192.168.1.0/24",
             "--route",
             "192.168.2.0/24",
             net_name,
         ]
-        args = get_network_create_args(net_desc, proj_name, net_name)
+        args = get_network_create_args(net_desc, proj_name, net_name, network_key="backend")
         self.assertEqual(args, expected_args)

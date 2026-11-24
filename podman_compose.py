@@ -1201,7 +1201,9 @@ def norm_ports(
     return ports_out
 
 
-def get_network_create_args(net_desc: dict[str, Any], proj_name: str, net_name: str) -> list[str]:
+def get_network_create_args(
+    net_desc: dict[str, Any], proj_name: str, net_name: str, *, network_key: str
+) -> list[str]:
     args = [
         "create",
         "--label",
@@ -1213,6 +1215,7 @@ def get_network_create_args(net_desc: dict[str, Any], proj_name: str, net_name: 
     labels = net_desc.get("labels", [])
     for item in norm_as_list(labels):
         args.extend(["--label", item])
+    args.extend(["--label", f"com.docker.compose.network={network_key}"])
     if net_desc.get("internal"):
         args.append("--internal")
     driver = net_desc.get("driver")
@@ -1285,7 +1288,9 @@ async def assert_cnt_nets(compose: PodmanCompose, cnt: dict[str, Any]) -> None:
                     f"External network [{net_name}] does not exist. "
                     f"Create it first with: podman network create '{net_name}'"
                 ) from e
-            args = get_network_create_args(net_desc, compose.project_name, net_name)
+            args = get_network_create_args(
+                net_desc, compose.project_name, net_name, network_key=net
+            )
             await compose.podman.output([], "network", args)
             await compose.podman.output([], "network", ["exists", net_name])
 

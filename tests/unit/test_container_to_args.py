@@ -70,6 +70,34 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
         ):
             await container_to_args(c, cnt)
 
+    async def test_created_network_uses_compose_key_as_label(self) -> None:
+        for key, network, actual_name in (
+            ("default", {}, "test_project_name_default"),
+            ("backend", {"name": "custom-backend"}, "custom-backend"),
+        ):
+            with self.subTest(key=key):
+                c = create_compose_mock()
+                c.default_net = "default"
+                c.networks = {key: network}
+                output = mock.AsyncMock(
+                    side_effect=[
+                        subprocess.CalledProcessError(1, "podman network exists"),
+                        b"",
+                        b"",
+                    ]
+                )
+                setattr(c.podman, "output", output)
+                cnt = get_minimal_container()
+                if key != "default":
+                    cnt["networks"] = {key: {}}
+
+                await container_to_args(c, cnt)
+
+                create_args = output.await_args_list[1].args[2]
+                self.assertEqual(create_args[0], "create")
+                self.assertEqual(create_args[-1], actual_name)
+                self.assertIn(f"com.docker.compose.network={key}", create_args)
+
     async def test_minimal(self) -> None:
         c = create_compose_mock()
 
