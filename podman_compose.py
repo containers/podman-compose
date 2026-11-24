@@ -642,9 +642,12 @@ def default_network_name_for_project(compose: PodmanCompose, net: str, is_ext: A
     default_net_name_compat = compose.x_podman.get(
         PodmanCompose.XPodmanSettingKey.DEFAULT_NET_NAME_COMPAT, False
     )
+    project_name = compose.project_name
     if default_net_name_compat is True:
-        return compose.join_name_parts(compose.project_name.replace('-', ''), net)
-    return compose.format_name(net)
+        project_name = project_name.replace('-', '')
+    # docker compose separates the project and network names with "_", also when it uses "-"
+    # in container names, so name_separator_compat does not apply here
+    return f"{project_name}_{net}"
 
 
 def try_parse_bool(value: Any) -> bool | None:

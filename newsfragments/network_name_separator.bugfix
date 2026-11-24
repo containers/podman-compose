@@ -1,0 +1,1 @@
+Fixed `name_separator_compat` changing the separator in network names. Networks are named `<project>_default`, as in docker compose.
