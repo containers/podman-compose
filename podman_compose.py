@@ -4339,6 +4339,15 @@ async def wait_for_container_running_healthy(
     await wait_with_timeout(run_podman_wait(), timeout=args.wait_timeout)
 
 
+def get_no_attach_services(services: dict[str, Any], no_attach: list[str]) -> set[str]:
+    """Return services passed to --no-attach or having `attach: false`."""
+    no_attach_services = set(no_attach)
+    for service_name, service in services.items():
+        if try_parse_bool(service.get("attach", True)) is False:
+            no_attach_services.add(service_name)
+    return no_attach_services
+
+
 @cmd_run(podman_compose, "up", "Create and start the entire stack or some of its services")
 async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | None:  # pylint: disable=too-many-return-statements
     excluded = get_excluded(compose, args)
@@ -4347,6 +4356,7 @@ async def compose_up(compose: PodmanCompose, args: argparse.Namespace) -> int | 
     if unknown_no_attach_services:
         log.error("no such service: %s", sorted(unknown_no_attach_services)[0])
         return 1
+    no_attach_services = get_no_attach_services(compose.services, args.no_attach)
 
     exit_code = await prepare_images(compose, args, excluded)
     if exit_code != 0:

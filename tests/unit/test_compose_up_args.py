@@ -3,6 +3,7 @@
 import unittest
 
 from podman_compose import PodmanComposeError
+from podman_compose import get_no_attach_services
 from podman_compose import podman_compose
 
 
@@ -22,6 +23,28 @@ class TestComposeUpArgs(unittest.TestCase):
         args = podman_compose._parse_args(["up"])
 
         self.assertEqual(args.no_attach, [])
+
+    def test_services_are_attached_by_default(self) -> None:
+        services = {"web": {}, "db": {"attach": True}, "cache": {"attach": "true"}}
+
+        self.assertEqual(get_no_attach_services(services, []), set())
+
+    def test_attach_false_is_not_attached(self) -> None:
+        for value in (False, "false", "False", 0, "0"):
+            with self.subTest(value=value):
+                services = {"web": {}, "db": {"attach": value}}
+
+                self.assertEqual(get_no_attach_services(services, []), {"db"})
+
+    def test_attach_false_combines_with_no_attach(self) -> None:
+        services = {"web": {}, "db": {"attach": False}, "cache": {}}
+
+        self.assertEqual(get_no_attach_services(services, ["cache"]), {"db", "cache"})
+
+    def test_no_attach_overrides_attach_true(self) -> None:
+        services = {"web": {"attach": True}}
+
+        self.assertEqual(get_no_attach_services(services, ["web"]), {"web"})
 
     def test_wait_implies_detach(self) -> None:
         args = podman_compose._parse_args(["up", "--wait"])
