@@ -12,6 +12,7 @@ import argparse
 import asyncio.exceptions
 import asyncio.subprocess
 import codecs
+import copy
 import getpass
 import glob
 import hashlib
@@ -2450,44 +2451,85 @@ def load_yaml_or_die(file_path: str, stream: Any) -> dict[str, Any]:
 def resolve_extends(
     services: dict[str, Any], service_names: list[str], environ: dict[str, Any]
 ) -> None:
-    for name in service_names:
-        service = services[name]
+    file_services_cache: dict[str, dict[str, Any]] = {}
+
+    def load_file_services(filename: str) -> dict[str, Any]:
+        if filename not in file_services_cache:
+            with open(filename, encoding="utf-8") as f:
+                content = load_yaml_or_die(filename, f) or {}
+            if "services" in content:
+                content = content["services"]
+            file_services_cache[filename] = rec_subs(content, environ)
+        return file_services_cache[filename]
+
+    def resolve_service(
+        name: str,
+        service: dict[str, Any],
+        stack: list[tuple[str, str]],
+        file_services: dict[str, Any] | None = None,
+        subdirectory: str = "",
+        file_id: str = "",
+    ) -> dict[str, Any]:
+        """Resolve the ``extends`` chain of ``service`` and return the merged result.
+
+        ``stack`` holds the ``(file_id, service)`` pairs being resolved and is
+        used to detect cycles.
+        """
         ext = service.get("extends", {})
         if isinstance(ext, str):
             ext = {"service": ext}
         from_service_name = ext.get("service")
         if not from_service_name:
-            continue
+            return service
         filename = ext.get("file")
         if filename:
-            if filename.startswith("./"):
-                filename = filename[2:]
-            with open(filename, encoding="utf-8") as f:
-                content = load_yaml_or_die(filename, f) or {}
-            if "services" in content:
-                content = content["services"]
-            subdirectory = os.path.dirname(filename)
-            content = rec_subs(content, environ)
-            from_service = content.get(from_service_name, {}) or {}
-            # An empty service definition (``name:``) is a valid placeholder in
-            # an extended file, but any other non-mapping value would crash
-            if not isinstance(from_service, dict):
-                raise PodmanComposeError(f"services.{from_service_name} must be a mapping")
-            normalize_service(from_service, subdirectory)
+            if not os.path.isabs(filename):
+                filename = os.path.normpath(os.path.join(subdirectory, filename))
+            from_services = load_file_services(filename)
+            from_subdirectory = os.path.dirname(filename)
+            key = (filename, from_service_name)
         else:
-            from_service = services.get(from_service_name, {}).copy()
-            try:
-                del from_service["_deps"]
-            except KeyError as e:
-                raise KeyError(
-                    f"{from_service_name} not found at services.{name}.extends definition"
-                ) from e
-            try:
-                del from_service["extends"]
-            except KeyError:
-                pass
+            from_services = services if file_services is None else file_services
+            from_subdirectory = subdirectory
+            key = (file_id, from_service_name)
+
+        if key in stack:
+            chain = " -> ".join(f"{s} ({f or 'this file'})" for f, s in [*stack, key])
+            raise PodmanComposeError(f"circular extends chain detected: {chain}")
+
+        if from_service_name not in from_services:
+            where = f"file '{filename}'" if filename else "this file"
+            raise PodmanComposeError(
+                f"service '{from_service_name}' not found in {where} "
+                f"(referenced by services.{name}.extends)"
+            )
+
+        # An empty service in YAML parses to ``None``.
+        from_service = from_services[from_service_name] or {}
+        # Empty placeholders in external files are legal, other non-mappings are not.
+        if (filename or file_services is not None) and not isinstance(from_service, dict):
+            raise PodmanComposeError(f"services.{from_service_name} must be a mapping")
+        from_service = copy.deepcopy(from_service)
+        if from_subdirectory:
+            normalize_service(from_service, from_subdirectory)
+        # Recalculated by flat_deps() once all extends references are resolved.
+        for field in DependField:
+            from_service.pop(field, None)
+        from_service = resolve_service(
+            from_service_name,
+            from_service,
+            [*stack, key],
+            from_services,
+            from_subdirectory,
+            file_id=filename or file_id,
+        )
+
         new_service = rec_merge({}, from_service, service)
-        services[name] = new_service
+        new_service.pop("extends", None)
+        return new_service
+
+    for name in service_names:
+        services[name] = resolve_service(name, services[name], [])
 
 
 def dotenv_to_dict(dotenv_path: str) -> dict[str, str | None]:
