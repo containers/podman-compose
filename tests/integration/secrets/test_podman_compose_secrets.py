@@ -63,14 +63,16 @@ class TestComposeNoSecrets(unittest.TestCase, RunSubprocessMixin):
 
             output, _ = self.run_subprocess_assert_returncode(["podman", "logs", "secrets_test_1"])
             expected_output = (
-                b'/run/secrets/custom_name:important-secret-is-important\n'
+                b'/run/secrets/REMAPPED_ENV_SECRET:important-secret-is-important\n'
+                + b'/run/secrets/custom_name:important-secret-is-important\n'
+                + b'/run/secrets/environment_secret:important-secret-is-important\n'
                 + b'/run/secrets/file_secret:important-secret-is-important\n'
                 + b'/run/secrets/podman_compose_test_secret:podman_compose_test_secret\n'
                 + b'/run/secrets/podman_compose_test_secret_3:podman_compose_test_secret_3\n'
-                + b'/run/secrets/secrets_environment_secret:important-secret-is-important\n'
                 + b'/run/secrets/unused_params_warning:important-secret-is-important\n'
+                + b'CUSTOM_LOCATION:\n'
                 + b'important-secret-is-important\n'
-                + b'podman_compose_test_secret\n'
+                + b'ENV_SECRET=podman_compose_test_secret\n'
             )
             self.assertEqual(expected_output, output)
         finally:
