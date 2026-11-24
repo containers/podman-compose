@@ -75,6 +75,16 @@ def is_relative_ref(path: str) -> bool:
     )
 
 
+def is_windows_abs_path(path: str) -> bool:
+    """Check for an absolute path carrying a Windows drive letter, e.g. C:\\data"""
+    return (
+        (os.path.isabs(path) or secondarypathisabs(path))
+        and len(path) > 2
+        and path[1] == ':'
+        and path[2] in ('\\', '/')
+    )
+
+
 # identity filter
 def filteri(a: list[str]) -> list[str]:
     return list(filter(lambda i: i, a))
@@ -161,6 +171,14 @@ def strverscmp_lt(a: str, b: str) -> bool:
 
 def parse_short_mount(mount_str: str, basedir: str) -> dict[str, Any]:
     mount_a = mount_str.split(":")
+    # a Windows host path (e.g. C:\data:/data) contains a colon that belongs to the
+    # path, so its drive letter must not be split off as a field of its own
+    if (
+        len(mount_a) > 2
+        and is_windows_abs_path(f"{mount_a[0]}:{mount_a[1]}")
+        and mount_a[2].startswith("/")
+    ):
+        mount_a[0:2] = [f"{mount_a[0]}:{mount_a[1]}"]
     mount_opt_dict: dict[str, Any] = {}
     mount_opt = None
     if len(mount_a) == 1:
@@ -178,15 +196,20 @@ def parse_short_mount(mount_str: str, basedir: str) -> dict[str, Any]:
         mount_src, mount_dst, mount_opt = mount_a
     else:
         raise ValueError("could not parse mount " + mount_str)
-    if mount_src and dir_re.match(mount_src):
+    if mount_src and (dir_re.match(mount_src) or is_windows_abs_path(mount_src)):
         # Specify an absolute path mapping
         # - /opt/data:/var/lib/mysql
         # Path on the host, relative to the Compose file
         # - ./cache:/tmp/cache
         # User-relative path
         # - ~/configs:/etc/configs/:ro
+        # Windows absolute host path
+        # - C:\data:/var/lib/mysql
         mount_type = "bind"
-        if os.name != 'nt' or (os.name == 'nt' and ".sock" not in mount_src):
+        # a drive letter path is absolute already, rebasing it with the rules of
+        # another platform would corrupt it (e.g. C:\data -> /dirname/C:\data)
+        foreign_abs_path = is_windows_abs_path(mount_src) and os.name != 'nt'
+        if not foreign_abs_path and (os.name != 'nt' or ".sock" not in mount_src):
             mount_src = os.path.abspath(os.path.join(basedir, os.path.expanduser(mount_src)))
     else:
         # Named volume
