@@ -72,3 +72,8 @@ class TestComposeUpArgs(unittest.TestCase):
         args = podman_compose._parse_args(["up", "--wait", "--wait-timeout", "0"])
 
         self.assertEqual(args.wait_timeout, 0)
+
+    def test_pull_accepts_build(self) -> None:
+        args = podman_compose._parse_args(["up", "--pull=build"])
+
+        self.assertEqual(args.pull, "build")

@@ -384,6 +384,25 @@ class TestContainerToBuildArgs(unittest.TestCase):
             ],
         )
 
+    def test_pull_build_not_forwarded(self):
+        c = create_compose_mock()
+        cnt = get_minimal_container()
+        args = get_minimal_args()
+        args.pull = 'build'
+
+        args = container_to_build_args(c, cnt, args, lambda path: True)
+        self.assertEqual(
+            args,
+            [
+                '-f',
+                'Containerfile',
+                '-t',
+                'new-image',
+                '--no-cache',
+                '.',
+            ],
+        )
+
     def test_containerfile_in_context(self):
         c = create_compose_mock()
 
