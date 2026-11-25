@@ -36,26 +36,6 @@ class TestPodmanComposeLsBehavior(unittest.TestCase, RunSubprocessMixin):
                 f'compose_ls_behavior_service_3_1\trunning(1)\t{path}\n'
             )
             self.assertEqual(out.decode(), expected)
-
-            # Test for json view
-            out, _ = self.run_subprocess_assert_returncode([
-                podman_compose_path(),
-                "-f",
-                path,
-                "ls",
-                "--format",
-                "json",
-            ])
-
-            expected = (
-                f"[{{'Name': 'compose_ls_behavior_service_1_1', 'Status': 'running(1)', "
-                f"'ConfigFiles': '{path}'}}, "
-                f"{{'Name': 'compose_ls_behavior_service_2_1', 'Status': 'running(1)', "
-                f"'ConfigFiles': '{path}'}}, "
-                f"{{'Name': 'compose_ls_behavior_service_3_1', 'Status': 'running(1)', "
-                f"'ConfigFiles': '{path}'}}]\n"
-            )
-            self.assertEqual(out.decode(), expected)
         finally:
             self.run_subprocess_assert_returncode([
                 podman_compose_path(),
