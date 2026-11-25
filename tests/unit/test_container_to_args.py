@@ -1246,6 +1246,39 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
+    @parameterized.expand(["host", "private"])
+    async def test_cgroup_modes(self, cgroup_mode: str) -> None:
+        """Pass the cgroup namespace mode on as --cgroupns parameter"""
+
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["cgroup"] = cgroup_mode
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge:alias=service_name",
+                "--cgroupns",
+                cgroup_mode,
+                "busybox",
+            ],
+        )
+
+    async def test_cgroup_invalid_mode(self) -> None:
+        """Throw ValueError on invalid cgroup mode"""
+
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["cgroup"] = "invalid"
+
+        with self.assertRaisesRegex(ValueError, r"invalid cgroup mode"):
+            await container_to_args(c, cnt)
+
     @parameterized.expand(["invalid", (["a list", "is invalid too"],)])
     async def test_ipc_invalid_mode(self, ipc_mode: Any) -> None:
         """Throw ValueError on invalid ipc mode"""
