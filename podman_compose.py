@@ -1436,6 +1436,19 @@ def get_net_args_from_networks(compose: PodmanCompose, cnt: dict[str, Any]) -> l
     return net_args
 
 
+def extra_host_to_add_host(extra_host: str) -> str:
+    """
+    Convert a compose ``extra_hosts`` entry to the form ``podman --add-host`` accepts.
+
+    The compose spec allows both ``HOSTNAME=IP`` (preferred) and ``HOSTNAME:IP``, but Podman
+    only understands the colon separator.
+    """
+    hostname, sep, ip = extra_host.partition("=")
+    if not sep:
+        return extra_host
+    return f"{hostname}:{ip}"
+
+
 async def container_to_args(
     compose: PodmanCompose, cnt: dict[str, Any], detached: bool = True, no_deps: bool = False
 ) -> list[str]:
@@ -1538,7 +1551,7 @@ async def container_to_args(
     for secret in cnt.get("secrets", []):
         podman_args.extend(get_secret_args(compose, cnt, secret))
     for i in cnt.get("extra_hosts", []):
-        podman_args.extend(["--add-host", i])
+        podman_args.extend(["--add-host", extra_host_to_add_host(i)])
     for i in cnt.get("expose", []):
         podman_args.extend(["--expose", i])
     if cnt.get("publishall"):
@@ -3817,7 +3830,7 @@ def container_to_build_args(
     for secret in build_desc.get("secrets", []):
         build_args.extend(get_secret_args(compose, cnt, secret, podman_is_building=True))
     for i in build_desc.get("extra_hosts", []):
-        build_args.extend(["--add-host", i])
+        build_args.extend(["--add-host", extra_host_to_add_host(i)])
     for tag in build_desc.get("tags", []):
         build_args.extend(["-t", tag])
     labels = build_desc.get("labels", [])
