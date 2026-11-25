@@ -416,7 +416,7 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_environment_secret_run_raises(self) -> None:
+    async def test_environment_secret_run(self) -> None:
         c = create_compose_mock()
         c.declared_secrets = {'my_secret': {'environment': 'MY_VAR'}}
         cnt = get_minimal_container()
@@ -431,7 +431,7 @@ class TestContainerToArgsSecrets(unittest.IsolatedAsyncioTestCase):
                 '-d',
                 '--network=bridge:alias=service_name',
                 '--secret',
-                'test_project_name_my_secret',
+                'test_project_name_my_secret,target=/run/secrets/my_secret',
                 'busybox',
             ],
         )
