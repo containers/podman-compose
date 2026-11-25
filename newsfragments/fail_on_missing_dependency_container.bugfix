@@ -1,0 +1,1 @@
+`up` now fails with an error instead of waiting forever when a dependency's container does not exist, for example because creating it failed.

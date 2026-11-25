@@ -305,6 +305,31 @@ class TestComposeConditionalDeps(unittest.TestCase, RunSubprocessMixin):
                 "0",
             ])
 
+    def test_deps_missing_container_fails(self) -> None:
+        suffix = "-conditional-missing"
+        try:
+            _, stderr = self.run_subprocess_assert_returncode(
+                [
+                    podman_compose_path(),
+                    "-f",
+                    compose_yaml_path(suffix),
+                    "up",
+                    "-d",
+                ],
+                1,
+                timeout=60,
+            )
+            self.assertIn(b"Dependency container deps_never_created_1 does not exist", stderr)
+        finally:
+            self.run_subprocess_assert_returncode([
+                podman_compose_path(),
+                "-f",
+                compose_yaml_path(suffix),
+                "down",
+                "-t",
+                "0",
+            ])
+
     def test_deps_stopped(self) -> None:
         suffix = "-conditional-stopped"
         try:
