@@ -1,0 +1,1 @@
+Fixed `healthcheck.test` being appended to instead of replaced when merging compose files.
