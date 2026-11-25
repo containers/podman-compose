@@ -2339,6 +2339,16 @@ def clone(value: Any) -> Any:
     return value.copy() if is_list(value) or isinstance(value, dict) else value
 
 
+def volume_mount_target(volume: Any) -> str | None:
+    """Return the container path of a short or long syntax service volume."""
+    if isinstance(volume, dict):
+        target = volume.get("target")
+        return target if isinstance(target, str) else None
+    if isinstance(volume, str) and ":" in volume:
+        return volume.split(":", 2)[1]
+    return None
+
+
 def rec_merge_one(target: dict[str, Any], source: dict[str, Any]) -> dict[str, Any]:
     """
     update target from source recursively
@@ -2413,10 +2423,8 @@ def rec_merge_one(target: dict[str, Any], source: dict[str, Any]) -> dict[str, A
         if is_list(value2):
             if key == "volumes":
                 # clean duplicate mount targets
-                pts = {v.split(":", 2)[1] for v in value2 if ":" in v}
-                del_ls = [
-                    ix for (ix, v) in enumerate(value) if ":" in v and v.split(":", 2)[1] in pts
-                ]
+                pts = {t for t in map(volume_mount_target, value2) if t is not None}
+                del_ls = [ix for (ix, v) in enumerate(value) if volume_mount_target(v) in pts]
                 for ix in reversed(del_ls):
                     del value[ix]
                 value.extend(value2)
