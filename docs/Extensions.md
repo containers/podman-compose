@@ -187,7 +187,8 @@ This setting can also be changed by setting the `PODMAN_COMPOSE_DOCKER_COMPOSE_C
 
 Currently, podman-compose is using underscores (`_` character) as a separator in names of
 containers, images, etc., while docker-compose has switched to hyphens (`-` character). This setting
-allows you to switch podman-compose to use hyphens as well.
+allows you to switch podman-compose to use hyphens as well. Network names keep the underscore
+(`<project>_default`), as in docker-compose.
 
 To enable compatibility between docker-compose and podman-compose, specify
 `name_separator_compat: true` under global `x-podman` key:
