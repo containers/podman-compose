@@ -1,0 +1,44 @@
+version: "3.8"
+services:
+    test:
+      image: busybox
+      command:
+        - /tmp/print_configs.sh
+      tmpfs:
+        - /run
+        - /tmp
+      volumes:
+        - ./print_configs.sh:/tmp/print_configs.sh:z
+      configs:
+        - podman_compose_test_config
+        - source: podman_compose_test_config_2
+          target: /podman_compose_test_config_2
+        - file_config
+        - source: file_config
+          target: /etc/custom_location
+        - source: file_config
+          # warning about unsupported "uid", "gid", "mode" fields
+          target: /unused_params_warning
+          uid: '103'
+          gid: '103'
+          mode: 400
+        - content_config
+        - content_config_with_var
+        - environment_config
+
+configs:
+  podman_compose_test_config:
+    external: true
+  podman_compose_test_config_2:
+    external: true
+    name: podman_compose_test_config_2
+  file_config:
+    file: ./my_config
+  content_config:
+    content: |
+      config-from-content
+  content_config_with_var:
+    content: |
+      config-with-${CONFIG_VAR}
+  environment_config:
+    environment: CONFIG_ENV
