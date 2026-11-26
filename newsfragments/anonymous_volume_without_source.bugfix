@@ -1,0 +1,1 @@
+Fix `KeyError: 'source'` when a long-syntax volume has no `source` (anonymous volume).
