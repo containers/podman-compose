@@ -51,22 +51,22 @@ class TestPodmanCompose(unittest.TestCase, RunSubprocessMixin):
             self.run_subprocess_assert_returncode(up_cmd)
 
             port = self.run_subprocess_assert_returncode(port_cmd + ["web1", "8000"])
-            self.assertEqual(port[0].decode().strip(), "8000")
+            self.assertEqual(port[0].decode().strip(), "0.0.0.0:8000")
 
             port = self.run_subprocess_assert_returncode(port_cmd + ["web1", "8001"])
             self.assertNotEqual(port[0].decode().strip(), "8001")
 
             port = self.run_subprocess_assert_returncode(port_cmd + ["web2", "8002"])
-            self.assertEqual(port[0].decode().strip(), "8002")
+            self.assertEqual(port[0].decode().strip(), "0.0.0.0:8002")
 
             port = self.run_subprocess_assert_returncode(port_cmd + udp_arg + ["web2", "8003"])
-            self.assertEqual(port[0].decode().strip(), "8003")
+            self.assertEqual(port[0].decode().strip(), "127.0.0.1:8003")
 
             port = self.run_subprocess_assert_returncode(port_cmd + ["web2", "8004"])
-            self.assertEqual(port[0].decode().strip(), "8004")
+            self.assertEqual(port[0].decode().strip(), "127.0.0.1:8004")
 
             port = self.run_subprocess_assert_returncode(port_cmd + tcp_arg + ["web2", "8005"])
-            self.assertEqual(port[0].decode().strip(), "8005")
+            self.assertEqual(port[0].decode().strip(), "0.0.0.0:8005")
 
             port = self.run_subprocess_assert_returncode(port_cmd + udp_arg + ["web2", "8006"])
             self.assertNotEqual(port[0].decode().strip(), "8006")
