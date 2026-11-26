@@ -1,0 +1,1 @@
+Fixed the SELinux relabel flags `z` and `Z` given in the short volume syntax being dropped for named volumes. Short-syntax named volumes with a relabel flag are passed with `-v`, which keeps them working on older Podman releases too.

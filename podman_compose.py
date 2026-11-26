@@ -862,6 +862,7 @@ def get_mnt_dict(
 async def get_mount_args(
     compose: PodmanCompose, cnt: dict[str, Any], volume: str | dict[str, Any]
 ) -> list[str]:
+    short_syntax = isinstance(volume, str)
     volume = get_mnt_dict(compose, cnt, volume)
     srv_name = cnt["_service"]
     mount_type = volume["type"]
@@ -871,6 +872,16 @@ async def get_mount_args(
     #
     mount_over_volume_needed = {"image", "glob", "volume"}
     await assert_volume(compose, volume)
+    # Podman 4.3 rejects z/Z on --mount type=volume, but accepts them on -v.
+    # Use -v only when it can express the entire named-volume mount.
+    relabel = set(filteri(volume.get("bind", {}).get("propagation", "").split(",")))
+    if (
+        short_syntax
+        and mount_type == "volume"
+        and relabel.intersection({"z", "Z"})
+        and not volume.get("volume", {}).get("subpath")
+    ):
+        return ["-v", mount_desc_to_volume_args(volume, srv_name)]
     if compose.prefer_volume_over_mount and mount_type not in mount_over_volume_needed:
         if mount_type == "tmpfs":
             # TODO: --tmpfs /tmp:rw,size=787448k,mode=1777
