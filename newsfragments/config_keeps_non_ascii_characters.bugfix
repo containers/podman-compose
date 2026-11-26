@@ -1,0 +1,1 @@
+Fixed `podman-compose config` escaping non-ASCII characters, so values such as accented bind mount paths print literally instead of as `\xE9` escapes.
