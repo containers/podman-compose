@@ -268,6 +268,27 @@ x-podman:
 This setting can also be changed by setting `PODMAN_COMPOSE_IN_POD` environment
 variable.
 
+`in_pod` accepts these values:
+- `true` (default): the containers are put in a pod named `pod_<project name>`.
+- `false`: no pod is used.
+- any other value: the containers are put in a pod with that name. If the pod
+  does not exist yet, it is created.
+
+For example, the following docker-compose.yml puts the containers in a pod named `mypod`:
+```yml
+services:
+    cont:
+        image: nopush/podman-compose-test
+        command: ["dumb-init", "/bin/busybox", "httpd", "-f", "-p", "8080"]
+
+x-podman:
+    in_pod: mypod
+```
+
+Use `in_pod` to set the pod name, not `--name` in `pod_args`. podman-compose
+names the pod itself, so a `--name` in `pod_args` makes the pod name differ
+from the name the containers are looking for, and the containers are not created.
+
 It is also possible to override the default arguments for pod creation that are
 used when --pod-args is not passed on the command line:
 ```yml
