@@ -5057,6 +5057,16 @@ async def compose_logs(compose: PodmanCompose, args: argparse.Namespace) -> None
         task = create_format_logs_task(compose, args, service, podman_args, max_service_length)
         if task:
             tasks.append(task)
+
+    def handle_sigint() -> None:
+        # Stop the log tasks so that Ctrl+C exits cleanly instead of with a traceback
+        for task in tasks:
+            task.cancel()
+
+    if sys.platform != 'win32':
+        loop = asyncio.get_running_loop()
+        loop.add_signal_handler(signal.SIGINT, handle_sigint)
+
     await asyncio.gather(*tasks)
 
 
