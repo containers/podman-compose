@@ -1,0 +1,1 @@
+Fixed `logs -f` printing a traceback when stopped with Ctrl+C.
