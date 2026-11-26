@@ -667,6 +667,58 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
+    @parameterized.expand([
+        ("z", "volname:/mnt:z"),
+        ("Z", "volname:/mnt:Z"),
+        ("ro,z", "volname:/mnt:z,ro"),
+    ])
+    async def test_selinux_named_volume_short_syntax(
+        self, selinux_type: str, expected_volume_arg: str
+    ) -> None:
+        c = create_compose_mock()
+        c.vols = {"volname": {"name": "volname"}}
+
+        cnt = get_minimal_container()
+
+        # This is supposed to happen during `_parse_compose_file`
+        # but that is probably getting skipped during testing
+        cnt["_service"] = cnt["service_name"]
+
+        cnt["volumes"] = [f"volname:/mnt:{selinux_type}"]
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "-v",
+                expected_volume_arg,
+                "--network=bridge:alias=service_name",
+                "busybox",
+            ],
+        )
+
+    async def test_long_syntax_named_volume_with_relabel_keeps_mount(self) -> None:
+        c = create_compose_mock()
+        c.vols = {"volname": {"name": "volname"}}
+        cnt = get_minimal_container()
+        cnt["_service"] = cnt["service_name"]
+        cnt["volumes"] = [
+            {
+                "type": "volume",
+                "source": "volname",
+                "target": "/mnt",
+                "bind": {"propagation": "z"},
+            }
+        ]
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args[2:4],
+            ["--mount", "type=volume,source=volname,destination=/mnt,z"],
+        )
+
     async def test_volumes_glob_mount_source(self) -> None:
         c = create_compose_mock()
         cnt = get_minimal_container()

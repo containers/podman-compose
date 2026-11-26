@@ -753,6 +753,14 @@ def mount_desc_to_mount_args(mount_desc: dict[str, Any]) -> str:
         selinux = bind_opts.get("selinux")
         if selinux is not None:
             opts.append(selinux)
+    else:
+        # The short syntax parser stores a z/Z relabel flag as a bind propagation,
+        # but relabeling applies to every mount type, so forward it here as
+        # mount_desc_to_volume_args() already does for the -v syntax.
+        bind_opts = mount_desc.get("bind", {})
+        for opt in filteri(bind_opts.get("propagation", "").split(",")):
+            if opt in ("z", "Z"):
+                opts.append(opt)
 
     # According to compose specifications https://docs.docker.com/reference/compose-file/services/#volumes
     # subpath can be used in image and volume mount type
@@ -855,6 +863,7 @@ def get_mnt_dict(
 async def get_mount_args(
     compose: PodmanCompose, cnt: dict[str, Any], volume: str | dict[str, Any]
 ) -> list[str]:
+    short_syntax = isinstance(volume, str)
     volume = get_mnt_dict(compose, cnt, volume)
     srv_name = cnt["_service"]
     mount_type = volume["type"]
@@ -864,6 +873,16 @@ async def get_mount_args(
     #
     mount_over_volume_needed = {"image", "glob", "volume"}
     await assert_volume(compose, volume)
+    # Podman 4.3 rejects z/Z on --mount type=volume, but accepts them on -v.
+    # Use -v only when it can express the entire named-volume mount.
+    relabel = set(filteri(volume.get("bind", {}).get("propagation", "").split(",")))
+    if (
+        short_syntax
+        and mount_type == "volume"
+        and relabel.intersection({"z", "Z"})
+        and not volume.get("volume", {}).get("subpath")
+    ):
+        return ["-v", mount_desc_to_volume_args(volume, srv_name)]
     if compose.prefer_volume_over_mount and mount_type not in mount_over_volume_needed:
         if mount_type == "tmpfs":
             # TODO: --tmpfs /tmp:rw,size=787448k,mode=1777
