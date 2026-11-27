@@ -2907,19 +2907,9 @@ class PodmanCompose:
         target = [target_service] if target_service else target_services or []
 
         compose: dict[str, Any] = {}
-        # Iterate over files primitively to allow appending to files in-loop
-        files_iter = iter(files)
-        # Track files appended by ``include:`` so we can resolve their
-        # relative paths against the included file's directory per the
-        # Compose Spec, without changing the legacy merge behavior of
-        # files passed directly via ``-f``.
-        include_origin_files: set[str] = set()
 
-        while True:
-            try:
-                filename = next(files_iter)
-            except StopIteration:
-                break
+        def merge_file(filename: str, included: bool) -> None:
+            nonlocal project_name
 
             if filename.strip().split('/')[-1] == '-':
                 content = load_yaml_or_die(filename, sys.stdin)
@@ -2941,7 +2931,7 @@ class PodmanCompose:
             # project root (Compose Spec, ``include`` section). Pass that as
             # sub_dir so volumes / env_file / build.context get rewritten.
             file_sub_dir = ""
-            if filename in include_origin_files:
+            if included:
                 file_dir = os.path.dirname(os.path.abspath(filename))
                 file_sub_dir = os.path.relpath(file_dir, self.dirname)
                 if file_sub_dir == ".":
@@ -2985,9 +2975,8 @@ class PodmanCompose:
                                 os.path.dirname(filename), service_file
                             )
 
-            rec_merge(compose, content)
-            # If `include` is used, append included files to files
-            include = compose.get("include")
+            # Merge included files first, so the including file and later `-f` files override them
+            include = content.pop("include", None)
             if include is not None:
                 # Validate that `include` is a list. If it were a dict, iterating it
                 # would yield its keys (strings), causing bogus file paths
@@ -3014,14 +3003,14 @@ class PodmanCompose:
                         raise RuntimeError(
                             "Items in `include` must be strings or dictionaries with a 'path' key"
                         )
-                files.extend(new_includes)
-                include_origin_files.update(new_includes)
-                # As compose obj is updated and tested with every loop, not deleting `include`
-                # from it, results in it being tested again and again, original values for
-                # `include` be appended to `files`, and, included files be processed for ever.
-                # Solution is to remove 'include' key from compose obj. This doesn't break
-                # having `include` present and correctly processed in included files
-                del compose["include"]
+                for included_file in new_includes:
+                    merge_file(included_file, included=True)
+
+            rec_merge(compose, content)
+
+        for filename in files:
+            merge_file(filename, included=False)
+
         merged_services = compose.get("services")
         if merged_services is not None:
             validate_service_definitions(merged_services)
