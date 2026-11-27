@@ -11,6 +11,7 @@ from podman_compose import ResetTag
 from podman_compose import normalize
 from podman_compose import normalize_service
 from podman_compose import validate_service_definitions
+from podman_compose import validate_x_podman_systemd
 
 
 class TestNormalizeService(unittest.TestCase):
@@ -242,3 +243,38 @@ class TestValidateServiceDefinitions(unittest.TestCase):
         with self.assertRaises(PodmanComposeError) as context:
             normalize({"services": "just-a-string"})
         self.assertEqual("services must be a mapping", str(context.exception))
+
+
+class TestValidateXPodmanSystemd(unittest.TestCase):
+    @parameterized.expand([
+        ("bool_true", True),
+        ("bool_false", False),
+        ("string_true", "true"),
+        ("string_false", "false"),
+        ("string_always", "always"),
+        ("capitalized_always", "Always"),
+        ("upper_case_false", "FALSE"),
+    ])
+    def test_valid_value_passes(self, test_name: str, value: Any) -> None:
+        validate_x_podman_systemd({"web": {"image": "alpine", "x-podman.systemd": value}})
+
+    def test_service_without_key_passes(self) -> None:
+        validate_x_podman_systemd({"web": {"image": "alpine"}})
+
+    @parameterized.expand([
+        ("none", None, "None"),
+        ("empty_string", "", "''"),
+        ("unknown_string", "error", "'error'"),
+        ("number", 1, "1"),
+        ("list", ["always"], "['always']"),
+    ])
+    def test_invalid_value_raises(self, test_name: str, value: Any, shown: str) -> None:
+        with self.assertRaises(PodmanComposeError) as context:
+            validate_x_podman_systemd({
+                "web": {"image": "alpine"},
+                "bad": {"image": "alpine", "x-podman.systemd": value},
+            })
+        self.assertEqual(
+            f"services.bad.x-podman.systemd must be true, false or always, got {shown}",
+            str(context.exception),
+        )

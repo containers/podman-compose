@@ -18,6 +18,11 @@ container is assumed to be managed externally.
 
 * `x-podman.passwd` - Allow Podman to add entries to /etc/passwd and /etc/group when used in conjunction with the --user option. Defaults to true.
 
+* `x-podman.systemd` - Run the container in systemd mode: `true`, `false` or `always`. Podman's
+default is `true`: systemd mode is used only when the command is `systemd` or an `init` binary
+(`/sbin/init`, `/usr/sbin/init`, `/usr/local/sbin/init`). Use `always` when the command runs
+systemd in another way (for example through a wrapper script).
+
 For example, the following docker-compose.yml allows running a podman container with externally managed rootfs.
 ```yml
 version: "3"

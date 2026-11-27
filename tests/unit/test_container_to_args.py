@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import unittest
 from typing import Any
+from typing import Union
 from unittest import mock
 
 from parameterized import parameterized
@@ -302,6 +303,33 @@ class TestContainerToArgs(unittest.IsolatedAsyncioTestCase):
                 "-d",
                 "--network=bridge:alias=service_name",
                 "--passwd=false",
+                "busybox",
+            ],
+        )
+
+    @parameterized.expand([
+        ("bool_true", True, "--systemd=true"),
+        ("bool_false", False, "--systemd=false"),
+        ("string_true", "true", "--systemd=true"),
+        ("string_always", "always", "--systemd=always"),
+        ("capitalized_always", "Always", "--systemd=Always"),
+    ])
+    async def test_systemd_extension(
+        self, name: str, value: Union[bool, str], expected: str
+    ) -> None:
+        c = create_compose_mock()
+
+        cnt = get_minimal_container()
+        cnt["x-podman.systemd"] = value
+
+        args = await container_to_args(c, cnt)
+        self.assertEqual(
+            args,
+            [
+                "--name=project_name_service_name1",
+                "-d",
+                "--network=bridge:alias=service_name",
+                expected,
                 "busybox",
             ],
         )
