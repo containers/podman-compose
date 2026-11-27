@@ -90,3 +90,136 @@ class TestIncludeDict(unittest.TestCase):
         with self.assertRaises(RuntimeError) as cm:
             self.podman_compose._parse_compose_file()
         self.assertEqual(str(cm.exception), exception_msg)
+
+    def test_parse_compose_file_include_overridden_by_later_file(self) -> None:
+        self.write_yaml(
+            "test-compose-include.yaml",
+            {"services": {"db": {"image": "ubuntu", "command": ["run", "test"]}}},
+        )
+        self.write_yaml("test-compose-main.yaml", {"include": ["./test-compose-include.yaml"]})
+        self.write_yaml(
+            "test-compose-override.yaml",
+            {"services": {"db": {"image": "debian", "command": ["run", "ALL", "test"]}}},
+        )
+        self.podman_compose.global_args.file = [
+            "test-compose-main.yaml",
+            "test-compose-override.yaml",
+        ]
+
+        self.podman_compose._parse_compose_file()
+
+        db = self.podman_compose.services["db"]
+        self.assertEqual(db["image"], "debian")
+        self.assertEqual(db["command"], ["run", "ALL", "test"])
+
+    def test_parse_compose_file_nested_include_overridden_by_later_file(self) -> None:
+        self.write_yaml(
+            "test-compose-include-2.yaml",
+            {"services": {"db": {"image": "ubuntu", "command": ["run", "test"]}}},
+        )
+        self.write_yaml("test-compose-include.yaml", {"include": ["./test-compose-include-2.yaml"]})
+        self.write_yaml("test-compose-main.yaml", {"include": ["./test-compose-include.yaml"]})
+        self.write_yaml("test-compose-override.yaml", {"services": {"db": {"image": "debian"}}})
+        self.podman_compose.global_args.file = [
+            "test-compose-main.yaml",
+            "test-compose-override.yaml",
+        ]
+
+        self.podman_compose._parse_compose_file()
+
+        db = self.podman_compose.services["db"]
+        self.assertEqual(db["image"], "debian")
+        self.assertEqual(db["command"], ["run", "test"])
+
+    def test_parse_compose_file_include_in_several_files(self) -> None:
+        self.write_yaml("test-compose-include.yaml", {"services": {"db": {"image": "ubuntu"}}})
+        self.write_yaml("test-compose-main.yaml", {"include": ["./test-compose-include.yaml"]})
+        self.write_yaml(
+            "test-compose-include-2.yaml",
+            {"services": {"db": {"image": "alpine"}, "web": {"image": "nginx:alpine"}}},
+        )
+        # The second file overrides a service included by the first file,
+        # and includes a file of its own, which it also overrides
+        self.write_yaml(
+            "test-compose-override.yaml",
+            {
+                "include": ["./test-compose-include-2.yaml"],
+                "services": {"db": {"image": "debian"}},
+            },
+        )
+        self.podman_compose.global_args.file = [
+            "test-compose-main.yaml",
+            "test-compose-override.yaml",
+        ]
+
+        self.podman_compose._parse_compose_file()
+
+        self.assertEqual(self.podman_compose.services["db"]["image"], "debian")
+        self.assertEqual(self.podman_compose.services["web"]["image"], "nginx:alpine")
+
+    def test_parse_compose_file_include_overridden_by_including_file(self) -> None:
+        self.write_yaml(
+            "test-compose-include.yaml",
+            {"services": {"db": {"image": "ubuntu", "command": ["run", "test"]}}},
+        )
+        self.write_yaml(
+            "test-compose-main.yaml",
+            {
+                "include": ["./test-compose-include.yaml"],
+                "services": {"db": {"image": "debian"}},
+            },
+        )
+
+        self.podman_compose._parse_compose_file()
+
+        db = self.podman_compose.services["db"]
+        self.assertEqual(db["image"], "debian")
+        self.assertEqual(db["command"], ["run", "test"])
+
+    def test_parse_compose_file_same_include_in_several_files(self) -> None:
+        self.write_yaml("test-compose-include.yaml", {"services": {"db": {"image": "ubuntu"}}})
+        self.write_yaml("test-compose-main.yaml", {"include": ["./test-compose-include.yaml"]})
+        self.write_yaml(
+            "test-compose-override.yaml",
+            {
+                "include": ["./test-compose-include.yaml"],
+                "services": {"db": {"image": "debian"}},
+            },
+        )
+        self.podman_compose.global_args.file = [
+            "test-compose-main.yaml",
+            "test-compose-override.yaml",
+        ]
+
+        self.podman_compose._parse_compose_file()
+
+        self.assertEqual(self.podman_compose.services["db"]["image"], "debian")
+
+    def test_parse_compose_file_include_in_later_file_overrides_earlier_files(self) -> None:
+        self.write_yaml("test-compose-include.yaml", {"services": {"db": {"image": "ubuntu"}}})
+        self.write_yaml("test-compose-main.yaml", {"services": {"db": {"image": "debian"}}})
+        self.write_yaml("test-compose-override.yaml", {"include": ["./test-compose-include.yaml"]})
+        self.podman_compose.global_args.file = [
+            "test-compose-main.yaml",
+            "test-compose-override.yaml",
+        ]
+
+        self.podman_compose._parse_compose_file()
+
+        self.assertEqual(self.podman_compose.services["db"]["image"], "ubuntu")
+
+    def test_parse_compose_file_include_path_list_order(self) -> None:
+        self.write_yaml("test-compose-include.yaml", {"services": {"db": {"image": "ubuntu"}}})
+        self.write_yaml("test-compose-include-2.yaml", {"services": {"db": {"image": "debian"}}})
+        self.write_yaml(
+            "test-compose-main.yaml",
+            {
+                "include": [
+                    {"path": ["./test-compose-include.yaml", "./test-compose-include-2.yaml"]}
+                ]
+            },
+        )
+
+        self.podman_compose._parse_compose_file()
+
+        self.assertEqual(self.podman_compose.services["db"]["image"], "debian")
