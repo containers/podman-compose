@@ -1707,6 +1707,9 @@ async def container_to_args(
     if "x-podman.passwd" in cnt:
         # --passwd defaults to true
         podman_args.extend([f"--passwd={'false' if not cnt['x-podman.passwd'] else 'true'}"])
+    if "x-podman.systemd" in cnt:
+        systemd = x_podman_systemd_value(cnt["service_name"], cnt["x-podman.systemd"])
+        podman_args.append(f"--systemd={systemd}")
     rootfs = cnt.get('x-podman.rootfs')
     if rootfs is not None:
         rootfs_mode = True
@@ -2159,6 +2162,31 @@ def validate_service_definitions(services: Any) -> None:
             continue
         if not isinstance(config, dict):
             raise PodmanComposeError(f"services.{name} must be a mapping")
+
+
+def x_podman_systemd_value(service_name: str, value: Any) -> str:
+    """
+    Return the ``x-podman.systemd`` value as podman's ``--systemd`` option expects it.
+    """
+    # YAML parses unquoted true/false as booleans
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    # podman ignores the letter case of --systemd values
+    if isinstance(value, str) and value.lower() in ("true", "false", "always"):
+        return value
+    raise PodmanComposeError(
+        f"services.{service_name}.x-podman.systemd must be true, false or always, got {value!r}"
+    )
+
+
+def validate_x_podman_systemd(services: dict[str, Any]) -> None:
+    """
+    Check ``x-podman.systemd`` before anything is created, so that ``up`` does not
+    stop halfway through and ``config`` reports the bad value.
+    """
+    for name, config in services.items():
+        if "x-podman.systemd" in config:
+            x_podman_systemd_value(name, config["x-podman.systemd"])
 
 
 def normalize_service(service: dict[str, Any], sub_dir: str = "") -> dict[str, Any]:
@@ -3058,6 +3086,8 @@ class PodmanCompose:
         service_names = sorted([(len(srv["_deps"]), name) for name, srv in services.items()])
         resolve_extends(services, [name for _, name in service_names], self.environ)
         flat_deps(services)
+        # After resolve_extends, to also check values that come from `extends: file:`
+        validate_x_podman_systemd(services)
 
         # networks: [...]
         nets = compose.get("networks") or {}
